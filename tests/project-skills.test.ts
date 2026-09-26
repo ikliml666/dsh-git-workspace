@@ -105,3 +105,13 @@ it('carries empty resource directories and preserves later content instead of di
   expect((await store.state(target))?.paths).toContain(`${directory}/result.txt`)
   await expect(store.assertRemovable(target, new Set())).rejects.toThrow(/modified/)
 })
+
+it('accepts a skill root that is itself a tracked file (symlink placeholder)', async () => {
+  const { source, target, store } = await fixture()
+  // Windows checks a committed symlink out as a plain-text placeholder file.
+  await mkdir(join(source, '.claude'), { recursive: true })
+  await writeFile(join(source, '.claude/skills'), '../.agents/skills')
+  await store.carry(await store.snapshot(source), target)
+  expect(await readFile(join(target, '.claude/skills'), 'utf8')).toBe('../.agents/skills')
+  expect(await store.state(target)).toMatchObject({ modified: false })
+})

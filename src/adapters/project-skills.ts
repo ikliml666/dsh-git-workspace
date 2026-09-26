@@ -15,7 +15,9 @@ const digest = (data: string | Buffer) => createHash('sha256').update(data).dige
 const missing = (error: unknown) => (error as NodeJS.ErrnoException).code === 'ENOENT'
 const failure = (message: string) => new Error(`Project Skills: ${message}`)
 function safePath(path: string): boolean {
-  return PROJECT_SKILL_ROOTS.some(root => path.startsWith(`${root}/`))
+  // A skill root may itself be a tracked file (e.g. a symlink-placeholder
+  // checked out as plain text on Windows); accept the root verbatim.
+  return PROJECT_SKILL_ROOTS.some(root => path === root || path.startsWith(`${root}/`))
     && path.split('/').every(part => part.length > 0 && part !== '.' && part !== '..' && !/[\\:\x00-\x1f]/.test(part))
 }
 async function identity(path: string): Promise<string> {
@@ -174,7 +176,7 @@ export class ProjectSkillStore {
     const files = manifest.files.filter(file => !tracked.has(file.path))
     const hashes: string[] = []
     let modified = false
-    const roots = [...ownedSkillDirectories(manifest.files, manifest.directories), ...files.filter(file => file.path.split('/').length === 3).map(file => file.path)]
+    const roots = [...ownedSkillDirectories(manifest.files, manifest.directories), ...files.filter(file => file.path.split('/').length <= 3).map(file => file.path)]
     for (const directory of manifest.directories ?? []) {
       const present = await inspectPath(root, directory) && (await lstat(join(root, directory))).isDirectory()
       modified ||= !present
