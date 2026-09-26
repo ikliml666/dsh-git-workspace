@@ -31,7 +31,11 @@ const RETENTIONS = new Set<WorktreeRetentionMode>(['cleanup', 'retain_24h', 'ret
 const usage = () => hostMessage('usageWorktreeStatusListContinueNextFinalizeReviewIdRevision')
 
 function finishedText(result: Extract<Awaited<ReturnType<SessionCheckoutModule['operate']>>, { status: 'finished' }>): string {
-  return hostMessage('finishedCommittedFileSAsCleanup', { p0: result.changedFiles.length, p1: result.commitOid?.slice(0, 7) ?? hostMessage('commandNoOp'), p2: result.cleanup })
+  const base = hostMessage('finishedCommittedFileSAsCleanup', { p0: result.changedFiles.length, p1: result.commitOid?.slice(0, 7) ?? hostMessage('commandNoOp'), p2: result.cleanup })
+  if (!result.push || result.push.status === 'pushed') {
+    return result.push ? `${base} ${hostMessage('autoPushOutcome', { p0: hostMessage('autoPushPushed') })}` : base
+  }
+  return `${base} ${hostMessage('autoPushOutcome', { p0: result.push.status === 'skipped' ? result.push.message ?? '' : hostMessage('autoPushFailed', { p0: result.push.message ?? '' }) })}`
 }
 
 /** Register the `/worktree` command. */

@@ -374,6 +374,12 @@ export interface SessionCheckoutPreviewDetachedResult {
   attemptedAction: 'rollback_preview' | 'finalize_preview' | 'discard'
 }
 
+/** Best-effort outcome of the automatic `git push` after a successful Finish. */
+export interface WorktreePushOutcome {
+  status: 'pushed' | 'skipped' | 'failed'
+  message?: string
+}
+
 export interface SessionCheckoutFinishedResult {
   status: 'finished'
   target: SessionTargetView
@@ -384,6 +390,8 @@ export interface SessionCheckoutFinishedResult {
   cleanup: 'discarded' | 'pending' | 'retained'
   cleanupMessage?: string
   cleanupReason?: WorktreeCleanupReason
+  /** Present when automatic push is enabled; failures never block the delivery. */
+  push?: WorktreePushOutcome
 }
 
 export type ManagedWorktreeCleanupEligibility = 'safe' | 'retained' | 'blocked'

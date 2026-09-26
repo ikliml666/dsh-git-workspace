@@ -23,6 +23,7 @@ import type {
   WorktreeDeliveryProofView,
   WorktreeRetentionMode,
   WorktreeCheckpointView,
+  WorktreePushOutcome,
 } from './types.js'
 import { SessionCheckoutError } from './index.js'
 import { WorktreeCreationFailure } from './creation-failure.js'
@@ -31,6 +32,7 @@ import { checkpointGenerationForRecord } from './checkpoint.js'
 import {
   createManagedWorktreePathCandidates,
   createManagedWorktreeRepositoryKey,
+  createTopicDateStamp,
 } from './managed-worktree-path.js'
 import type {
   IsolatedTargetLaunch,
@@ -55,6 +57,7 @@ import type {
   ManagedWorktreeReviewRecord,
   SessionBindingRecord,
   SessionCheckoutDependencies,
+  SessionCheckoutGitPort,
   SessionCheckoutProjectRecord,
   SessionCheckoutSessionRecord,
 } from './ports.js'
@@ -104,6 +107,20 @@ async function withCleanupTimeout<T>(
     ])
   } finally {
     if (timeoutHandle) clearTimeout(timeoutHandle)
+  }
+}
+
+/** Local adaptation: best-effort automatic push; failures degrade to a result note. */
+async function pushLocalBranchBestEffort(
+  push: NonNullable<SessionCheckoutGitPort['pushBranch']>,
+  localRoot: string,
+): Promise<WorktreePushOutcome> {
+  try {
+    const result = await push(localRoot)
+    if (result.ok) return { status: 'pushed' }
+    return { status: 'failed', message: result.message }
+  } catch (error) {
+    return { status: 'failed', message: error instanceof Error ? error.message : String(error) }
   }
 }
 
@@ -859,7 +876,9 @@ export function createSessionCheckoutModule(
     } else if (record.delivery.state === 'preview_detached') {
       lines.push('Delivery state: Preview detached after Local drift. Do not mutate Local or the Worktree; the user must retry rollback, and Discard remains blocked until recovery succeeds.')
     } else if (record.delivery.state === 'working') {
-      lines.push('Delivery state: Working. When implementation and validation are complete, put the complete report only in worktree_ready_for_review and call it as the final model tool. Do not duplicate that report in ordinary assistant prose; at most one short sentence may point the user to the bottom acceptance bar.')
+      lines.push(dependencies.autoDeliver
+        ? 'Delivery state: Working. When implementation and validation are complete, call worktree_deliver as the final model tool: put the complete report only in its report parameter (commitMessage carries the commit wording). It commits the Worktree snapshot to Local, automatically pushes the Local branch when enabled, and cleans this Worktree up. Do not duplicate that report in ordinary assistant prose. Use worktree_ready_for_review only when the user explicitly asks to review before saving.'
+        : 'Delivery state: Working. When implementation and validation are complete, put the complete report only in worktree_ready_for_review and call it as the final model tool. Do not duplicate that report in ordinary assistant prose; at most one short sentence may point the user to the bottom acceptance bar.')
     } else if (record.delivery.state === 'delivered') {
       lines.push('Delivery state: Delivered and cleaned. If the user requests new code or file changes in this conversation, call worktree_begin_next_iteration first; it safely recreates this Session immutable cwd for the next iteration. Do not call worktree_create.')
     } else if (record.delivery.state === 'retained') {
@@ -3121,6 +3140,14 @@ export function createSessionCheckoutModule(
       return operationError('checkout_missing', hostMessage('theTaskCommitWasCreatedButTheCheckoutRecord'))
     }
     const retention = input.retention ?? 'cleanup'
+    // Local adaptation: best-effort automatic push of the Local branch right
+    // after the delivery commit. Never force-pushes; a failure is reported on
+    // the result and never blocks cleanup or the finished state.
+    const push: WorktreePushOutcome | undefined = dependencies.autoPush
+      && finishResult.commitOid
+      && dependencies.git.pushBranch
+      ? await pushLocalBranchBestEffort(dependencies.git.pushBranch, applying.localRoot)
+      : undefined
     if (retention !== 'cleanup') {
       const retained = retainFinalized(finalized, retention)
       if (!retained) return operationError('checkout_missing', hostMessage('theTaskCommitWasCreatedButSavingTheRetained'))
@@ -3130,6 +3157,7 @@ export function createSessionCheckoutModule(
         changedFiles: finishResult.changedFiles,
         commitOid: finishResult.commitOid,
         cleanup: 'retained',
+        ...(push ? { push } : {}),
       }
     }
     const cleanup = await cleanupFinalized(finalized)
@@ -3141,6 +3169,7 @@ export function createSessionCheckoutModule(
       cleanup: cleanup.cleaned ? 'discarded' : 'pending',
       ...(cleanup.message ? { cleanupMessage: cleanup.message } : {}),
       ...(cleanup.reason ? { cleanupReason: cleanup.reason } : {}),
+      ...(push ? { push } : {}),
     }
   }
 
@@ -3884,6 +3913,7 @@ export function createSessionCheckoutModule(
     createAttempt = 0,
     requestStartedAt = Date.now(),
     sourceSessionId = sessionId,
+    createOptions?: { topic?: string },
   ): Promise<SessionTargetView> {
       const session = requireSession(sourceSessionId)
       let nextIteration = 1
@@ -3959,6 +3989,10 @@ export function createSessionCheckoutModule(
         repositoryKey,
         checkoutId,
         identityLength,
+        ...(dependencies.worktreesRoot ? { worktreesRoot: dependencies.worktreesRoot } : {}),
+        ...(dependencies.worktreesRoot && createOptions?.topic
+          ? { topic: createOptions.topic, dateStamp: createTopicDateStamp() }
+          : {}),
       }))
       // Prefer one repository-owned sibling container so Local never sees its
       // managed worktrees as untracked. A container that is a file/symlink is
@@ -4001,7 +4035,7 @@ export function createSessionCheckoutModule(
       }
       if (containerIdentity === null) {
         if (usingSibling) {
-          return bindTarget(sessionId, choice, createAttempt + 1, requestStartedAt, sourceSessionId)
+          return bindTarget(sessionId, choice, createAttempt + 1, requestStartedAt, sourceSessionId, createOptions)
         }
         throw new SessionCheckoutError(
           'checkout_mismatch',
@@ -4013,7 +4047,7 @@ export function createSessionCheckoutModule(
         .find(candidate => !dependencies.files.exists(candidate))
       if (managedGitRoot === undefined) {
         if (usingSibling) {
-          return bindTarget(sessionId, choice, createAttempt + 1, requestStartedAt, sourceSessionId)
+          return bindTarget(sessionId, choice, createAttempt + 1, requestStartedAt, sourceSessionId, createOptions)
         }
         throw new SessionCheckoutError(
           'checkout_mismatch',
@@ -4136,7 +4170,7 @@ export function createSessionCheckoutModule(
         dependencies.registry.write(failedRegistry)
 
         if (createAttempt < 1) {
-          return bindTarget(sessionId, choice, createAttempt + 1, requestStartedAt, sourceSessionId)
+          return bindTarget(sessionId, choice, createAttempt + 1, requestStartedAt, sourceSessionId, createOptions)
         }
         throw new SessionCheckoutError('git_operation_failed', hostMessage('worktreeCreationFailedTheRemainingDirectoryWasSafelyCleaned'))
       }
@@ -4159,7 +4193,7 @@ export function createSessionCheckoutModule(
       const requestStartedAt = Date.now()
       return withBindingLock(() => bindTarget(sessionId, choice, 0, requestStartedAt))
     },
-    createIsolatedTarget: (sourceSessionId, targetSessionId) => withBindingLock(async () => {
+    createIsolatedTarget: (sourceSessionId, targetSessionId, createOptions) => withBindingLock(async () => {
       if (!targetSessionId || targetSessionId === sourceSessionId) {
         throw new SessionCheckoutError('invalid_input', hostMessage('anIsolatedTargetRequiresASeparatePreallocatedSessionID'))
       }
@@ -4172,7 +4206,7 @@ export function createSessionCheckoutModule(
       } else if (sourceBinding.target.kind !== 'local') {
         throw new SessionCheckoutError('operation_not_allowed', hostMessage('aNewIsolatedTargetCanOnlyBeCreatedFrom'))
       }
-      const target = await bindTarget(targetSessionId, { kind: 'isolated' }, 0, Date.now(), sourceSessionId)
+      const target = await bindTarget(targetSessionId, { kind: 'isolated' }, 0, Date.now(), sourceSessionId, createOptions)
       const binding = getPersistedBinding(targetSessionId)
       const record = binding?.target.kind === 'isolated'
         ? dependencies.registry.read().managedCheckouts[binding.target.checkoutId]

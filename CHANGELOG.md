@@ -4,6 +4,23 @@
 
 ## [Unreleased]
 
+## [0.9.3-local.1] - 2026-09-26
+
+本地适配版本：在 `0.9.3` 基础上按个人 Git 工作流（agent 完成即自合、统一 worktree 根目录、大规模仓库长超时、Workspace 接管显式 opt-in）调整行为。上游合并时可能产生冲突，取舍以本地需求为准。
+
+### Added
+
+- `worktree_deliver` 模型工具：agent 无需人工预览确认即可原地完成验收（`finish`），自动提交到 Local 当前分支；`ready_for_review` 状态缺省沿用 Review 建议提交信息并锁定对应 reviewId，`working` 状态必须显式提供 `commitMessage`；可选 `retention`（默认 `cleanup`）与 `report`。
+- 配置项 `autoDeliver`（默认 `true`）：启用后 working 态运行时提示引导 agent 调用 `worktree_deliver` 而非 `worktree_ready_for_review`。
+- 配置项 `autoPush`（默认 `true`）：`finish` 成功后对 Local 当前分支执行 best-effort `git push`（绝不 `--force`）；无本地分支、无上游或推送失败只记录结果，不阻断验收。结果通过 `SessionCheckoutFinishedResult.push`（`pushed`/`skipped`/`failed`）暴露，并在 `/worktree` 完成文案中展示。
+- 配置项 `worktreesRoot`：设置后受管 worktree 统一落到 `<worktreesRoot>/<repoKey|repoLabel>/<主题>-<YYYYMMDD>` 布局；`worktree_create` 新增可选 `topic` 参与命名（未设置 `worktreesRoot` 或未提供主题时保持上游默认命名）。
+- 配置项 `enableWorkspaceProvider`（默认 `false`）：Workspace 接管改为显式 opt-in；未开启时插件不再禁用官方 ui-workspace，规避"启用后无法开启新对话"的接管失配问题。开启仍需重启 DSH 生效。
+
+### Compatibility
+
+- 默认配置下（`enableWorkspaceProvider: false`）官方 Workspace 保持启用，Worktree 模型工具与命令照常可用；此前依赖插件自动接管官方 Workspace 的用户需显式设置 `enableWorkspaceProvider: true` 并重启。
+- `gitTimeoutMs`/`worktreeAddTimeoutMs` 沿用上游 `0.9.3` 的 120s/300s 默认值（上游 #7 已修复），本地未再调整。
+
 ## [0.9.3] - 2026-09-25
 
 `0.9.3` 适配 Harness 新旧协议与三版官方 Workspace Browser，同时修复隔离源码开发安装及预会话草稿迁移。新版 Host 的验证仍有明确边界；本次发布不等于宣布所有 Harness 版本完整兼容。

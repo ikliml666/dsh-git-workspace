@@ -33,7 +33,12 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
   ctx.tools.register(defineTool({
     name: 'worktree_create',
     description: hostRegistrationMessage('reserveAUniqueManagedGitWorktreeAndADistinct'),
-    parameters: {},
+    parameters: {
+      topic: {
+        type: 'string',
+        description: hostRegistrationMessage('optionalTopicForHumanReadableWorktreeNaming'),
+      },
+    },
     output: {
       schema: {
         type: 'object',
@@ -50,11 +55,12 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
       },
       render: (_args, value) => renderJson(value),
     },
-    async execute(_args, exec) {
+    async execute(args, exec) {
       return withHostLanguage(languageForInvocation(exec.agent, ctx), async () => {
         const sourceSessionId = sessionIdOf(exec.agent)
         const targetSessionId = randomUUID()
-        const launch = await module.createIsolatedTarget(sourceSessionId, targetSessionId)
+        const topic = typeof args?.topic === 'string' && args.topic.trim() ? args.topic.trim() : undefined
+        const launch = await module.createIsolatedTarget(sourceSessionId, targetSessionId, topic ? { topic } : undefined)
         return {
           kind: 'worktree_target_created',
           checkoutId: launch.target.checkout.id,
@@ -295,5 +301,91 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
       })
     },
     presentCall: () => ({ card: 'generic', title: hostRegistrationMessage('readyForWorktreeReview'), kind: 'other', rawInput: {} }),
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'worktree_deliver',
+    description: hostRegistrationMessage('worktreeDeliverDescription'),
+    parameters: {
+      commitMessage: {
+        type: 'string',
+        description: hostRegistrationMessage('worktreeDeliverCommitMessage'),
+      },
+      retention: {
+        type: 'string',
+        enum: ['cleanup', 'retain_24h', 'retain_3d', 'retain_manual'],
+        description: hostRegistrationMessage('worktreeDeliverRetention'),
+      },
+      report: {
+        type: 'string',
+        description: hostRegistrationMessage('worktreeDeliverReport'),
+      },
+    },
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          kind: { type: 'string', required: true },
+          state: { type: 'string', required: true },
+          commitOid: { type: 'string' },
+          changedFiles: { type: 'array', required: true, items: { type: 'string' } },
+          cleanup: { type: 'string', required: true },
+          push: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              status: { type: 'string', required: true },
+              message: { type: 'string' },
+            },
+          },
+          report: { type: 'string' },
+        },
+      },
+      render: (_args, value) => renderJson(value),
+    },
+    async execute(args, exec) {
+      return withHostLanguage(languageForInvocation(exec.agent, ctx), async () => {
+        const sessionId = sessionIdOf(exec.agent)
+        const current = await module.inspect(sessionId)
+        const deliveryState = current.delivery?.state
+        if (deliveryState !== 'working' && deliveryState !== 'ready_for_review') {
+          throw new Error(hostMessage('worktreeDeliverNotAllowedInState', { p0: deliveryState ?? 'unknown' }))
+        }
+        let commitMessage = typeof args?.commitMessage === 'string' ? args.commitMessage.trim() : ''
+        let expectedReviewId: string | undefined
+        if (deliveryState === 'ready_for_review') {
+          expectedReviewId = current.delivery!.review.reviewId
+          if (!commitMessage) commitMessage = current.delivery!.review.suggestedCommitMessage.trim()
+        }
+        if (!commitMessage) {
+          throw new Error(hostMessage('worktreeDeliverRequiresCommitMessage'))
+        }
+        const result = await module.operate({
+          sessionId,
+          expectedRevision: current.revision,
+          action: 'finish',
+          commitMessage,
+          retention: (args?.retention ?? 'cleanup') as 'cleanup' | 'retain_24h' | 'retain_3d' | 'retain_manual',
+          ...(expectedReviewId ? { expectedReviewId } : {}),
+        })
+        if (result.status !== 'finished') {
+          const detail = result.status === 'error' ? result.message
+            : result.status === 'conflict' ? `${result.code}: ${result.conflictingFiles.join(', ')}`
+            : result.status
+          throw new Error(hostMessage('worktreeDeliverUnexpectedResult', { p0: detail }))
+        }
+        return {
+          kind: 'worktree_delivered',
+          state: result.target.delivery?.state ?? 'unknown',
+          ...(result.commitOid ? { commitOid: result.commitOid } : {}),
+          changedFiles: result.changedFiles,
+          cleanup: result.cleanup,
+          ...(result.push ? { push: { status: result.push.status, ...(result.push.message ? { message: result.push.message } : {}) } } : {}),
+          ...(typeof args?.report === 'string' && args.report.trim() ? { report: args.report.trim() } : {}),
+        }
+      })
+    },
+    presentCall: () => ({ card: 'generic', title: hostRegistrationMessage('deliverWorktreeChangesNow'), kind: 'other', rawInput: {} }),
   }))
 }

@@ -23,7 +23,16 @@ const UNLOADING: FiberState = 5
 export async function mountWorkspaceProviderLifecycle(
   ctx: Context,
   flavor: WorkspaceClientFlavor = hostWorkspaceClientFlavor(),
+  options: { enabled?: boolean } = {},
 ): Promise<void> {
+  // Local adaptation: taking over the official Workspace is strictly opt-in.
+  // Unless explicitly enabled, the service is never provided, so the bundled
+  // conditional patch evaluates to false and the official Workspace stays
+  // active — this avoids the historical "cannot open a new conversation" lock.
+  if (!options.enabled) {
+    ctx.logger.info('Workspace takeover disabled (enableWorkspaceProvider is not true); official ui-workspace stays active.')
+    return
+  }
   if (flavor === 'unsupported') {
     ctx.logger.warn('No pinned Workspace Browser for this Host generation; leaving the official Workspace provider active.')
     return

@@ -77,6 +77,12 @@ export interface SessionCheckoutGitPort {
   releaseInternalArtifacts(localRoot: string, checkoutId: string, artifactPrefix?: string): Promise<void>
   /** Read-only ancestry proof; only accepts host-verified checkout roots and OIDs. */
   isAncestor(root: string, ancestorOid: string, descendantOid: string): Promise<boolean>
+  /**
+   * Local adaptation: best-effort `git push` of the given worktree's current
+   * branch. Never force-pushes; never rewrites remote history. Returns the
+   * human-readable failure instead of throwing so callers can degrade softly.
+   */
+  pushBranch?(root: string): Promise<{ ok: boolean; message?: string }>
 }
 
 export interface DirectoryIdentity {
@@ -376,4 +382,14 @@ export interface SessionCheckoutDependencies {
   applyEngine: SessionCheckoutApplyEngine
   managedCheckoutsRoot: string
   createCheckoutId(): string
+  /** Local adaptation: after a successful Finish, push the Local branch (default false upstream). */
+  autoPush?: boolean
+  /** Local adaptation: agent-autonomous delivery; switches the Working-state guidance to worktree_deliver. */
+  autoDeliver?: boolean
+  /**
+   * Local adaptation: when set, managed Worktrees live under this root instead
+   * of the state directory, using `<worktreesRoot>/<project>/<topic>-<YYYYMMDD>`
+   * naming whenever the agent supplies a topic.
+   */
+  worktreesRoot?: string
 }

@@ -1010,6 +1010,62 @@ export const hostMessages = {
     "zh": "提交 Worktree 验收",
     "en": "Ready for Worktree review"
   },
+  "deliverWorktreeChangesNow": {
+    "zh": "交付 Worktree 变更",
+    "en": "Deliver Worktree changes"
+  },
+  "worktreeDeliverDescription": {
+    "zh": "立即把当前 Worktree 快照交付到 Local：提交任务改动（按需自动推送 Local 分支）并清理 Worktree。可在 Working 或 Ready for Review 状态调用；这是完成实现与验证后的最终模型工具。",
+    "en": "Deliver the current Worktree snapshot to Local now: commit the task changes (auto-push the Local branch when enabled) and clean the Worktree up. Callable from Working or Ready for Review state; this is the final model tool after implementation and validation are complete."
+  },
+  "worktreeDeliverCommitMessage": {
+    "zh": "交付提交信息（1-500 字符）。Ready for Review 状态下缺省使用评审的 suggestedCommitMessage。",
+    "en": "Commit message for the delivery (1-500 chars). In Ready for Review state it defaults to the review's suggestedCommitMessage."
+  },
+  "worktreeDeliverRetention": {
+    "zh": "交付后的保留策略：cleanup（默认）交付后立即删除 Worktree；retain_24h / retain_3d / retain_manual 保留冻结环境。",
+    "en": "Retention after delivery: cleanup (default) removes the Worktree immediately; retain_24h / retain_3d / retain_manual keep the frozen environment."
+  },
+  "worktreeDeliverReport": {
+    "zh": "面向用户的完整交付报告（Markdown），随交付结果返回，不写入提交。",
+    "en": "Complete user-facing delivery report (Markdown), returned with the delivery result; not written into the commit."
+  },
+  "optionalTopicForHumanReadableWorktreeNaming": {
+    "zh": "可选的主题名：设置后 Worktree 目录命名为 <主题>-<YYYYMMDD>（需宿主配置 worktreesRoot）。",
+    "en": "Optional topic: when the host configures worktreesRoot, the Worktree directory is named <topic>-<YYYYMMDD>."
+  },
+  "worktreeDeliverUnexpectedResult": {
+    "zh": "worktree_deliver 未返回预期结果: {p0}",
+    "en": "worktree_deliver did not return the expected result: {p0}"
+  },
+  "worktreeDeliverRequiresCommitMessage": {
+    "zh": "worktree_deliver 需要提交信息（1-500 字符）；当前状态没有可用的 suggestedCommitMessage。",
+    "en": "worktree_deliver requires a commit message (1-500 chars); the current state has no suggestedCommitMessage to fall back to."
+  },
+  "worktreeDeliverNotAllowedInState": {
+    "zh": "当前状态（{p0}）不能交付：先完成实现，或在 Working/Ready for Review 状态调用。",
+    "en": "Cannot deliver in the current state ({p0}): finish the implementation first, or call worktree_deliver in Working or Ready for Review state."
+  },
+  "autoPushOutcome": {
+    "zh": "自动推送：{p0}",
+    "en": "Auto push: {p0}"
+  },
+  "autoPushPushed": {
+    "zh": "已推送当前分支到上游",
+    "en": "pushed the current branch to its upstream"
+  },
+  "autoPushFailed": {
+    "zh": "推送失败（不影响交付）: {p0}",
+    "en": "push failed (delivery unaffected): {p0}"
+  },
+  "pushSkippedNoLocalBranch": {
+    "zh": "Local 处于分离 HEAD 状态，已跳过推送",
+    "en": "Local HEAD is detached; push skipped"
+  },
+  "pushSkippedNoUpstream": {
+    "zh": "分支 {p0} 没有上游，已跳过推送",
+    "en": "branch {p0} has no upstream; push skipped"
+  },
   "checkoutPhase": {
     "zh": "检出：{p0}（{p1}，阶段 {p2}）",
     "en": "checkout: {p0} ({p1}, phase {p2})"

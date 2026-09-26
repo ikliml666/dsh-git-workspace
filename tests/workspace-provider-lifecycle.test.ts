@@ -27,7 +27,7 @@ function entries(disabled: boolean): EntryOptions[] {
   ], message => { throw new Error(message) })
 }
 
-async function boot(data: EntryOptions[], replayDisabled = false, delayedImport?: string, childEntries?: EntryOptions[], failApply = false, unsupported = false) {
+async function boot(data: EntryOptions[], replayDisabled = false, delayedImport?: string, childEntries?: EntryOptions[], failApply = false, unsupported = false, takeoverEnabled = true) {
   const dir = mkdtempSync(join(tmpdir(), 'workspace-provider-'))
   const paths = new Map<string, string>()
   for (const [index, name] of [OFFICIAL, WORKTREE, 'group-owner', 'fixture-include'].entries()) {
@@ -52,7 +52,7 @@ async function boot(data: EntryOptions[], replayDisabled = false, delayedImport?
       if (name === delayedImport) await new Promise(resolve => setTimeout(resolve, 20))
       return name === 'fixture-include' ? Include : name === 'group-owner' ? Group : name === WORKTREE
         ? { inject: { loader: { await: false } }, async apply(ctx: Context) {
-          await mountWorkspaceProviderLifecycle(ctx, unsupported ? 'unsupported' : 'legacy')
+          await mountWorkspaceProviderLifecycle(ctx, unsupported ? 'unsupported' : 'legacy', { enabled: takeoverEnabled })
           if (failApply) throw new Error('fixture: replacement initialization failed')
         } }
         : { apply() {} }
@@ -94,6 +94,12 @@ describe('Workspace provider lifecycle (real Cordis Loader and Web module regist
 
   test('an unknown Host generation leaves the official Workspace active', async () => {
     const { ctx, graph } = await boot(entries(false), false, undefined, undefined, false, true)
+    expect(graph()).toContain(OFFICIAL)
+    expect(ctx.get('worktreeWorkspaceProvider')).toBeUndefined()
+  })
+
+  test('takeover is opt-in: an enabled Worktree entry without enableWorkspaceProvider keeps the official Workspace', async () => {
+    const { ctx, graph } = await boot(entries(false), false, undefined, undefined, false, false, false)
     expect(graph()).toContain(OFFICIAL)
     expect(ctx.get('worktreeWorkspaceProvider')).toBeUndefined()
   })

@@ -322,6 +322,23 @@ export function createDshGitPort(ctx: Context, options: GitPortOptions): Session
       if (result.code === 1) return false
       throw new Error(result.stderr || hostMessage('cannotProveGitCommitAncestry'))
     },
+    pushBranch: async (root) => {
+      // Local adaptation: push the checked-out branch to its configured
+      // upstream. Plain `git push` never rewrites remote history; a missing
+      // upstream or rejected push is reported, never forced.
+      const head = await runSessionGit(root, ['symbolic-ref', '--quiet', 'HEAD'])
+      if (head.code !== 0 || !head.stdout.startsWith('refs/heads/')) {
+        return { ok: false, message: hostMessage('pushSkippedNoLocalBranch') }
+      }
+      const branch = head.stdout.slice('refs/heads/'.length).trim()
+      const upstream = await runSessionGit(root, ['rev-parse', '--abbrev-ref', '--symbolic-full-name', `${branch}@{upstream}`])
+      if (upstream.code !== 0 || !upstream.stdout) {
+        return { ok: false, message: hostMessage('pushSkippedNoUpstream', { p0: branch }) }
+      }
+      const pushed = await runSessionGit(root, ['push', branch])
+      if (pushed.code === 0) return { ok: true }
+      return { ok: false, message: (pushed.stderr || pushed.stdout || hostMessage('gitOperationFailedGit', { p0: 'push', p1: '' })).trim() }
+    },
   }
   return Object.assign(port, initialCommitActions(port.inspect, runSessionGit))
 }

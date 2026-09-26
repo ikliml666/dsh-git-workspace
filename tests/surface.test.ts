@@ -28,7 +28,7 @@ const readyTarget: SessionTargetView = {
 }
 
 describe('public surfaces', () => {
-  test('model tools expose creation, scoped listing, same-session iteration, and a schema-valid Ready for Review result', () => {
+  test('model tools expose creation, scoped listing, same-session iteration, delivery, and a schema-valid Ready for Review result', () => {
     const tools: Array<{
       name: string
       output?: { schema?: { properties?: Record<string, { type?: string; required?: boolean }> } }
@@ -42,6 +42,7 @@ describe('public surfaces', () => {
       'worktree_resume_revision',
       'worktree_begin_next_iteration',
       'worktree_ready_for_review',
+      'worktree_deliver',
     ])
     const readyTool = tools.find(tool => tool.name === 'worktree_ready_for_review')
     expect(readyTool?.output?.schema?.properties?.iteration).toEqual({ type: 'number' })
@@ -175,5 +176,75 @@ describe('public surfaces', () => {
       retention: 'retain_24h',
       expectedReviewId: 'review-1',
     })
+  })
+
+  test('deliver model tool finishes the delivery in place with auto-push passthrough', async () => {
+    const tools: Array<{ name: string; execute: (args: unknown, exec: unknown) => Promise<unknown> }> = []
+    const working: SessionTargetView = { ...readyTarget, revision: 8, delivery: { state: 'working', iteration: 1 } }
+    const delivered: SessionTargetView = {
+      ...working,
+      dirty: false,
+      delivery: { state: 'delivered', iteration: 1, commitOid: 'c'.repeat(40), deliveredAt: 2 },
+    }
+    const operate = vi.fn(async () => ({
+      status: 'finished' as const,
+      target: delivered,
+      changedFiles: ['src/index.ts'],
+      commitOid: 'c'.repeat(40),
+      cleanup: 'cleanup' as const,
+      push: { status: 'pushed' as const },
+    }))
+    const module = { inspect: vi.fn(async () => working), operate } as unknown as SessionCheckoutModule
+    registerTools({ tools: { register: (tool: typeof tools[number]) => { tools.push(tool) } } } as never, module)
+    const tool = tools.find(candidate => candidate.name === 'worktree_deliver')
+    if (!tool) throw new Error('deliver tool was not registered')
+
+    const result = await tool.execute(
+      { commitMessage: 'feat: done', retention: 'retain_24h', report: 'all green' },
+      { agent: { session: { id: 'target-session' } } },
+    )
+
+    expect(operate).toHaveBeenCalledWith({
+      sessionId: 'target-session',
+      expectedRevision: 8,
+      action: 'finish',
+      commitMessage: 'feat: done',
+      retention: 'retain_24h',
+    })
+    expect(result).toMatchObject({
+      kind: 'worktree_delivered',
+      state: 'delivered',
+      commitOid: 'c'.repeat(40),
+      cleanup: 'cleanup',
+      push: { status: 'pushed' },
+      report: 'all green',
+    })
+  })
+
+  test('deliver model tool defaults the commit message from the review and pins the review id', async () => {
+    const tools: Array<{ name: string; execute: (args: unknown, exec: unknown) => Promise<unknown> }> = []
+    const operate = vi.fn(async () => ({
+      status: 'finished' as const,
+      target: readyTarget,
+      changedFiles: ['src/index.ts'],
+      commitOid: 'c'.repeat(40),
+      cleanup: 'cleanup' as const,
+    }))
+    const module = { inspect: vi.fn(async () => readyTarget), operate } as unknown as SessionCheckoutModule
+    registerTools({ tools: { register: (tool: typeof tools[number]) => { tools.push(tool) } } } as never, module)
+    const tool = tools.find(candidate => candidate.name === 'worktree_deliver')
+    if (!tool) throw new Error('deliver tool was not registered')
+
+    const result = await tool.execute({}, { agent: { session: { id: 'target-session' } } })
+
+    expect(operate).toHaveBeenCalledWith({
+      sessionId: 'target-session',
+      expectedRevision: 7,
+      action: 'finish',
+      commitMessage: 'fix: exact reviewed message',
+      retention: 'cleanup',
+      expectedReviewId: 'review-1',
+    })
+    expect(result).toMatchObject({ kind: 'worktree_delivered', state: 'ready_for_review' })
   })
 })

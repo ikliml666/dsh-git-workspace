@@ -109,7 +109,7 @@ export interface SessionCheckoutModule {
   ): Promise<T>
   bind(sessionId: string, choice: SessionTargetBindChoice): Promise<SessionTargetView>
   /** Reserve a distinct owner session and checkout without changing the source session cwd/identity. */
-  createIsolatedTarget(sourceSessionId: string, targetSessionId: string): Promise<IsolatedTargetLaunch>
+  createIsolatedTarget(sourceSessionId: string, targetSessionId: string, createOptions?: { topic?: string }): Promise<IsolatedTargetLaunch>
   /** Recreate a cleaned delivered owner's immutable cwd as the next isolated iteration. */
   beginNextIteration(sessionId: string, expectedRevision: number): Promise<SessionTargetView>
   /** Invalidate an unsynced review and resume the same iteration without touching Local. */
@@ -168,6 +168,7 @@ import { DEFAULT_GIT_TIMEOUT_MS, MAX_GIT_TIMEOUT_MS, validateGitTimeouts, type G
 import { createNodeFilesPort } from './adapters/files.js'
 import { AtomicJsonCheckoutRegistry } from './adapters/registry.js'
 import { mountWorkspaceProviderLifecycle } from './workspace-provider-lifecycle.js'
+import { hostWorkspaceClientFlavor } from './host-compat.js'
 import { createDshLookupPort } from './adapters/lookup.js'
 import { createSessionCheckoutApplyEngine } from './session-checkout-apply.js'
 import { createSessionCheckoutModule } from './session-checkout-module.js'
@@ -196,7 +197,44 @@ export const Config = z.object({
   stateDir: z.string(),
   gitTimeoutMs: z.number().min(1_000).max(MAX_GIT_TIMEOUT_MS).step(1).default(DEFAULT_GIT_TIMEOUT_MS),
   worktreeAddTimeoutMs: z.number().min(1_000).max(MAX_GIT_TIMEOUT_MS).step(1).default(300_000),
+  // --- Local adaptation (dsh-git-worktree-local) ---
+  /**
+   * Agent-autonomous delivery: the Working-state guidance steers the model to
+   * worktree_deliver, which commits, (optionally) pushes and cleans up without
+   * waiting for the human acceptance UI. Default true.
+   */
+  autoDeliver: z.boolean().default(true),
+  /**
+   * After a successful Finish with a new commit, best-effort `git push` of the
+   * Local branch (never force). Failure is reported and never blocks. Default true.
+   */
+  autoPush: z.boolean().default(true),
+  /**
+   * Root for managed Worktrees. When set, Worktrees are created under
+   * `<worktreesRoot>/<project>/<topic>-<YYYYMMDD>` (topic supplied by the
+   * agent) instead of the repository sibling / state directory. Should point
+   * outside any Git checkout.
+   */
+  worktreesRoot: z.string(),
+  /**
+   * Explicitly take over the official Workspace UI (ui-workspace). Keep false
+   * unless the replacement sidebar is wanted; taking over is the mechanism
+   * behind the historical "cannot open a new conversation" breakage.
+   */
+  enableWorkspaceProvider: z.boolean().default(false),
 })
+
+interface LocalAdaptationConfig {
+  autoDeliver?: boolean
+  autoPush?: boolean
+  worktreesRoot?: string
+  enableWorkspaceProvider?: boolean
+}
+
+function resolveWorktreesRoot(config: LocalAdaptationConfig): string | undefined {
+  const raw = config.worktreesRoot?.trim()
+  return raw ? resolve(raw) : undefined
+}
 
 function resolveStateDir(config: { stateDir?: string }): string {
   if (config.stateDir) return resolve(config.stateDir)
@@ -211,13 +249,17 @@ const RETENTION_MAINTENANCE_INTERVAL_MS = 15 * 60 * 1000
  * tools, human acceptance command, dynamic target context, startup recovery,
  * and the retention-expiry timer.
  */
-export async function apply(ctx: Context, config: { stateDir?: string } & GitTimeoutOptions = {}): Promise<void> {
+export async function apply(ctx: Context, config: { stateDir?: string } & GitTimeoutOptions & LocalAdaptationConfig = {}): Promise<void> {
   validateGitTimeouts(config)
-  await mountWorkspaceProviderLifecycle(ctx)
+  // Local adaptation: Workspace takeover is strictly opt-in. Unless
+  // enableWorkspaceProvider === true, the service is never provided and the
+  // official ui-workspace stays active.
+  await mountWorkspaceProviderLifecycle(ctx, hostWorkspaceClientFlavor(), { enabled: config.enableWorkspaceProvider === true })
   const stateDir = resolveStateDir(config)
   mkdirSync(stateDir, { recursive: true })
   const hooksPath = join(stateDir, 'disabled-git-hooks')
   mkdirSync(hooksPath, { recursive: true })
+  const worktreesRoot = resolveWorktreesRoot(config)
 
   const lookup = createDshLookupPort(ctx)
   const projectSkills = new ProjectSkillStore(join(stateDir, 'project-skills'))
@@ -233,6 +275,9 @@ export async function apply(ctx: Context, config: { stateDir?: string } & GitTim
     applyEngine: createSessionCheckoutApplyEngine({ projectSkills }),
     managedCheckoutsRoot: stateDir,
     createCheckoutId: randomUUID,
+    autoDeliver: config.autoDeliver !== false,
+    autoPush: config.autoPush !== false,
+    ...(worktreesRoot ? { worktreesRoot } : {}),
   })
 
   new WorktreeConsoleService(ctx, createWorktreeConsoleControlPlane({
