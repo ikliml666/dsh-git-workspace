@@ -53,10 +53,15 @@ export async function apply(ctx: ConsoleClientContext): Promise<void> {
   // Pick exactly one based on the Host-resolved package version, not timing of
   // Client services (shortcuts is absent in alpha and late to start in rc.2).
   const reportBoot = (branch: WorktreeClientBootReport['branch'], registered: boolean, detail?: string): void => {
-    void remote.clientBootReport({
-      flavor: topology.ok ? String(topology.value.workspaceClientFlavor ?? 'missing') : 'unknown',
-      branch, registered, ...(detail === undefined ? {} : { detail }),
-    }).catch(() => { /* diagnostics are best effort */ })
+    try {
+      // The Remote proxy enforces descriptor arity positionally: the trailing
+      // locale must be passed even when undefined. Diagnostics are best effort
+      // and must never break the boot path.
+      void remote.clientBootReport({
+        flavor: topology.ok ? String(topology.value.workspaceClientFlavor ?? 'missing') : 'unknown',
+        branch, registered, ...(detail === undefined ? {} : { detail }),
+      }, undefined).catch(() => { /* best effort */ })
+    } catch { /* best effort */ }
   }
   const topology = await adapter.sidebarTopology()
   if (!topology.ok) {

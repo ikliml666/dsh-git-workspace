@@ -1,5 +1,8 @@
 import { createRequire } from 'node:module'
-import { resolve } from 'node:path'
+import { randomUUID } from 'node:crypto'
+import { readFileSync, rmSync } from 'node:fs'
+import { join, resolve } from 'node:path'
+import { tmpdir } from 'node:os'
 import { pathToFileURL } from 'node:url'
 import { Context } from '@deepseek-ai/cordis'
 import { AgentRegistry, type Agent } from '@deepseek-ai/dsh-agent'
@@ -323,6 +326,27 @@ describe('manual strict Worktree Console Remote contribution', () => {
     expect(control.sidebarTopology).toHaveBeenCalledTimes(2)
   })
 
+  it('dispatches Client boot reports into the diagnostics sink', async () => {
+    const diagFile = join(tmpdir(), `dshgw-diag-${randomUUID()}.ndjson`)
+    try {
+      const ctx = new Context()
+      await ctx.plugin(TypertRegistry)
+      new WorktreeConsoleService(ctx, {} as unknown as WorktreeConsoleControlPlane, diagFile)
+      new TypertGatewayService(ctx)
+      ctx.typert.register(TYPERT)
+
+      await expect(ctx.typertGateway.invoke({
+        namespace: 'gitWorktree', method: 'clientBootReport',
+        args: { report: { flavor: 'next', branch: 'next', registered: false, detail: 'inject-pending' } },
+      })).resolves.toBe(true)
+      const lines = readFileSync(diagFile, 'utf8').trim().split('\n').map(line => JSON.parse(line) as Record<string, unknown>)
+      expect(lines).toHaveLength(1)
+      expect(lines[0]).toMatchObject({ kind: 'client', flavor: 'next', branch: 'next', registered: false, detail: 'inject-pending' })
+    } finally {
+      rmSync(diagFile, { force: true })
+    }
+  })
+
   it('registers the Host manifest and resolves the official agent lookup before dispatch', async () => {
     const ctx = new Context()
     await ctx.plugin(TypertRegistry)
@@ -399,6 +423,9 @@ describe('manual strict Worktree Console Remote contribution', () => {
     await expect(client.remote.gitWorktree.list('agent-1', undefined, undefined, undefined)).resolves.toEqual({ ok: true, value: listed })
     expect(call).toHaveBeenLastCalledWith('/api', 'gitWorktree/list', { args: { agentId: 'agent-1' } }, expect.any(AbortSignal))
     expect(control.list).toHaveBeenCalledWith({ sessionId: 'agent-1', needsAttention: undefined, includeDelivered: undefined })
+    await expect(client.remote.gitWorktree.clientBootReport({ flavor: 'next', branch: 'next', registered: true }, undefined))
+      .resolves.toEqual({ ok: true, value: true })
+    expect(call).toHaveBeenLastCalledWith('/api', 'gitWorktree/clientBootReport', { args: { report: { flavor: 'next', branch: 'next', registered: true } } }, expect.any(AbortSignal))
 
     await dispose()
     expect((client.remote as unknown as Record<string, unknown>).gitWorktree).toBeUndefined()

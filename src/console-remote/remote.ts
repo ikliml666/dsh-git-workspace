@@ -27,7 +27,7 @@ export { WORKTREE_CONSOLE_DESCRIPTORS, WORKTREE_CONSOLE_REMOTE } from './descrip
 declare module '@deepseek-ai/dsh-typert-protocol' {
   interface TypertRemoteMap {
     'gitWorktree/sidebarTopology': (locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeSidebarTopologyResponse>>>
-    'gitWorktree/clientBootReport': (report: WorktreeClientBootReport) => Promise<RemoteResult<boolean>>
+    'gitWorktree/clientBootReport': (report: WorktreeClientBootReport, locale?: Language) => Promise<RemoteResult<boolean>>
     'gitWorktree/current': (agentId: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleCurrentResponse>>>
     'gitWorktree/list': (agentId: string, needsAttention?: boolean, includeDelivered?: boolean, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleListResponse>>>
     'gitWorktree/preflightCreate': (agentId: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleCreatePreflightResponse>>>
