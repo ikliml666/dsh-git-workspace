@@ -30,6 +30,8 @@ export class WorktreeConsoleService extends TypertRemoteService {
     private readonly hostContext: Context,
     private readonly controlPlane: WorktreeConsoleControlPlane,
     private readonly diagFile?: string,
+    /** Provider election outcome from mountWorkspaceProviderLifecycle; true keeps the official Workspace live. */
+    private readonly officialWorkspaceActive = true,
   ) {
     super(hostContext, 'gitWorktree')
   }
@@ -52,7 +54,9 @@ export class WorktreeConsoleService extends TypertRemoteService {
       flavor,
       anchors: workspaceFlavorDiagnostics().anchors,
     })
-    return outcome.ok ? { ok: true, value: { ...outcome.value, workspaceClientFlavor: flavor } } : outcome
+    return outcome.ok
+      ? { ok: true, value: { ...outcome.value, workspaceClientFlavor: flavor, officialWorkspaceActive: this.officialWorkspaceActive } }
+      : outcome
   }
 
   @Remote

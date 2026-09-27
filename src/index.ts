@@ -254,7 +254,7 @@ export async function apply(ctx: Context, config: { stateDir?: string } & GitTim
   // Local adaptation: Workspace takeover is strictly opt-in. Unless
   // enableWorkspaceProvider === true, the service is never provided and the
   // official ui-workspace stays active.
-  await mountWorkspaceProviderLifecycle(ctx, hostWorkspaceClientFlavor(), { enabled: config.enableWorkspaceProvider === true })
+  const providerLifecycle = await mountWorkspaceProviderLifecycle(ctx, hostWorkspaceClientFlavor(), { enabled: config.enableWorkspaceProvider === true })
   const stateDir = resolveStateDir(config)
   mkdirSync(stateDir, { recursive: true })
   const hooksPath = join(stateDir, 'disabled-git-hooks')
@@ -287,7 +287,7 @@ export async function apply(ctx: Context, config: { stateDir?: string } & GitTim
     registry,
     git,
     reviewDiff: createGitWorktreeReviewDiffReader(projectSkills),
-  }), join(stateDir, 'sidebar-diag.ndjson'))
+  }), join(stateDir, 'sidebar-diag.ndjson'), providerLifecycle.officialWorkspaceActive)
 
   registerTools(ctx, module)
   registerWorktreeCommand(ctx, module)

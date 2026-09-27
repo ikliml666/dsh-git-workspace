@@ -206,6 +206,8 @@ export interface WorktreeSidebarTopologyResponse {
   projects: WorktreeSidebarProject[]
   /** Server-pinned Host package generation; unknown generations must not mount a guessed Client Browser. */
   workspaceClientFlavor?: 'legacy' | 'alpha' | 'next' | 'unsupported'
+  /** Host-reported election result: the official Workspace Client is the live sidebar provider. */
+  officialWorkspaceActive?: boolean
 }
 
 /** Client-side breadcrumb reporting which sidebar branch actually ran. */

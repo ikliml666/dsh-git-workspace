@@ -13,6 +13,12 @@ const OFFICIAL_WORKSPACE = '@deepseek-ai/dsh-client-ui-workspace'
 // Cordis exposes FiberState as a declaration-only const enum, not a JS export.
 const UNLOADING: FiberState = 5
 
+/** Outcome of the provider election, consumed by the Sidebar topology response. */
+export interface WorkspaceProviderLifecycleResult {
+  /** False only when this plugin actually disabled the official ui-workspace entry (takeover). */
+  officialWorkspaceActive: boolean
+}
+
 /**
  * Reconcile the conditional patch with the public Loader lifecycle. A disabled
  * expression is evaluated dynamically, but the Web module registry caches rows
@@ -24,18 +30,18 @@ export async function mountWorkspaceProviderLifecycle(
   ctx: Context,
   flavor: WorkspaceClientFlavor = hostWorkspaceClientFlavor(),
   options: { enabled?: boolean } = {},
-): Promise<void> {
+): Promise<WorkspaceProviderLifecycleResult> {
   // Local adaptation: taking over the official Workspace is strictly opt-in.
   // Unless explicitly enabled, the service is never provided, so the bundled
   // conditional patch evaluates to false and the official Workspace stays
   // active — this avoids the historical "cannot open a new conversation" lock.
   if (!options.enabled) {
     ctx.logger.info('Workspace takeover disabled (enableWorkspaceProvider is not true); official ui-workspace stays active.')
-    return
+    return { officialWorkspaceActive: true }
   }
   if (flavor === 'unsupported') {
     ctx.logger.warn('No pinned Workspace Browser for this Host generation; leaving the official Workspace provider active.')
-    return
+    return { officialWorkspaceActive: true }
   }
   const loader = ctx.loader
   const owned = (): Entry[] => [...loader.entries()].filter(entry => {
@@ -83,4 +89,5 @@ export async function mountWorkspaceProviderLifecycle(
     }
   })
   await reconcile()
+  return { officialWorkspaceActive: false }
 }

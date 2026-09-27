@@ -237,3 +237,80 @@ export function registerManagedWorkspaceSidebar(
 ): void {
   applyWorkspace(officialContextProxy(ctx, adapter) as unknown as Context)
 }
+
+/** Structural view of the ui-slots registry service, limited to the decorate face. */
+interface SlotRegistryEntry {
+  component: unknown
+  options: { key?: string; id?: string; order?: number; label?: string; priority?: number }
+  select?: unknown
+  store?: unknown
+  inject?: unknown
+  locale?: string
+  registrant?: string
+}
+
+interface SlotRegistryService {
+  entriesOfSlot(key: string): ReadonlyArray<SlotRegistryEntry>
+  register(descriptor: Record<string, unknown>, component: ComponentType<any>): unknown
+  subscribe(key: string, listener: () => void): () => void
+}
+
+/**
+ * Mode B: the official Workspace Client is live on this Host (takeover
+ * disabled), so replaying the module apply would re-provide uiWorkspace and
+ * collide with the already-registered service. Decorate instead: shadow the
+ * official Browser registration at a lower priority — the registry's own
+ * override mechanism, lowest priority renders — with the projected derivative.
+ * The stock official module stays untouched and keeps every child slot.
+ */
+export function registerDecoratedWorkspaceSidebar(
+  ctx: SidebarRegistrationContext,
+  adapter: WorktreeConsoleAdapter,
+): void {
+  const read = (service: string): unknown =>
+    typeof ctx.get === 'function' ? (ctx.get as (name: string) => unknown)(service) : undefined
+  const slots = read('slots') as SlotRegistryService | undefined
+  if (!slots || typeof slots.entriesOfSlot !== 'function' || typeof slots.register !== 'function' || typeof slots.subscribe !== 'function') {
+    throw new Error('The official Workspace is active but the slot registry is unavailable.')
+  }
+  let disposed = false
+  let decorated = false
+  let disposeEntry: unknown
+  let unsubscribe: (() => void) | undefined
+  const attempt = (): void => {
+    if (disposed || decorated) return
+    const entries = slots.entriesOfSlot('sidebar.workspaces').filter(entry => entry.registrant !== 'dsh-git-worktree')
+    const official = entries.reduce<SlotRegistryEntry | undefined>((lowest, entry) =>
+      lowest === undefined || (entry.options.priority ?? 0) < (lowest.options.priority ?? 0) ? entry : lowest, undefined)
+    if (!official || typeof official.component !== 'function') return
+    decorated = true
+    const OfficialBrowser = official.component as ComponentType<WorkspaceBrowserProps>
+    const Decorated = (props: WorkspaceBrowserProps) => <ClientI18nProvider locale={read('locale')}><ManagedOfficialWorkspaceBrowser
+      {...props}
+      adapter={adapter}
+      OfficialBrowser={OfficialBrowser}
+    /></ClientI18nProvider>
+    const options = official.options
+    disposeEntry = slots.register({
+      name: 'sidebar.workspaces',
+      priority: (options.priority ?? 0) - 10,
+      ...(options.key === undefined ? {} : { key: options.key }),
+      ...(options.id === undefined ? {} : { id: options.id }),
+      ...(options.order === undefined ? {} : { order: options.order }),
+      ...(options.label === undefined ? {} : { label: options.label }),
+      ...(official.select === undefined ? {} : { select: official.select }),
+      ...(official.store === undefined ? {} : { store: official.store }),
+      ...(official.inject === undefined ? {} : { inject: official.inject }),
+      ...(official.locale === undefined ? {} : { locale: official.locale }),
+      registrant: 'dsh-git-worktree',
+    }, Decorated)
+  }
+  attempt()
+  unsubscribe = slots.subscribe('sidebar.workspaces', attempt)
+  const disposer = (): void => {
+    disposed = true
+    unsubscribe?.()
+    if (typeof disposeEntry === 'function') (disposeEntry as () => void)()
+  }
+  if (typeof ctx.effect === 'function') (ctx.effect as (collect: () => unknown) => unknown)(() => disposer)
+}

@@ -9,6 +9,7 @@ import type { WorkspaceBrowserProps } from '@deepseek-ai/dsh-client-ui-workspace
 import type { WorktreeConsoleAdapter } from '../src/console-contract.js'
 import {
   ManagedOfficialWorkspaceBrowser,
+  registerDecoratedWorkspaceSidebar,
   registerManagedWorkspaceSidebar,
 } from '../src/client/workspace-sidebar/index.js'
 import { createWorktreeConsoleAdapterFixture } from './support/worktree-console.js'
@@ -306,4 +307,91 @@ test('renders Host-proven historical members under Local without giving them own
   expect(row.getAttribute('data-worktree-kind')).toBeNull()
   fireEvent.click(row)
   expect(props.open).toHaveBeenCalledWith(historical)
+})
+
+describe('registerDecoratedWorkspaceSidebar (Mode B: official Workspace stays live)', () => {
+  interface RegistryEntry {
+    component: unknown
+    options: { priority?: number }
+    registrant?: string
+  }
+
+  function fakeRegistry(initial: RegistryEntry[] = []) {
+    let entries = initial
+    const listeners = new Set<() => void>()
+    const registered: Array<{ descriptor: Record<string, unknown>; component: unknown }> = []
+    const service = {
+      entriesOfSlot: (key: string): ReadonlyArray<RegistryEntry> => (key === 'sidebar.workspaces' ? entries : []),
+      register: (descriptor: Record<string, unknown>, component: unknown) => {
+        registered.push({ descriptor, component })
+        entries = [...entries, { component, options: { priority: descriptor.priority as number }, registrant: descriptor.registrant as string }]
+        for (const listener of listeners) listener()
+        return () => {
+          const last = registered.at(-1)
+          if (last !== undefined) registered.splice(registered.indexOf(last), 1)
+        }
+      },
+      subscribe: (_key: string, listener: () => void) => {
+        listeners.add(listener)
+        return () => { listeners.delete(listener) }
+      },
+    }
+    return { service, registered, publish: () => { for (const listener of listeners) listener() } }
+  }
+
+  function decorateCtx(service: unknown) {
+    const effect = vi.fn()
+    const ctx: any = {
+      get: (key: string) => key === 'slots'
+        ? service
+        : key === 'locale' ? { getSnapshot: () => ({ active: 'en' }), subscribe: () => () => {} } : undefined,
+      effect,
+    }
+    return { ctx, effect }
+  }
+
+  test('shadows an already-registered official Browser at a lower priority', () => {
+    const official = { component: InspectBrowser, options: { priority: 0 }, registrant: 'official-ui-workspace' }
+    const registry = fakeRegistry([official])
+    const { ctx, effect } = decorateCtx(registry.service)
+    registerDecoratedWorkspaceSidebar(ctx, adapter())
+    expect(registry.registered).toHaveLength(1)
+    const { descriptor, component } = registry.registered[0]!
+    expect(descriptor.name).toBe('sidebar.workspaces')
+    expect(descriptor.priority).toBe(-10)
+    expect(descriptor.registrant).toBe('dsh-git-worktree')
+    expect(component).not.toBe(InspectBrowser)
+    expect(typeof component).toBe('function')
+    // The decorate registration is released with the client fiber.
+    expect(effect).toHaveBeenCalledTimes(1)
+    const disposer = effect.mock.calls[0]?.[0] as () => void
+    expect(() => disposer()).not.toThrow()
+  })
+
+  test('waits for the official registration and decorates exactly once', () => {
+    const registry = fakeRegistry()
+    const { ctx } = decorateCtx(registry.service)
+    registerDecoratedWorkspaceSidebar(ctx, adapter())
+    expect(registry.registered.filter(entry => entry.descriptor.registrant === 'dsh-git-worktree')).toHaveLength(0)
+    registry.service.register({ name: 'sidebar.workspaces', priority: 0 }, InspectBrowser)
+    expect(registry.registered.filter(entry => entry.descriptor.registrant === 'dsh-git-worktree')).toHaveLength(1)
+    // Our own registration re-publishes the slot; the decorated flag keeps it single.
+    registry.publish()
+    expect(registry.registered.filter(entry => entry.descriptor.registrant === 'dsh-git-worktree')).toHaveLength(1)
+  })
+
+  test('renders the projected sidebar through the shadowing entry', async () => {
+    const registry = fakeRegistry([{ component: InspectBrowser, options: { priority: 0 }, registrant: 'official-ui-workspace' }])
+    const { ctx } = decorateCtx(registry.service)
+    registerDecoratedWorkspaceSidebar(ctx, adapter())
+    const Decorated = registry.registered[0]!.component as (props: WorkspaceBrowserProps) => unknown
+    render(<Decorated {...browserProps()} />)
+    await waitFor(() => expect(screen.getByRole('button', { name: '修复验收卡' }).getAttribute('data-worktree-label')).toBe('Ready for review'))
+    expect(screen.getByText('demo')).toBeTruthy()
+  })
+
+  test('fails loudly when the slot registry is unavailable', () => {
+    const { ctx } = decorateCtx(undefined)
+    expect(() => registerDecoratedWorkspaceSidebar(ctx, adapter())).toThrow(/slot registry/u)
+  })
 })

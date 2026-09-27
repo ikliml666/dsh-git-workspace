@@ -2,11 +2,15 @@ import { beforeEach, describe, expect, test, vi } from 'vitest'
 
 const spies = vi.hoisted(() => ({
   register: vi.fn(),
+  decorate: vi.fn(),
   applyTools: vi.fn(),
   topology: vi.fn(),
 }))
 vi.mock('../src/client/index.js', () => ({ apply: spies.applyTools, inject: ['conversation'] }))
-vi.mock('../src/client/workspace-sidebar/index.js', () => ({ registerManagedWorkspaceSidebar: spies.register }))
+vi.mock('../src/client/workspace-sidebar/index.js', () => ({
+  registerManagedWorkspaceSidebar: spies.register,
+  registerDecoratedWorkspaceSidebar: spies.decorate,
+}))
 vi.mock('../src/client/console-remote/adapter.js', () => ({
   createWorktreeConsoleRemoteAdapter: () => ({ sidebarTopology: spies.topology }),
 }))
@@ -54,6 +58,17 @@ describe('one Host-pinned Browser provider per Client startup', () => {
     spies.topology.mockResolvedValue({ ok: true, value: { projects: [], workspaceClientFlavor: 'unsupported' } })
     const ctx = clientContext()
     await apply(ctx)
+    expect(spies.register).not.toHaveBeenCalled()
+    expect(spies.applyTools).toHaveBeenCalledTimes(1)
+  })
+
+  test.each(['alpha', 'next'] as const)('%s with the official Workspace live decorates instead of replaying', async (flavor) => {
+    spies.topology.mockResolvedValue({ ok: true, value: { projects: [], workspaceClientFlavor: flavor, officialWorkspaceActive: true } })
+    const ctx = clientContext()
+    await apply(ctx)
+    expect(spies.decorate).toHaveBeenCalledTimes(1)
+    expect(spies.decorate.mock.calls[0]?.[0]).toBe(ctx)
+    expect(spies.decorate.mock.calls[0]?.[1]).toBeDefined()
     expect(spies.register).not.toHaveBeenCalled()
     expect(spies.applyTools).toHaveBeenCalledTimes(1)
   })

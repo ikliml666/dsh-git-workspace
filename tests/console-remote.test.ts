@@ -112,6 +112,7 @@ describe('manual strict Worktree Console Remote contribution', () => {
     const payload = {
       ok: true as const,
       value: {
+        officialWorkspaceActive: true,
         projects: [{
           project: { id: 'project-1', name: 'Project' },
           memberships: { workspaceIds: ['cleaned'], sessionIds: ['cold'] },
@@ -305,7 +306,7 @@ describe('manual strict Worktree Console Remote contribution', () => {
     const ctx = new Context()
     await ctx.plugin(TypertRegistry)
     const topology = { ok: true as const, value: { projects: [] } }
-    const expectedTopology = { ok: true as const, value: { projects: [], workspaceClientFlavor: 'legacy' } }
+    const expectedTopology = { ok: true as const, value: { projects: [], workspaceClientFlavor: 'legacy', officialWorkspaceActive: true } }
     const seenLanguages: string[] = []
     const control = { sidebarTopology: vi.fn(async () => {
       seenLanguages.push(currentHostLanguage())
@@ -324,6 +325,18 @@ describe('manual strict Worktree Console Remote contribution', () => {
     await expect(ctx.typertGateway.invoke({ namespace: 'gitWorktree', method: 'sidebarTopology', args: { locale: 'fr' } }))
       .rejects.toThrow()
     expect(control.sidebarTopology).toHaveBeenCalledTimes(2)
+  })
+
+  it('reports the provider election through the Sidebar topology response', async () => {
+    const ctx = new Context()
+    await ctx.plugin(TypertRegistry)
+    const topology = { ok: true as const, value: { projects: [] } }
+    const control = { sidebarTopology: vi.fn(async () => topology) } as unknown as WorktreeConsoleControlPlane
+    new WorktreeConsoleService(ctx, control, undefined, false)
+    new TypertGatewayService(ctx)
+    ctx.typert.register(TYPERT)
+    await expect(ctx.typertGateway.invoke({ namespace: 'gitWorktree', method: 'sidebarTopology', args: {} }))
+      .resolves.toEqual({ ok: true, value: { projects: [], workspaceClientFlavor: 'legacy', officialWorkspaceActive: false } })
   })
 
   it('dispatches Client boot reports into the diagnostics sink', async () => {

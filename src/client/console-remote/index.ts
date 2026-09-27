@@ -6,7 +6,7 @@ import type { ClientRemote } from '@deepseek-ai/dsh-api-gateway/client'
 import type { WorktreeClientBootReport, WorktreeConsoleAdapter } from '../../console-contract.js'
 import contribution, { type GitWorktreeRemote } from '../../console-remote/remote.js'
 import { apply as applyToolViews, inject as toolViewInject } from '../index.js'
-import { registerManagedWorkspaceSidebar } from '../workspace-sidebar/index.js'
+import { registerDecoratedWorkspaceSidebar, registerManagedWorkspaceSidebar } from '../workspace-sidebar/index.js'
 import { inject as officialWorkspaceInject } from 'virtual:dsh-official-workspace-client'
 import { apply as applyNextWorkspace, inject as nextWorkspaceInject } from 'virtual:dsh-official-workspace-client-next'
 import { apply as applyAlphaWorkspace, inject as alphaWorkspaceInject } from 'virtual:dsh-official-workspace-client-alpha'
@@ -83,21 +83,41 @@ export async function apply(ctx: ConsoleClientContext): Promise<void> {
     const [required, applyWorkspace] = flavor === 'alpha'
       ? [alphaWorkspaceInject, applyAlphaWorkspace] as const
       : [nextWorkspaceInject, applyNextWorkspace] as const
-    reportBoot(flavor, false, 'inject-pending')
-    ctx.inject(required, child => {
-      try {
-        registerManagedWorkspaceSidebar(
-          child as unknown as Parameters<typeof registerManagedWorkspaceSidebar>[0],
-          adapter,
-          applyWorkspace,
-        )
-        mountTools(child)
-        reportBoot(flavor, true)
-      } catch (error) {
-        reportBoot(flavor, false, error instanceof Error ? error.message : String(error))
-        throw error
-      }
-    })
+    if (topology.value.officialWorkspaceActive === true) {
+      // The Host kept the official Workspace Client live (takeover disabled):
+      // replaying the module apply would re-provide uiWorkspace and crash.
+      // Decorate the running registration instead.
+      reportBoot(flavor, false, 'decorate-pending')
+      ctx.inject(required, child => {
+        try {
+          registerDecoratedWorkspaceSidebar(
+            child as unknown as Parameters<typeof registerDecoratedWorkspaceSidebar>[0],
+            adapter,
+          )
+          mountTools(child)
+          reportBoot(flavor, true)
+        } catch (error) {
+          reportBoot(flavor, false, error instanceof Error ? error.message : String(error))
+          throw error
+        }
+      })
+    } else {
+      reportBoot(flavor, false, 'inject-pending')
+      ctx.inject(required, child => {
+        try {
+          registerManagedWorkspaceSidebar(
+            child as unknown as Parameters<typeof registerManagedWorkspaceSidebar>[0],
+            adapter,
+            applyWorkspace,
+          )
+          mountTools(child)
+          reportBoot(flavor, true)
+        } catch (error) {
+          reportBoot(flavor, false, error instanceof Error ? error.message : String(error))
+          throw error
+        }
+      })
+    }
   } else {
     // Host lifecycle leaves the official provider enabled in this case.
     reportBoot('unsupported', false)
