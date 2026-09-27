@@ -12,6 +12,7 @@ import {
   type WorktreeConsolePreflightResponse,
   type WorktreeConsolePreviewRecoveryPreflightResponse,
   type WorktreeConsoleReviewDiffResponse,
+  type WorktreeClientBootReport,
   type WorktreeSidebarTopologyResponse,
 } from '../console-contract.js'
 
@@ -233,6 +234,12 @@ export const sidebarTopologyResponseSchema: z.ZodType<WorktreeSidebarTopologyRes
       state: z.enum(['working', 'ready_for_review', 'preview_active', 'preview_detached', 'recovery_required', 'finalized', 'discarded']),
     })),
   })),
+})
+export const clientBootReportSchema: z.ZodType<WorktreeClientBootReport> = strict({
+  flavor: z.string(),
+  branch: z.enum(['legacy', 'alpha', 'next', 'unsupported', 'topology-failed', 'boot-failed']),
+  registered: z.boolean(),
+  detail: z.string().max(2000).optional(),
 })
 export const mutationResponseSchema: z.ZodType<WorktreeConsoleMutationResponse> = strict({
   target: targetSummarySchema,

@@ -287,7 +287,7 @@ export async function apply(ctx: Context, config: { stateDir?: string } & GitTim
     registry,
     git,
     reviewDiff: createGitWorktreeReviewDiffReader(projectSkills),
-  }))
+  }), join(stateDir, 'sidebar-diag.ndjson'))
 
   registerTools(ctx, module)
   registerWorktreeCommand(ctx, module)

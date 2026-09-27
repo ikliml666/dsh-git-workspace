@@ -36,6 +36,7 @@ async function loadRemoteClientModule(): Promise<{ apply: (ctx: Context) => void
 
 const METHODS = [
   'sidebarTopology',
+  'clientBootReport',
   'current',
   'list',
   'preflightCreate',
@@ -70,7 +71,9 @@ describe('manual strict Worktree Console Remote contribution', () => {
       expect(descriptor.namespace).toBe('gitWorktree')
       expect(descriptor.service).toBe('gitWorktree')
       expect(descriptor.result.mode).toBe('strict')
-      if (descriptor.method === 'sidebarTopology') {
+      if (descriptor.method === 'clientBootReport') {
+        expect(descriptor.parameters.map(parameter => parameter.name)).toEqual(['report', 'locale'])
+      } else if (descriptor.method === 'sidebarTopology') {
         expect(descriptor.parameters.map(parameter => parameter.name)).toEqual(['locale'])
       } else {
         expect(descriptor.parameters[0]).toMatchObject({

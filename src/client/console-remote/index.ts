@@ -3,7 +3,7 @@ import { createTranslator } from '../../i18n/core.js'
 import { transportMessages } from '../../i18n/transport-messages.js'
 import type { Context } from '@deepseek-ai/cordis'
 import type { ClientRemote } from '@deepseek-ai/dsh-api-gateway/client'
-import type { WorktreeConsoleAdapter } from '../../console-contract.js'
+import type { WorktreeClientBootReport, WorktreeConsoleAdapter } from '../../console-contract.js'
 import contribution, { type GitWorktreeRemote } from '../../console-remote/remote.js'
 import { apply as applyToolViews, inject as toolViewInject } from '../index.js'
 import { registerManagedWorkspaceSidebar } from '../workspace-sidebar/index.js'
@@ -52,31 +52,50 @@ export async function apply(ctx: ConsoleClientContext): Promise<void> {
   // All three official Browser generations declare the same top-level Slot.
   // Pick exactly one based on the Host-resolved package version, not timing of
   // Client services (shortcuts is absent in alpha and late to start in rc.2).
+  const reportBoot = (branch: WorktreeClientBootReport['branch'], registered: boolean, detail?: string): void => {
+    void remote.clientBootReport({
+      flavor: topology.ok ? String(topology.value.workspaceClientFlavor ?? 'missing') : 'unknown',
+      branch, registered, ...(detail === undefined ? {} : { detail }),
+    }).catch(() => { /* diagnostics are best effort */ })
+  }
   const topology = await adapter.sidebarTopology()
-  if (!topology.ok) throw new Error('Could not identify the installed Host Workspace generation.')
+  if (!topology.ok) {
+    reportBoot('topology-failed', false, `${topology.error.code}: ${topology.error.message}`)
+    throw new Error('Could not identify the installed Host Workspace generation.')
+  }
   const flavor = topology.value.workspaceClientFlavor
   if (flavor === 'legacy') {
     if (typeof (ctx.get('sessions') as { open?: unknown }).open !== 'function') {
+      reportBoot('legacy', false, 'sessions.open() unavailable')
       throw new Error('Legacy Workspace Browser requires sessions.open().')
     }
     registerManagedWorkspaceSidebar(
       ctx as unknown as Parameters<typeof registerManagedWorkspaceSidebar>[0], adapter,
     )
     mountTools(ctx)
+    reportBoot('legacy', true)
   } else if (flavor === 'alpha' || flavor === 'next') {
     const [required, applyWorkspace] = flavor === 'alpha'
       ? [alphaWorkspaceInject, applyAlphaWorkspace] as const
       : [nextWorkspaceInject, applyNextWorkspace] as const
+    reportBoot(flavor, false, 'inject-pending')
     ctx.inject(required, child => {
-      registerManagedWorkspaceSidebar(
-        child as unknown as Parameters<typeof registerManagedWorkspaceSidebar>[0],
-        adapter,
-        applyWorkspace,
-      )
-      mountTools(child)
+      try {
+        registerManagedWorkspaceSidebar(
+          child as unknown as Parameters<typeof registerManagedWorkspaceSidebar>[0],
+          adapter,
+          applyWorkspace,
+        )
+        mountTools(child)
+        reportBoot(flavor, true)
+      } catch (error) {
+        reportBoot(flavor, false, error instanceof Error ? error.message : String(error))
+        throw error
+      }
     })
   } else {
     // Host lifecycle leaves the official provider enabled in this case.
+    reportBoot('unsupported', false)
     mountTools(ctx)
   }
 }

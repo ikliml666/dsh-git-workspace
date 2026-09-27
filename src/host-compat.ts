@@ -37,6 +37,35 @@ export function workspaceClientFlavorFromAnchors(anchors: ReadonlyArray<string |
   return 'unsupported'
 }
 
+export interface WorkspaceFlavorAnchorDiagnostic {
+  kind: 'entry' | 'cwd' | 'plugin' | 'extra'
+  anchor: string
+  ok: boolean
+  version?: string
+}
+
+export interface WorkspaceFlavorDiagnostics {
+  flavor: WorkspaceClientFlavor
+  anchors: WorkspaceFlavorAnchorDiagnostic[]
+}
+
+const ANCHOR_KINDS: ReadonlyArray<WorkspaceFlavorAnchorDiagnostic['kind']> = ['entry', 'cwd', 'plugin']
+
+/** Same selection rule as {@link workspaceClientFlavorFromAnchors}, but records every probe. */
+export function workspaceFlavorDiagnostics(
+  anchors: ReadonlyArray<string | undefined> = [process.argv[1], process.cwd(), import.meta.url],
+): WorkspaceFlavorDiagnostics {
+  const probed: WorkspaceFlavorAnchorDiagnostic[] = []
+  let flavor: WorkspaceClientFlavor | undefined
+  anchors.forEach((anchor, index) => {
+    const version = agentVersionFromAnchor(anchor)
+    const ok = version !== undefined
+    probed.push({ kind: ANCHOR_KINDS[index] ?? 'extra', anchor: anchor ?? '', ok, ...(version === undefined ? {} : { version }) })
+    if (ok && flavor === undefined) flavor = workspaceClientFlavorForAgentVersion(version)
+  })
+  return { flavor: flavor ?? 'unsupported', anchors: probed }
+}
+
 export function hostWorkspaceClientFlavor(): WorkspaceClientFlavor {
-  return workspaceClientFlavorFromAnchors([process.argv[1], process.cwd(), import.meta.url])
+  return workspaceFlavorDiagnostics().flavor
 }

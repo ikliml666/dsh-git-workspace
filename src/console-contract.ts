@@ -208,6 +208,14 @@ export interface WorktreeSidebarTopologyResponse {
   workspaceClientFlavor?: 'legacy' | 'alpha' | 'next' | 'unsupported'
 }
 
+/** Client-side breadcrumb reporting which sidebar branch actually ran. */
+export interface WorktreeClientBootReport {
+  flavor: string
+  branch: 'legacy' | 'alpha' | 'next' | 'unsupported' | 'topology-failed' | 'boot-failed'
+  registered: boolean
+  detail?: string
+}
+
 /** targetSessionId is allocated on the Host; the browser never chooses ownership identity. */
 export type WorktreeConsoleCreatePreflightResponse =
   | { kind: 'ready' }

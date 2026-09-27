@@ -1,6 +1,7 @@
 import type { InvocationDescriptor, InvocationParameterDescriptor, TypertCodec, TypertRemoteContribution, TypertSchema } from '@deepseek-ai/dsh-typert-protocol'
 import {
   booleanSchema,
+  clientBootReportSchema,
   optionalLanguageSchema,
   checkoutIdSchema,
   commitMessageSchema,
@@ -77,6 +78,7 @@ function descriptor(
 
 export const WORKTREE_CONSOLE_DESCRIPTORS: readonly InvocationDescriptor[] = Object.freeze([
   descriptor('sidebarTopology', [], outcomeSchema(sidebarTopologyResponseSchema), 'WorktreeConsoleOutcome<WorktreeSidebarTopologyResponse>', false),
+  descriptor('clientBootReport', [json('report', clientBootReportSchema, 'WorktreeClientBootReport')], booleanSchema, 'boolean', false),
   descriptor('current', [], outcomeSchema(currentResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleCurrentResponse>'),
   descriptor('list', [
     json('needsAttention', optionalBooleanSchema, 'boolean | undefined', true),

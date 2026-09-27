@@ -1,5 +1,6 @@
+import { appendFileSync } from 'node:fs'
 import { withHostLanguage, languageFromSettings } from '../i18n/host.js'
-import { hostWorkspaceClientFlavor } from '../host-compat.js'
+import { hostWorkspaceClientFlavor, workspaceFlavorDiagnostics } from '../host-compat.js'
 import type { Language } from '../i18n/core.js'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
@@ -17,6 +18,7 @@ import type {
   WorktreeConsolePreviewRecoveryPreflightResponse,
   WorktreeConsoleReviewDiffResponse,
   WorktreeApplyConflictContinuation,
+  WorktreeClientBootReport,
   WorktreeSidebarTopologyResponse,
 } from '../console-contract.js'
 import type { WorktreePreviewRecoveryProof, WorktreeRetentionMode } from '../types.js'
@@ -24,14 +26,39 @@ import type { WorktreeConsoleControlPlane } from './control-plane.js'
 
 /** Official Typert Remote service; the Gateway resolves `agentId` before business code runs. */
 export class WorktreeConsoleService extends TypertRemoteService {
-  constructor(private readonly hostContext: Context, private readonly controlPlane: WorktreeConsoleControlPlane) {
+  constructor(
+    private readonly hostContext: Context,
+    private readonly controlPlane: WorktreeConsoleControlPlane,
+    private readonly diagFile?: string,
+  ) {
     super(hostContext, 'gitWorktree')
+  }
+
+  /** Diagnostics sink: an ndjson breadcrumb trail must never break the RPC surface. */
+  private appendDiag(line: Record<string, unknown>): void {
+    if (this.diagFile === undefined) return
+    try {
+      appendFileSync(this.diagFile, `${JSON.stringify(line)}\n`, { encoding: 'utf8' })
+    } catch { /* best effort */ }
   }
 
   @Remote
   async sidebarTopology(locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeSidebarTopologyResponse>> {
     const outcome = await withHostLanguage(locale ?? languageFromSettings(this.hostContext), () => this.controlPlane.sidebarTopology())
-    return outcome.ok ? { ok: true, value: { ...outcome.value, workspaceClientFlavor: hostWorkspaceClientFlavor() } } : outcome
+    const flavor = hostWorkspaceClientFlavor()
+    this.appendDiag({
+      kind: 'host', ts: Date.now(), ok: outcome.ok,
+      projects: outcome.ok ? outcome.value.projects.length : undefined,
+      flavor,
+      anchors: workspaceFlavorDiagnostics().anchors,
+    })
+    return outcome.ok ? { ok: true, value: { ...outcome.value, workspaceClientFlavor: flavor } } : outcome
+  }
+
+  @Remote
+  clientBootReport(report: WorktreeClientBootReport): boolean {
+    this.appendDiag({ kind: 'client', ts: Date.now(), ...report })
+    return true
   }
 
   @Remote
