@@ -612,12 +612,14 @@ describe('Pre-session directory menu', () => {
       controller={{ prepare: vi.fn() }}
     />)
 
-    expect(screen.queryByRole('switch', { name: 'Worktree' })).toBeNull()
+    const pending = screen.getByRole('switch', { name: 'Worktree' })
+    expect((pending as HTMLButtonElement).disabled).toBe(true)
     resolveCurrent({
       ok: true,
       value: { target: { ...fixture.target, checkoutId: null, targetSessionId: null, ownerSessionId: 'source-session', state: 'local', phase: 'local', managedRoot: null, capabilities: { ...fixture.target.capabilities, create: true } } },
     })
-    expect(await screen.findByRole('switch', { name: 'Worktree' })).toBeTruthy()
+    await screen.findByRole('switch', { name: 'Worktree' })
+    await waitFor(() => expect((screen.getByRole('switch', { name: 'Worktree' }) as HTMLButtonElement).disabled).toBe(false))
   })
 
   test('hides the directory menu when the Session workspace is not a Git repository', async () => {

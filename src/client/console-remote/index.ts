@@ -33,7 +33,9 @@ declare module '@deepseek-ai/cordis' {
 
 /** Mount the package-owned strict Remote contribution in this Client fiber. */
 export async function apply(ctx: ConsoleClientContext): Promise<void> {
+  const bootStartedAt = Date.now()
   const disposeRemote = await ctx.remote.$mount(contribution)
+  const elapsedMountMs = Date.now() - bootStartedAt
   ctx.effect(() => disposeRemote)
   const remote = ctx.get('remote.gitWorktree') as GitWorktreeRemote | undefined
   const getLanguage = () => readClientLanguage(ctx.get('locale'))
@@ -60,10 +62,13 @@ export async function apply(ctx: ConsoleClientContext): Promise<void> {
       void remote.clientBootReport({
         flavor: topology.ok ? String(topology.value.workspaceClientFlavor ?? 'missing') : 'unknown',
         branch, registered, ...(detail === undefined ? {} : { detail }),
+        elapsedMountMs, elapsedTopologyMs,
       }, undefined).catch(() => { /* best effort */ })
     } catch { /* best effort */ }
   }
+  const topologyStartedAt = Date.now()
   const topology = await adapter.sidebarTopology()
+  const elapsedTopologyMs = Date.now() - topologyStartedAt
   if (!topology.ok) {
     reportBoot('topology-failed', false, `${topology.error.code}: ${topology.error.message}`)
     throw new Error('Could not identify the installed Host Workspace generation.')

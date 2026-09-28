@@ -216,6 +216,10 @@ export interface WorktreeClientBootReport {
   branch: 'legacy' | 'alpha' | 'next' | 'unsupported' | 'topology-failed' | 'boot-failed'
   registered: boolean
   detail?: string
+  /** Elapsed ms spent awaiting the Remote namespace mount before UI registration. */
+  elapsedMountMs?: number
+  /** Elapsed ms spent awaiting the first sidebarTopology probe. */
+  elapsedTopologyMs?: number
 }
 
 /** targetSessionId is allocated on the Host; the browser never chooses ownership identity. */
@@ -403,9 +407,10 @@ export const WORKTREE_CONSOLE_ERROR_CODES = [
   ...SESSION_CHECKOUT_ERROR_CODES,
   'transport_unavailable',
   'malformed_response',
+  'timeout',
 ] as const
 
-export type WorktreeConsoleErrorCode = SessionCheckoutErrorCode | 'transport_unavailable' | 'malformed_response'
+export type WorktreeConsoleErrorCode = SessionCheckoutErrorCode | 'transport_unavailable' | 'malformed_response' | 'timeout'
 export type WorktreeConsoleErrorCategory =
   | 'permission'
   | 'stale'
@@ -526,6 +531,7 @@ const ERROR_META = {
   recovery_unsafe: { category: 'recovery', recovery: 'open_recovery', retryable: false },
   transport_unavailable: { category: 'unavailable', recovery: 'retry', retryable: true },
   malformed_response: { category: 'internal', recovery: 'none', retryable: false },
+  timeout: { category: 'unavailable', recovery: 'retry', retryable: true },
 } as const satisfies Record<WorktreeConsoleErrorCode, WorktreeConsoleErrorMeta>
 
 export function worktreeConsoleErrorMeta(code: WorktreeConsoleErrorCode): WorktreeConsoleErrorMeta {

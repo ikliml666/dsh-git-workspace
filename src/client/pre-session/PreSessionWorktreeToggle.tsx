@@ -84,7 +84,20 @@ export function PreSessionWorktreeToggle({ sessionId, session, input, inputActio
     return () => { scope.alive = false }
   }, [scope])
 
-  if (!blank || state === 'loading' || state === 'unsupported') return null
+  if (!blank || state === 'unsupported') return null
+  if (state === 'loading') {
+    // A disabled placeholder keeps the composer row stable while the first
+    // target lookup resolves, instead of popping the toggle in afterwards.
+    return (
+      <span className="dsh-wt-pre-session" data-state="loading">
+        <button type="button" role="switch" aria-checked={false} aria-label={t('worktree')}
+          className="dsh-wt-pre-session-toggle" disabled>
+          <span className="dsh-wt-pre-session-check" aria-hidden="true" />
+          <span>{t('worktree')}</span>
+        </button>
+      </span>
+    )
+  }
   if (target?.state === 'local' && !target.capabilities.create) return null
 
   const selected = target !== null && target.state !== 'local'

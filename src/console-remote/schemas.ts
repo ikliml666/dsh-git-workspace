@@ -241,6 +241,8 @@ export const clientBootReportSchema: z.ZodType<WorktreeClientBootReport> = stric
   branch: z.enum(['legacy', 'alpha', 'next', 'unsupported', 'topology-failed', 'boot-failed']),
   registered: z.boolean(),
   detail: z.string().max(2000).optional(),
+  elapsedMountMs: z.number().int().nonnegative().optional(),
+  elapsedTopologyMs: z.number().int().nonnegative().optional(),
 })
 export const mutationResponseSchema: z.ZodType<WorktreeConsoleMutationResponse> = strict({
   target: targetSummarySchema,

@@ -38,16 +38,54 @@ function isCodecRejection(value: unknown): boolean {
   return message.includes('rejected "') || message.includes('返回了不符合 strict contract')
 }
 
+/**
+ * The Web RPC carrier has no timeout: a request whose server-side handler
+ * stalls (binding-lock queue, hung git) would pend forever and freeze the
+ * calling UI in its pending state. Fail the client side instead; server work
+ * keeps running and mutating calls stay safe to retry.
+ */
+const FAST_TIMEOUT_MS = 30_000
+const SLOW_TIMEOUT_MS = 180_000
+const FAST_METHODS = new Set([
+  'sidebarTopology', 'current', 'list', 'inspect',
+  'preflight', 'preflightCreate', 'previewRecoveryPreflight',
+])
+
+function timeoutOutcome<T>(method: string, locale: Language, timeoutMs: number): WorktreeConsoleOutcome<T> {
+  return {
+    ok: false,
+    error: {
+      code: 'timeout',
+      message: createTranslator(transportMessages, locale)('invokeTimeout', {
+        method,
+        seconds: Math.round(timeoutMs / 1000),
+      }),
+    },
+  }
+}
+
 export function createWorktreeConsoleRemoteAdapter(remote: GitWorktreeRemote, getLanguage: () => Language = () => 'zh'): WorktreeConsoleAdapter {
   const descriptors = new Map(WORKTREE_CONSOLE_DESCRIPTORS.map(descriptor => [descriptor.method, descriptor]))
 
   async function invoke<T>(method: string, call: (locale: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<T>>>): Promise<WorktreeConsoleOutcome<T>> {
     const locale = normalizeLanguage(getLanguage())
-    let carrier: RemoteResult<WorktreeConsoleOutcome<T>>
+    const timeoutMs = FAST_METHODS.has(method) ? FAST_TIMEOUT_MS : SLOW_TIMEOUT_MS
+    let carrier: RemoteResult<WorktreeConsoleOutcome<T>> | { timedOut: true }
+    let timer: ReturnType<typeof setTimeout> | undefined
     try {
-      carrier = await call(locale)
+      carrier = await Promise.race([
+        call(locale),
+        new Promise<{ timedOut: true }>(resolve => {
+          timer = setTimeout(() => resolve({ timedOut: true }), timeoutMs)
+        }),
+      ])
     } catch (error) {
+      globalThis.clearTimeout(timer)
       return isCodecRejection(error) ? malformed(method, locale) : transport(messageOf(error))
+    }
+    globalThis.clearTimeout(timer)
+    if (carrier !== null && typeof carrier === 'object' && 'timedOut' in carrier) {
+      return timeoutOutcome(method, locale, timeoutMs)
     }
     if (typeof carrier !== 'object' || carrier === null || typeof carrier.ok !== 'boolean') return malformed(method, locale)
     if (!carrier.ok) return isCodecRejection(carrier.error) ? malformed(method, locale) : transport(carrier.error.message)
