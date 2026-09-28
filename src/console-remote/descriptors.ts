@@ -1,6 +1,7 @@
 import type { InvocationDescriptor, InvocationParameterDescriptor, TypertCodec, TypertRemoteContribution, TypertSchema } from '@deepseek-ai/dsh-typert-protocol'
 import {
   booleanSchema,
+  branchNameSchema,
   clientBootReportSchema,
   optionalLanguageSchema,
   checkoutIdSchema,
@@ -86,7 +87,8 @@ export const WORKTREE_CONSOLE_DESCRIPTORS: readonly InvocationDescriptor[] = Obj
   ], outcomeSchema(listResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleListResponse>'),
   descriptor('preflightCreate', [], outcomeSchema(createPreflightResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleCreatePreflightResponse>'),
   descriptor('createWithInitialCommit', [json('confirmationToken', requestIdSchema, 'string')], outcomeSchema(createResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleCreateResponse>'),
-  descriptor('create', [], outcomeSchema(createResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleCreateResponse>'),
+  descriptor('create', [json('branch', branchNameSchema, 'string | undefined', true)], outcomeSchema(createResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleCreateResponse>'),
+  descriptor('initProject', [], outcomeSchema(booleanSchema), 'WorktreeConsoleOutcome<boolean>'),
   descriptor('inspect', [
     json('checkoutId', checkoutIdSchema, `${PACKAGE}/console-contract#WorktreeConsoleInspectRequest.checkoutId`),
   ], outcomeSchema(inspectResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleInspectResponse>'),

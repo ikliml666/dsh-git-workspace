@@ -31,6 +31,7 @@ interface NodeSessionCheckoutOptions {
   configDir: string
   lookup: SessionCheckoutLookupPort
   onTimingEvent?: (event: SessionCheckoutTimingEvent) => void | Promise<void>
+  worktreesRoot?: string
 }
 
 interface GitCommandResult {
@@ -527,6 +528,7 @@ export function createNodeSessionCheckoutDependencies(
     lookup: options.lookup,
     applyEngine: createSessionCheckoutApplyEngine(),
     managedCheckoutsRoot,
+    ...(options.worktreesRoot ? { worktreesRoot: options.worktreesRoot } : {}),
     createCheckoutId: randomUUID,
     ...(options.onTimingEvent && { onTimingEvent: options.onTimingEvent }),
     registry: new AtomicJsonCheckoutRegistry(join(options.configDir, 'managed-checkouts.json')),
@@ -612,6 +614,16 @@ export function createNodeSessionCheckoutDependencies(
         if (result.code === 0) return true
         if (result.code === 1) return false
         throw new Error(result.stderr || '无法证明 Git commit ancestry')
+      },
+      listLocalBranches: async (root) => {
+        const output = await runSessionGitChecked(root, ['for-each-ref', '--format=%(refname:short)', 'refs/heads'])
+        return output.split(/\r?\n/).map((branch) => branch.trim()).filter(Boolean).sort((a, b) => a.localeCompare(b))
+      },
+      resolveLocalBranchTip: async (root, branch) => {
+        const result = await runSessionGit(root, ['rev-parse', '--verify', '--quiet', `refs/heads/${branch}`])
+        if (result.code === 0 && /^[0-9a-f]{40,64}$/iu.test(result.stdout)) return result.stdout
+        if (result.code === 1) return null
+        throw new Error(result.stderr || '无法解析本地分支 tip')
       },
     },
   }

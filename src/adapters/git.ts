@@ -322,6 +322,16 @@ export function createDshGitPort(ctx: Context, options: GitPortOptions): Session
       if (result.code === 1) return false
       throw new Error(result.stderr || hostMessage('cannotProveGitCommitAncestry'))
     },
+    listLocalBranches: async (root) => {
+      const output = await runSessionGitChecked(root, ['for-each-ref', '--format=%(refname:short)', 'refs/heads'])
+      return output.split(/\r?\n/).map((branch) => branch.trim()).filter(Boolean).sort((a, b) => a.localeCompare(b))
+    },
+    resolveLocalBranchTip: async (root, branch) => {
+      const result = await runSessionGit(root, ['rev-parse', '--verify', '--quiet', `refs/heads/${branch}`])
+      if (result.code === 0 && /^[0-9a-f]{40,64}$/iu.test(result.stdout)) return result.stdout
+      if (result.code === 1) return null
+      throw new SessionCheckoutError('git_operation_failed', result.stderr || hostMessage('repositoryInspectionFailed'))
+    },
     pushBranch: async (root) => {
       // Local adaptation: push the checked-out branch to its configured
       // upstream. Plain `git push` never rewrites remote history; a missing

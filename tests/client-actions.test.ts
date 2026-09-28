@@ -138,7 +138,7 @@ describe('Worktree Client navigation', () => {
           sourceSessionId: 'other-source', ownerSessionId: 'holder-session', targetSessionId: 'holder-session',
           iteration: 1, revision: 9, state: 'preview_active' as const, phase: 'ready' as const, dirty: true,
           currentOid: 'b'.repeat(40), commitOid: null, managedRoot: '/fixture/holder', sourceRoot: '/fixture/project',
-          sourceOid: 'a'.repeat(40), currentBranch: null,
+          sourceOid: 'a'.repeat(40), currentBranch: null, sourceBranch: 'main',
           capabilities: {
             create: false, open: true, inspect: true, discard: false, preflight: false, preview: false,
             resumeRevision: false, rollbackPreview: false, finalize: false, finalizePreview: false,

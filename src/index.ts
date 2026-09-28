@@ -109,7 +109,7 @@ export interface SessionCheckoutModule {
   ): Promise<T>
   bind(sessionId: string, choice: SessionTargetBindChoice): Promise<SessionTargetView>
   /** Reserve a distinct owner session and checkout without changing the source session cwd/identity. */
-  createIsolatedTarget(sourceSessionId: string, targetSessionId: string, createOptions?: { topic?: string }): Promise<IsolatedTargetLaunch>
+  createIsolatedTarget(sourceSessionId: string, targetSessionId: string, createOptions?: { topic?: string; branch?: string }): Promise<IsolatedTargetLaunch>
   /** Recreate a cleaned delivered owner's immutable cwd as the next isolated iteration. */
   beginNextIteration(sessionId: string, expectedRevision: number): Promise<SessionTargetView>
   /** Invalidate an unsynced review and resume the same iteration without touching Local. */

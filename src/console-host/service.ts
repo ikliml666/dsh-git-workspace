@@ -86,8 +86,13 @@ export class WorktreeConsoleService extends TypertRemoteService {
   }
 
   @Remote
-  create(agent: Agent, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleCreateResponse>> {
-    return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.create(agent.id))
+  create(agent: Agent, branch?: string, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleCreateResponse>> {
+    return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.create(agent.id, branch))
+  }
+
+  @Remote
+  initProject(agent: Agent, locale?: Language): Promise<WorktreeConsoleOutcome<boolean>> {
+    return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.initProject(agent.id))
   }
 
   @Remote

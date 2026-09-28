@@ -195,7 +195,7 @@ describe('production Git adapter: unborn repositories', () => {
     expect(git(created.value.managedRoot, ['rev-parse', 'HEAD']).stdout).toBe(git(repo, ['rev-parse', 'HEAD']).stdout)
     expect(git(repo, ['ls-files', '--stage']).stdout).toBe('')
     expect(git(repo, ['ls-tree', '-r', 'HEAD']).stdout).toBe('')
-    expect(await control.preflightCreate('source')).toEqual({ ok: true, value: { kind: 'ready' } })
+    expect(await control.preflightCreate('source')).toEqual({ ok: true, value: { kind: 'ready', branches: expect.any(Array) } })
   })
 
   it('rejects invalid Git metadata rather than presenting it as an empty or non-Git directory', async () => {

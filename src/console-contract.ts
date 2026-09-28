@@ -130,6 +130,8 @@ export interface WorktreeConsoleTargetSummary {
   dirty: boolean
   currentOid: string
   commitOid: string | null
+  /** Local branch this target tracks, derived from the recorded source ref; null when the Local side was detached or unversioned. */
+  sourceBranch: string | null
   retention?: Exclude<WorktreeRetentionMode, 'cleanup'>
   retainedAt?: number
   expiresAt?: number | null
@@ -193,6 +195,8 @@ export interface WorktreeSidebarTask {
   revision: number
   phase: SessionCheckoutPhase
   state: WorktreeSidebarTaskState
+  /** Local branch recorded at creation; null when detached or unversioned. */
+  sourceBranch: string | null
 }
 
 export interface WorktreeSidebarProject {
@@ -224,12 +228,14 @@ export interface WorktreeClientBootReport {
 
 /** targetSessionId is allocated on the Host; the browser never chooses ownership identity. */
 export type WorktreeConsoleCreatePreflightResponse =
-  | { kind: 'ready' }
+  | { kind: 'ready'; branches?: string[] }
   | { kind: 'empty'; confirmationToken: string }
   | { kind: 'files' }
 
 export interface WorktreeConsoleCreateRequest {
   sourceSessionId: string
+  /** Start the worktree from this local branch's tip instead of the source HEAD. */
+  branch?: string
 }
 
 export interface WorktreeConsoleCreateResponse {
@@ -542,6 +548,7 @@ export function worktreeConsoleErrorMeta(code: WorktreeConsoleErrorCode): Worktr
 export interface WorktreeConsoleAdapter {
   preflightCreate?(request: { sourceSessionId: string }): Promise<WorktreeConsoleOutcome<WorktreeConsoleCreatePreflightResponse>>
   createWithInitialCommit?(request: { sourceSessionId: string; confirmationToken: string }): Promise<WorktreeConsoleOutcome<WorktreeConsoleCreateResponse>>
+  initializeProject?(request: { sourceSessionId: string }): Promise<WorktreeConsoleOutcome<boolean>>
   sidebarTopology(): Promise<WorktreeConsoleOutcome<WorktreeSidebarTopologyResponse>>
   current(request: WorktreeConsoleCurrentRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleCurrentResponse>>
   list(request: WorktreeConsoleListRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleListResponse>>

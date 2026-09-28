@@ -56,6 +56,7 @@ function readyTarget(): WorktreeConsoleTargetDetails {
     sourceOid: 'a'.repeat(40),
     currentBranch: null,
     commitOid: null,
+    sourceBranch: 'main',
     managedRoot: '/fixture/project-worktrees/checkout-1',
     sourceRoot: '/fixture/project',
     capabilities: {

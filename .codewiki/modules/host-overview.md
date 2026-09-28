@@ -19,7 +19,7 @@ tags:
 
 # Host Entry and Registration Surface
 
-dsh-git-worktree 是 DeepSeek Harness 的 Git worktree 会话目标插件。宿主入口把端口适配器（[[adapters|Adapter Layer]]）、核心状态机（[[session-checkout-module|Session Checkout Module]]）、执行引擎（[[session-checkout-apply|Session Checkout Apply Pipeline]]）与 RPC 控制面（[[console-host|Console Host Control Plane]]）装配成一个插件，并向模型、用户、UI 三个方向暴露能力。
+dsh-git-worktree 是 DeepSeek Harness 的 Git worktree 会话目标插件。宿主入口把端口适配器（[[adapters|Adapter Layer]]）、核心状态机（[[session-checkout-module|Session Checkout Module]]）、执行引擎（[[session-checkout-apply|Session Checkout Apply Pipeline]]）与 RPC 控制面（[[console-host|Console Host Control Plane]]）装配成一个插件，并向模型、用户、UI 三个方向暴露能力。v0.9.4 起新增三项管理面能力：按基准分支创建（[[create-from-branch-is-base-only|Create From Branch Is Base Only]]）、非 Git 目录渐进增强（[[non-git-incremental-enablement|Non-Git Incremental Enablement]]）、侧边栏任务携带 sourceBranch。
 
 ## 插件身份与错误基类
 

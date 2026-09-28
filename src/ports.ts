@@ -62,6 +62,12 @@ export interface SessionCheckoutGitPort {
   /** Optional for third-party ports; unsupported ports must not initialize. */
   preflightInitialCommit?(root: string): Promise<InitialCommitPreflight>
   initializeEmptyRepository?(root: string, fingerprint: string, assertAuthorized?: () => Promise<void>): Promise<string>
+  /** Local adaptation: turn a non-Git or unborn project into a committed repository on explicit user confirmation. */
+  initializeProject?(root: string): Promise<void>
+  /** Short names of local branches, sorted, for the create-time base picker. */
+  listLocalBranches?(root: string): Promise<string[]>
+  /** Tip commit of a local branch, or null when the ref does not resolve. */
+  resolveLocalBranchTip?(root: string, branch: string): Promise<string | null>
   inspect(root: string): Promise<GitCheckoutSnapshot | null>
   /** Top-level of the Git checkout containing the directory; does not require a HEAD. */
   findContainingWorktreeRoot(root: string): Promise<string | null>

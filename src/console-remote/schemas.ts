@@ -32,6 +32,12 @@ export const oidSchema = z.union([
 export const previewIdSchema = z.string().min(1).max(200).refine(value => !/[\\/\0\r\n]/u.test(value), 'unsafe preview id')
 export const generationSchema = z.string().regex(/^[0-9a-f]{64}$/u)
 export const requestIdSchema = z.string().min(1).max(200).refine(value => !/[\0\r\n]/u.test(value), 'unsafe request id')
+export const branchNameSchema = z.string().trim().min(1).max(200).refine(
+  value => !/[\0\t\r\n\\ ~^:?*[]/u.test(value)
+    && !value.startsWith('-') && !value.startsWith('/') && !value.endsWith('/')
+    && !value.includes('..') && !value.endsWith('.lock'),
+  'unsafe branch name',
+)
 export const booleanSchema = z.boolean()
 export const optionalLanguageSchema = z.enum(['zh', 'en']).optional()
 export const optionalBooleanSchema = z.union([booleanSchema, z.undefined()])
@@ -109,6 +115,7 @@ const targetSummarySchema = strict({
   dirty: z.boolean(),
   currentOid: oidSchema,
   commitOid: oidSchema.nullable(),
+  sourceBranch: z.string().nullable(),
   retention: retainedModeSchema.optional(),
   retainedAt: z.number().finite().optional(),
   expiresAt: z.number().finite().nullable().optional(),
@@ -208,7 +215,7 @@ export function outcomeSchema<T>(value: z.ZodType<T>): z.ZodType<WorktreeConsole
 
 export const currentResponseSchema: z.ZodType<WorktreeConsoleCurrentResponse> = strict({ target: targetDetailsSchema })
 export const createPreflightResponseSchema = z.discriminatedUnion('kind', [
-  strict({ kind: z.literal('ready') }),
+  strict({ kind: z.literal('ready'), branches: z.array(branchNameSchema).max(1000).optional() }),
   strict({ kind: z.literal('files') }),
   strict({ kind: z.literal('empty'), confirmationToken: z.string().uuid() }),
 ])
@@ -233,6 +240,7 @@ export const sidebarTopologyResponseSchema: z.ZodType<WorktreeSidebarTopologyRes
       revision: revisionSchema,
       phase: z.enum(['preparing', 'ready', 'applying', 'mutating', 'finalized', 'retained', 'discarded', 'recovery_required']),
       state: z.enum(['working', 'ready_for_review', 'preview_active', 'preview_detached', 'recovery_required', 'finalized', 'discarded']),
+      sourceBranch: z.string().nullable(),
     })),
   })),
 })

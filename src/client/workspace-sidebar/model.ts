@@ -51,11 +51,12 @@ function currentTasks(topology: WorktreeSidebarTopologyResponse, t: ClientTransl
     if (!project?.project?.id || !project.project.name || !Array.isArray(project.tasks)) continue
     for (const task of project.tasks) {
       if (!task?.checkoutId || !task.ownerSessionId || !task.sourceSessionId) continue
+      const stateLabel = STATE_LABELS(t)[task.state] ?? t("in.progress")
       const projected: ProjectedManagedTask = {
         ...task,
         projectId: project.project.id,
         projectName: project.project.name,
-        label: STATE_LABELS(t)[task.state] ?? t("in.progress"),
+        label: task.sourceBranch ? `${stateLabel} · ${task.sourceBranch}` : stateLabel,
       }
       const previous = byOwner.get(task.ownerSessionId)
       if (!previous

@@ -969,6 +969,42 @@ export const clientMessages = {
     "zh": "✓",
     "en": "✓"
   },
+  "branch": {
+    "zh": "分支",
+    "en": "branch"
+  },
+  "branch.current": {
+    "zh": "当前",
+    "en": "current"
+  },
+  "branch.head": {
+    "zh": "当前 HEAD",
+    "en": "Current HEAD"
+  },
+  "create.from.branch": {
+    "zh": "从分支创建",
+    "en": "Create from branch"
+  },
+  "initialize.git.title": {
+    "zh": "初始化 Git 并启用 Worktree",
+    "en": "Initialize Git and enable Worktree"
+  },
+  "initialize.git.description": {
+    "zh": "该目录还没有可用的 Git 提交历史。将执行 git init（初始分支 main）、git add -A 并创建首次提交 \"Initial commit\"。操作只新增版本控制，不改动、不删除任何文件。",
+    "en": "This directory has no usable Git history yet. The host will run git init (initial branch main), git add -A, and create the initial commit \"Initial commit\". This only adds version control; no files are modified or deleted."
+  },
+  "initialize.git.confirm": {
+    "zh": "初始化并创建首次提交",
+    "en": "Initialize and create the initial commit"
+  },
+  "initialize.git.unsupported": {
+    "zh": "当前宿主不支持初始化 Git 仓库。",
+    "en": "This host cannot initialize a Git repository."
+  },
+  "initializing.git": {
+    "zh": "正在初始化…",
+    "en": "Initializing…"
+  },
   "iteration": {
     "zh": "第",
     "en": "Iteration "

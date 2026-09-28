@@ -101,6 +101,10 @@ function fallbackOid(record: ManagedCheckoutRecord): string {
   return commitOid(record) ?? record.applyBaseOid ?? record.baseOid
 }
 
+export function sourceBranchFromRef(sourceRef: string): string | null {
+  return sourceRef.startsWith('refs/heads/') ? sourceRef.slice('refs/heads/'.length) : null
+}
+
 export function projectRecord(
   record: ManagedCheckoutRecord,
   callerSessionId: string,
@@ -131,6 +135,7 @@ export function projectRecord(
     dirty: observed?.dirty ?? observed?.summary?.dirty ?? false,
     currentOid: observed?.snapshot?.headOid ?? fallbackOid(record),
     commitOid: commitOid(record),
+    sourceBranch: sourceBranchFromRef(record.sourceRef),
     ...(delivery.state === 'retained' ? {
       retention: delivery.retention,
       retainedAt: delivery.retainedAt,
@@ -252,6 +257,7 @@ export function projectLocal(target: SessionTargetView, sessionId: string): Work
     dirty: target.dirty,
     currentOid: target.current.oid,
     commitOid: null,
+    sourceBranch: target.current.branch,
     capabilities: {
       create: target.current.oid !== 'unversioned',
       open: true,

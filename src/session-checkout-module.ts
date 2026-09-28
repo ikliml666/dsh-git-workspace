@@ -2530,6 +2530,26 @@ export function createSessionCheckoutModule(
     })
   }
 
+  // 本地适配（合并后删除）：工作树移除成功后，若项目容器直接位于所配置的
+  // worktreesRoot 之下、无其他受管记录引用且目录已空，则一并回收容器，
+  // 避免 worktreesRoot 长期堆积空目录。removeEmptyDirectoryTree 遇到任何
+  // 条目即返回 false，绝不删除用户字节。
+  const collectEmptyManagedContainer = (managedGitRoot: string, excludedCheckoutId: string): boolean => {
+    const worktreesRoot = dependencies.worktreesRoot
+    if (!worktreesRoot) return false
+    const container = dirname(managedGitRoot)
+    if (pathsEqual(container, worktreesRoot) || !pathsEqual(dirname(container), worktreesRoot)) return false
+    const referenced = Object.values(dependencies.registry.read().managedCheckouts).some(
+      (other) => other.checkoutId !== excludedCheckoutId && pathsEqual(dirname(other.managedGitRoot), container),
+    )
+    if (referenced) return false
+    try {
+      return dependencies.files.removeEmptyDirectoryTree(container)
+    } catch {
+      return false
+    }
+  }
+
   async function cleanupFinalized(
     record: ManagedCheckoutRecord,
     options: { allowLegacyResidue?: boolean } = {},
@@ -2674,6 +2694,7 @@ export function createSessionCheckoutModule(
           await quarantineAndRemove(removing, revalidatedResidue)
         }
       }
+      collectEmptyManagedContainer(record.managedGitRoot, record.checkoutId)
       await releaseApplyBaseBestEffort(record)
       updateManagedCheckout(record.checkoutId, (current) => {
         if (current.delivery.state !== 'finalized' && current.delivery.state !== 'retained') return current
@@ -3295,6 +3316,12 @@ export function createSessionCheckoutModule(
     } catch {
       return operationError('git_operation_failed', hostMessage('failedToDeleteTheManagedCheckout'), await inspectIsolated(binding))
     }
+    try {
+      dependencies.files.removeEmptyDirectoryTree(record.managedGitRoot)
+    } catch {
+      // 尽力清理：git 移除成功后偶发的空壳（例如宿主重建 cwd 所致）。
+    }
+    collectEmptyManagedContainer(record.managedGitRoot, record.checkoutId)
     await releaseApplyBaseBestEffort(record)
     updateManagedCheckout(record.checkoutId, (current) => ({
       ...current,
@@ -3913,7 +3940,7 @@ export function createSessionCheckoutModule(
     createAttempt = 0,
     requestStartedAt = Date.now(),
     sourceSessionId = sessionId,
-    createOptions?: { topic?: string },
+    createOptions?: { topic?: string; branch?: string },
   ): Promise<SessionTargetView> {
       const session = requireSession(sourceSessionId)
       let nextIteration = 1
@@ -3982,6 +4009,14 @@ export function createSessionCheckoutModule(
       const checkoutId = dependencies.createCheckoutId()
       const localRoot = await dependencies.files.canonicalize(project.root)
       const localGitRoot = await dependencies.files.canonicalize(snapshot.root)
+      // 本地适配（按分支创建）：以指定本地分支的当前指向为起点。sourceRef/sourceOid
+      // 仍记录源会话的分支与 HEAD，交付语义不变（交付目标是源会话检出的分支）。
+      let baseOid = snapshot.headOid
+      if (createOptions?.branch !== undefined) {
+        const tip = (await dependencies.git.resolveLocalBranchTip?.(localGitRoot, createOptions.branch)) ?? null
+        if (tip === null) throw new SessionCheckoutError('invalid_input', hostMessage('branchDoesNotExist'))
+        baseOid = tip
+      }
       const repositoryKey = createManagedWorktreeRepositoryKey(localGitRoot)
       const pathCandidates = [8, 12, 32].map(identityLength => createManagedWorktreePathCandidates({
         localGitRoot,
@@ -4070,7 +4105,7 @@ export function createSessionCheckoutModule(
         managedGitRoot: resolve(managedGitRoot),
         gitCommonDir: snapshot.commonDir,
         gitDir: '',
-        baseOid: snapshot.headOid,
+        baseOid,
         sourceRef: snapshot.headRef,
         phase: 'preparing',
         delivery: { state: 'working', iteration: nextIteration },
@@ -4099,7 +4134,7 @@ export function createSessionCheckoutModule(
       dependencies.registry.write(preparingRegistry)
 
       try {
-        await dependencies.git.createDetachedWorktree(localGitRoot, managedGitRoot, snapshot.headOid,
+        await dependencies.git.createDetachedWorktree(localGitRoot, managedGitRoot, baseOid,
           evidence => saveCreationEvidence(checkoutId, record.journal!.operationId, evidence))
         const canonicalManagedGitRoot = await dependencies.files.canonicalize(managedGitRoot)
         const canonicalManagedRoot = await dependencies.files.canonicalize(managedRoot)

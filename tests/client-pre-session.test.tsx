@@ -622,12 +622,14 @@ describe('Pre-session directory menu', () => {
     await waitFor(() => expect((screen.getByRole('switch', { name: 'Worktree' }) as HTMLButtonElement).disabled).toBe(false))
   })
 
-  test('hides the directory menu when the Session workspace is not a Git repository', async () => {
+  test('offers Git initialization when the Session workspace is not a Git repository', async () => {
     const fixture = successFixture()
     fixture.adapter.current = vi.fn(async () => ({
       ok: false,
       error: { code: 'not_git_repository' as const, message: '当前 Session 项目不是可用的 Git Worktree' },
     }))
+    const initializeProject = vi.fn(async () => ({ ok: true, value: true }))
+    fixture.adapter.initializeProject = initializeProject
     const prepare = vi.fn()
     render(<PreSessionWorktreeToggle
       sessionId="source-session"
@@ -638,11 +640,16 @@ describe('Pre-session directory menu', () => {
       controller={{ prepare }}
     />)
 
-    await waitFor(() => {
-      expect(fixture.adapter.current).toHaveBeenCalledWith({ sessionId: 'source-session' })
-      expect(screen.queryByRole('switch', { name: 'Worktree' })).toBeNull()
-      expect(screen.queryByRole('alert')).toBeNull()
-    })
+    // 非 Git 项目不再静默隐藏：开关保留并可点击，进入初始化确认。
+    const toggle = await screen.findByRole('switch', { name: 'Worktree' })
+    await waitFor(() => expect((toggle as HTMLButtonElement).disabled).toBe(false))
+    fireEvent.click(toggle)
+    const dialog = screen.getByRole('dialog', { name: '初始化 Git 并启用 Worktree' })
+    expect(dialog).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '初始化并创建首次提交' }))
+    await waitFor(() => expect(initializeProject).toHaveBeenCalledWith({ sourceSessionId: 'source-session' }))
+    // 初始化成功后重新探测目标状态。
+    await waitFor(() => expect(fixture.adapter.current).toHaveBeenCalledTimes(2))
     expect(prepare).not.toHaveBeenCalled()
   })
 

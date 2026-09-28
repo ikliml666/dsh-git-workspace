@@ -628,6 +628,26 @@ describe('Worktree Console loading and inspection', () => {
 })
 
 describe('Worktree Console Create/Open', () => {
+  test('creates from the selected base branch when one is picked', async () => {
+    const fixture = createWorktreeConsoleAdapterFixture()
+    const local = localTarget()
+    fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { target: local } }))
+    fixture.adapter.list = vi.fn(async () => ({ ok: true, value: { project: local.project, worktrees: [] } }))
+    fixture.adapter.preflightCreate = vi.fn(async () => ({ ok: true, value: { kind: 'ready' as const, branches: ['feat/x', 'main'] } }))
+    fixture.adapter.create = vi.fn(async () => ({
+      ok: true as const,
+      value: { target: fixture.target, targetSessionId: 'target-session', managedRoot: '/fixture/project-worktrees/checkout-1' },
+    }))
+    renderConsole(fixture.adapter)
+
+    const select = await screen.findByRole('combobox', { name: '从分支创建' })
+    fireEvent.focus(select)
+    await waitFor(() => expect((select as HTMLSelectElement).options.length).toBeGreaterThan(1))
+    fireEvent.change(select, { target: { value: 'feat/x' } })
+    fireEvent.click(screen.getByRole('button', { name: '创建 Worktree' }))
+    await waitFor(() => expect(fixture.adapter.create).toHaveBeenCalledWith({ sourceSessionId: 'source-session', branch: 'feat/x' }))
+  })
+
   test('creates once, registers the exact Host targetSessionId, and opens only that target', async () => {
     const fixture = createWorktreeConsoleAdapterFixture()
     const local = localTarget()

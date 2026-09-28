@@ -95,5 +95,22 @@ prepare
       }
     }
   }
-  return { preflightInitialCommit, initializeEmptyRepository }
+  /** 本地适配：非 Git 或未出生仓库在用户显式确认后变成有首次提交的仓库。
+   *  已有提交的仓库拒绝执行；git init 只新增 .git，add -A 遵循 .gitignore，
+   *  提交失败（例如全部被忽略、身份未配置）原样报错，不回滚任何字节。 */
+  async function initializeProject(root: string): Promise<void> {
+    const snapshot = await inspect(root)
+    if (snapshot !== null && snapshot.headOid !== 'unborn') {
+      throw new SessionCheckoutError('operation_not_allowed', hostMessage('projectAlreadyVersioned'))
+    }
+    if (snapshot === null) {
+      // -b names the initial branch without writing to config; Git >= 2.28.
+      await checked(root, ['init', '-b', 'main'])
+    }
+    const identity = await run(root, ['-c', 'user.useConfigOnly=true', 'var', 'GIT_AUTHOR_IDENT'])
+    if (identity.code !== 0) throw new SessionCheckoutError('git_operation_failed', hostMessage('initialIdentityMissing'))
+    await checked(root, ['add', '-A'])
+    await checked(root, ['-c', 'user.useConfigOnly=true', 'commit', '-m', 'Initial commit'])
+  }
+  return { preflightInitialCommit, initializeEmptyRepository, initializeProject }
 }

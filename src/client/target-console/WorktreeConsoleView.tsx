@@ -108,8 +108,11 @@ export function WorktreeConsoleView({
   const [error, setError] = useState<string | null>(null)
   const [pendingAction, setPendingAction] = useState<string | null>(null)
   const [confirmTarget, setConfirmTarget] = useState<WorktreeConsoleTargetSummary | null>(null)
+  const [createBranch, setCreateBranch] = useState('')
+  const [knownBranches, setKnownBranches] = useState<string[] | null>(null)
   const confirmButton = useRef<HTMLButtonElement>(null)
   const visibleSnapshot = snapshot?.sessionId === sessionId ? snapshot : null
+  const currentSourceBranch = visibleSnapshot?.current.sourceBranch ?? null
 
   useLayoutEffect(() => {
     mounted.current = true
@@ -122,6 +125,8 @@ export function WorktreeConsoleView({
     setSnapshot(null)
     setConfirmTarget(null)
     setPendingAction(null)
+    setCreateBranch('')
+    setKnownBranches(null)
     setError(null)
     setLoading(true)
   }, [sessionId])
@@ -191,6 +196,16 @@ export function WorktreeConsoleView({
     }
   }
 
+  const loadBranches = (): void => {
+    if (knownBranches !== null || adapter.preflightCreate === undefined) return
+    void adapter.preflightCreate({ sourceSessionId: sessionId }).then(outcome => {
+      if (!mounted.current) return
+      setKnownBranches(outcome.ok && outcome.value.kind === 'ready' ? outcome.value.branches ?? [] : [])
+    }, () => {
+      if (mounted.current) setKnownBranches([])
+    })
+  }
+
   const createTarget = async (): Promise<void> => {
     if (pendingAction !== null || visibleSnapshot?.current.capabilities.create !== true) return
     const generation = sessionGeneration.current
@@ -198,7 +213,7 @@ export function WorktreeConsoleView({
     setPendingAction('create')
     setError(null)
     try {
-      const outcome = await adapter.create({ sourceSessionId: sessionId })
+      const outcome = await adapter.create({ sourceSessionId: sessionId, ...(createBranch ? { branch: createBranch } : {}) })
       if (!isActive(generation)) return
       if (!outcome.ok) {
         setError(errorText(outcome.error, t))
@@ -356,18 +371,34 @@ export function WorktreeConsoleView({
             <div>
               <span className="dsh-wtc-label">{t("current.target")}</span>
               <strong>{visibleSnapshot.current.project.name}</strong>
+              {visibleSnapshot.current.sourceBranch ? <span>{t("branch")} {visibleSnapshot.current.sourceBranch}</span> : null}
             </div>
             <div className="dsh-wtc-current-actions">
               <TargetState target={visibleSnapshot.current} />
               {visibleSnapshot.current.state !== 'recovery_required' && visibleSnapshot.current.capabilities.create ? (
-                <button
-                  type="button"
-                  className="dsh-wtc-button dsh-wtc-primary"
-                  disabled={pendingAction !== null}
-                  onClick={() => { void createTarget() }}
-                >
-                  <ReviewIcon name="create" />{pendingAction === 'create' ? t("creating.2") : t("create.worktree")}
-                </button>
+                <>
+                  <select
+                    className="dsh-wtc-button dsh-wtc-branch-select"
+                    aria-label={t("create.from.branch")}
+                    value={createBranch}
+                    disabled={pendingAction !== null}
+                    onChange={event => { setCreateBranch(event.target.value) }}
+                    onFocus={loadBranches}
+                  >
+                    <option value="">{currentSourceBranch ? `${currentSourceBranch} (${t("branch.current")})` : t("branch.head")}</option>
+                    {(knownBranches ?? []).filter(candidate => candidate !== currentSourceBranch).map(candidate => (
+                      <option key={candidate} value={candidate}>{candidate}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="dsh-wtc-button dsh-wtc-primary"
+                    disabled={pendingAction !== null}
+                    onClick={() => { void createTarget() }}
+                  >
+                    <ReviewIcon name="create" />{pendingAction === 'create' ? t("creating.2") : t("create.worktree")}
+                  </button>
+                </>
               ) : null}
             </div>
           </section>
@@ -399,6 +430,7 @@ export function WorktreeConsoleView({
                       </div>
                       <div className="dsh-wtc-facts">
                         {target.checkoutId ? <span className="dsh-wtc-checkout-id" title={t("manager.task.id")}>{target.checkoutId}</span> : null}
+                        {target.sourceBranch ? <span>{t("branch")} {target.sourceBranch}</span> : null}
                         <span>{t("iteration")} {t("count.iterations", { count: target.iteration })}</span>
                         {target.dirty ? <span>{t("uncommitted.changes")}</span> : <span>{t("clean")}</span>}
                         {(target.checkpoints?.length ?? 0) > 0 ? <span>{t("saved")} {target.checkpoints!.length} {t("undelivered.stages")}</span> : null}

@@ -26,7 +26,7 @@ src/adapters/ 把 DSH 宿主能力适配为领域端口（SessionCheckoutDepende
 
 ## Git 端口（src/adapters/git.ts，344 行）
 
-`createDshGitPort` 经 ctx.subprocess 运行 git（tree 作用域遥测），实现 inspect/findContainingWorktreeRoot/status/createDetachedWorktree/removeWorktree/retainApplyBase/retainInternalArtifact/readInternalArtifact/releaseInternalArtifacts/isAncestor/pushBranch（尽力而为、绝不 force、失败返回而不抛）与可选 preflightInitialCommit/initializeEmptyRepository。超时选择（src/adapters/git-options.ts:19）：`worktree add` → worktreeAddTimeoutMs、`worktree remove` → 固定 300_000、其余 gitTimeoutMs。
+`createDshGitPort` 经 ctx.subprocess 运行 git（tree 作用域遥测），实现 inspect/findContainingWorktreeRoot/status/createDetachedWorktree/removeWorktree/retainApplyBase/retainInternalArtifact/readInternalArtifact/releaseInternalArtifacts/isAncestor/pushBranch（尽力而为、绝不 force、失败返回而不抛）、listLocalBranches/resolveLocalBranchTip（v0.9.4，基准分支下拉与创建时 tip 解析；rev-parse --verify --quiet 对缺失 ref 返回 null）与可选 preflightInitialCommit/initializeEmptyRepository/initializeProject（v0.9.4，非 Git 渐进增强）。超时选择（src/adapters/git-options.ts:19）：`worktree add` → worktreeAddTimeoutMs、`worktree remove` → 固定 300_000、其余 gitTimeoutMs。
 
 ## 文件端口（src/adapters/files.ts，100 行 + src/adapters/safe-file.ts，130 行）
 
@@ -43,7 +43,7 @@ src/adapters/ 把 DSH 宿主能力适配为领域端口（SessionCheckoutDepende
 ## Worktree 创建与初始提交
 
 - worktree-creation.ts（250 行）：`createWorktree(localRoot, target, baseOid, run, saveEvidence)`——容器身份核验（inspectDirectoryIdentity 前后一致）、detached worktree 创建、证据回写（WorktreeCreationEvidence，src/ports.ts:126）；锁的获取/释放顺序保证「只有在前一把锁下完成收尾工作的事务才发布 commit」，finally 逆序 close+unlink（src/adapters/worktree-creation.ts 尾部注释）；失败路径与状态机 finishFailedCreation 协同（WorktreeCreationFailure.rolledBack，src/creation-failure.ts:2）。
-- initial-commit.ts（99 行）：preflightInitialCommit（ready|files|empty + fingerprint）与 initializeEmptyRepository（含复核回调），支撑空仓库的 createWithInitialCommit 流程。
+- initial-commit.ts（117 行）：preflightInitialCommit（ready|files|empty + fingerprint）、initializeEmptyRepository（含复核回调）与 initializeProject（v0.9.4：非 Git 目录先 `git init -b main`；已有提交的仓库拒绝 operation_not_allowed `projectAlreadyVersioned`；`git add -A` + `git commit -m "Initial commit"`，身份缺失 → git_operation_failed `initialIdentityMissing`），支撑空仓库 createWithInitialCommit 与非 Git 渐进增强（见 [[non-git-incremental-enablement|Non-Git Incremental Enablement]]）。
 
 ## Project Skills
 

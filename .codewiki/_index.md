@@ -3,6 +3,8 @@
 ## Decision
 
 - [[decisions\client-rpc-watchdog-budget|客户端 RPC 超时看门狗：30s/180s 预算与被否决的替代方案]]
+- [[decisions\create-from-branch-is-base-only|按分支创建只选基准提交，不adopt分支——交付目标始终跟随源会话分支]]
+- [[decisions\non-git-incremental-enablement|非 Git 目录渐进增强：显式确认下的 init + 首次提交，而非静默或死路]]
 ## Learning
 
 - [[learnings\web-rpc-transport-has-no-timeout|Web RPC 传输层全程无超时：一次『创建中…』永久卡死的根因]]

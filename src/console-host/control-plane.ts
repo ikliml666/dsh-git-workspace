@@ -46,7 +46,7 @@ import type {
 import type { SessionCheckoutModule } from '../index.js'
 import type { SessionTargetView } from '../types.js'
 import { consoleFailure, domainError, failure, outcome } from './errors.js'
-import { projectDetails, projectLocal, projectRecord } from './projection.js'
+import { projectDetails, projectLocal, projectRecord, sourceBranchFromRef } from './projection.js'
 import { ReviewDiffStaleError, type WorktreeReviewDiffReader } from './review-diff.js'
 
 export interface WorktreeConsoleControlPlaneOptions {
@@ -65,7 +65,8 @@ export interface WorktreeConsoleControlPlane {
   list(request: WorktreeConsoleListRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleListResponse>>
   preflightCreate(sourceSessionId: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleCreatePreflightResponse>>
   createWithInitialCommit(sourceSessionId: string, confirmationToken: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleCreateResponse>>
-  create(sourceSessionId: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleCreateResponse>>
+  create(sourceSessionId: string, branch?: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleCreateResponse>>
+  initProject(sourceSessionId: string): Promise<WorktreeConsoleOutcome<boolean>>
   inspect(sessionId: string, checkoutId: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleInspectResponse>>
   reviewDiff(request: WorktreeConsoleReviewDiffRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleReviewDiffResponse>>
   preflight(request: WorktreeConsolePreflightRequest): Promise<WorktreeConsoleOutcome<WorktreeConsolePreflightResponse>>
@@ -469,9 +470,9 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
       if (rootKey) creating.delete(rootKey)
     }
   }
-  async function createTarget(sourceSessionId: string): Promise<WorktreeConsoleCreateResponse> {
+  async function createTarget(sourceSessionId: string, branch?: string): Promise<WorktreeConsoleCreateResponse> {
     const targetSessionId = createTargetSessionId()
-    const launch = await options.module.createIsolatedTarget(sourceSessionId, targetSessionId)
+    const launch = await options.module.createIsolatedTarget(sourceSessionId, targetSessionId, branch === undefined ? undefined : { branch })
     const record = recordOf(options.registry, launch.target.checkout.id)
     const observed = await observe(record)
     if (
@@ -526,6 +527,7 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
           revision: record.revision,
           phase: record.phase,
           state: sidebarTaskState(record),
+          sourceBranch: sourceBranchFromRef(record.sourceRef),
         }
         const previous = project.tasksByOwner.get(record.ownerSessionId)
         if (!previous
@@ -603,7 +605,10 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
     preflightCreate: sourceSessionId => outcome(async () => {
       const project = await localProject(sourceSessionId)
       const check = await options.git.preflightInitialCommit?.(project.root)
-      if (!check || check.kind === 'ready') return { kind: 'ready' }
+      if (!check || check.kind === 'ready') {
+        const branches = await options.git.listLocalBranches?.(project.root)
+        return { kind: 'ready', ...(branches === undefined ? {} : { branches }) }
+      }
       if (check.kind === 'files') {
         confirmations.delete(sourceSessionId)
         return { kind: 'files' }
@@ -630,7 +635,12 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
       try { return await createTarget(sourceSessionId) }
       catch { throw domainError('git_operation_failed', hostMessage('initialCreatedWorktreeFailed')) }
     })),
-    create: sourceSessionId => outcome(() => withCreation(sourceSessionId, () => createTarget(sourceSessionId))),
+    create: (sourceSessionId, branch) => outcome(() => withCreation(sourceSessionId, () => createTarget(sourceSessionId, branch))),
+    initProject: sourceSessionId => outcome(() => withCreation(sourceSessionId, async project => {
+      if (!options.git.initializeProject) throw domainError('operation_not_allowed', hostMessage('initializationUnsupported'))
+      await options.git.initializeProject(project.root)
+      return true
+    })),
 
     inspect: (sessionId, checkoutId) => outcome(async () => ({ target: await details(sessionId, checkoutId) })),
 

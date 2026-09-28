@@ -45,6 +45,7 @@ const METHODS = [
   'preflightCreate',
   'createWithInitialCommit',
   'create',
+  'initProject',
   'inspect',
   'reviewDiff',
   'preflight',
@@ -119,6 +120,7 @@ describe('manual strict Worktree Console Remote contribution', () => {
           tasks: [{
             checkoutId: 'checkout-1', ownerSessionId: 'owner', sourceSessionId: 'source',
             iteration: 1, revision: 2, phase: 'ready' as const, state: 'working' as const,
+            sourceBranch: 'main',
           }],
         }],
       },

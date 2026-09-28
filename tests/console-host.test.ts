@@ -206,7 +206,10 @@ describe('Worktree Console Host control plane', () => {
     const { module, control } = plane(record)
     const result = await control.create('source-session')
     expect(result).toMatchObject({ ok: true, value: { targetSessionId: 'host-target', managedRoot: '/managed' } })
-    expect(module.createIsolatedTarget).toHaveBeenCalledWith('source-session', 'host-target')
+    expect(module.createIsolatedTarget).toHaveBeenCalledWith('source-session', 'host-target', undefined)
+    const branched = await control.create('source-session', 'feat/x')
+    expect(branched).toMatchObject({ ok: true })
+    expect(module.createIsolatedTarget).toHaveBeenLastCalledWith('source-session', 'host-target', { branch: 'feat/x' })
     expect(module.inspect).not.toHaveBeenCalledWith('host-target')
   })
 
@@ -1092,7 +1095,7 @@ describe('initial version confirmation on the host', () => {
     expect(git.initializeEmptyRepository).not.toHaveBeenCalled()
     expect(await control.createWithInitialCommit('source-session', proof)).toMatchObject({ ok: true })
     expect(git.initializeEmptyRepository).toHaveBeenCalledTimes(1)
-    expect(module.createIsolatedTarget).toHaveBeenCalledWith('source-session', 'host-target')
+    expect(module.createIsolatedTarget).toHaveBeenCalledWith('source-session', 'host-target', undefined)
     expect(await control.createWithInitialCommit('source-session', proof)).toMatchObject({ ok: false })
     expect(git.initializeEmptyRepository).toHaveBeenCalledTimes(1)
   })
@@ -1126,6 +1129,16 @@ describe('initial version confirmation on the host', () => {
     expect(await control.preflightCreate('source-session')).toEqual({ ok: true, value: { kind: 'ready' } })
     expect(await control.create('source-session')).toMatchObject({ ok: true })
     expect(git.initializeEmptyRepository).toHaveBeenCalledTimes(1)
+  })
+  it('initializes a non-Git project through the host git port', async () => {
+    const record = readyRecord()
+    record.ownerSessionId = 'host-target'
+    const git = gitDouble()
+    const initializeProject = vi.fn(async () => undefined)
+    git.initializeProject = initializeProject
+    const { control } = plane(record, { git })
+    expect(await control.initProject('source-session')).toEqual({ ok: true, value: true })
+    expect(initializeProject).toHaveBeenCalledTimes(1)
   })
   it('rejects duplicate pending operations instead of creating a second target', async () => {
     const { control, module, git } = setup()
