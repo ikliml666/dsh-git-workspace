@@ -68,8 +68,8 @@ describe('built Client ModuleLoader artifact', () => {
       apply(ctx: Context): void
       inject: string[]
     }
-    const worktree = executeBundle(readFileSync(resolve('lib/client.js'), 'utf8'))
-      .factory(specifier => platformRequire(nodeRequire, specifier)) as {
+    const worktreeHandoff = executeBundle(readFileSync(resolve('lib/client.js'), 'utf8'))
+    const worktree = worktreeHandoff.factory(specifier => platformRequire(nodeRequire, specifier)) as {
       apply(ctx: Context): void
       inject: string[]
     }
@@ -131,6 +131,15 @@ describe('built Client ModuleLoader artifact', () => {
       expect.objectContaining({ name: 'tool.call.toolview', key: 'worktree_create' }),
       expect.any(Function),
     ))
+
+    // The client-module system adopts any head <style> without data-plugin for
+    // whichever module materializes next and sweeps it on that module's
+    // invalidation/prune. The sheet must carry this bundle's registration id.
+    const sheet = document.querySelector('style[data-dsh-git-worktree]')
+    expect(sheet?.getAttribute('data-plugin')).toBe(worktreeHandoff.id)
+    for (const el of document.querySelectorAll('style:not([data-plugin])')) el.setAttribute('data-plugin', 'foreign-chunk')
+    for (const el of document.querySelectorAll('style[data-plugin="foreign-chunk"]')) el.remove()
+    expect(document.querySelector('style[data-dsh-git-worktree]')).not.toBeNull()
 
     const descriptors = register.mock.calls.map(call => call[0])
     expect(descriptors).toEqual(expect.arrayContaining([

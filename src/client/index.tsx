@@ -61,9 +61,15 @@ export function apply(ctx: ClientContextLike, adapterOverride?: WorktreeConsoleA
   // the just-created adapter explicitly; direct consumers may still inject it.
   const adapter = adapterOverride
     ?? ctx.get(WORKTREE_CONSOLE_ADAPTER_SERVICE) as WorktreeConsoleAdapter | undefined
+  // The client-module system adopts any head <style> without data-plugin for
+  // whichever module materializes next (claimStyles) and deletes it again on
+  // that module's invalidation/prune (removeOwnedStyles). Self-tag with the
+  // bundle's ModuleLoader registration id so the sheet stays owned here.
   ctx.effect(() => {
     const style = document.createElement('style')
     style.dataset.dshGitWorktree = 'true'
+    style.dataset.plugin = 'dsh-git-worktree'
+    style.dataset.pluginCss = 'dsh-git-worktree/styles'
     style.textContent = `${WORKTREE_STYLES}\n${TARGET_CONSOLE_STYLES}`
     document.head.append(style)
     return () => { style.remove() }
