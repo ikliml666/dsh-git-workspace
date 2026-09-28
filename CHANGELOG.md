@@ -4,6 +4,14 @@
 
 ## [Unreleased]
 
+### Added
+
+- 客户端设置页（Plugins 页卡片，借鉴 dsh-worktree-panel）：把 volatile 配置字段（`autoDeliver`/`autoPush`/`worktreesRoot`/`gitTimeoutMs`/`worktreeAddTimeoutMs`）投影为中文标签的开关与输入框，暂存编辑、revision 栅栏原子保存；写入经宿主 settings 服务落 cordis.patch.yml，不重挂载插件。设置服务缺失时静默不挂载。
+- 上述五个配置字段改为 volatile（`meta.volatile`），值以 `{get()}` LiveRef 到达、消费方逐次解包：超时对下一条 git 命令生效，`autoDeliver`/`autoPush` 对下一次指引/交付生效，`worktreesRoot` 对之后新建的 worktree 生效（换根只影响新建，既有 worktree 原地不动）；`stateDir`/`enableWorkspaceProvider` 保持启动期语义。
+- `worktree_create` 支持可选 `branch` 基准分支参数：预检返回本地分支列表，控制台创建表单提供分支下拉（聚焦懒加载、当前源分支默认项）。branch 只决定创建基点，交付仍写源会话分支（[[.codewiki/decisions/create-from-branch-is-base-only.md]]）。
+- 非 Git 目录渐进增强：未纳入版本控制的工作目录可从开关直接创建初始提交（`git init -b main`）后继续使用隔离开关；已有提交的仓库拒绝该操作（`projectAlreadyVersioned`）。
+- 侧边栏任务携带 `sourceBranch`，任务标签显示 `状态 · 分支`；worktree 移除后自动回收 worktreesRoot 下的空项目容器（遇任何用户字节即停）。
+
 ### Fixed
 
 - 客户端样式表注入改用 `data-plugin="dsh-git-worktree"` 自标记。此前 `<style>` 无 `data-plugin`，会被 dsh client-modules 的 `claimStyles` 认领给"任意后物化的模块"，该模块 invalidate/prune/物化失败时 `removeOwnedStyles` 即误删本插件样式表，Worktree 开关与 Local 徽章会在运行期间自动回退为浏览器默认描边样式。

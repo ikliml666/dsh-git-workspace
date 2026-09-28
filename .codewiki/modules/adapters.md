@@ -26,7 +26,7 @@ src/adapters/ 把 DSH 宿主能力适配为领域端口（SessionCheckoutDepende
 
 ## Git 端口（src/adapters/git.ts，344 行）
 
-`createDshGitPort` 经 ctx.subprocess 运行 git（tree 作用域遥测），实现 inspect/findContainingWorktreeRoot/status/createDetachedWorktree/removeWorktree/retainApplyBase/retainInternalArtifact/readInternalArtifact/releaseInternalArtifacts/isAncestor/pushBranch（尽力而为、绝不 force、失败返回而不抛）、listLocalBranches/resolveLocalBranchTip（v0.9.4，基准分支下拉与创建时 tip 解析；rev-parse --verify --quiet 对缺失 ref 返回 null）与可选 preflightInitialCommit/initializeEmptyRepository/initializeProject（v0.9.4，非 Git 渐进增强）。超时选择（src/adapters/git-options.ts:19）：`worktree add` → worktreeAddTimeoutMs、`worktree remove` → 固定 300_000、其余 gitTimeoutMs。
+`createDshGitPort` 经 ctx.subprocess 运行 git（tree 作用域遥测），实现 inspect/findContainingWorktreeRoot/status/createDetachedWorktree/removeWorktree/retainApplyBase/retainInternalArtifact/readInternalArtifact/releaseInternalArtifacts/isAncestor/pushBranch（尽力而为、绝不 force、失败返回而不抛）、listLocalBranches/resolveLocalBranchTip（v0.9.4，基准分支下拉与创建时 tip 解析；rev-parse --verify --quiet 对缺失 ref 返回 null）与可选 preflightInitialCommit/initializeEmptyRepository/initializeProject（v0.9.4，非 Git 渐进增强）。超时选择（src/adapters/git-options.ts:19-26）：`worktree add` → worktreeAddTimeoutMs、`worktree remove` → 固定 300_000、其余 gitTimeoutMs；两个字段均 `number | LiveValue<number | undefined>`，validateGitTimeouts 与 gitTimeoutMs 经 `liveConfigValue` 逐条命令解包（volatile 设置页改超时对下一条命令即生效，缺省回退 120s/300s）。
 
 ## 文件端口（src/adapters/files.ts，100 行 + src/adapters/safe-file.ts，130 行）
 

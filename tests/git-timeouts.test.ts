@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
 import { createDshGitPort } from '../src/adapters/git.js'
 import { Config, apply } from '../src/index.js'
-import { gitTimeoutMs } from '../src/adapters/git-options.js'
+import { gitTimeoutMs, validateGitTimeouts } from '../src/adapters/git-options.js'
 import { ProjectSkillStore } from '../src/adapters/project-skills.js'
 
 afterEach(() => vi.useRealTimers())
@@ -45,5 +45,31 @@ it.each([0, -1, NaN, Infinity, 999, 1000.5, 3_600_001, '300000'])('rejects inval
     const config = { [key]: value } as { gitTimeoutMs?: number; worktreeAddTimeoutMs?: number }
     expect(() => createDshGitPort({} as Context, { hooksPath: '/hooks', ...config })).toThrow(RangeError)
     await expect(apply({} as Context, config)).rejects.toThrow(RangeError)
+  }
+})
+
+it('reads volatile timeout fields as live references on every command', () => {
+  let timeout: number | undefined = 45_000
+  const config = { gitTimeoutMs: { get: () => timeout } }
+  expect(gitTimeoutMs(['status'], config)).toBe(45_000)
+  timeout = 90_000
+  expect(gitTimeoutMs(['status'], config)).toBe(90_000)
+  timeout = undefined
+  expect(gitTimeoutMs(['status'], config)).toBe(120_000)
+  expect(gitTimeoutMs(['worktree', 'add'], { worktreeAddTimeoutMs: { get: () => undefined } })).toBe(300_000)
+})
+
+it('validates volatile timeout references at mount', () => {
+  expect(() => validateGitTimeouts({ gitTimeoutMs: { get: () => 45_000 }, worktreeAddTimeoutMs: { get: () => undefined } })).not.toThrow()
+  expect(() => validateGitTimeouts({ gitTimeoutMs: { get: () => 999 } })).toThrow(RangeError)
+  expect(() => validateGitTimeouts({ worktreeAddTimeoutMs: { get: () => 3_600_001 } })).toThrow(RangeError)
+})
+
+it('marks exactly the settings-editable fields volatile in the Config schema', () => {
+  for (const key of ['gitTimeoutMs', 'worktreeAddTimeoutMs', 'autoDeliver', 'autoPush', 'worktreesRoot']) {
+    expect((Config.dict?.[key]?.meta as { volatile?: boolean } | undefined)?.volatile).toBe(true)
+  }
+  for (const key of ['stateDir', 'enableWorkspaceProvider']) {
+    expect((Config.dict?.[key]?.meta as { volatile?: boolean } | undefined)?.volatile).toBeUndefined()
   }
 })

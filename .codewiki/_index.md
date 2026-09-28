@@ -4,6 +4,7 @@
 
 - [[decisions\client-rpc-watchdog-budget|客户端 RPC 超时看门狗：30s/180s 预算与被否决的替代方案]]
 - [[decisions\create-from-branch-is-base-only|按分支创建只选基准提交，不adopt分支——交付目标始终跟随源会话分支]]
+- [[decisions\volatile-settings-live-config|设置页走 volatile 字段 + LiveValue 逐次解包]]
 - [[decisions\non-git-incremental-enablement|非 Git 目录渐进增强：显式确认下的 init + 首次提交，而非静默或死路]]
 ## Learning
 
@@ -18,4 +19,5 @@
 - [[modules\review-console|Review Console 评审操作与恢复]]
 - [[modules\session-checkout-apply|Session Checkout Apply Pipeline]]
 - [[modules\session-checkout-module|Session Checkout State Machine]]
+- [[modules\settings-card|Settings Card 插件设置页]]
 - [[modules\target-console|Target Console 目标徽章与 Worktree 控制台]]

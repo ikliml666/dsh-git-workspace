@@ -178,6 +178,7 @@ import { registerSessionTargetContext } from './session-target-context.js'
 import { createWorktreeConsoleControlPlane } from './console-host/control-plane.js'
 import { createGitWorktreeReviewDiffReader } from './console-host/review-diff.js'
 import { WorktreeConsoleService } from './console-host/service.js'
+import { liveConfigValue, type LiveValue } from './ports.js'
 
 export * from './console-contract.js'
 
@@ -187,6 +188,12 @@ const name = 'git-worktree'
 // first ctx.tools access then fails with "cannot get property without inject".
 export const inject = { tools: {}, commands: {}, subprocess: {}, loader: { await: false } }
 
+/** Mark a config field volatile: the harness settings host (packages/settings schema.ts reads `meta.volatile`) then projects it into the settings page, edits write to cordis.patch.yml without remounting, and the value arrives as a live reference. */
+function volatile<T>(schema: T): T {
+  ;((schema as { meta?: { volatile?: boolean } }).meta ??= {}).volatile = true
+  return schema
+}
+
 export const Config = z.object({
   /**
    * Plugin state directory (registry, disabled-hooks root). Defaults to
@@ -195,27 +202,29 @@ export const Config = z.object({
    * are optional inputs).
    */
   stateDir: z.string(),
-  gitTimeoutMs: z.number().min(1_000).max(MAX_GIT_TIMEOUT_MS).step(1).default(DEFAULT_GIT_TIMEOUT_MS),
-  worktreeAddTimeoutMs: z.number().min(1_000).max(MAX_GIT_TIMEOUT_MS).step(1).default(300_000),
+  // Volatile fields are editable from the settings page without remounting
+  // the plugin: values arrive as live references and are read on every use.
+  gitTimeoutMs: volatile(z.number().min(1_000).max(MAX_GIT_TIMEOUT_MS).step(1).default(DEFAULT_GIT_TIMEOUT_MS)),
+  worktreeAddTimeoutMs: volatile(z.number().min(1_000).max(MAX_GIT_TIMEOUT_MS).step(1).default(300_000)),
   // --- Local adaptation (dsh-git-worktree-local) ---
   /**
    * Agent-autonomous delivery: the Working-state guidance steers the model to
    * worktree_deliver, which commits, (optionally) pushes and cleans up without
    * waiting for the human acceptance UI. Default true.
    */
-  autoDeliver: z.boolean().default(true),
+  autoDeliver: volatile(z.boolean().default(true)),
   /**
    * After a successful Finish with a new commit, best-effort `git push` of the
    * Local branch (never force). Failure is reported and never blocks. Default true.
    */
-  autoPush: z.boolean().default(true),
+  autoPush: volatile(z.boolean().default(true)),
   /**
    * Root for managed Worktrees. When set, Worktrees are created under
    * `<worktreesRoot>/<project>/<topic>-<YYYYMMDD>` (topic supplied by the
    * agent) instead of the repository sibling / state directory. Should point
    * outside any Git checkout.
    */
-  worktreesRoot: z.string(),
+  worktreesRoot: volatile(z.string()),
   /**
    * Explicitly take over the official Workspace UI (ui-workspace). Keep false
    * unless the replacement sidebar is wanted; taking over is the mechanism
@@ -225,15 +234,15 @@ export const Config = z.object({
 })
 
 interface LocalAdaptationConfig {
-  autoDeliver?: boolean
-  autoPush?: boolean
-  worktreesRoot?: string
+  autoDeliver?: boolean | LiveValue<boolean | undefined>
+  autoPush?: boolean | LiveValue<boolean | undefined>
+  worktreesRoot?: string | LiveValue<string | undefined>
   enableWorkspaceProvider?: boolean
 }
 
-function resolveWorktreesRoot(config: LocalAdaptationConfig): string | undefined {
-  const raw = config.worktreesRoot?.trim()
-  return raw ? resolve(raw) : undefined
+function resolveWorktreesRootValue(raw: string | LiveValue<string | undefined> | undefined): string | undefined {
+  const value = liveConfigValue(raw)?.trim()
+  return value ? resolve(value) : undefined
 }
 
 function resolveStateDir(config: { stateDir?: string }): string {
@@ -259,7 +268,12 @@ export async function apply(ctx: Context, config: { stateDir?: string } & GitTim
   mkdirSync(stateDir, { recursive: true })
   const hooksPath = join(stateDir, 'disabled-git-hooks')
   mkdirSync(hooksPath, { recursive: true })
-  const worktreesRoot = resolveWorktreesRoot(config)
+  // Volatile fields stay live: wrap the worktreesRoot so each read resolves
+  // the current value, letting a settings-page edit apply without remounting.
+  const worktreesRootInput = config.worktreesRoot
+  const worktreesRoot = worktreesRootInput === undefined
+    ? undefined
+    : { get: () => resolveWorktreesRootValue(worktreesRootInput) }
 
   const lookup = createDshLookupPort(ctx)
   const projectSkills = new ProjectSkillStore(join(stateDir, 'project-skills'))
@@ -275,8 +289,8 @@ export async function apply(ctx: Context, config: { stateDir?: string } & GitTim
     applyEngine: createSessionCheckoutApplyEngine({ projectSkills }),
     managedCheckoutsRoot: stateDir,
     createCheckoutId: randomUUID,
-    autoDeliver: config.autoDeliver !== false,
-    autoPush: config.autoPush !== false,
+    autoDeliver: config.autoDeliver,
+    autoPush: config.autoPush,
     ...(worktreesRoot ? { worktreesRoot } : {}),
   })
 

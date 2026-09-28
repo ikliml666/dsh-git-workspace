@@ -10,6 +10,7 @@ import { createSessionCheckoutApplyEngine } from '../../src/session-checkout-app
 import type {
   DirectoryIdentity,
   GitCheckoutSnapshot,
+  LiveValue,
   ManagedCheckoutsRegistry,
   SessionCheckoutDependencies,
   SessionCheckoutLookupPort,
@@ -31,7 +32,9 @@ interface NodeSessionCheckoutOptions {
   configDir: string
   lookup: SessionCheckoutLookupPort
   onTimingEvent?: (event: SessionCheckoutTimingEvent) => void | Promise<void>
-  worktreesRoot?: string
+  worktreesRoot?: string | LiveValue<string | undefined>
+  autoDeliver?: boolean | LiveValue<boolean | undefined>
+  autoPush?: boolean | LiveValue<boolean | undefined>
 }
 
 interface GitCommandResult {
@@ -529,6 +532,8 @@ export function createNodeSessionCheckoutDependencies(
     applyEngine: createSessionCheckoutApplyEngine(),
     managedCheckoutsRoot,
     ...(options.worktreesRoot ? { worktreesRoot: options.worktreesRoot } : {}),
+    ...(options.autoDeliver !== undefined && { autoDeliver: options.autoDeliver }),
+    ...(options.autoPush !== undefined && { autoPush: options.autoPush }),
     createCheckoutId: randomUUID,
     ...(options.onTimingEvent && { onTimingEvent: options.onTimingEvent }),
     registry: new AtomicJsonCheckoutRegistry(join(options.configDir, 'managed-checkouts.json')),

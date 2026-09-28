@@ -61,6 +61,7 @@ import type {
   SessionCheckoutProjectRecord,
   SessionCheckoutSessionRecord,
 } from './ports.js'
+import { liveConfigValue } from './ports.js'
 
 /**
  * dsh-git-worktree session-checkout state machine, ported from Domi. It keeps
@@ -876,7 +877,7 @@ export function createSessionCheckoutModule(
     } else if (record.delivery.state === 'preview_detached') {
       lines.push('Delivery state: Preview detached after Local drift. Do not mutate Local or the Worktree; the user must retry rollback, and Discard remains blocked until recovery succeeds.')
     } else if (record.delivery.state === 'working') {
-      lines.push(dependencies.autoDeliver
+      lines.push((liveConfigValue(dependencies.autoDeliver) ?? true)
         ? 'Delivery state: Working. When implementation and validation are complete, call worktree_deliver as the final model tool: put the complete report only in its report parameter (commitMessage carries the commit wording). It commits the Worktree snapshot to Local, automatically pushes the Local branch when enabled, and cleans this Worktree up. Do not duplicate that report in ordinary assistant prose. Use worktree_ready_for_review only when the user explicitly asks to review before saving.'
         : 'Delivery state: Working. When implementation and validation are complete, put the complete report only in worktree_ready_for_review and call it as the final model tool. Do not duplicate that report in ordinary assistant prose; at most one short sentence may point the user to the bottom acceptance bar.')
     } else if (record.delivery.state === 'delivered') {
@@ -2535,7 +2536,7 @@ export function createSessionCheckoutModule(
   // 避免 worktreesRoot 长期堆积空目录。removeEmptyDirectoryTree 遇到任何
   // 条目即返回 false，绝不删除用户字节。
   const collectEmptyManagedContainer = (managedGitRoot: string, excludedCheckoutId: string): boolean => {
-    const worktreesRoot = dependencies.worktreesRoot
+    const worktreesRoot = liveConfigValue(dependencies.worktreesRoot)
     if (!worktreesRoot) return false
     const container = dirname(managedGitRoot)
     if (pathsEqual(container, worktreesRoot) || !pathsEqual(dirname(container), worktreesRoot)) return false
@@ -3164,7 +3165,7 @@ export function createSessionCheckoutModule(
     // Local adaptation: best-effort automatic push of the Local branch right
     // after the delivery commit. Never force-pushes; a failure is reported on
     // the result and never blocks cleanup or the finished state.
-    const push: WorktreePushOutcome | undefined = dependencies.autoPush
+    const push: WorktreePushOutcome | undefined = (liveConfigValue(dependencies.autoPush) ?? true)
       && finishResult.commitOid
       && dependencies.git.pushBranch
       ? await pushLocalBranchBestEffort(dependencies.git.pushBranch, applying.localRoot)
@@ -4018,14 +4019,15 @@ export function createSessionCheckoutModule(
         baseOid = tip
       }
       const repositoryKey = createManagedWorktreeRepositoryKey(localGitRoot)
+      const worktreesRoot = liveConfigValue(dependencies.worktreesRoot)
       const pathCandidates = [8, 12, 32].map(identityLength => createManagedWorktreePathCandidates({
         localGitRoot,
         managedCheckoutsRoot: dependencies.managedCheckoutsRoot,
         repositoryKey,
         checkoutId,
         identityLength,
-        ...(dependencies.worktreesRoot ? { worktreesRoot: dependencies.worktreesRoot } : {}),
-        ...(dependencies.worktreesRoot && createOptions?.topic
+        ...(worktreesRoot ? { worktreesRoot } : {}),
+        ...(worktreesRoot && createOptions?.topic
           ? { topic: createOptions.topic, dateStamp: createTopicDateStamp() }
           : {}),
       }))

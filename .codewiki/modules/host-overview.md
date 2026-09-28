@@ -19,7 +19,7 @@ tags:
 
 # Host Entry and Registration Surface
 
-dsh-git-worktree 是 DeepSeek Harness 的 Git worktree 会话目标插件。宿主入口把端口适配器（[[adapters|Adapter Layer]]）、核心状态机（[[session-checkout-module|Session Checkout Module]]）、执行引擎（[[session-checkout-apply|Session Checkout Apply Pipeline]]）与 RPC 控制面（[[console-host|Console Host Control Plane]]）装配成一个插件，并向模型、用户、UI 三个方向暴露能力。v0.9.4 起新增三项管理面能力：按基准分支创建（[[create-from-branch-is-base-only|Create From Branch Is Base Only]]）、非 Git 目录渐进增强（[[non-git-incremental-enablement|Non-Git Incremental Enablement]]）、侧边栏任务携带 sourceBranch。
+dsh-git-worktree 是 DeepSeek Harness 的 Git worktree 会话目标插件。宿主入口把端口适配器（[[adapters|Adapter Layer]]）、核心状态机（[[session-checkout-module|Session Checkout Module]]）、执行引擎（[[session-checkout-apply|Session Checkout Apply Pipeline]]）与 RPC 控制面（[[console-host|Console Host Control Plane]]）装配成一个插件，并向模型、用户、UI 三个方向暴露能力。v0.9.4 起新增管理面能力：按基准分支创建（[[create-from-branch-is-base-only|Create From Branch Is Base Only]]）、非 Git 目录渐进增强（[[non-git-incremental-enablement|Non-Git Incremental Enablement]]）、侧边栏任务携带 sourceBranch、volatile 设置页（[[settings-card|Settings Card]]，决策 [[volatile-settings-live-config]]）。
 
 ## 插件身份与错误基类
 
@@ -27,22 +27,23 @@ dsh-git-worktree 是 DeepSeek Harness 的 Git worktree 会话目标插件。宿�
 - `export * from './console-contract.js'`（src/index.ts:182）把 RPC 契约类型并入公共入口。
 - `SessionCheckoutError`（src/index.ts:38）：携带 `readonly code: SessionCheckoutErrorCode` 的 Error，消息原文透传给工具与命令，是全插件统一的领域错误。
 
-## 配置模式（src/index.ts:190-225）
+## 配置模式（src/index.ts:190-235）
 
 - `stateDir`：默认 `$DSH_HOME/plugins/dsh-git-worktree`（回退 `~/.dsh`）——registry、project-skills、诊断文件都落在这里。
 - `gitTimeoutMs`（默认 DEFAULT_GIT_TIMEOUT_MS，下限 1000，上限 MAX_GIT_TIMEOUT_MS）、`worktreeAddTimeoutMs`（默认 300_000）。
 - `autoDeliver`（默认 true）：代理自主交付开关，把 Working 态的模型指引切到 worktree_deliver；`autoPush`（默认 true）：Finish 后尽力 `git push`，绝不 force。
 - `worktreesRoot`：受管 worktree 放到 `<worktreesRoot>/<project>/<topic>-<YYYYMMDD>`，应指向任何 git checkout 之外。
 - `enableWorkspaceProvider`（默认 false）：接管官方 ui-workspace 的严格 opt-in 开关（历史上 "cannot open a new conversation" 事故背后的机制）。
+- **volatile 标记**：前五个字段经 `volatile()` 助手（src/index.ts:190，设 `schema.meta.volatile = true`——schemastery 3.18.2 无 `.volatile()` 方法）进入设置页；值以 `{get()}` LiveRef 到达、消费方逐次解包（[[volatile-settings-live-config]]）；stateDir 与 enableWorkspaceProvider 保持非 volatile（启动期语义）。
 
-## apply() 装配序列（src/index.ts:252-314)
+## apply() 装配序列（src/index.ts:258-320)
 
 1. `validateGitTimeouts(config)` 校验超时配置。
 2. `mountWorkspaceProviderLifecycle(ctx, hostWorkspaceClientFlavor(), {enabled})` 挂载工作区 provider 生命周期。
 3. 创建 `stateDir` 与 disabled-git-hooks 目录。
 4. 组装端口：`createDshLookupPort(ctx)`、`new ProjectSkillStore(join(stateDir,'project-skills'))`、`createDshGitPort(ctx, {hooksPath, projectSkills, gitTimeoutMs, worktreeAddTimeoutMs})`、`createNodeFilesPort()`、`new AtomicJsonCheckoutRegistry(join(stateDir,'managed-checkouts.json'))`。
 5. `mountProjectSkillProvider(ctx, registry)`。
-6. `createSessionCheckoutModule({lookup, git, files, registry, applyEngine: createSessionCheckoutApplyEngine({projectSkills}), managedCheckoutsRoot: stateDir, createCheckoutId: randomUUID, autoDeliver, autoPush, worktreesRoot?})`（src/index.ts:283-290）。
+6. `createSessionCheckoutModule({lookup, git, files, registry, applyEngine: createSessionCheckoutApplyEngine({projectSkills}), managedCheckoutsRoot: stateDir, createCheckoutId: randomUUID, autoDeliver, autoPush, worktreesRoot?})`（src/index.ts:283-296）——autoDeliver/autoPush 传原始 config 值（LiveRef 原样下传，消费点 `?? true` 归一）；worktreesRoot 包装为 `{ get: () => resolveWorktreesRootValue(input) }` 逐次解析。
 7. `new WorktreeConsoleService(ctx, createWorktreeConsoleControlPlane({module, lookup, files, registry, git, reviewDiff: createGitWorktreeReviewDiffReader(projectSkills)}), join(stateDir,'sidebar-diag.ndjson'), providerLifecycle.officialWorkspaceActive)`。
 8. `registerTools(ctx, module)` + `registerWorktreeCommand(ctx, module)` + `registerSessionTargetContext(ctx, module)`。
 9. 启动收敛：`ctx.events.on('ready', () => void module.reconcile())`（src/index.ts:299）。

@@ -92,6 +92,8 @@ function createContext(options: {
   outerRepository?: boolean
   checkoutIds?: string[]
   worktreesRoot?: boolean
+  worktreesRootLive?: boolean
+  autoDeliverRef?: () => boolean | undefined
 } = {}): TestContext {
   // Compare physical paths consistently with the canonical roots persisted by the Host.
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'domi-checkout-测试 空格-')))
@@ -139,7 +141,10 @@ function createContext(options: {
   const dependencies = createNodeSessionCheckoutDependencies({
     configDir,
     onTimingEvent: recordTiming,
-    ...(worktreesRoot ? { worktreesRoot } : {}),
+    ...(worktreesRoot
+      ? { worktreesRoot: options.worktreesRootLive ? { get: () => worktreesRoot } : worktreesRoot }
+      : {}),
+    ...(options.autoDeliverRef ? { autoDeliver: { get: options.autoDeliverRef } } : {}),
     lookup: {
       getSession: (sessionId) => sessions.get(sessionId),
       getProject: (projectId) => projects.get(projectId),
@@ -1047,6 +1052,39 @@ describe('SessionCheckoutModule', () => {
     expect(existsSync(launch.managedRoot)).toBe(false)
     expect(existsSync(container)).toBe(false)
     expect(existsSync(worktreesRoot)).toBe(true)
+  })
+
+  test('Given worktreesRoot arrives as a volatile live reference When the last checkout is discarded Then the container is still collected', async () => {
+    const context = createContext({ worktreesRoot: true, worktreesRootLive: true })
+    const worktreesRoot = context.worktreesRoot
+    if (!worktreesRoot) throw new Error('expected worktreesRoot')
+    const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')
+    const container = dirname(launch.managedRoot)
+    const [summary] = await context.module.listManagedWorktreesForSession('session-1')
+
+    const removed = await context.module.manageManagedWorktreeForSession('session-1', {
+      checkoutId: launch.target.checkout.id,
+      expectedRevision: summary.revision,
+      action: 'discard',
+      confirmDirty: true,
+    })
+
+    expect(removed.phase).toBe('discarded')
+    expect(existsSync(launch.managedRoot)).toBe(false)
+    expect(existsSync(container)).toBe(false)
+    expect(existsSync(worktreesRoot)).toBe(true)
+  })
+
+  test('Given autoDeliver arrives as a volatile live reference When the value flips without remounting Then the Working guidance follows the current value', async () => {
+    let autoDeliver: boolean | undefined = true
+    const context = createContext({ autoDeliverRef: () => autoDeliver })
+    const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')
+    context.addProject('target-workspace-1', 'Target Workspace', launch.managedRoot)
+    context.addSession('target-session-1', 'target-workspace-1')
+    expect(context.module.runtimeContext('target-session-1')).toContain('call worktree_deliver as the final model tool')
+
+    autoDeliver = false
+    expect(context.module.runtimeContext('target-session-1')).toContain('worktree_ready_for_review and call it as the final model tool')
   })
 
   test('Given the reserved owner Session is live When Local source tries management Then owner takeover fails closed', async () => {

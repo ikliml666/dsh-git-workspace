@@ -7,6 +7,7 @@ import type { WorktreeClientBootReport, WorktreeConsoleAdapter } from '../../con
 import contribution, { type GitWorktreeRemote } from '../../console-remote/remote.js'
 import { apply as applyToolViews, inject as toolViewInject } from '../index.js'
 import { registerDecoratedWorkspaceSidebar, registerManagedWorkspaceSidebar } from '../workspace-sidebar/index.js'
+import { mountSettingsCard } from '../settings-card/index.js'
 import { inject as officialWorkspaceInject } from 'virtual:dsh-official-workspace-client'
 import { apply as applyNextWorkspace, inject as nextWorkspaceInject } from 'virtual:dsh-official-workspace-client-next'
 import { apply as applyAlphaWorkspace, inject as alphaWorkspaceInject } from 'virtual:dsh-official-workspace-client-alpha'
@@ -42,6 +43,7 @@ export async function apply(ctx: ConsoleClientContext): Promise<void> {
   if (remote === undefined) throw new Error(createTranslator(transportMessages, getLanguage())('mountFailed'))
   const adapter = createWorktreeConsoleRemoteAdapter(remote, getLanguage)
   ctx.provide('worktreeConsole', adapter)
+  mountSettingsCard(ctx as unknown as Parameters<typeof mountSettingsCard>[0])
 
   const mountTools = (workspaceCtx: Context): void => {
     // Conversation-dependent views are below their UI Workspace provider;

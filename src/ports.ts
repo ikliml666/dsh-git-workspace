@@ -380,6 +380,19 @@ export interface SessionCheckoutRegistryPort {
   write(registry: ManagedCheckoutsRegistry): void
 }
 
+/** Live configuration reference: volatile Cordis config fields arrive as these instead of plain values. */
+export interface LiveValue<T> {
+  get(): T
+}
+
+/** Read the current value behind a plain config value or a live volatile reference. */
+export function liveConfigValue<T>(value: T | LiveValue<T>): T {
+  if (typeof (value as { get?: unknown } | undefined)?.get === 'function') {
+    return (value as unknown as LiveValue<T>).get()
+  }
+  return value as T
+}
+
 export interface SessionCheckoutDependencies {
   lookup: SessionCheckoutLookupPort
   git: SessionCheckoutGitPort
@@ -388,14 +401,14 @@ export interface SessionCheckoutDependencies {
   applyEngine: SessionCheckoutApplyEngine
   managedCheckoutsRoot: string
   createCheckoutId(): string
-  /** Local adaptation: after a successful Finish, push the Local branch (default false upstream). */
-  autoPush?: boolean
+  /** Local adaptation: after a successful Finish, push the Local branch (default true). Volatile Cordis config fields arrive as live references. */
+  autoPush?: boolean | LiveValue<boolean | undefined>
   /** Local adaptation: agent-autonomous delivery; switches the Working-state guidance to worktree_deliver. */
-  autoDeliver?: boolean
+  autoDeliver?: boolean | LiveValue<boolean | undefined>
   /**
    * Local adaptation: when set, managed Worktrees live under this root instead
    * of the state directory, using `<worktreesRoot>/<project>/<topic>-<YYYYMMDD>`
    * naming whenever the agent supplies a topic.
    */
-  worktreesRoot?: string
+  worktreesRoot?: string | LiveValue<string | undefined>
 }
