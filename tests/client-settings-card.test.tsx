@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { useSyncExternalStore } from 'react'
 import { ClientI18nProvider } from '../src/client/i18n.js'
 import { afterEach, expect, test, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -34,10 +35,19 @@ function makeScope(
 
 function renderCard(scope: SettingsFormScope<WorktreeSettings>, view?: string) {
   const controller = new WorktreeSettingsCardController(scope)
-  const face = controller.inject()
+  const { hooks, ...actions } = controller.inject()
+  const store = hooks.worktreeCard
+  // 镜像 slot 运行时的绑定：face.hooks.worktreeCard 以 useWorktreeCard 选择器 hook 到达。
   const entry = (
     <ClientI18nProvider language="en">
-      <WorktreeSettingsCard {...face} view={view} />
+      <WorktreeSettingsCard
+        {...actions}
+        useWorktreeCard={selector => {
+          const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot)
+          return selector(snapshot)
+        }}
+        view={view}
+      />
     </ClientI18nProvider>
   )
   const mounted = render(entry)

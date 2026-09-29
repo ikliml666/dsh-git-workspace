@@ -6,15 +6,21 @@
  * are drawn with inline styles and no external stylesheet.
  */
 
-import { useSyncExternalStore, type CSSProperties, type ReactNode } from 'react'
+import { type CSSProperties, type ReactNode } from 'react'
 import { useClientTranslator, type ClientTranslator } from '../i18n.js'
-import type { SettingsFieldState } from './form-model.js'
-import type { WorktreeSettingsCardFace } from './worktree-settings-card.js'
+import type { SettingsFormActions, SettingsFieldState } from './form-model.js'
+import type { WorktreeSettingsCardState } from './worktree-settings-card.js'
 
-/** Props the Plugins page slot binds for this card. */
-export interface WorktreeSettingsCardProps extends WorktreeSettingsCardFace {
+/**
+ * Props the Plugins page slot binds for this card. The renderer turns the
+ * face's reserved `hooks.worktreeCard` source into the `useWorktreeCard`
+ * selector hook, so the component never sees a `hooks` prop.
+ */
+export interface WorktreeSettingsCardProps extends SettingsFormActions {
   /** `'summary'` asks for the one-liner the Plugins page lists; anything else renders the form. */
   view?: string
+  /** Selector hook the slot runtime binds from the controller's snapshot store. */
+  useWorktreeCard: (selector: (snapshot: WorktreeSettingsCardState) => WorktreeSettingsCardState) => WorktreeSettingsCardState
 }
 
 const ACCENT = '#2563eb'
@@ -154,7 +160,7 @@ function fieldRow({ label, hint, state, control, disabled, onReset, t }: FieldRo
  * @returns the one-liner, or the form.
  */
 export function WorktreeSettingsCard(props: WorktreeSettingsCardProps) {
-  const state = useSyncExternalStore(props.hooks.worktreeCard.subscribe, props.hooks.worktreeCard.getSnapshot)
+  const state = props.useWorktreeCard(snapshot => snapshot)
   const t = useClientTranslator()
   if (props.view === 'summary') return <>{t('settings.description')}</>
   if (!state.available) return null
