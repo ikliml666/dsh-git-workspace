@@ -16,6 +16,12 @@ export interface PreSessionWorktreeToggleProps {
 
 type LoadState = 'loading' | 'idle' | 'preparing' | 'error' | 'unsupported'
 
+// Last known target per (adapter, session): revisiting a Session renders it
+// immediately and refreshes in the background instead of re-showing the
+// loading pill. Keyed by adapter so a reloaded plugin or a fresh test fixture
+// starts cold.
+const lastTargets = new WeakMap<WorktreeConsoleAdapter, Map<string, WorktreeConsoleTargetDetails>>()
+
 function errorMessage(value: unknown): string {
   return value instanceof Error ? value.message : String(value)
 }
@@ -53,24 +59,38 @@ export function PreSessionWorktreeToggle({ sessionId, session, input, inputActio
   const scope = scopeRef.current
   const isCurrent = (): boolean => scope.alive && scopeRef.current === scope
 
-  const refreshCurrent = async (): Promise<void> => {
+  const targetRef = useRef(target)
+  targetRef.current = target
+
+  const refreshCurrent = async (options?: { silent?: boolean }): Promise<void> => {
     if (scope.busy) return
     scope.busy = true
-    setState('loading')
-    setError(null)
+    const silent = options?.silent === true
+    if (!silent) { setState('loading'); setError(null) }
     try {
       const outcome = await adapter.current({ sessionId })
       if (!isCurrent()) return
       if (!outcome.ok) {
+        // 静默刷新失败且已有陈旧目标时保持现状：可用界面优先于闪回错误态。
+        if (silent && targetRef.current !== null) return
+        if (outcome.error.code === 'not_git_repository') lastTargets.get(adapter)?.delete(sessionId)
         setTarget(null)
         setState(outcome.error.code === 'not_git_repository' ? 'unsupported' : 'error')
         setError(outcome.error.code === 'not_git_repository' ? null : `${outcome.error.code}: ${outcome.error.message}`)
         return
       }
+      let sessionCache = lastTargets.get(adapter)
+      if (sessionCache === undefined) {
+        sessionCache = new Map()
+        lastTargets.set(adapter, sessionCache)
+      }
+      sessionCache.set(sessionId, outcome.value.target)
       setTarget(outcome.value.target)
       setState('idle')
+      if (silent) setError(null)
     } catch (cause) {
       if (!isCurrent()) return
+      if (silent && targetRef.current !== null) return
       setTarget(null)
       setState('error')
       setError(errorMessage(cause))
@@ -79,9 +99,11 @@ export function PreSessionWorktreeToggle({ sessionId, session, input, inputActio
 
   useEffect(() => {
     scope.alive = true
-    setTarget(null)
     setPending(null)
-    if (blank) void refreshCurrent()
+    const cached = lastTargets.get(adapter)?.get(sessionId) ?? null
+    setTarget(cached)
+    if (cached !== null) setState('idle')
+    if (blank) void refreshCurrent(cached !== null ? { silent: true } : undefined)
     return () => { scope.alive = false }
   }, [scope])
 

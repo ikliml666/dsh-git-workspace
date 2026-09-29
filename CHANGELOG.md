@@ -15,8 +15,11 @@
 ### Changed
 
 - Worktree 面板读取链路减 spawn：`git.inspect` 的 4 次顺序 git 调用合并为 1 次 `rev-parse`（`symbolic-ref` 并行补分支；unborn/broken HEAD 与换行路径歧义保留原逐项回退）；Local inspect 与托管校验的 git 读取并行化（inspect ∥ status、双端 inspect 并行）；`list` 的逐记录观察合并为批量 `observeManagedCheckouts`（一次 binding lock 并行验证；宿主模块缺批量方法时回退逐条 observe）。
+- 预会话开关陈旧优先渲染（stale-while-revalidate）：上次已知目标按（适配器、会话）缓存，重进会话立即呈现并后台静默刷新，加载占位胶囊只在冷启动出现；静默刷新失败时保留陈旧界面不闪回错误态。
 
 ### Fixed
+
+- Worktree 面板 `list` 不再因单条记录身份无法验证（`checkout_mismatch`）而整体失败：批量观察失败退回逐条降级观察，验证不过的记录以无观察投影（回退 oid 与模块 summary）照常呈现，面板其余记录不受影响。
 
 - 客户端样式表注入改用 `data-plugin="dsh-git-worktree"` 自标记。此前 `<style>` 无 `data-plugin`，会被 dsh client-modules 的 `claimStyles` 认领给"任意后物化的模块"，该模块 invalidate/prune/物化失败时 `removeOwnedStyles` 即误删本插件样式表，Worktree 开关与 Local 徽章会在运行期间自动回退为浏览器默认描边样式。
 

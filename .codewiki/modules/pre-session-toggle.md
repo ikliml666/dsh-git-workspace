@@ -27,14 +27,15 @@ tags:
 ## 开关 UI 状态机（src/client/pre-session/PreSessionWorktreeToggle.tsx）
 
 - `LoadState` 五态：`loading / idle / preparing / error / unsupported`（src/client/pre-session/PreSessionWorktreeToggle.tsx:17）。
-- blank 门控：`session.composerPhase !== 'blank'` 时渲染 null（:87）——非空白会话绝不出现开关；unsupported 不再隐藏（v0.9.4 非 Git 渐进增强，见下）。
-- 代际守卫在渲染期失效（:47-53）：scopeRef 换届后旧 prepare 续体不允许再导航或清空新会话草稿；`isCurrent() = scope.alive && scopeRef.current === scope`。
-- `refreshCurrent`（:55-77）：`adapter.current` 探测；错误码 `'not_git_repository'` → unsupported；loading 态渲染禁用占位开关（:88-100），保持输入行高度稳定不弹跳。
-- 可用性：target 为 local 且 `capabilities.create` 为假 → null（:101）；`disabled = busy || selected || (!canCreate && !retryingLookup && state !== 'unsupported') || input.phase !== 'plain'`（:107）——unsupported 态开关保持可点。
-- `beginConfirmation`（:109-140）：state==='unsupported' 直接进入初始化确认（不发预检）；capabilities 存在 `preflightCreate` 则 `adapter.preflightCreate` 预检，pending 保存输入不可变快照 + kind `ready|empty|files` + confirmationToken（empty 即 `createWithInitialCommit` 的令牌）；预检返回 `not_git_repository`（.git 中途消失）时转 setTarget(null)+unsupported+初始化确认。
-- `confirm`（:138-160）调用 `controller.prepare({sessionId, input: captured.input, currentInput, isCurrentSession, inputActions, initialCommitConfirmationToken})`；失败回到 error 态；注释强调令牌一次性（:155）。
-- :171-190+ 错误气泡（重试按钮）与确认 Modal 按 kind 切换描述；空会话确认文案固定提示源会话不会收到该消息。files kind 的 footer 从「无确认按钮」改为「初始化并创建首次提交」入口（v0.9.4）。
-- 非 Git 渐进增强（v0.9.4）：`initConfirm` 状态 + `runInitialize(reopen)`（src/client/pre-session/PreSessionWorktreeToggle.tsx:138-166）调用 `adapter.initializeProject`（git init -b main 缺失时 + add -A + Initial commit）；reopen=true（未出生仓库带文件）初始化后重新预检并回到常规创建确认；reopen=false（目录非 Git）成功后 refreshCurrent 回 idle。设计依据见 [[non-git-incremental-enablement|Non-Git Incremental Enablement]]。
+- blank 门控：`session.composerPhase !== 'blank'` 时渲染 null（:110）——非空白会话绝不出现开关；unsupported 不再隐藏（v0.9.4 非 Git 渐进增强，见下）。
+- 代际守卫在渲染期失效（:54-60）：scopeRef 换届后旧 prepare 续体不允许再导航或清空新会话草稿；`isCurrent() = scope.alive && scopeRef.current === scope`。
+- `refreshCurrent`（:65-99，可选 `{silent}`）：`adapter.current` 探测；成功写入缓存并回 idle；错误码 `'not_git_repository'` → unsupported（并删缓存项）；loading 态渲染禁用占位开关（:111-123），保持输入行高度稳定不弹跳。
+- 陈旧优先渲染（stale-while-revalidate，v0.9.4）：模块级 `lastTargets = WeakMap<adapter, Map<sessionId, target>>`（:23，按适配器隔离——插件重载/测试夹具自然冷启动）；挂载 effect（:100-108）先以缓存目标 setTarget+idle 立即呈现，再以 `{silent:true}` 后台刷新——静默刷新不进 loading 态、失败且已有陈旧目标时保持现状（不闪回错误态），冷启动才出现占位胶囊。`targetRef`（:62-63）供静默失败路径判断"是否已有可显示目标"。
+- 可用性：target 为 local 且 `capabilities.create` 为假 → null（:124）；`disabled = busy || selected || (!canCreate && !retryingLookup && state !== 'unsupported') || input.phase !== 'plain'`（:130）——unsupported 态开关保持可点。
+- `beginConfirmation`（:132-163）：state==='unsupported' 直接进入初始化确认（不发预检）；capabilities 存在 `preflightCreate` 则 `adapter.preflightCreate` 预检，pending 保存输入不可变快照 + kind `ready|empty|files` + confirmationToken（empty 即 `createWithInitialCommit` 的令牌）；预检返回 `not_git_repository`（.git 中途消失）时转 setTarget(null)+unsupported+初始化确认。
+- `confirm`（:203-225）调用 `controller.prepare({sessionId, input: captured.input, currentInput, isCurrentSession, inputActions, initialCommitConfirmationToken})`；失败回到 error 态；注释强调令牌一次性。
+- :233+ 错误气泡（重试按钮）与确认 Modal 按 kind 切换描述；空会话确认文案固定提示源会话不会收到该消息。files kind 的 footer 从「无确认按钮」改为「初始化并创建首次提交」入口（v0.9.4）。
+- 非 Git 渐进增强（v0.9.4）：`initConfirm` 状态 + `runInitialize(reopen)`（src/client/pre-session/PreSessionWorktreeToggle.tsx:174-201）调用 `adapter.initializeProject`（git init -b main 缺失时 + add -A + Initial commit）；reopen=true（未出生仓库带文件）初始化后重新预检并回到常规创建确认；reopen=false（目录非 Git）成功后 refreshCurrent 回 idle。设计依据见 [[non-git-incremental-enablement|Non-Git Incremental Enablement]]。
 
 ## 准备控制器（src/client/pre-session/controller.ts）
 

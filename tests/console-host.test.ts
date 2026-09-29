@@ -635,6 +635,72 @@ describe('Worktree Console Host control plane', () => {
     })
   })
 
+  it('degrades an unverifiable record to an unobserved projection instead of failing the whole list', async () => {
+    const first = readyRecord()
+    const broken: ManagedCheckoutRecord = {
+      ...readyRecord(),
+      checkoutId: 'checkout-2',
+      ownerSessionId: 'target-session-2',
+      managedRoot: '/managed-2',
+      managedGitRoot: '/managed-2',
+      gitDir: '/git/worktrees/two',
+      revision: 8,
+    }
+    const value: ManagedCheckoutsRegistry = {
+      version: 2,
+      revision: 1,
+      sessionBindings: {},
+      managedCheckouts: { [first.checkoutId]: first, [broken.checkoutId]: broken },
+    }
+    const registryPort: SessionCheckoutRegistryPort = { read: () => structuredClone(value), write: vi.fn() }
+    const lookup = lookupDouble()
+    lookup.getSession = sessionId => ({
+      id: sessionId,
+      projectId: sessionId === 'target-session'
+        ? 'workspace-target'
+        : sessionId === 'target-session-2' ? 'workspace-target-2' : 'project-1',
+    })
+    lookup.getProject = projectId => ({
+      id: projectId,
+      name: 'Project',
+      root: projectId === 'workspace-target'
+        ? '/managed'
+        : projectId === 'workspace-target-2' ? '/managed-2' : '/local',
+    })
+    const git = gitDouble()
+    git.inspect = vi.fn(async root => root === '/managed-2'
+      ? null
+      : { root: '/managed', commonDir: '/git/common', gitDir: '/git/worktrees/one', branch: null, headOid: B, headRef: 'HEAD' })
+    const { module, control } = plane(first, { registry: registryPort, lookup, git })
+    // 批量观察整体拒绝（任一记录身份无法验证时模块侧 Promise.all 的行为），
+    // list 必须退回逐条观察：健康记录保留新鲜观察，坏记录降级为无观察投影。
+    module.observeManagedCheckouts = vi.fn(async () => {
+      throw Object.assign(new Error('会话不存在'), { code: 'session_not_found' })
+    })
+    vi.mocked(module.resolveManagedRoot).mockImplementation(async checkoutId => checkoutId === 'checkout-2' ? '/managed-2' : '/managed')
+    vi.mocked(module.listManagedWorktreesForSession).mockResolvedValue([
+      {
+        checkoutId: first.checkoutId, revision: first.revision, ownerSessionId: first.ownerSessionId, ownerSessionTitle: 'Task 1',
+        project: { id: first.projectId, name: first.projectName }, iteration: 1, state: 'ready_for_review', phase: first.phase,
+        dirty: true, commitOid: null, approximateBytes: null, updatedAt: 1, canCleanup: false,
+      },
+      {
+        checkoutId: broken.checkoutId, revision: broken.revision, ownerSessionId: broken.ownerSessionId, ownerSessionTitle: 'Task 2',
+        project: { id: broken.projectId, name: broken.projectName }, iteration: 1, state: 'ready_for_review', phase: broken.phase,
+        dirty: false, commitOid: null, approximateBytes: null, updatedAt: 2, canCleanup: false,
+      },
+    ])
+
+    const listed = await control.list({ sessionId: 'target-session' })
+
+    expect(module.observeManagedCheckouts).toHaveBeenCalledTimes(1)
+    expect(listed.ok).toBe(true)
+    if (!listed.ok) return
+    expect(listed.value.worktrees.map(worktree => worktree.checkoutId)).toEqual(['checkout-1', 'checkout-2'])
+    expect(listed.value.worktrees[0]).toMatchObject({ dirty: true })
+    expect(listed.value.worktrees[1]).toMatchObject({ dirty: false })
+  })
+
   it('lets an owner list and inspect a same-source sibling without inheriting mutation capabilities', async () => {
     const first = readyRecord()
     const sibling: ManagedCheckoutRecord = {

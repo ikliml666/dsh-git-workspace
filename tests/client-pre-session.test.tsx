@@ -622,6 +622,33 @@ describe('Pre-session directory menu', () => {
     await waitFor(() => expect((screen.getByRole('switch', { name: 'Worktree' }) as HTMLButtonElement).disabled).toBe(false))
   })
 
+  test('renders the cached target immediately on revisit and refreshes silently', async () => {
+    const fixture = successFixture()
+    const localOutcome = {
+      ok: true as const,
+      value: { target: { ...fixture.target, checkoutId: null, targetSessionId: null, ownerSessionId: 'source-session', state: 'local' as const, phase: 'local' as const, managedRoot: null, capabilities: { ...fixture.target.capabilities, create: true } } },
+    }
+    fixture.adapter.current = vi.fn(async () => localOutcome)
+    const mountProps = {
+      sessionId: 'source-session',
+      session: { composerPhase: 'blank' },
+      input: { draft: '', imageIds: [], occurrences: [], phase: 'plain' },
+      inputActions,
+      controller: { prepare: vi.fn() },
+    }
+    const first = render(<PreSessionWorktreeToggle {...mountProps} adapter={fixture.adapter} />)
+    await screen.findByRole('switch', { name: 'Worktree' })
+    first.unmount()
+
+    // 重访：即使适配器挂起，也必须立即呈现缓存目标，而不是回到加载占位胶囊。
+    fixture.adapter.current = vi.fn(() => new Promise<typeof localOutcome>(() => undefined))
+    const view = render(<PreSessionWorktreeToggle {...mountProps} adapter={fixture.adapter} />)
+    expect(fixture.adapter.current).toHaveBeenCalledTimes(1)
+    const toggle = screen.getByRole('switch', { name: 'Worktree' })
+    expect((toggle as HTMLButtonElement).disabled).toBe(false)
+    view.unmount()
+  })
+
   test('offers Git initialization when the Session workspace is not a Git repository', async () => {
     const fixture = successFixture()
     fixture.adapter.current = vi.fn(async () => ({

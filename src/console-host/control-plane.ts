@@ -587,9 +587,15 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
         .filter(record => record.phase === 'discarded' || activeById.has(record.checkoutId))
       // 批量观察在模块侧一次拿锁并行验证；模块未提供批量方法时回退逐记录 observe。
       const observableRecords = records.filter(record => record.phase !== 'discarded')
-      const observations = options.module.observeManagedCheckouts
-        ? await options.module.observeManagedCheckouts(observableRecords.map(record => record.checkoutId))
-        : undefined
+      let observations: Awaited<ReturnType<NonNullable<typeof options.module.observeManagedCheckouts>>> | undefined
+      if (options.module.observeManagedCheckouts) {
+        try {
+          observations = await options.module.observeManagedCheckouts(observableRecords.map(record => record.checkoutId))
+        } catch {
+          // 身份无法验证的记录不应拖垮整个面板：批量失败退回逐条降级观察。
+          observations = undefined
+        }
+      }
       const worktrees = []
       let observedIndex = 0
       for (const record of records) {
@@ -601,7 +607,13 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
           observedIndex += 1
           observed = { managedRoot: entry.managedRoot, snapshot: entry.snapshot, dirty: entry.dirty }
         } else {
-          observed = await observe(record)
+          // 降级观察：验证失败的记录以无观察投影呈现（回退 oid、不带新鲜快照），
+          // 面板其余记录照常渲染，后续操作的 CAS 校验仍会兜底拒绝。
+          try {
+            observed = await observe(record)
+          } catch {
+            observed = undefined
+          }
         }
         const linkedRead = record.ownerSessionId !== request.sessionId && record.sourceSessionId !== request.sessionId
         const projected = projectReviewSlot(record, projectRecord(record, request.sessionId, {
