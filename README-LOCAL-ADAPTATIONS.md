@@ -53,11 +53,11 @@ enableWorkspaceProvider: false
 
 本插件的真源是本仓库；安装进 profile（`C:\Users\ik\.dsh\profiles\web`）用 **link: 依赖**，让 Market 的任何 `pnpm install` 都只重建符号链接、不会把本地版还原成 registry 版（曾因原地覆盖 node_modules 被 Market 更新触发的 install 还原为 stock 0.9.3）：
 
-1. profile `package.json`：`"dsh-git-worktree": "link:E:/ik/Documents/trae_projects/1/dsh-git-worktree"`
+1. profile `package.json`：`"dsh-git-worktree": "link:E:/ik/Documents/trae_projects/1/dsh plugin/dsh-git-worktree"`
 2. profile `pnpm-workspace.yaml` 加兜底（防 Market 改写 package.json 版本号）：
    ```yaml
    overrides:
-     dsh-git-worktree: link:E:/ik/Documents/trae_projects/1/dsh-git-worktree
+     dsh-git-worktree: link:E:/ik/Documents/trae_projects/1/dsh plugin/dsh-git-worktree
    ```
 3. 用宿主捆绑 pnpm 执行 `node E:\software\deepseek-harness\node_modules\.pnpm\pnpm@11.7.0\node_modules\pnpm\dist\pnpm.mjs install`（profile 目录下），重启 DSH 生效。运行时依赖从本仓库自身的 node_modules 解析，因此仓库里 pnpm install 过的 node_modules 必须保留。
 
