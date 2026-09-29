@@ -585,9 +585,24 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
         .filter(record => localRoot === undefined || sameLocalRoot(record.localRoot, localRoot))
         .filter(record => request.includeDelivered === true || record.phase !== 'discarded')
         .filter(record => record.phase === 'discarded' || activeById.has(record.checkoutId))
+      // 批量观察在模块侧一次拿锁并行验证；模块未提供批量方法时回退逐记录 observe。
+      const observableRecords = records.filter(record => record.phase !== 'discarded')
+      const observations = options.module.observeManagedCheckouts
+        ? await options.module.observeManagedCheckouts(observableRecords.map(record => record.checkoutId))
+        : undefined
       const worktrees = []
+      let observedIndex = 0
       for (const record of records) {
-        const observed = record.phase === 'discarded' ? undefined : await observe(record)
+        let observed: { managedRoot: string | null; snapshot?: GitCheckoutSnapshot; dirty?: boolean } | undefined
+        if (record.phase === 'discarded') {
+          observed = undefined
+        } else if (observations) {
+          const entry = observations[observedIndex]!
+          observedIndex += 1
+          observed = { managedRoot: entry.managedRoot, snapshot: entry.snapshot, dirty: entry.dirty }
+        } else {
+          observed = await observe(record)
+        }
         const linkedRead = record.ownerSessionId !== request.sessionId && record.sourceSessionId !== request.sessionId
         const projected = projectReviewSlot(record, projectRecord(record, request.sessionId, {
           ...observed,

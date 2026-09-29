@@ -27,7 +27,7 @@ Web RPC 传输层（fetch 信封 + 网关 + 宿主 handler）全程无超时，�
 ## 否决的替代方案
 
 - **AbortSignal 打通到传输层**：网关的 `token.abort.signal` 是内部实现（lib/client.js:1653），跨包不可插拔；放弃。
-- **control-plane list() 并行化 observe**：`withBindingLock`（src/session-checkout-module.ts:959，Promise 链式互斥队列）会把所有模块操作重新串行化（observeManagedCheckout 也在锁内，:4273），客户端并行毫无收益；放弃。list 慢（~5.5s，每条记录一次 git inspect+status）是锁语义的代价，只能靠减小锁粒度解决，不在本次范围。
+- **control-plane list() 并行化 observe**：`withBindingLock`（src/session-checkout-module.ts:959，Promise 链式互斥队列）会把所有模块操作重新串行化（observeManagedCheckout 也在锁内，:4273），客户端并行毫无收益；放弃。list 慢（~5.5s，每条记录一次 git inspect+status）是锁语义的代价，只能靠减小锁粒度解决，不在本次范围。（2026-09-29 后续：锁粒度已在服务端解决——模块新增批量 `observeManagedCheckouts`，一次 withBindingLock 内并行验证全部记录，配合 git.inspect spawn 合并，见 [[learnings/git-spawn-budget-list-latency|git spawn 预算与 list 延迟]]。）
 - **openIsolatedTarget 静默返回修复**：复核发现超时/路径不匹配路径本就抛可见错误，唯一静默分支是 `!isActive()`（会话已切走，属正确行为）；不需要修。
 
 ## 重试安全性

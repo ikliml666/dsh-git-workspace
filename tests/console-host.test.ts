@@ -618,6 +618,23 @@ describe('Worktree Console Host control plane', () => {
     expect(module.beginNextIteration).toHaveBeenCalledWith('target-session', delivered.revision)
   })
 
+  it('observes list records in one module batch when the module supports batch observation', async () => {
+    const record = readyRecord()
+    const { module, control } = plane(record)
+    const snapshot = { root: '/managed', commonDir: '/git/common', gitDir: '/git/worktrees/one', branch: null, headOid: B, headRef: 'HEAD' }
+    const batch = vi.fn(async (checkoutIds: string[]) => checkoutIds.map(checkoutId => ({ managedRoot: '/managed', snapshot, dirty: false })))
+    module.observeManagedCheckouts = batch
+
+    const listed = await control.list({ sessionId: 'target-session' })
+
+    expect(batch).toHaveBeenCalledTimes(1)
+    expect(batch).toHaveBeenCalledWith([record.checkoutId])
+    expect(listed).toMatchObject({
+      ok: true,
+      value: { worktrees: [expect.objectContaining({ checkoutId: record.checkoutId, dirty: false })] },
+    })
+  })
+
   it('lets an owner list and inspect a same-source sibling without inheriting mutation capabilities', async () => {
     const first = readyRecord()
     const sibling: ManagedCheckoutRecord = {

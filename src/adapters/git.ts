@@ -215,6 +215,31 @@ export function createDshGitPort(ctx: Context, options: GitPortOptions): Session
 
   const port: SessionCheckoutGitPort = {
     inspect: async (root): Promise<GitCheckoutSnapshot | null> => {
+      // 单次 rev-parse 同时取全部位置事实，symbolic-ref 并行补分支；顺序逐项
+      // 读取保留为 unborn/broken HEAD 与换行路径歧义时的回退。
+      const symbolicPromise = runSessionGit(root, ['symbolic-ref', '--quiet', 'HEAD'])
+      symbolicPromise.catch(() => undefined)
+      const combined = await runSessionGit(root, [
+        'rev-parse', '--show-toplevel', '--path-format=absolute', '--git-common-dir', '--absolute-git-dir', 'HEAD^{commit}',
+      ])
+      if (combined.code === 0 && combined.stdout) {
+        const lines = combined.stdout.split('\n')
+        if (lines.length === 4) {
+          const symbolic = await symbolicPromise
+          const headRef = symbolic.code === 0 && symbolic.stdout ? symbolic.stdout : 'HEAD'
+          const branch = headRef.startsWith('refs/heads/') ? headRef.slice('refs/heads/'.length) : null
+          return {
+            root: await realpath(resolve(lines[0]!)),
+            commonDir: await realpath(resolve(lines[1]!)),
+            gitDir: await realpath(resolve(lines[2]!)),
+            branch,
+            headOid: lines[3]!,
+            headRef,
+          }
+        }
+      } else if (combined.code === 128 && /^fatal: not a git repository/.test(combined.stderr) && !await hasGitMetadata(root)) {
+        return null
+      }
       const topLevel = await runSessionGit(root, ['rev-parse', '--show-toplevel'])
       if (topLevel.code !== 0 || !topLevel.stdout) {
         if (topLevel.code === 128 && /^fatal: not a git repository/.test(topLevel.stderr) && !await hasGitMetadata(root)) return null

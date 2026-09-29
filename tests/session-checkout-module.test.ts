@@ -408,6 +408,18 @@ describe('SessionCheckoutModule', () => {
     })
   })
 
+  test('Given batch observation When observing owned checkouts Then results align with the requested ids', async () => {
+    const context = createContext()
+
+    const first = await context.module.createIsolatedTarget('session-1', 'target-session-1')
+    const second = await context.module.createIsolatedTarget('session-1', 'target-session-2')
+    const observed = await context.module.observeManagedCheckouts([first.target.checkout.id, second.target.checkout.id])
+
+    expect(observed.map(entry => entry.managedRoot)).toEqual([first.managedRoot, second.managedRoot])
+    expect(observed.every(entry => entry.snapshot.root.length > 0 && typeof entry.dirty === 'boolean')).toBe(true)
+    await expect(context.module.observeManagedCheckouts(['missing-checkout'])).rejects.toMatchObject({ code: 'checkout_missing' })
+  })
+
   test('Given 指定基准分支 When 创建 Isolated Then 以该分支 tip 为起点且源分支语义不变', async () => {
     const context = createContext()
     git(context.repositoryRoot, 'branch', 'feat/base-pick')

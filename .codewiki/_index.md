@@ -9,6 +9,7 @@
 ## Learning
 
 - [[learnings\web-rpc-transport-has-no-timeout|Web RPC 传输层全程无超时：一次『创建中…』永久卡死的根因]]
+- [[learnings\git-spawn-budget-list-latency|git spawn 预算与 list 延迟]]
 ## Module
 
 - [[modules\adapters|Adapter Layer]]

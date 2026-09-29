@@ -211,11 +211,14 @@ export function createSessionCheckoutModule(
     const project = dependencies.lookup.getProject(binding.projectId)
     if (!project || !dependencies.files.exists(project.root)) return recoveryView(binding)
 
+    const statusPromise = dependencies.git.status(project.root)
+    // 仅在快照证明是仓库时才消费；提前挂 noop catch 防未消费的 rejection 冒泡。
+    statusPromise.catch(() => undefined)
     const snapshot = await dependencies.git.inspect(project.root)
     const current: SessionTargetCurrentView = snapshot
       ? { branch: snapshot.branch, oid: snapshot.headOid }
       : { branch: null, oid: UNVERSIONED_OID }
-    const status = snapshot ? await dependencies.git.status(project.root) : { dirty: false }
+    const status = snapshot ? await statusPromise : { dirty: false }
     return {
       project: { id: binding.projectId, name: project.name },
       checkout: {
@@ -550,8 +553,12 @@ export function createSessionCheckoutModule(
         const canonicalProjectRoot = await dependencies.files.canonicalize(project.root)
         if (!pathsEqual(canonicalProjectRoot, canonicalLocalRoot)) return { status: 'invalid' }
       }
-      const snapshot = await dependencies.git.inspect(canonicalManagedRoot)
-      const localSnapshot = await dependencies.git.inspect(canonicalLocalRoot)
+      const statusPromise = dependencies.git.status(canonicalManagedRoot)
+      statusPromise.catch(() => undefined)
+      const [snapshot, localSnapshot] = await Promise.all([
+        dependencies.git.inspect(canonicalManagedRoot),
+        dependencies.git.inspect(canonicalLocalRoot),
+      ])
       if (!snapshot || !localSnapshot) return { status: 'invalid' }
 
       const projectRelativePath = relative(localSnapshot.root, canonicalLocalRoot)
@@ -570,7 +577,7 @@ export function createSessionCheckoutModule(
         || (!requireCreateBase && !(await checkpointHeadInvariantHolds(record, canonicalManagedRoot, snapshot.headOid)))
       ) return { status: 'invalid' }
 
-      const status = await dependencies.git.status(canonicalManagedRoot)
+      const status = await statusPromise
       return {
         status: 'valid',
         checkout: { canonicalManagedRoot, canonicalManagedGitRoot, snapshot, status },
@@ -3733,6 +3740,11 @@ export function createSessionCheckoutModule(
     return { managedRoot: validated.canonicalManagedRoot, snapshot: validated.snapshot, dirty: validated.status.dirty }
   }
 
+  /** 一次拿锁批量观察多个 checkout；单条失败整体抛错，与逐条 observe 语义一致。 */
+  function observeManagedCheckouts(checkoutIds: string[]) {
+    return Promise.all(checkoutIds.map((checkoutId) => observeManagedCheckout(checkoutId)))
+  }
+
   async function resolveManagedRoot(checkoutId: string): Promise<string> {
     return (await observeManagedCheckout(checkoutId)).managedRoot
   }
@@ -4281,6 +4293,7 @@ export function createSessionCheckoutModule(
     manageManagedWorktree: (input) => withBindingLock(() => manageManagedWorktree(input)),
     resolveManagedRoot: (checkoutId) => withBindingLock(() => resolveManagedRoot(checkoutId)),
     observeManagedCheckout: (checkoutId) => withBindingLock(() => observeManagedCheckout(checkoutId)),
+    observeManagedCheckouts: (checkoutIds) => withBindingLock(() => observeManagedCheckouts(checkoutIds)),
     cleanupExpiredRetained: (now) => withBindingLock(
       () => cleanupExpiredRetained(now),
       { allowConcurrentInspect: true },

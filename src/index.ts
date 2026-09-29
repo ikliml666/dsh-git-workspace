@@ -154,6 +154,8 @@ export interface SessionCheckoutModule {
   resolveManagedRoot(checkoutId: string): Promise<string>
   /** Fresh validated observation; callers can project it without re-reading Git. */
   observeManagedCheckout?(checkoutId: string): Promise<{ managedRoot: string; snapshot: GitCheckoutSnapshot; dirty: boolean }>
+  /** Batch observation under one lock; results align with the requested checkoutIds. */
+  observeManagedCheckouts?(checkoutIds: string[]): Promise<Array<{ managedRoot: string; snapshot: GitCheckoutSnapshot; dirty: boolean }>>
   cleanupExpiredRetained(now?: number): Promise<string[]>
   reconcile(): Promise<SessionCheckoutReconcileSummary>
 }

@@ -35,6 +35,8 @@ tags:
 - `resolveBinding`（src/session-checkout-module.ts:892）：持久化绑定校验；项目不匹配仅当 (discarded+delivered+原 workspace 根缺失+resolvedPathsEqual(workspace.root, record.managedRoot)) 或 canonical 化后相等才放行，否则 `project_mismatch`。
 - **withBindingLock**（src/session-checkout-module.ts:959）：`bindingQueue` Promise 链式互斥队列（src/session-checkout-module.ts:931）。三模式 exclusive / maintenance / maintenance_draining——maintenance 允许只读 inspect 并发旁路；释放时先关旁路、再等已启动 inspect 结束，之后 mutation 才接管队列（src/session-checkout-module.ts:983）。
 - `inspectAvailable`（src/session-checkout-module.ts:1014）：按 activeBindingOperation 模式选择旁路/等待/正常路径；后台 reconcile/retention 可能因 Windows 文件占用持续数十秒（src/session-checkout-module.ts:1006）。
+- `validateManagedCheckoutDetailed`（src/session-checkout-module.ts:530）：托管身份三读并行——managed/local 双 `git.inspect` 并发 + `status` 提前起（挂 noop catch 防未消费 rejection，仅在验证通过路径 await，失败→unavailable 语义不变）；checkpoint 链校验仍在快照就绪后串行。
+- `observeManagedCheckout`（src/session-checkout-module.ts:3728）：纯读（registry.read + validateManagedCheckout，不写 registry）。**批量入口 `observeManagedCheckouts`**（src/session-checkout-module.ts:3740）：一次 `withBindingLock` 内 `Promise.all` 并行验证多个 checkout，list 面板观察从「N 次 × 5 spawn」锁内串行降为单锁批量；单条失败整体抛错（与逐条语义一致）；接口可选方法（src/index.ts:157），宿主模块缺批量方法时 control-plane 回退逐条。
 - 返回对象（src/session-checkout-module.ts:4206-4280）：mutation 端点全部 withBindingLock；reconcile/cleanupExpiredRetained 以 `{allowConcurrentInspect: true}` 进入 maintenance；只读 listManagedWorktrees 不加锁（src/session-checkout-module.ts:4263）。
 
 ## 目标创建
