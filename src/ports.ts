@@ -83,6 +83,7 @@ export interface SessionCheckoutGitPort {
   releaseInternalArtifacts(localRoot: string, checkoutId: string, artifactPrefix?: string): Promise<void>
   /** Read-only ancestry proof; only accepts host-verified checkout roots and OIDs. */
   isAncestor(root: string, ancestorOid: string, descendantOid: string): Promise<boolean>
+  listWorktreeincludeFiles?(localRoot: string, includeFile: string): Promise<string[]>
   /**
    * Local adaptation: best-effort `git push` of the given worktree's current
    * branch. Never force-pushes; never rewrites remote history. Returns the
@@ -121,6 +122,8 @@ export interface SessionCheckoutFilesPort {
   removeDirectoryTree(path: string): Promise<void>
   /** Estimates real file usage; does not follow symlinks. */
   measureDirectoryBytes(path: string): Promise<number>
+  readTextFile?(path: string): string | null
+  copyFile?(from: string, to: string): void
 }
 
 export interface SessionBindingRecord {

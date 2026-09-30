@@ -3986,6 +3986,20 @@ export function createSessionCheckoutModule(
    *  `.git` 指针也随之断链。绑定到有效 Git 项目时，若当前仓库的 `.git/worktrees`
    *  下仍保留该 checkout 的管理目录，则用 `git worktree repair` 重连 Worktree，
    *  并把台账记录搬迁到当前项目；验证失败的记录保持原样。 */
+  async function copyWorktreeincludeFiles(sourceRoot: string, targetRoot: string): Promise<void> {
+    if (!dependencies.files.readTextFile || !dependencies.files.copyFile || !dependencies.git.listWorktreeincludeFiles) return
+    try {
+      const includeFile = join(sourceRoot, '.worktreeinclude')
+      const content = dependencies.files.readTextFile(includeFile)
+      // 空文件/全注释须跳过：空清单会让交集退化为「全部 gitignored」
+      if (!content?.split('\n').some((line) => { const trimmed = line.trim(); return trimmed !== '' && !trimmed.startsWith('#') })) return
+      const files = await dependencies.git.listWorktreeincludeFiles(sourceRoot, includeFile)
+      for (const relative of files) dependencies.files.copyFile(join(sourceRoot, relative), join(targetRoot, relative))
+    } catch (error) {
+      console.warn('[dsh-git-worktree] .worktreeinclude copy skipped:', error instanceof Error ? error.message : error)
+    }
+  }
+
   async function repairStaleWorktreeLinks(
     projectId: string,
     projectName: string,
@@ -4245,6 +4259,7 @@ export function createSessionCheckoutModule(
         ) {
           throw new SessionCheckoutError('checkout_mismatch', hostMessage('theNewCheckoutSGitCommonDirectoryDoesNot'))
         }
+        await copyWorktreeincludeFiles(snapshot.root, canonicalManagedRoot)
         const readyRegistry = dependencies.registry.read()
         const readyRecord: ManagedCheckoutRecord = {
           ...record,

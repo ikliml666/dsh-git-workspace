@@ -383,6 +383,16 @@ export function createDshGitPort(ctx: Context, options: GitPortOptions): Session
       const result = await runSessionGit(repoCommonDir, ['worktree', 'repair', managedRoot])
       return result.code === 0
     },
+    listWorktreeincludeFiles: async (localRoot, includeFile) => {
+      // Local adaptation (.worktreeinclude): the intersection of the two
+      // `ls-files --others --ignored` calls is exactly "matched ∧ gitignored"
+      // — negation/anchoring/dir patterns all stay in git, no local matcher.
+      const all = await runSessionGit(localRoot, ['ls-files', '--others', '--ignored', '--exclude-standard', '-z'])
+      const matched = await runSessionGit(localRoot, ['-c', `core.excludesFile=${includeFile}`, 'ls-files', '--others', '--ignored', '--exclude-standard', '-z'])
+      if (all.code !== 0 || matched.code !== 0) return []
+      const ignored = new Set(all.stdout.split('\0').filter(Boolean))
+      return [...new Set(matched.stdout.split('\0').filter(Boolean))].filter((path) => ignored.has(path))
+    },
   }
   return Object.assign(port, initialCommitActions(port.inspect, runSessionGit))
 }

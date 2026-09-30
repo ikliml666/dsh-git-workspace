@@ -68,3 +68,27 @@ it.each([true, false, 'reject', 'successful-child'] as const)('waits for the ent
   expect(existsSync(target)).toBe(quiescence !== true)
   if (quiescence !== true) expect(cleanupCalls).toBe(0)
 })
+
+it('lists only gitignored files matched by .worktreeinclude', async () => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), 'dsh-wtinclude-')))
+  roots.push(root)
+  const env = { ...process.env, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: process.platform === 'win32' ? 'NUL' : '/dev/null' }
+  const git = (cwd: string, args: string[]) => spawnSync('git', args, { cwd, env, encoding: 'utf8' })
+  git(root, ['init', '-b', 'main'])
+  await writeFile(join(root, '.gitignore'), '.env*\n')
+  await writeFile(join(root, '.worktreeinclude'), '.env.local\ntracked.txt\n')
+  await writeFile(join(root, '.env.local'), 'SECRET=1\n')
+  await writeFile(join(root, '.env.other'), 'OTHER=1\n')
+  await writeFile(join(root, 'tracked.txt'), 'tracked\n')
+  git(root, ['add', '.gitignore', '.worktreeinclude', 'tracked.txt'])
+  git(root, ['-c', 'user.name=Test', '-c', 'user.email=test@example.test', 'commit', '-m', 'base'])
+  const ctx = { subprocess: { spawn(spec: { argv: string[]; cwd: string; signal: AbortSignal }) {
+    const result = git(spec.cwd, spec.argv.slice(1))
+    return { done: Promise.resolve({ exitCode: result.status }), terminate() {}, waitForExit: async () => true, collected: {
+      stdout: { readFrom: () => ({ text: result.stdout ?? '' }) }, stderr: { readFrom: () => ({ text: result.stderr ?? '' }) },
+    } }
+  } } } as unknown as Context
+  const port = createDshGitPort(ctx, { hooksPath: join(root, 'hooks') })
+  const files = await port.listWorktreeincludeFiles?.(root, join(root, '.worktreeinclude'))
+  expect(files).toEqual(['.env.local'])
+})

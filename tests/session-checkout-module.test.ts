@@ -1980,6 +1980,36 @@ describe('SessionCheckoutModule', () => {
     git(managedRoot, 'status', '--porcelain')
   })
 
+  test('Given 仓库根有 .worktreeinclude When 创建 Isolated Then gitignored 匹配文件被带入新 worktree', async () => {
+    const context = createContext()
+    writeFileSync(join(context.repositoryRoot, '.gitignore'), '.env*\n')
+    writeFileSync(join(context.repositoryRoot, '.worktreeinclude'), '.env.local\n')
+    writeFileSync(join(context.repositoryRoot, '.env.local'), 'SECRET=1\n')
+    writeFileSync(join(context.repositoryRoot, '.env.other'), 'OTHER=1\n')
+    git(context.repositoryRoot, 'add', '.gitignore', '.worktreeinclude')
+    git(context.repositoryRoot, 'commit', '-m', 'include')
+
+    const target = await context.module.bind('session-1', { kind: 'isolated' })
+    const managedRoot = await context.module.resolveManagedRoot(target.checkout.id)
+
+    expect(readFileSync(join(managedRoot, '.env.local'), 'utf8')).toBe('SECRET=1\n')
+    expect(existsSync(join(managedRoot, '.env.other'))).toBe(false)
+  })
+
+  test('Given .worktreeinclude 为空 When 创建 Isolated Then 不复制任何 gitignored 文件', async () => {
+    const context = createContext()
+    writeFileSync(join(context.repositoryRoot, '.gitignore'), '.env*\n')
+    writeFileSync(join(context.repositoryRoot, '.worktreeinclude'), '# 仅注释\n\n')
+    writeFileSync(join(context.repositoryRoot, '.env.local'), 'SECRET=1\n')
+    git(context.repositoryRoot, 'add', '.gitignore', '.worktreeinclude')
+    git(context.repositoryRoot, 'commit', '-m', 'include')
+
+    const target = await context.module.bind('session-1', { kind: 'isolated' })
+    const managedRoot = await context.module.resolveManagedRoot(target.checkout.id)
+
+    expect(existsSync(join(managedRoot, '.env.local'))).toBe(false)
+  })
+
   test('Given 台账指向已消失路径 When 项目不是 Git 仓库时创建 Isolated Then 报错指出仓库可能已被移动', async () => {
     const context = createContext()
     const target = await context.module.bind('session-1', { kind: 'isolated' })

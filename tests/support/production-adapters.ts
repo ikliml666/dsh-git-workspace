@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { existsSync, lstatSync, mkdirSync, readdirSync, rmdirSync } from 'node:fs'
+import { copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmdirSync, rmSync } from 'node:fs'
 import { lstat, readdir, realpath, rename, rm } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { spawn, type ChildProcessByStdio } from 'node:child_process'
@@ -546,6 +546,12 @@ export function createNodeSessionCheckoutDependencies(
       quarantineDirectoryTree,
       removeDirectoryTree,
       measureDirectoryBytes,
+      readTextFile: (path) => (existsSync(path) ? readFileSync(path, 'utf8') : null),
+      copyFile: (from, to) => {
+        mkdirSync(dirname(to), { recursive: true })
+        if (existsSync(to)) rmSync(to, { force: true })
+        copyFileSync(from, to)
+      },
     },
     git: {
       inspect: async (root): Promise<GitCheckoutSnapshot | null> => {
@@ -637,6 +643,13 @@ export function createNodeSessionCheckoutDependencies(
       pruneWorktrees: async (localRoot) => {
         const result = await runSessionGit(localRoot, ['worktree', 'prune', '--expire', 'now'])
         if (result.code !== 0) throw new Error(result.stderr || 'git worktree prune 失败')
+      },
+      listWorktreeincludeFiles: async (localRoot, includeFile) => {
+        const all = await runSessionGit(localRoot, ['ls-files', '--others', '--ignored', '--exclude-standard', '-z'])
+        const matched = await runSessionGit(localRoot, ['-c', `core.excludesFile=${includeFile}`, 'ls-files', '--others', '--ignored', '--exclude-standard', '-z'])
+        if (all.code !== 0 || matched.code !== 0) return []
+        const ignored = new Set(all.stdout.split('\0').filter(Boolean))
+        return [...new Set(matched.stdout.split('\0').filter(Boolean))].filter((path) => ignored.has(path))
       },
     },
   }

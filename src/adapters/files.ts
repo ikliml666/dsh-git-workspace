@@ -7,7 +7,7 @@ import { hostMessage } from '../i18n/host.js'
  * @module dsh-git-worktree/adapters/files
  */
 
-import { existsSync, lstatSync, mkdirSync, readdirSync, rmdirSync } from 'node:fs'
+import { copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmdirSync, rmSync } from 'node:fs'
 import { lstat, readdir, realpath, rename, rm } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import type { DirectoryIdentity, SessionCheckoutFilesPort } from '../ports.js'
@@ -96,5 +96,11 @@ export function createNodeFilesPort(): SessionCheckoutFilesPort {
     quarantineDirectoryTree,
     removeDirectoryTree,
     measureDirectoryBytes,
+    readTextFile: (path) => (existsSync(path) ? readFileSync(path, 'utf8') : null),
+    copyFile: (from, to) => {
+      mkdirSync(dirname(to), { recursive: true })
+      if (existsSync(to)) rmSync(to, { force: true })
+      copyFileSync(from, to)
+    },
   }
 }
