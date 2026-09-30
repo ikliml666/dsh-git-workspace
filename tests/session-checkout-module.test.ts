@@ -2015,6 +2015,41 @@ describe('SessionCheckoutModule', () => {
     expect(list.find((entry) => entry.checkoutId === target.checkout.id)?.state).toBe('needs_attention')
   })
 
+  test('Given worktree 目录已被外部删除 When 放弃任务 Then 直接清台账并 prune 残余注册', async () => {
+    const context = createContext()
+    const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')
+    const [summary] = await context.module.listManagedWorktreesForSession('session-1')
+    rmSync(launch.managedRoot, { recursive: true, force: true })
+
+    const discarded = await context.module.manageManagedWorktreeForSession('session-1', {
+      checkoutId: launch.target.checkout.id,
+      expectedRevision: summary.revision,
+      action: 'discard',
+      confirmDirty: true,
+    })
+
+    expect(discarded.phase).toBe('discarded')
+    expect(existsSync(launch.managedRoot)).toBe(false)
+    expect(git(context.repositoryRoot, 'worktree', 'list', '--porcelain')).not.toContain('--worktree')
+  }, 30_000)
+
+  test('Given 放弃后宿主重建了空壳目录 When reconcile Then 清掉空壳', async () => {
+    const context = createContext()
+    const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')
+    const [summary] = await context.module.listManagedWorktreesForSession('session-1')
+    await context.module.manageManagedWorktreeForSession('session-1', {
+      checkoutId: launch.target.checkout.id,
+      expectedRevision: summary.revision,
+      action: 'discard',
+      confirmDirty: true,
+    })
+    mkdirSync(launch.managedRoot, { recursive: true })
+
+    await context.module.reconcile()
+
+    expect(existsSync(launch.managedRoot)).toBe(false)
+  }, 30_000)
+
   test('Given 旧 ready inspect 被可控 deferred 暂停 When owner 并发 Discard Then inspect 与 Discard 串行且 discarded 不会被旧结果覆盖', async () => {
     const context = createContext()
     const target = await context.module.bind('session-1', { kind: 'isolated' })

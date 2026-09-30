@@ -634,6 +634,10 @@ export function createNodeSessionCheckoutDependencies(
         const result = await runSessionGit(repoCommonDir, ['worktree', 'repair', managedRoot])
         return result.code === 0
       },
+      pruneWorktrees: async (localRoot) => {
+        const result = await runSessionGit(localRoot, ['worktree', 'prune', '--expire', 'now'])
+        if (result.code !== 0) throw new Error(result.stderr || 'git worktree prune 失败')
+      },
     },
   }
 }

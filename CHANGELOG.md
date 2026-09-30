@@ -25,6 +25,10 @@
 
 - 仓库迁移后 Worktree 台账自愈（2026-09-30）：仓库被移动/重命名后，台账中残留指向旧路径的 `localRoot`，导致新会话绑定 Isolated Checkout 直接报"非 Git 项目"且旧 worktree 的 `.git` 指针断链。现在绑定前自动检测台账中指向已消失路径的记录：admin 目录仍挂在当前仓库 `.git/worktrees/` 下的，执行 `git worktree repair` 修复双向链接，并就地改写记录的 `localRoot`/`gitCommonDir`/`gitDir` 与项目归属；修复不可行时维持原有 `not_git_repository` 拒绝，但错误信息列出失效路径并提示仓库可能已被移动。`reconcile` 汇总新增 `staleRootCheckoutIds` 并在启动日志告警；Worktree 面板对本地根目录已消失的记录强制呈现 `needs_attention`，不再假报 `working`。
 
+- 外部删除的 Worktree 可直接放弃（2026-09-30）：台账记录的 worktree 目录连同 git 顶层已被外部删除（用户手动清理等）时，「放弃任务」此前会误入 `recovery_required`（"Isolated Checkout 身份无法确认，需要恢复"）死路——磁盘上已无可保护内容，恢复注定失败。现在 ready 记录在 `managedRoot` 与 `managedGitRoot` 均缺失时直接清台账置 `discarded`，并 best-effort `git worktree prune --expire now` 清理残余 admin 注册（新增可选端口方法 `pruneWorktrees`）。
+
+- 交付/放弃后的空壳 cwd 清扫（2026-09-30）：交付或放弃移除 worktree 后，owner 会话可能仍开着，宿主会把已删目录重建为空壳 cwd，导致"提交后 worktree 没删干净"的观感。`reconcile` 现在会清扫 `discarded` 记录下被重建的空目录（`removeEmptyDirectoryTree` 遇任何用户字节即停，绝不误删）并回收空容器。
+
 ## [0.9.3-local.1] - 2026-09-26
 
 本地适配版本：在 `0.9.3` 基础上按个人 Git 工作流（agent 完成即自合、统一 worktree 根目录、大规模仓库长超时、Workspace 接管显式 opt-in）调整行为。上游合并时可能产生冲突，取舍以本地需求为准。

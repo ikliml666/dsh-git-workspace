@@ -95,6 +95,11 @@ export interface SessionCheckoutGitPort {
    * throwing so callers can leave the stale record untouched.
    */
   repairWorktreeLinks?(repoCommonDir: string, managedRoot: string): Promise<boolean>
+  /**
+   * Local adaptation: drop Worktree admin entries whose working tree vanished
+   * from disk (`git worktree prune`). Hygiene only; callers tolerate absence.
+   */
+  pruneWorktrees?(localRoot: string): Promise<void>
 }
 
 export interface DirectoryIdentity {

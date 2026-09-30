@@ -318,6 +318,9 @@ export function createDshGitPort(ctx: Context, options: GitPortOptions): Session
       await runSessionGitChecked(localRoot, ['worktree', 'remove', '--force', managedRoot])
       await projectSkills.forget(managedRoot)
     },
+    pruneWorktrees: async (localRoot) => {
+      await runSessionGitChecked(localRoot, ['worktree', 'prune', '--expire', 'now'])
+    },
     retainApplyBase: async (localRoot, checkoutId, oid) => {
       await runSessionGitChecked(localRoot, ['update-ref', applyBaseRef(checkoutId), oid])
     },

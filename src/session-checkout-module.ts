@@ -1047,7 +1047,17 @@ export function createSessionCheckoutModule(
     let changed = false
 
     for (const [checkoutId, current] of Object.entries(registry.managedCheckouts)) {
-      if (current.phase === 'discarded') continue
+      if (current.phase === 'discarded') {
+        // 本地适配：交付/放弃时 owner 会话可能仍开着，宿主会重建已删 worktree
+        // 的空壳 cwd。空壳无用户字节，reconcile 时顺手清掉并回收空容器。
+        if (
+          dependencies.files.exists(current.managedRoot)
+          && dependencies.files.removeEmptyDirectoryTree(current.managedRoot)
+        ) {
+          collectEmptyManagedContainer(current.managedGitRoot, current.checkoutId)
+        }
+        continue
+      }
       if (
         current.predecessorCheckoutId
         && current.journal?.operation === 'create'
@@ -3283,6 +3293,24 @@ export function createSessionCheckoutModule(
     }
     // Harness plugin has no inherited collaborator checkout ownership.
     if (record.phase === 'recovery_required' && !dependencies.files.exists(record.managedRoot)) {
+      await releaseApplyBaseBestEffort(record)
+      updateManagedCheckout(record.checkoutId, (current) => ({
+        ...current,
+        phase: 'discarded',
+        journal: null,
+        revision: current.revision + 1,
+      }))
+      return { status: 'discarded', target: await inspectIsolated(binding) }
+    }
+    // 本地适配：worktree 目录连同 git 顶层已被外部删除（用户手动清理等）。
+    // 磁盘上没有可保护的内容，身份无从验证；放弃任务应清台账并 prune 残余
+    // 注册，而不是把用户引向注定失败的恢复流程。
+    if (
+      record.phase === 'ready'
+      && !dependencies.files.exists(record.managedRoot)
+      && !dependencies.files.exists(record.managedGitRoot)
+    ) {
+      await dependencies.git.pruneWorktrees?.(record.localRoot).catch(() => undefined)
       await releaseApplyBaseBestEffort(record)
       updateManagedCheckout(record.checkoutId, (current) => ({
         ...current,
