@@ -589,6 +589,10 @@ export const hostMessages = {
     "zh": "非 Git 项目不能创建 Isolated Checkout",
     "en": "A non-Git project cannot create an Isolated Checkout."
   },
+  "theProjectRootIsNotAGitRepositoryAndTheLedgerReferencesStaleRoots": {
+    "zh": "项目根目录不是 Git 仓库（{p0}）。台账中仍有记录指向已不存在的路径（{p1}）——项目可能已被移动：请在仓库新位置打开会话，失效的 Worktree 台账会在绑定时自动修复。",
+    "en": "The project root is not a Git repository ({p0}). The ledger still references paths that no longer exist ({p1}) — the project was likely moved. Reopen the session from the repository's new location; stale Worktree ledger entries repair automatically on bind."
+  },
   "theFallbackWorktreeContainerIsNotATrustedDirectory": {
     "zh": "Worktree 回退容器不是可信目录，未创建或修改任何 checkout",
     "en": "The fallback Worktree container is not a trusted directory. No checkout was created or modified."

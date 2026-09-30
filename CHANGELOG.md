@@ -23,6 +23,8 @@
 
 - 客户端样式表注入改用 `data-plugin="dsh-git-worktree"` 自标记。此前 `<style>` 无 `data-plugin`，会被 dsh client-modules 的 `claimStyles` 认领给"任意后物化的模块"，该模块 invalidate/prune/物化失败时 `removeOwnedStyles` 即误删本插件样式表，Worktree 开关与 Local 徽章会在运行期间自动回退为浏览器默认描边样式。
 
+- 仓库迁移后 Worktree 台账自愈（2026-09-30）：仓库被移动/重命名后，台账中残留指向旧路径的 `localRoot`，导致新会话绑定 Isolated Checkout 直接报"非 Git 项目"且旧 worktree 的 `.git` 指针断链。现在绑定前自动检测台账中指向已消失路径的记录：admin 目录仍挂在当前仓库 `.git/worktrees/` 下的，执行 `git worktree repair` 修复双向链接，并就地改写记录的 `localRoot`/`gitCommonDir`/`gitDir` 与项目归属；修复不可行时维持原有 `not_git_repository` 拒绝，但错误信息列出失效路径并提示仓库可能已被移动。`reconcile` 汇总新增 `staleRootCheckoutIds` 并在启动日志告警；Worktree 面板对本地根目录已消失的记录强制呈现 `needs_attention`，不再假报 `working`。
+
 ## [0.9.3-local.1] - 2026-09-26
 
 本地适配版本：在 `0.9.3` 基础上按个人 Git 工作流（agent 完成即自合、统一 worktree 根目录、大规模仓库长超时、Workspace 接管显式 opt-in）调整行为。上游合并时可能产生冲突，取舍以本地需求为准。

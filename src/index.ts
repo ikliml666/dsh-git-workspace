@@ -53,6 +53,7 @@ export interface SessionCheckoutReconcileSummary {
   recoveryRequiredCheckoutIds: string[]
   orphanedCheckoutIds: string[]
   dirtyOrphanedCheckoutIds: string[]
+  staleRootCheckoutIds: string[]
   retainedCheckoutCount: number
 }
 
@@ -313,9 +314,18 @@ export async function apply(ctx: Context, config: { stateDir?: string } & GitTim
   // typed Events map omits the runtime 'ready' event; the events service's
   // loose runtime signature covers it.
   const reconcileOnReady = ctx.events.on('ready', () => {
-    void module.reconcile().catch((error) => {
-      console.warn('[dsh-git-worktree] reconcile failed:', error)
-    })
+    void module.reconcile()
+      .then((summary) => {
+        if (summary.staleRootCheckoutIds.length > 0) {
+          console.warn(
+            '[dsh-git-worktree] worktrees whose local root vanished (repository likely moved):',
+            summary.staleRootCheckoutIds.join(', '),
+          )
+        }
+      })
+      .catch((error) => {
+        console.warn('[dsh-git-worktree] reconcile failed:', error)
+      })
   })
   const retentionTimer = setInterval(() => {
     void module.cleanupExpiredRetained().catch((error) => {

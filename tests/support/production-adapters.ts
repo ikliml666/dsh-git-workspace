@@ -630,6 +630,10 @@ export function createNodeSessionCheckoutDependencies(
         if (result.code === 1) return null
         throw new Error(result.stderr || '无法解析本地分支 tip')
       },
+      repairWorktreeLinks: async (repoCommonDir, managedRoot) => {
+        const result = await runSessionGit(repoCommonDir, ['worktree', 'repair', managedRoot])
+        return result.code === 0
+      },
     },
   }
 }

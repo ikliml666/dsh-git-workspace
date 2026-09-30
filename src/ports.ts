@@ -89,6 +89,12 @@ export interface SessionCheckoutGitPort {
    * human-readable failure instead of throwing so callers can degrade softly.
    */
   pushBranch?(root: string): Promise<{ ok: boolean; message?: string }>
+  /**
+   * Local adaptation: re-link Worktrees whose `.git` pointer broke because the
+   * repository moved, via `git worktree repair`. Returns false instead of
+   * throwing so callers can leave the stale record untouched.
+   */
+  repairWorktreeLinks?(repoCommonDir: string, managedRoot: string): Promise<boolean>
 }
 
 export interface DirectoryIdentity {

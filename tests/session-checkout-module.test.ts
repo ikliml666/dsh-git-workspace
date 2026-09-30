@@ -1950,6 +1950,71 @@ describe('SessionCheckoutModule', () => {
     await expect(binding).rejects.toMatchObject({ code: 'not_git_repository' })
   })
 
+  test('Given 仓库移动导致台账与 Worktree 断链 When 在新位置绑定 Isolated Then 台账与链接自动搬迁', async () => {
+    const context = createContext()
+    const target = await context.module.bind('session-1', { kind: 'isolated' })
+    const managedRoot = await context.module.resolveManagedRoot(target.checkout.id)
+    const registryPath = join(context.configDir, 'managed-checkouts.json')
+    const movedRoot = join(context.root, 'moved-away')
+    const staleRegistry = JSON.parse(readFileSync(registryPath, 'utf8')) as any
+    const record = staleRegistry.managedCheckouts[target.checkout.id]
+    const adminDirName = basename(record.gitDir)
+    record.localRoot = movedRoot
+    record.gitCommonDir = join(movedRoot, '.git')
+    record.gitDir = join(movedRoot, '.git', 'worktrees', adminDirName)
+    staleRegistry.revision += 1
+    writeFileSync(registryPath, JSON.stringify(staleRegistry))
+    const deadPointer = `gitdir: ${join(movedRoot, '.git', 'worktrees', adminDirName)}\n`
+    // Windows 上 git 会把 worktree 的 .git 指针标为隐藏（core.hideDotFiles），先删后写绕开 EPERM
+    rmSync(join(managedRoot, '.git'), { force: true })
+    writeFileSync(join(managedRoot, '.git'), deadPointer)
+
+    await context.module.bind('child-session', { kind: 'isolated' })
+
+    const healed = JSON.parse(readFileSync(registryPath, 'utf8')) as any
+    const healedRecord = healed.managedCheckouts[target.checkout.id]
+    expect(healedRecord.localRoot).toBe(realpathSync(context.repositoryRoot))
+    expect(healedRecord.projectId).toBe('project-1')
+    expect(healedRecord.gitDir).toContain(adminDirName)
+    expect(readFileSync(join(managedRoot, '.git'), 'utf8')).not.toBe(deadPointer)
+    git(managedRoot, 'status', '--porcelain')
+  })
+
+  test('Given 台账指向已消失路径 When 项目不是 Git 仓库时创建 Isolated Then 报错指出仓库可能已被移动', async () => {
+    const context = createContext()
+    const target = await context.module.bind('session-1', { kind: 'isolated' })
+    const registryPath = join(context.configDir, 'managed-checkouts.json')
+    const movedRoot = join(context.root, 'moved-away')
+    const staleRegistry = JSON.parse(readFileSync(registryPath, 'utf8')) as any
+    staleRegistry.managedCheckouts[target.checkout.id].localRoot = movedRoot
+    staleRegistry.revision += 1
+    writeFileSync(registryPath, JSON.stringify(staleRegistry))
+    rmSync(join(context.repositoryRoot, '.git'), { recursive: true, force: true })
+
+    const binding = context.module.bind('child-session', { kind: 'isolated' })
+
+    await expect(binding).rejects.toMatchObject({ code: 'not_git_repository' })
+    await expect(binding).rejects.toThrowError(movedRoot)
+  })
+
+  test('Given 台账指向已消失路径 When reconcile 与列出 Worktree Then 上报 staleRoot 且状态标记 needs_attention', async () => {
+    const context = createContext()
+    const target = await context.module.bind('session-1', { kind: 'isolated' })
+    const registryPath = join(context.configDir, 'managed-checkouts.json')
+    const staleRegistry = JSON.parse(readFileSync(registryPath, 'utf8')) as any
+    staleRegistry.managedCheckouts[target.checkout.id].localRoot = join(context.root, 'moved-away')
+    staleRegistry.revision += 1
+    writeFileSync(registryPath, JSON.stringify(staleRegistry))
+
+    const summary = await context.module.reconcile()
+
+    expect(summary.staleRootCheckoutIds).toContain(target.checkout.id)
+
+    const list = await context.module.listManagedWorktrees()
+
+    expect(list.find((entry) => entry.checkoutId === target.checkout.id)?.state).toBe('needs_attention')
+  })
+
   test('Given 旧 ready inspect 被可控 deferred 暂停 When owner 并发 Discard Then inspect 与 Discard 串行且 discarded 不会被旧结果覆盖', async () => {
     const context = createContext()
     const target = await context.module.bind('session-1', { kind: 'isolated' })

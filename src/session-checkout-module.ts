@@ -1042,6 +1042,7 @@ export function createSessionCheckoutModule(
     const recoveryRequiredCheckoutIds: string[] = []
     const orphanedCheckoutIds: string[] = []
     const dirtyOrphanedCheckoutIds: string[] = []
+    const staleRootCheckoutIds: string[] = []
     const finalizedCheckoutIds: string[] = []
     let changed = false
 
@@ -1239,6 +1240,8 @@ export function createSessionCheckoutModule(
         recoveryRequiredCheckoutIds.push(checkoutId)
       }
 
+      if (!dependencies.files.exists(record.localRoot)) staleRootCheckoutIds.push(checkoutId)
+
       if (dependencies.lookup.getSession(record.ownerSessionId)) continue
       orphanedCheckoutIds.push(checkoutId)
       let dirty = true
@@ -1266,6 +1269,7 @@ export function createSessionCheckoutModule(
       recoveryRequiredCheckoutIds,
       orphanedCheckoutIds,
       dirtyOrphanedCheckoutIds,
+      staleRootCheckoutIds,
       retainedCheckoutCount: Object.values(currentRegistry.managedCheckouts)
         .filter((record) => record.phase !== 'discarded')
         .length,
@@ -3459,7 +3463,10 @@ export function createSessionCheckoutModule(
       }
     }
     const delivery = record.delivery
-    const state: ManagedWorktreeSummaryView['state'] = record.phase === 'recovery_required'
+    const staleRoot = record.phase !== 'discarded' && !dependencies.files.exists(record.localRoot)
+    const state: ManagedWorktreeSummaryView['state'] = staleRoot
+      ? 'needs_attention'
+      : record.phase === 'recovery_required'
       ? 'needs_attention'
       : delivery.state === 'retained'
         ? delivery.cleanup === 'blocked' ? 'needs_attention' : 'retained'
@@ -3947,6 +3954,45 @@ export function createSessionCheckoutModule(
     }
   }
 
+  /** 本地适配：仓库移动后，旧台账记录的 localRoot/gitDir 指向失效路径，Worktree 的
+   *  `.git` 指针也随之断链。绑定到有效 Git 项目时，若当前仓库的 `.git/worktrees`
+   *  下仍保留该 checkout 的管理目录，则用 `git worktree repair` 重连 Worktree，
+   *  并把台账记录搬迁到当前项目；验证失败的记录保持原样。 */
+  async function repairStaleWorktreeLinks(
+    projectId: string,
+    projectName: string,
+    projectRoot: string,
+    projectSnapshot: GitCheckoutSnapshot,
+  ): Promise<void> {
+    const registry = dependencies.registry.read()
+    const projectLocalRoot = await dependencies.files.canonicalize(projectRoot)
+    let changed = false
+    for (const record of Object.values(registry.managedCheckouts)) {
+      if (record.phase === 'discarded') continue
+      if (dependencies.files.exists(record.localRoot)) continue
+      const adminDirName = basename(record.gitDir)
+      const adminDir = adminDirName
+        ? join(projectSnapshot.commonDir, 'worktrees', adminDirName)
+        : undefined
+      if (!adminDir || !dependencies.files.exists(adminDir)) continue
+      const repaired = await dependencies.git.repairWorktreeLinks?.(projectSnapshot.commonDir, record.managedRoot)
+      if (!repaired) continue
+      const repairedSnapshot = await dependencies.git.inspect(record.managedRoot).catch(() => null)
+      if (!repairedSnapshot || !resolvedPathsEqual(repairedSnapshot.commonDir, projectSnapshot.commonDir)) continue
+      record.localRoot = projectLocalRoot
+      record.gitCommonDir = projectSnapshot.commonDir
+      record.gitDir = adminDir
+      record.projectId = projectId
+      record.projectName = projectName
+      record.revision += 1
+      changed = true
+    }
+    if (changed) {
+      registry.revision += 1
+      dependencies.registry.write(registry)
+    }
+  }
+
   async function bindTarget(
     sessionId: string,
     choice: SessionTargetBindChoice,
@@ -3996,6 +4042,8 @@ export function createSessionCheckoutModule(
       const { project } = await resolveSessionProject(sourceSessionId)
       const snapshot = await dependencies.git.inspect(project.root)
 
+      if (snapshot) await repairStaleWorktreeLinks(project.id, project.name, project.root, snapshot)
+
       if (choice.kind === 'local') {
         const binding: SessionBindingRecord = {
           sessionId,
@@ -4015,6 +4063,15 @@ export function createSessionCheckoutModule(
       }
 
       if (!snapshot) {
+        const staleRoots = Object.values(dependencies.registry.read().managedCheckouts)
+          .filter((record) => record.phase !== 'discarded' && !dependencies.files.exists(record.localRoot))
+          .map((record) => record.localRoot)
+        if (staleRoots.length > 0) {
+          throw new SessionCheckoutError('not_git_repository', hostMessage(
+            'theProjectRootIsNotAGitRepositoryAndTheLedgerReferencesStaleRoots',
+            { p0: project.root, p1: staleRoots.join('; ') },
+          ))
+        }
         throw new SessionCheckoutError('not_git_repository', hostMessage('aNonGitProjectCannotCreateAnIsolatedCheckout'))
       }
       if (snapshot.headOid === 'unborn') throw new SessionCheckoutError('operation_not_allowed', hostMessage('initialConfirmationRequired'))

@@ -374,6 +374,12 @@ export function createDshGitPort(ctx: Context, options: GitPortOptions): Session
       if (pushed.code === 0) return { ok: true }
       return { ok: false, message: (pushed.stderr || pushed.stdout || hostMessage('gitOperationFailedGit', { p0: 'push', p1: '' })).trim() }
     },
+    repairWorktreeLinks: async (repoCommonDir, managedRoot) => {
+      // Local adaptation: the repository moved on disk; git's own repair
+      // rewrites the Worktree's `.git` pointer to the current admin dir.
+      const result = await runSessionGit(repoCommonDir, ['worktree', 'repair', managedRoot])
+      return result.code === 0
+    },
   }
   return Object.assign(port, initialCommitActions(port.inspect, runSessionGit))
 }
