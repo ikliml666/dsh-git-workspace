@@ -30,6 +30,8 @@
 
 - 交付/放弃后的空壳 cwd 清扫（2026-09-30）：交付或放弃移除 worktree 后，owner 会话可能仍开着，宿主会把已删目录重建为空壳 cwd，导致"提交后 worktree 没删干净"的观感。`reconcile` 现在会清扫 `discarded` 记录下被重建的空目录（`removeEmptyDirectoryTree` 遇任何用户字节即停，绝不误删）并回收空容器。
 
+- 兼容 dsh 0.2.0-rc.2（2026-09-30）：宿主升级后 bundle 加载器启动预检（app-boot `plugin-compatibility.ts`，semver `includePrerelease:true` 逐项校验 `@deepseek-ai/dsh-*` peer）判定 `@deepseek-ai/dsh-client-locale` 的精确钉版本 `0.2.0-rc.1` 不匹配运行时 `0.2.0-rc.2`，启动时跳过加载本插件（"skipping profile bundle"）。peer 范围追加 `|| 0.2.0-rc.2` 修复；其余 `^0.2.0-rc.1` 风格 peer 同元组预发布天然覆盖 rc.2，无需改动。应急替代：`dsh plugin allow-version` 精确版本豁免（未采用）。
+
 ## [0.9.3-local.1] - 2026-09-26
 
 本地适配版本：在 `0.9.3` 基础上按个人 Git 工作流（agent 完成即自合、统一 worktree 根目录、大规模仓库长超时、Workspace 接管显式 opt-in）调整行为。上游合并时可能产生冲突，取舍以本地需求为准。
