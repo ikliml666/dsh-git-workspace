@@ -2,6 +2,7 @@ import {
   FileText, GitBranch, CircleCheck, TriangleAlert, CircleMinus, X, ListChecks,
   CircleEllipsis, TvMinimalPlay, Check, Undo2, Pencil, Save, Trash2, FolderOpen, ExternalLink,
   RefreshCw, ChevronRight, ChevronDown, Monitor, Plus, Search, FolderGit2, Archive, Send, ShieldCheck, CircleHelp,
+  Pin, PinOff,
 } from 'lucide-react'
 
 const icons = {
@@ -10,6 +11,7 @@ const icons = {
   confirm: Check, rollback: Undo2, edit: Pencil, save: Save, discard: Trash2,
   local: Monitor, down: ChevronDown, create: Plus, search: Search, manager: FolderGit2, retain: Archive, send: Send, shield: ShieldCheck, help: CircleHelp,
   folder: FolderOpen, external: ExternalLink, refresh: RefreshCw, chevron: ChevronRight,
+  pin: Pin, pinOff: PinOff,
 }
 export type ReviewIconName = keyof typeof icons
 

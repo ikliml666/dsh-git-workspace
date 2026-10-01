@@ -2,6 +2,8 @@ import { z } from 'zod'
 import {
   WORKTREE_CONSOLE_ERROR_CODES,
   WORKTREE_CONSOLE_TARGET_STATES,
+  type WorktreeConsoleAbandonedListResponse,
+  type WorktreeConsoleAbandonedSnapshot,
   type WorktreeConsoleCreatePreviewRecoveryHandoffResponse,
   type WorktreeConsoleCreateResponse,
   type WorktreeConsoleCurrentResponse,
@@ -11,6 +13,7 @@ import {
   type WorktreeConsoleOutcome,
   type WorktreeConsolePreflightResponse,
   type WorktreeConsolePreviewRecoveryPreflightResponse,
+  type WorktreeConsoleRestoreAbandonedResponse,
   type WorktreeConsoleReviewDiffResponse,
   type WorktreeConsoleGitGraphResponse,
   type WorktreeConsoleGitMutationResponse,
@@ -87,6 +90,7 @@ const capabilitiesSchema = strict({
   finalize: z.boolean(),
   finalizePreview: z.boolean(),
   setRetention: z.boolean(),
+  setPermanent: z.boolean(),
   retryCleanup: z.boolean(),
   beginNextIteration: z.boolean(),
 })
@@ -122,6 +126,7 @@ const targetSummarySchema = strict({
   retention: retainedModeSchema.optional(),
   retainedAt: z.number().finite().optional(),
   expiresAt: z.number().finite().nullable().optional(),
+  permanent: z.boolean().optional(),
   cleanupMessage: z.string().optional(),
   deliveryProof: deliveryProofSchema.optional(),
   review: reviewSchema.optional(),
@@ -396,3 +401,18 @@ export const gitMutationResponseSchema: z.ZodType<WorktreeConsoleGitMutationResp
   branch: z.string().min(1).max(300),
 })
 export const gitGraphLimitSchema = z.number().int().min(1).max(1000).optional()
+
+export const abandonedSnapshotSchema: z.ZodType<WorktreeConsoleAbandonedSnapshot> = strict({
+  checkoutId: checkoutIdSchema,
+  projectName: z.string().max(500),
+  snapshotOid: gitOidSchema,
+  snapshotAt: z.number().int().nonnegative(),
+  revision: revisionSchema,
+})
+export const abandonedListResponseSchema: z.ZodType<WorktreeConsoleAbandonedListResponse> = strict({
+  snapshots: z.array(abandonedSnapshotSchema).max(200),
+})
+export const restoreAbandonedResponseSchema: z.ZodType<WorktreeConsoleRestoreAbandonedResponse> = strict({
+  checkoutId: checkoutIdSchema,
+  branch: z.string().min(1).max(300),
+})

@@ -3,6 +3,7 @@ import type {
   WorktreeConsoleBeginNextIterationRequest,
   WorktreeConsoleCheckpointRequest,
   WorktreeConsoleCreatePreviewRecoveryHandoffRequest,
+  WorktreeConsoleAbandonedListResponse,
   WorktreeConsoleCreatePreviewRecoveryHandoffResponse,
   WorktreeConsoleCreateRequest,
   WorktreeConsoleCreateResponse,
@@ -26,6 +27,8 @@ import type {
   WorktreeConsolePreparePreviewRecoveryAnalysisRequest,
   WorktreeConsolePreviewRecoveryPreflightRequest,
   WorktreeConsolePreviewRecoveryPreflightResponse,
+  WorktreeConsoleRestoreAbandonedRequest,
+  WorktreeConsoleRestoreAbandonedResponse,
   WorktreeConsolePrepareRegenerationRequest,
   WorktreeConsolePreviewRequest,
   WorktreeConsoleRetryCleanupRequest,
@@ -34,6 +37,7 @@ import type {
   WorktreeConsoleReviewDiffRequest,
   WorktreeConsoleReviewDiffResponse,
   WorktreeConsoleSetRetentionRequest,
+  WorktreeConsoleSetPermanentRequest,
   WorktreeConsoleTargetDetails,
 } from '../../src/console-contract.js'
 
@@ -76,6 +80,7 @@ function readyTarget(): WorktreeConsoleTargetDetails {
       finalize: true,
       finalizePreview: false,
       setRetention: false,
+      setPermanent: false,
       retryCleanup: false,
       beginNextIteration: false,
     },
@@ -143,6 +148,7 @@ export function createWorktreeConsoleAdapterFixture(stateful = false): WorktreeC
           finalize: false,
           finalizePreview: false,
           setRetention: false,
+          setPermanent: false,
           retryCleanup: false,
           beginNextIteration: true,
         },
@@ -361,6 +367,10 @@ export function createWorktreeConsoleAdapterFixture(stateful = false): WorktreeC
       record('setRetention', request)
       return outcome({ target: { ...target, state: 'retained', phase: 'retained', retention: request.retention } })
     },
+    async setPermanent(request: WorktreeConsoleSetPermanentRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>> {
+      record('setPermanent', request)
+      return outcome({ target: { ...target, permanent: request.permanent } })
+    },
     async retryCleanup(request: WorktreeConsoleRetryCleanupRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>> {
       record('retryCleanup', request)
       return outcome(delivered())
@@ -412,6 +422,14 @@ export function createWorktreeConsoleAdapterFixture(stateful = false): WorktreeC
     async gitSwitchBranch(sessionId: string, branch: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>> {
       record('gitSwitchBranch', { sessionId, branch })
       return outcome({ branch })
+    },
+    async listAbandoned(sessionId: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleAbandonedListResponse>> {
+      record('listAbandoned', sessionId)
+      return outcome({ snapshots: [] })
+    },
+    async restoreAbandoned(request: WorktreeConsoleRestoreAbandonedRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleRestoreAbandonedResponse>> {
+      record('restoreAbandoned', request)
+      return outcome({ checkoutId: request.checkoutId, branch: `worktree-restore-${request.checkoutId.slice(0, 8)}` })
     },
   }
 

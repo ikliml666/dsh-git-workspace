@@ -12,9 +12,12 @@
 - 客户端设置页（Plugins 页卡片，借鉴 dsh-worktree-panel）：把 volatile 配置字段（`autoDeliver`/`autoPush`/`worktreesRoot`/`gitTimeoutMs`/`worktreeAddTimeoutMs`）投影为中文标签的开关与输入框，暂存编辑、revision 栅栏原子保存；写入经宿主 settings 服务落 cordis.patch.yml，不重挂载插件。设置服务缺失时静默不挂载。
 - 上述五个配置字段改为 volatile（`meta.volatile`），值以 `{get()}` LiveRef 到达、消费方逐次解包：超时对下一条 git 命令生效，`autoDeliver`/`autoPush` 对下一次指引/交付生效，`worktreesRoot` 对之后新建的 worktree 生效（换根只影响新建，既有 worktree 原地不动）；`stateDir`/`enableWorkspaceProvider` 保持启动期语义。
 - `worktree_create` 支持可选 `branch` 基准分支参数：预检返回本地分支列表，控制台创建表单提供分支下拉（聚焦懒加载、当前源分支默认项）。branch 只决定创建基点，交付仍写源会话分支（[[.codewiki/decisions/create-from-branch-is-base-only.md]]）。
+- 放弃前安全快照与恢复（codex 对齐）：确认放弃带修改的 Worktree 时，先把全部改动（含 untracked）固化为 `refs/dsh-worktree/abandoned/<checkoutId>` 快照提交（快照失败则中止放弃、不删任何内容），面板底部新增「可恢复的放弃快照」区，一键在本地仓库建 `worktree-restore-<oid8>` 分支找回；快照随恢复或记录清理释放。
+- Worktree 常驻标记（codex 对齐 permanent）：面板行内 pin/unpin 切换，常驻记录豁免保留期到期清理与 keep-count LRU（手动清理不受限）；已交付记录拒绝标记。
+- Worktree 总量 LRU 收口（codex 对齐 worktree-keep-count，默认 15、0 关闭、volatile 可热更）：超出上限时按最近更新时间从最旧的已交付记录开始逐出，逐出走完整放弃安全链（含放弃前快照），常驻与进行中的会话豁免；随启动 reconcile 与保留期巡检周期执行。
 - 非 Git 目录渐进增强：未纳入版本控制的工作目录可从开关直接创建初始提交（`git init -b main`）后继续使用隔离开关；已有提交的仓库拒绝该操作（`projectAlreadyVersioned`）。
 - 侧边栏任务携带 `sourceBranch`，任务标签显示 `状态 · 分支`；worktree 移除后自动回收 worktreesRoot 下的空项目容器（遇任何用户字节即停）。
-- 创建 Isolated Checkout 时支持仓库根 `.worktreeinclude` 清单（.gitignore 语法，与 Conductor/Claude Code 同语义）：仅复制「被 gitignore 且被清单匹配」的文件（如 `.env.local`、本地证书），tracked 文件永不复制。匹配交给 git 原生完成（两次 `git ls-files --others --ignored --exclude-standard` 取交集，清单经 `core.excludesFile` 注入）；清单为空或全注释时跳过，复制失败仅告警不阻塞创建。
+- 创建 Isolated Checkout 时支持仓库根 `.worktreeinclude` 清单（.gitignore 语法，与 Conductor/Codex 同语义）：仅复制「被 gitignore 且被清单匹配」的文件（如 `.env.local`、本地证书），tracked 文件永不复制。匹配交给 git 原生完成（`ls-files --others --ignored` 两次调用取交集，清单经 `--exclude-from` 注入，不受仓库 .gitignore 之外的 excludes 影响语义）；被 ignore 的 `AGENTS.override.md` 自动带入、符号链接跳过、已存在的目标文件不覆盖，逐文件失败仅告警不阻塞创建。
 
 ### Changed
 

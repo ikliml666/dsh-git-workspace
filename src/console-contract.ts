@@ -89,6 +89,7 @@ export interface WorktreeConsoleCapabilities {
   finalize: boolean
   finalizePreview: boolean
   setRetention: boolean
+  setPermanent: boolean
   retryCleanup: boolean
   /** Recreate a cleaned delivered owner's immutable cwd for iteration + 1. */
   beginNextIteration: boolean
@@ -135,6 +136,8 @@ export interface WorktreeConsoleTargetSummary {
   retention?: Exclude<WorktreeRetentionMode, 'cleanup'>
   retainedAt?: number
   expiresAt?: number | null
+  /** codex 对齐：常驻标记的 Worktree 豁免自动清理。 */
+  permanent?: boolean
   cleanupMessage?: string
   deliveryProof?: WorktreeConsoleDeliveryProof
   review?: WorktreeConsoleReviewSummary
@@ -357,6 +360,14 @@ export interface WorktreeConsoleSetRetentionRequest {
   retention: Exclude<WorktreeRetentionMode, 'cleanup'>
 }
 
+/** codex 对齐：设置/取消常驻标记，豁免自动清理。 */
+export interface WorktreeConsoleSetPermanentRequest {
+  sessionId: string
+  checkoutId: string
+  expectedRevision: number
+  permanent: boolean
+}
+
 export interface WorktreeConsoleRetryCleanupRequest {
   sessionId: string
   checkoutId: string
@@ -375,6 +386,33 @@ export interface WorktreeConsoleMutationResponse {
   commitOid?: string | null
   checkpoint?: WorktreeCheckpointView
   recoveryContinuation?: WorktreeRecoveryProof
+}
+
+/** codex 对齐：放弃快照列表与恢复的请求/响应（discarded 记录没有活 target）。 */
+export interface WorktreeConsoleAbandonedSnapshot {
+  checkoutId: string
+  projectName: string
+  snapshotOid: string
+  snapshotAt: number
+  revision: number
+}
+
+export interface WorktreeConsoleAbandonedListRequest {
+  sessionId: string
+}
+
+export interface WorktreeConsoleAbandonedListResponse {
+  snapshots: WorktreeConsoleAbandonedSnapshot[]
+}
+
+export interface WorktreeConsoleRestoreAbandonedRequest {
+  sessionId: string
+  checkoutId: string
+}
+
+export interface WorktreeConsoleRestoreAbandonedResponse {
+  checkoutId: string
+  branch: string
 }
 
 export interface WorktreeConsolePrepareRegenerationRequest {
@@ -606,10 +644,13 @@ export interface WorktreeConsoleAdapter {
   finalize(request: WorktreeConsoleFinalizeRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   finalizePreview(request: WorktreeConsoleFinalizePreviewRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   setRetention(request: WorktreeConsoleSetRetentionRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
+  setPermanent(request: WorktreeConsoleSetPermanentRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   retryCleanup(request: WorktreeConsoleRetryCleanupRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   beginNextIteration(request: WorktreeConsoleBeginNextIterationRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   gitOverview(sessionId: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitOverviewResponse>>
   gitGraph(sessionId: string, limit?: number): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitGraphResponse>>
   gitCreateBranch(sessionId: string, name: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>
   gitSwitchBranch(sessionId: string, branch: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>
+  listAbandoned?(request: WorktreeConsoleAbandonedListRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleAbandonedListResponse>>
+  restoreAbandoned?(request: WorktreeConsoleRestoreAbandonedRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleRestoreAbandonedResponse>>
 }

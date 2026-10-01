@@ -353,6 +353,22 @@ export const hostMessages = {
     "zh": "Local Checkout 不支持 Discard",
     "en": "Local Checkout does not support Discard."
   },
+  "worktreeDiscardAbortedBecauseTheAbandonedSnapshotFailed": {
+    "zh": "放弃前的安全快照创建失败，已中止放弃（未删除任何内容）：{p0}。若确认无需保留，可手动删除该 Worktree 目录后重试。",
+    "en": "Creating the pre-discard safety snapshot failed; discard was aborted and nothing was deleted: {p0}. If you are sure nothing needs to be kept, delete the Worktree directory manually and retry."
+  },
+  "thisWorktreeHasNoAbandonedSnapshotTo": {
+    "zh": "该 Worktree 没有可恢复的放弃快照",
+    "en": "This Worktree has no abandoned snapshot to restore."
+  },
+  "theCurrentSessionCheckoutModuleDoesNotSupportAbandonedSnapshotRestore": {
+    "zh": "当前 Session Checkout 模块不支持恢复放弃快照",
+    "en": "The current Session Checkout module does not support abandoned snapshot restore."
+  },
+  "theLocalRepositoryIsMissingSoTheAbandoned": {
+    "zh": "本地仓库不存在，无法恢复放弃快照",
+    "en": "The Local repository is missing, so the abandoned snapshot cannot be restored."
+  },
   "localPreviewDriftedIntoDetachedRecoveryToPreserveRecovery": {
     "zh": "Local Preview 已因漂移进入 detached 恢复态；为保留恢复证据，不能删除 Worktree。请先成功撤回 Preview。",
     "en": "Local Preview drifted into detached recovery. To preserve recovery evidence, this Worktree cannot be deleted. Successfully roll back Preview first."
@@ -1412,6 +1428,14 @@ export const hostMessages = {
   "localBranchSwitchBlockedDuringDelivery": {
     "zh": "本会话正在验收 Worktree 交付，暂不能切换本地分支",
     "en": "This session has a Worktree delivery under review; the local branch cannot be switched right now."
+  },
+  "branchCheckedOutInAnotherWorktree": {
+    "zh": "分支 {p0} 已被另一个 Worktree 检出（{p1}）：Git 不允许同一分支同时检出在多处，请换一个分支，或先在那个会话交付/放弃后再试",
+    "en": "Branch {p0} is already checked out in another Worktree ({p1}): Git forbids checking out the same branch in more than one place. Pick another branch, or deliver/discard that session first."
+  },
+  "aDeliveredWorktreeCannotBeMarkedPermanent": {
+    "zh": "已交付的 Worktree 无法设置常驻标记。",
+    "en": "A delivered worktree cannot be marked as permanent."
   },
   "invalidInternalGitArtifactName": {
     "zh": "内部 Git artifact 名称无效",

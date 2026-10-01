@@ -63,10 +63,13 @@ const METHODS = [
   'finalize',
   'finalizePreview',
   'setRetention',
+  'setPermanent',
   'retryCleanup',
   'beginNextIteration',
   'gitCreateBranch',
   'gitSwitchBranch',
+  'listAbandoned',
+  'restoreAbandoned',
 ]
 
 describe('manual strict Worktree Console Remote contribution', () => {

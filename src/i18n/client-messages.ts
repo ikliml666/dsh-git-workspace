@@ -1343,6 +1343,50 @@ export const clientMessages = {
     "zh": "重试清理",
     "en": "Retry cleanup"
   },
+  "abandoned.snapshots.title": {
+    "zh": "可恢复的放弃快照",
+    "en": "Restorable abandoned snapshots"
+  },
+  "abandoned.snapshot": {
+    "zh": "放弃快照",
+    "en": "Abandoned snapshot"
+  },
+  "abandoned.snapshot.oid": {
+    "zh": "快照",
+    "en": "Snapshot"
+  },
+  "abandoned.restore": {
+    "zh": "恢复放弃快照 {p0}",
+    "en": "Restore abandoned snapshot {p0}"
+  },
+  "restore.2": {
+    "zh": "恢复",
+    "en": "Restore"
+  },
+  "restoring": {
+    "zh": "恢复中…",
+    "en": "Restoring…"
+  },
+  "abandoned.restored.to.branch": {
+    "zh": "已恢复到本地分支 {branch}",
+    "en": "Restored to local branch {branch}"
+  },
+  "permanent.pin": {
+    "zh": "设为常驻",
+    "en": "Pin worktree"
+  },
+  "permanent.unpin": {
+    "zh": "取消常驻",
+    "en": "Unpin"
+  },
+  "permanent.pinned": {
+    "zh": "常驻",
+    "en": "Pinned"
+  },
+  "permanent.changing": {
+    "zh": "更新中…",
+    "en": "Updating…"
+  },
   "discard.modified.worktree": {
     "zh": "放弃有修改的 Worktree？",
     "en": "Discard modified Worktree?"

@@ -646,7 +646,9 @@ export function createNodeSessionCheckoutDependencies(
       },
       listWorktreeincludeFiles: async (localRoot, includeFile) => {
         const all = await runSessionGit(localRoot, ['ls-files', '--others', '--ignored', '--exclude-standard', '-z'])
-        const matched = await runSessionGit(localRoot, ['-c', `core.excludesFile=${includeFile}`, 'ls-files', '--others', '--ignored', '--exclude-standard', '-z'])
+        // 与 src/adapters/git.ts 同语义：--exclude-from 只吃清单本身（并集会漏进
+        // 被 .gitignore 忽略但未列入清单的文件）
+        const matched = await runSessionGit(localRoot, ['ls-files', '--others', '--ignored', `--exclude-from=${includeFile}`, '-z'])
         if (all.code !== 0 || matched.code !== 0) return []
         const ignored = new Set(all.stdout.split('\0').filter(Boolean))
         return [...new Set(matched.stdout.split('\0').filter(Boolean))].filter((path) => ignored.has(path))

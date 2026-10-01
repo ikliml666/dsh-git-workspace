@@ -18,6 +18,7 @@ import type {
   ManagedReviewRegenerationContinuation,
 } from './ports.js'
 import type {
+  AbandonedWorktreeSnapshotView,
   ManagedWorktreeSummaryView,
   BulkCleanupManagedWorktreeCandidate,
   BulkCleanupManagedWorktreesResult,
@@ -60,8 +61,9 @@ export interface SessionCheckoutReconcileSummary {
 export interface ManageManagedWorktreeInput {
   checkoutId: string
   expectedRevision: number
-  action: 'cleanup_retained' | 'retry_cleanup' | 'set_retention' | 'discard'
+  action: 'cleanup_retained' | 'retry_cleanup' | 'set_retention' | 'set_permanent' | 'discard'
   retention?: Exclude<WorktreeRetentionMode, 'cleanup'>
+  permanent?: boolean
   confirmDirty?: boolean
   rollbackPreview?: boolean
 }
@@ -145,6 +147,10 @@ export interface SessionCheckoutModule {
   listManagedWorktrees(input?: ListManagedWorktreesInput): Promise<ManagedWorktreeSummaryView[]>
   /** Caller-scoped list for model and human session surfaces. */
   listManagedWorktreesForSession(sessionId: string, input?: Omit<ListManagedWorktreesInput, 'projectId'>): Promise<ManagedWorktreeSummaryView[]>
+  /** codex 对齐：当前会话项目内可恢复的放弃快照列表。 */
+  listAbandonedWorktreeSnapshots(sessionId: string): Promise<AbandonedWorktreeSnapshotView[]>
+  /** codex 对齐：把放弃快照恢复为 Local 仓库中的分支，并清除记录上的快照标记。 */
+  restoreAbandonedWorktreeSnapshot(sessionId: string, checkoutId: string): Promise<{ branch: string }>
   /** Caller-scoped management; never treats persisted owner ids as authorization. */
   manageManagedWorktreeForSession(sessionId: string, input: ManageManagedWorktreeInput): Promise<ManagedWorktreeSummaryView>
   /** Main-owned read-only cleanup inspection; writes no registry, refs, or directories. */
@@ -158,6 +164,8 @@ export interface SessionCheckoutModule {
   /** Batch observation under one lock; results align with the requested checkoutIds. */
   observeManagedCheckouts?(checkoutIds: string[]): Promise<Array<{ managedRoot: string; snapshot: GitCheckoutSnapshot; dirty: boolean }>>
   cleanupExpiredRetained(now?: number): Promise<string[]>
+  /** codex 对齐：按 worktree-keep-count LRU 逐出最旧的已交付托管 Worktree（豁免 permanent）。 */
+  enforceWorktreeKeepCount(): Promise<string[]>
   reconcile(): Promise<SessionCheckoutReconcileSummary>
 }
 
@@ -229,6 +237,17 @@ export const Config = z.object({
    */
   worktreesRoot: volatile(z.string()),
   /**
+   * codex 对齐：创建受管 Worktree 时继承本地未提交修改（tracked 修改打补丁，
+   * 未 ignore 的 untracked 文件复制）。仅当 Worktree 基点与本地 HEAD 一致时
+   * 生效；继承失败只告警，不阻断创建。Default true.
+   */
+  inheritLocalChanges: volatile(z.boolean().default(true)),
+  /**
+   * codex 对齐：托管 Worktree 总量上限（LRU，按最近更新时间逐出最旧的已交付
+   * 记录；permanent 常驻与进行中会话豁免）。0 关闭该机制。Default 15.
+   */
+  worktreeKeepCount: volatile(z.number().min(0).max(500).step(1).default(15)),
+  /**
    * Explicitly take over the official Workspace UI (ui-workspace). Keep false
    * unless the replacement sidebar is wanted; taking over is the mechanism
    * behind the historical "cannot open a new conversation" breakage.
@@ -240,6 +259,8 @@ interface LocalAdaptationConfig {
   autoDeliver?: boolean | LiveValue<boolean | undefined>
   autoPush?: boolean | LiveValue<boolean | undefined>
   worktreesRoot?: string | LiveValue<string | undefined>
+  inheritLocalChanges?: boolean | LiveValue<boolean | undefined>
+  worktreeKeepCount?: number | LiveValue<number | undefined>
   enableWorkspaceProvider?: boolean
 }
 
@@ -294,6 +315,8 @@ export async function apply(ctx: Context, config: { stateDir?: string } & GitTim
     createCheckoutId: randomUUID,
     autoDeliver: config.autoDeliver,
     autoPush: config.autoPush,
+    inheritLocalChanges: config.inheritLocalChanges,
+    worktreeKeepCount: config.worktreeKeepCount,
     ...(worktreesRoot ? { worktreesRoot } : {}),
   })
 
@@ -323,14 +346,17 @@ export async function apply(ctx: Context, config: { stateDir?: string } & GitTim
           )
         }
       })
+      .then(() => module.enforceWorktreeKeepCount())
       .catch((error) => {
         console.warn('[dsh-git-worktree] reconcile failed:', error)
       })
   })
   const retentionTimer = setInterval(() => {
-    void module.cleanupExpiredRetained().catch((error) => {
-      console.warn('[dsh-git-worktree] retained worktree maintenance failed:', error)
-    })
+    void module.cleanupExpiredRetained()
+      .then(() => module.enforceWorktreeKeepCount())
+      .catch((error) => {
+        console.warn('[dsh-git-worktree] retained worktree maintenance failed:', error)
+      })
   }, RETENTION_MAINTENANCE_INTERVAL_MS)
   retentionTimer.unref?.()
   ctx.effect(() => () => {

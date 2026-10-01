@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto'
 import { realpathSync } from 'node:fs'
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import type {
+  AbandonedWorktreeSnapshotView,
   BulkCleanupManagedWorktreeCandidate,
   BulkCleanupManagedWorktreesResult,
   ManagedWorktreeCleanupView,
@@ -3351,6 +3352,26 @@ export function createSessionCheckoutModule(
       return operationError('dirty_confirmation_required', hostMessage('theIsolatedCheckoutHasUncommittedChangesUndeliveredCheckpointsOr', { p0: checkpointDetail }), inspected)
     }
 
+    // codex 对齐：带未提交内容放弃前先快照（tracked 修改 + 未 ignore 的
+    // untracked 文件），失败则中止放弃——数据保护优先。逃逸口=手动删除
+    // managed 目录后重试，走 worktree 已消失的丢弃路径。
+    if (dirty && dependencies.git.snapshotAbandonedWorktree) {
+      let snapshotOid: string
+      try {
+        snapshotOid = await dependencies.git.snapshotAbandonedWorktree(record.localRoot, record.managedRoot, record.checkoutId)
+      } catch (error) {
+        return operationError('git_operation_failed', hostMessage('worktreeDiscardAbortedBecauseTheAbandonedSnapshotFailed', {
+          p0: error instanceof Error ? error.message : String(error),
+        }), await inspectIsolated(binding))
+      }
+      updateManagedCheckout(record.checkoutId, (current) => ({
+        ...current,
+        abandonedSnapshotOid: snapshotOid,
+        abandonedSnapshotAt: Date.now(),
+        revision: current.revision + 1,
+      }))
+    }
+
     try {
       await dependencies.git.removeWorktree(record.localRoot, record.managedGitRoot)
     } catch {
@@ -3535,6 +3556,7 @@ export function createSessionCheckoutModule(
         retainedAt: delivery.retainedAt,
         expiresAt: delivery.expiresAt,
       } : {}),
+      ...(record.permanent === true ? { permanent: true } : {}),
       ...(cleanupMessage ? { cleanupMessage: hostPersistedCleanupMessage(cleanupMessage, hostMessage) } : {}),
       ...(cleanupReason ? { cleanupReason } : {}),
       approximateBytes,
@@ -3695,6 +3717,49 @@ export function createSessionCheckoutModule(
     return summaries.filter((summary) => allowedCheckoutIds.has(summary.checkoutId))
   }
 
+  async function listAbandonedWorktreeSnapshots(sessionId: string): Promise<AbandonedWorktreeSnapshotView[]> {
+    const session = requireSession(sessionId)
+    const persisted = getPersistedBinding(sessionId)
+    const projectId = persisted?.projectId ?? session.projectId
+    if (!projectId) throw new SessionCheckoutError('project_not_found', hostMessage('theSessionIsNotAssociatedWithAProject'))
+    return Object.values(dependencies.registry.read().managedCheckouts)
+      .filter((record) => record.abandonedSnapshotOid !== undefined)
+      .filter((record) => record.projectId === projectId)
+      .filter((record) => record.ownerSessionId === sessionId || record.sourceSessionId === sessionId)
+      .map((record) => ({
+        checkoutId: record.checkoutId,
+        projectName: record.projectName,
+        snapshotOid: record.abandonedSnapshotOid!,
+        snapshotAt: record.abandonedSnapshotAt ?? 0,
+        revision: record.revision,
+      }))
+  }
+
+  async function restoreAbandonedWorktreeSnapshot(sessionId: string, checkoutId: string): Promise<{ branch: string }> {
+    requireSession(sessionId)
+    const record = dependencies.registry.read().managedCheckouts[checkoutId]
+    if (!record) throw new SessionCheckoutError('checkout_missing', hostMessage('theWorktreeRecordDoesNotExist'))
+    if (record.ownerSessionId !== sessionId && record.sourceSessionId !== sessionId) {
+      throw new SessionCheckoutError('not_owner', hostMessage('theCurrentSessionIsNotAllowedToManageThis'))
+    }
+    const snapshotOid = record.abandonedSnapshotOid
+    if (!snapshotOid) throw new SessionCheckoutError('operation_not_allowed', hostMessage('thisWorktreeHasNoAbandonedSnapshotTo'))
+    if (!dependencies.git.restoreAbandonedSnapshot) {
+      throw new SessionCheckoutError('operation_not_allowed', hostMessage('theCurrentSessionCheckoutModuleDoesNotSupportAbandonedSnapshotRestore'))
+    }
+    if (!dependencies.files.exists(record.localRoot)) {
+      throw new SessionCheckoutError('operation_not_allowed', hostMessage('theLocalRepositoryIsMissingSoTheAbandoned'))
+    }
+    const branch = await dependencies.git.restoreAbandonedSnapshot(record.localRoot, checkoutId, snapshotOid)
+    updateManagedCheckout(checkoutId, (current) => ({
+      ...current,
+      abandonedSnapshotOid: undefined,
+      abandonedSnapshotAt: undefined,
+      revision: current.revision + 1,
+    }))
+    return { branch }
+  }
+
   async function manageManagedWorktreeForSession(
     sessionId: string,
     input: ManageManagedWorktreeInput,
@@ -3758,6 +3823,22 @@ export function createSessionCheckoutModule(
       if (!updated) throw new SessionCheckoutError('checkout_missing', hostMessage('theWorktreeRecordDoesNotExist'))
       return summarizeManagedWorktree(updated)
     }
+    if (input.action === 'set_permanent') {
+      // codex 对齐：常驻标记豁免自动清理；手动清理（下方 fall-through）不受限制。
+      if (record.phase === 'discarded' || record.delivery.state === 'delivered') {
+        throw new SessionCheckoutError('operation_not_allowed', hostMessage('aDeliveredWorktreeCannotBeMarkedPermanent'))
+      }
+      const updated = updateManagedCheckout(record.checkoutId, (current) => {
+        if (current.permanent === (input.permanent === true)) return current
+        return {
+          ...current,
+          permanent: input.permanent === true,
+          revision: current.revision + 1,
+        }
+      })
+      if (!updated) throw new SessionCheckoutError('checkout_missing', hostMessage('theWorktreeRecordDoesNotExist'))
+      return summarizeManagedWorktree(updated)
+    }
     if (record.delivery.state !== 'retained' && record.delivery.state !== 'finalized') {
       throw new SessionCheckoutError('operation_not_allowed', hostMessage('theCurrentWorktreeIsNotInACleanableState'))
     }
@@ -3789,6 +3870,7 @@ export function createSessionCheckoutModule(
       record.phase === 'retained'
       && record.delivery.state === 'retained'
       && record.delivery.cleanup === 'scheduled'
+      && record.permanent !== true
       && record.delivery.expiresAt !== null
       && record.delivery.expiresAt <= now
     ))
@@ -3801,6 +3883,39 @@ export function createSessionCheckoutModule(
       } catch (error) {
         console.warn(`[session-checkout] expired retained Worktree cleanup skipped: ${error instanceof Error ? error.message : String(error)}`)
       }
+    }
+    return cleaned
+  }
+
+  /**
+   * codex 对齐：按 worktree-keep-count LRU 收口托管 Worktree 总量。
+   * 豁免 permanent 与进行中（working/ready_for_review/preview*）的记录；
+   * 只逐出已交付（finalized/retained）的最旧记录，逐出走完整 discard 安全链
+   * （含 G2 放弃前快照），confirmDirty 跳过人工确认。
+   */
+  async function enforceWorktreeKeepCount(): Promise<string[]> {
+    const limitRaw = liveConfigValue(dependencies.worktreeKeepCount)
+    const limit = typeof limitRaw === 'number' ? Math.floor(limitRaw) : 0
+    if (!Number.isFinite(limit) || limit <= 0) return []
+    const ordered = Object.values(dependencies.registry.read().managedCheckouts)
+      .filter((record) => (
+        record.permanent !== true
+        && (record.phase === 'finalized' || record.phase === 'retained')
+        && (record.delivery.state === 'finalized' || record.delivery.state === 'retained')
+      ))
+      .sort((left, right) => managedUpdatedAt(left) - managedUpdatedAt(right))
+    const evictable = ordered.slice(0, Math.max(0, ordered.length - limit))
+    const cleaned: string[] = []
+    for (const record of evictable) {
+      // 逐出走完整 discard 安全链（含放弃前快照），confirmDirty 跳过人工确认。
+      const result = await withCleanupTimeout(record.checkoutId, () => operateDiscard({
+        action: 'discard',
+        sessionId: record.ownerSessionId,
+        expectedRevision: record.revision,
+        confirmDirty: true,
+      }, bindingForManagedRecord(record)))
+      if (result?.status === 'discarded') cleaned.push(record.checkoutId)
+      else console.warn(`[session-checkout] keep-count Worktree eviction skipped: ${record.checkoutId}`)
     }
     return cleaned
   }
@@ -3994,9 +4109,51 @@ export function createSessionCheckoutModule(
       // 空文件/全注释须跳过：空清单会让交集退化为「全部 gitignored」
       if (!content?.split('\n').some((line) => { const trimmed = line.trim(); return trimmed !== '' && !trimmed.startsWith('#') })) return
       const files = await dependencies.git.listWorktreeincludeFiles(sourceRoot, includeFile)
-      for (const relative of files) dependencies.files.copyFile(join(sourceRoot, relative), join(targetRoot, relative))
+      for (const relative of files) {
+        const target = join(targetRoot, relative)
+        if (dependencies.files.exists(target)) continue
+        // codex 对齐：跳过符号链接——链接目标可能在 checkout 之外。
+        if (await dependencies.files.isSymbolicLink?.(join(sourceRoot, relative))) continue
+        try {
+          dependencies.files.copyFile(join(sourceRoot, relative), target)
+        } catch (error) {
+          console.warn(`[dsh-git-worktree] .worktreeinclude copy failed for ${relative}:`, error instanceof Error ? error.message : error)
+        }
+      }
     } catch (error) {
       console.warn('[dsh-git-worktree] .worktreeinclude copy skipped:', error instanceof Error ? error.message : error)
+    }
+  }
+
+  /** codex 对齐：新 Worktree 继承本地未提交修改——tracked 修改走 diff 补丁，
+   *  非 ignore 的 untracked 文件逐个复制。只在调用方确认基点与本地 HEAD 一致
+   *  时调用（补丁基于本地 HEAD 生成）。任何失败只告警：本地副本始终完好，
+   *  携带是尽力而为，绝不阻断创建。 */
+  async function carryLocalWorkInProgress(sourceRoot: string, targetRoot: string): Promise<void> {
+    const { captureLocalWip, applyWorktreePatch, listUntrackedFiles } = dependencies.git
+    if (!captureLocalWip || !applyWorktreePatch) return
+    try {
+      const patch = await captureLocalWip(sourceRoot)
+      if (patch !== null) await applyWorktreePatch(targetRoot, patch)
+    } catch (error) {
+      console.warn('[dsh-git-worktree] local WIP carry skipped:', error instanceof Error ? error.message : error)
+    }
+    if (!listUntrackedFiles || !dependencies.files.copyFile) return
+    let untracked: string[] = []
+    try {
+      untracked = await listUntrackedFiles(sourceRoot)
+    } catch (error) {
+      console.warn('[dsh-git-worktree] untracked carry skipped:', error instanceof Error ? error.message : error)
+      return
+    }
+    for (const relative of untracked) {
+      const target = join(targetRoot, relative)
+      if (dependencies.files.exists(target)) continue
+      try {
+        dependencies.files.copyFile(join(sourceRoot, relative), target)
+      } catch (error) {
+        console.warn(`[dsh-git-worktree] untracked carry failed for ${relative}:`, error instanceof Error ? error.message : error)
+      }
     }
   }
 
@@ -4260,6 +4417,11 @@ export function createSessionCheckoutModule(
           throw new SessionCheckoutError('checkout_mismatch', hostMessage('theNewCheckoutSGitCommonDirectoryDoesNot'))
         }
         await copyWorktreeincludeFiles(snapshot.root, canonicalManagedRoot)
+        // codex 对齐：仅当受管基点与本地 HEAD 一致时继承未提交修改——补丁
+        // 以本地 HEAD 为基准，基点不同（按分支创建且分支 tip ≠ HEAD）则不适用。
+        if (baseOid === snapshot.headOid && liveConfigValue(dependencies.inheritLocalChanges) !== false) {
+          await carryLocalWorkInProgress(localGitRoot, canonicalManagedRoot)
+        }
         const readyRegistry = dependencies.registry.read()
         const readyRecord: ManagedCheckoutRecord = {
           ...record,
@@ -4385,6 +4547,10 @@ export function createSessionCheckoutModule(
     // 只读管理列表不占用全局 mutation lock；慢速目录诊断与用户操作互不阻塞。
     listManagedWorktrees,
     listManagedWorktreesForSession,
+    listAbandonedWorktreeSnapshots,
+    restoreAbandonedWorktreeSnapshot: (sessionId, checkoutId) => withBindingLock(
+      () => restoreAbandonedWorktreeSnapshot(sessionId, checkoutId),
+    ),
     manageManagedWorktreeForSession: (sessionId, input) => withBindingLock(
       () => manageManagedWorktreeForSession(sessionId, input),
     ),
@@ -4396,6 +4562,10 @@ export function createSessionCheckoutModule(
     observeManagedCheckouts: (checkoutIds) => withBindingLock(() => observeManagedCheckouts(checkoutIds)),
     cleanupExpiredRetained: (now) => withBindingLock(
       () => cleanupExpiredRetained(now),
+      { allowConcurrentInspect: true },
+    ),
+    enforceWorktreeKeepCount: () => withBindingLock(
+      () => enforceWorktreeKeepCount(),
       { allowConcurrentInspect: true },
     ),
     reconcile: () => withBindingLock(reconcile, { allowConcurrentInspect: true }),

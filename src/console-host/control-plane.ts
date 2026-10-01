@@ -2,6 +2,7 @@ import { hostMessage } from '../i18n/host.js'
 import { randomUUID } from 'node:crypto'
 import { resolve } from 'node:path'
 import type {
+  WorktreeConsoleAbandonedListResponse,
   WorktreeConsoleBeginNextIterationRequest,
   WorktreeConsoleCreatePreviewRecoveryHandoffRequest,
   WorktreeConsoleCreatePreviewRecoveryHandoffResponse,
@@ -27,12 +28,15 @@ import type {
   WorktreeConsolePreviewRecoveryPreflightResponse,
   WorktreeConsolePrepareRegenerationRequest,
   WorktreeConsolePreviewRequest,
+  WorktreeConsoleRestoreAbandonedRequest,
+  WorktreeConsoleRestoreAbandonedResponse,
   WorktreeConsoleResumeRevisionRequest,
   WorktreeConsoleRollbackPreviewRequest,
   WorktreeConsoleRetryCleanupRequest,
   WorktreeConsoleReviewDiffRequest,
   WorktreeConsoleReviewDiffResponse,
   WorktreeConsoleSetRetentionRequest,
+  WorktreeConsoleSetPermanentRequest,
   WorktreeConsoleTargetSummary,
   WorktreeConsoleDeliveryProof,
   WorktreeSidebarTaskState,
@@ -85,12 +89,15 @@ export interface WorktreeConsoleControlPlane {
   finalize(request: WorktreeConsoleFinalizeRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   finalizePreview(request: WorktreeConsoleFinalizePreviewRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   setRetention(request: WorktreeConsoleSetRetentionRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
+  setPermanent(request: WorktreeConsoleSetPermanentRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   retryCleanup(request: WorktreeConsoleRetryCleanupRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   beginNextIteration(request: WorktreeConsoleBeginNextIterationRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   gitOverview(sessionId: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitOverviewResponse>>
   gitGraph(sessionId: string, limit?: number): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitGraphResponse>>
   gitCreateBranch(sessionId: string, name: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>
   gitSwitchBranch(sessionId: string, branch: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>
+  listAbandoned(sessionId: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleAbandonedListResponse>>
+  restoreAbandoned(request: WorktreeConsoleRestoreAbandonedRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleRestoreAbandonedResponse>>
 }
 
 function recordOf(registry: SessionCheckoutRegistryPort, checkoutId: string): ManagedCheckoutRecord {
@@ -627,6 +634,15 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
       if (options.git.switchLocalBranch === undefined) throw domainError('git_error', hostMessage('gitOperationFailedGit', { p0: 'switch', p1: branch }))
       await options.git.switchLocalBranch(root, branch)
       return { branch }
+    }),
+
+    listAbandoned: sessionId => outcome(async () => {
+      return { snapshots: await options.module.listAbandonedWorktreeSnapshots(sessionId) }
+    }),
+
+    restoreAbandoned: request => outcome(async () => {
+      const { branch } = await options.module.restoreAbandonedWorktreeSnapshot(request.sessionId, request.checkoutId)
+      return { checkoutId: request.checkoutId, branch }
     }),
 
     list: request => outcome(async () => {
@@ -1176,6 +1192,17 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
         expectedRevision: request.expectedRevision,
         action: 'set_retention',
         retention: request.retention,
+      })
+      return mutationResponse(request.sessionId, request.checkoutId)
+    }),
+
+    setPermanent: request => outcome(async () => {
+      await authorize(request.sessionId, request.checkoutId)
+      await options.module.manageManagedWorktreeForSession(request.sessionId, {
+        checkoutId: request.checkoutId,
+        expectedRevision: request.expectedRevision,
+        action: 'set_permanent',
+        permanent: request.permanent,
       })
       return mutationResponse(request.sessionId, request.checkoutId)
     }),

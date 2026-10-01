@@ -2,6 +2,7 @@ import { createTranslator, normalizeLanguage, type Language } from '../../i18n/c
 import { transportMessages } from '../../i18n/transport-messages.js'
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
 import type {
+  WorktreeConsoleAbandonedListResponse,
   WorktreeConsoleAdapter,
   WorktreeConsoleCreatePreviewRecoveryHandoffResponse,
   WorktreeConsoleCreateResponse,
@@ -16,6 +17,7 @@ import type {
   WorktreeConsoleOutcome,
   WorktreeConsolePreflightResponse,
   WorktreeConsolePreviewRecoveryPreflightResponse,
+  WorktreeConsoleRestoreAbandonedResponse,
   WorktreeConsoleReviewDiffResponse,
   WorktreeSidebarTopologyResponse,
 } from '../../console-contract.js'
@@ -53,6 +55,7 @@ const FAST_METHODS = new Set([
   'sidebarTopology', 'current', 'list', 'inspect',
   'preflight', 'preflightCreate', 'previewRecoveryPreflight',
   'gitOverview', 'gitGraph',
+  'listAbandoned',
 ])
 
 function timeoutOutcome<T>(method: string, locale: Language, timeoutMs: number): WorktreeConsoleOutcome<T> {
@@ -127,11 +130,14 @@ export function createWorktreeConsoleRemoteAdapter(remote: GitWorktreeRemote, ge
     finalize: request => invoke<WorktreeConsoleMutationResponse>('finalize', locale => remote.finalize(request.sessionId, request.checkoutId, request.expectedRevision, request.expectedReviewId, request.commitMessage, request.retention, locale)),
     finalizePreview: request => invoke<WorktreeConsoleMutationResponse>('finalizePreview', locale => remote.finalizePreview(request.sessionId, request.checkoutId, request.expectedRevision, request.expectedReviewId, request.commitMessage, request.retention, request.recoveryProof, locale)),
     setRetention: request => invoke<WorktreeConsoleMutationResponse>('setRetention', locale => remote.setRetention(request.sessionId, request.checkoutId, request.expectedRevision, request.retention, locale)),
+    setPermanent: request => invoke<WorktreeConsoleMutationResponse>('setPermanent', locale => remote.setPermanent(request.sessionId, request.checkoutId, request.expectedRevision, request.permanent, locale)),
     retryCleanup: request => invoke<WorktreeConsoleMutationResponse>('retryCleanup', locale => remote.retryCleanup(request.sessionId, request.checkoutId, request.expectedRevision, locale)),
     beginNextIteration: request => invoke<WorktreeConsoleMutationResponse>('beginNextIteration', locale => remote.beginNextIteration(request.sessionId, request.checkoutId, request.expectedRevision, locale)),
     gitOverview: sessionId => invoke<WorktreeConsoleGitOverviewResponse>('gitOverview', locale => remote.gitOverview(sessionId, locale)),
     gitGraph: (sessionId, limit) => invoke<WorktreeConsoleGitGraphResponse>('gitGraph', locale => remote.gitGraph(sessionId, limit, locale)),
     gitCreateBranch: (sessionId, name) => invoke<WorktreeConsoleGitMutationResponse>('gitCreateBranch', locale => remote.gitCreateBranch(sessionId, name, locale)),
     gitSwitchBranch: (sessionId, branch) => invoke<WorktreeConsoleGitMutationResponse>('gitSwitchBranch', locale => remote.gitSwitchBranch(sessionId, branch, locale)),
+    listAbandoned: request => invoke<WorktreeConsoleAbandonedListResponse>('listAbandoned', locale => remote.listAbandoned(request.sessionId, locale)),
+    restoreAbandoned: request => invoke<WorktreeConsoleRestoreAbandonedResponse>('restoreAbandoned', locale => remote.restoreAbandoned(request.sessionId, request.checkoutId, locale)),
   }
 }

@@ -3,6 +3,7 @@ import { useClientLanguage, useClientTranslator, defaultClientTranslator, type C
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
 import {
   worktreeConsoleErrorMeta,
+  type WorktreeConsoleAbandonedSnapshot,
   type WorktreeConsoleAdapter,
   type WorktreeConsoleError,
   type WorktreeConsoleErrorCode,
@@ -17,6 +18,7 @@ import {
   openIsolatedTarget,
   type WorktreeClientServices,
 } from '../actions.js'
+import { invalidateBranchOverview } from './branch-overview-cache.js'
 
 export interface WorktreeConsoleViewProps {
   embedded?: boolean
@@ -104,6 +106,8 @@ export function WorktreeConsoleView({
   const request = useRef(0)
   const sessionGeneration = useRef(0)
   const [snapshot, setSnapshot] = useState<ConsoleSnapshot | null>(null)
+  const [abandoned, setAbandoned] = useState<WorktreeConsoleAbandonedSnapshot[] | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [pendingAction, setPendingAction] = useState<string | null>(null)
@@ -123,6 +127,8 @@ export function WorktreeConsoleView({
     sessionGeneration.current += 1
     request.current += 1
     setSnapshot(null)
+    setAbandoned(null)
+    setNotice(null)
     setConfirmTarget(null)
     setPendingAction(null)
     setCreateBranch('')
@@ -139,10 +145,12 @@ export function WorktreeConsoleView({
     const token = ++request.current
     setLoading(true)
     if (clearError) setError(null)
+    setNotice(null)
     try {
-      const [current, list] = await Promise.all([
+      const [current, list, abandonedOutcome] = await Promise.all([
         adapter.current({ sessionId }),
         adapter.list({ sessionId }),
+        adapter.listAbandoned ? adapter.listAbandoned({ sessionId }) : Promise.resolve(null),
       ])
       if (!isActive(generation) || token !== request.current) return
       if (!current.ok) {
@@ -154,6 +162,8 @@ export function WorktreeConsoleView({
         return
       }
       setSnapshot({ sessionId, current: current.value.target, list: list.value })
+      // 恢复条是增强功能：加载失败不打断主面板，仅置空隐藏。
+      setAbandoned(abandonedOutcome?.ok === true ? abandonedOutcome.value.snapshots : [])
     } catch (reason) {
       if (isActive(generation) && token === request.current) {
         setError(reason instanceof Error ? reason.message : String(reason))
@@ -317,6 +327,54 @@ export function WorktreeConsoleView({
     }
   }
 
+  const setPermanentFlag = async (target: WorktreeConsoleTargetSummary, permanent: boolean): Promise<void> => {
+    if (pendingAction !== null || target.checkoutId === null || !target.capabilities.setPermanent) return
+    const generation = sessionGeneration.current
+    setPendingAction(`permanent:${target.checkoutId}`)
+    setError(null)
+    try {
+      const outcome = await adapter.setPermanent({
+        sessionId,
+        checkoutId: target.checkoutId,
+        expectedRevision: target.revision,
+        permanent,
+      })
+      if (!isActive(generation)) return
+      if (!outcome.ok) {
+        mutationError(outcome.error.code, outcome.error.message, generation)
+        return
+      }
+      applyMutation(outcome.value, generation)
+      void refresh()
+    } catch (reason) {
+      if (isActive(generation)) setError(reason instanceof Error ? reason.message : String(reason))
+    } finally {
+      if (isActive(generation)) setPendingAction(null)
+    }
+  }
+
+  const restoreAbandonedSnapshot = async (row: WorktreeConsoleAbandonedSnapshot): Promise<void> => {
+    if (pendingAction !== null || adapter.restoreAbandoned === undefined) return
+    const generation = sessionGeneration.current
+    setPendingAction(`restore:${row.checkoutId}`)
+    setError(null)
+    try {
+      const outcome = await adapter.restoreAbandoned({ sessionId, checkoutId: row.checkoutId })
+      if (!isActive(generation)) return
+      if (!outcome.ok) {
+        mutationError(outcome.error.code, outcome.error.message, generation)
+        return
+      }
+      setAbandoned(current => (current ?? []).filter(candidate => candidate.checkoutId !== row.checkoutId))
+      invalidateBranchOverview(sessionId)
+      setNotice(t("abandoned.restored.to.branch", { branch: outcome.value.branch }))
+    } catch (reason) {
+      if (isActive(generation)) setError(reason instanceof Error ? reason.message : String(reason))
+    } finally {
+      if (isActive(generation)) setPendingAction(null)
+    }
+  }
+
   const openListedTarget = async (target: WorktreeConsoleTargetSummary): Promise<void> => {
     if (
       pendingAction !== null
@@ -365,6 +423,7 @@ export function WorktreeConsoleView({
         </button>
       </header>
       {error ? <div className="dsh-wtc-error" role="alert">{error}</div> : null}
+      {notice ? <div className="dsh-wtc-notice" role="status">{notice}</div> : null}
       {visibleSnapshot ? (
         <>
           <section className="dsh-wtc-current" aria-label={t("current.target")}>
@@ -436,6 +495,7 @@ export function WorktreeConsoleView({
                         {(target.checkpoints?.length ?? 0) > 0 ? <span>{t("saved")} {target.checkpoints!.length} {t("undelivered.stages")}</span> : null}
                         {target.retention ? <span>{t("retention")}{retentionLabel(target.retention, t)}</span> : null}
                         {target.expiresAt ? <span>{t("expires")}{new Date(target.expiresAt).toLocaleString(language === 'en' ? 'en-US' : 'zh-CN')}</span> : null}
+                        {target.permanent ? <span className="dsh-wtc-relation">{t("permanent.pinned")}</span> : null}
                         {target.cleanupMessage ? <span className="dsh-wtc-recovery-message">{target.cleanupMessage}</span> : null}
                       </div>
                     </div>
@@ -466,6 +526,18 @@ export function WorktreeConsoleView({
                           <ReviewIcon name="discard" />{pendingAction === `discard:${target.checkoutId}` ? t("discarding.2") : t("discard.2")}
                         </button>
                       ) : null}
+                      {target.capabilities.setPermanent && target.checkoutId !== null ? (
+                        <button
+                          type="button"
+                          className="dsh-wtc-button"
+                          aria-label={target.permanent ? t("permanent.unpin", { p0: target.checkoutId }) : t("permanent.pin", { p0: target.checkoutId })}
+                          disabled={pendingAction !== null}
+                          onClick={() => { void setPermanentFlag(target, target.permanent !== true) }}
+                        >
+                          <ReviewIcon name={target.permanent ? 'pinOff' : 'pin'} />
+                          {pendingAction === `permanent:${target.checkoutId}` ? t("permanent.changing") : target.permanent ? t("permanent.unpin") : t("permanent.pin")}
+                        </button>
+                      ) : null}
                       {target.capabilities.retryCleanup && target.checkoutId !== null ? (
                         <button
                           type="button"
@@ -483,6 +555,44 @@ export function WorktreeConsoleView({
               </ul>
             )}
           </section>
+          {abandoned !== null && abandoned.length > 0 ? (
+            <section className="dsh-wtc-list-section" aria-label={t("abandoned.snapshots.title")}>
+              <div className="dsh-wtc-section-head">
+                <div>
+                  <span className="dsh-wtc-label">{t("abandoned.snapshots.title")}</span>
+                </div>
+                <span className="dsh-wtc-count">{abandoned.length}</span>
+              </div>
+              <ul className="dsh-wtc-list">
+                {abandoned.map(row => (
+                  <li className="dsh-wtc-row" key={row.checkoutId}>
+                    <div className="dsh-wtc-row-main">
+                      <div className="dsh-wtc-row-title">
+                        <span className="dsh-wtc-state" data-abandoned><span className="dsh-wtc-state-dot" aria-hidden />{t("abandoned.snapshot")}</span>
+                        <span className="dsh-wtc-task-name">{row.projectName}</span>
+                      </div>
+                      <div className="dsh-wtc-facts">
+                        <span className="dsh-wtc-checkout-id" title={t("manager.task.id")}>{row.checkoutId}</span>
+                        <span>{t("abandoned.snapshot.oid")} {row.snapshotOid.slice(0, 10)}</span>
+                        {row.snapshotAt > 0 ? <span>{new Date(row.snapshotAt).toLocaleString(language === 'en' ? 'en-US' : 'zh-CN')}</span> : null}
+                      </div>
+                    </div>
+                    <div className="dsh-wtc-row-actions">
+                      <button
+                        type="button"
+                        className="dsh-wtc-button"
+                        aria-label={t("abandoned.restore", { p0: row.checkoutId })}
+                        disabled={pendingAction !== null}
+                        onClick={() => { void restoreAbandonedSnapshot(row) }}
+                      >
+                        <ReviewIcon name="refresh" />{pendingAction === `restore:${row.checkoutId}` ? t("restoring") : t("restore.2")}
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
         </>
       ) : null}
       {confirmTarget !== null ? (

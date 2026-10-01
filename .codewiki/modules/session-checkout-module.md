@@ -65,12 +65,18 @@ tags:
 
 - `retainFinalized`（src/session-checkout-module.ts:2505）：finalized → retained{retention, expiresAt}；`WorktreeRetentionMode` cleanup/retain_24h/retain_3d/retain_manual（src/types.ts:32）。
 - `cleanupFinalized`（src/session-checkout-module.ts:2553）：fingerprint CAS（cleanupNewChanges）→ beginRemoval（journal removing_worktree）→ git.removeWorktree → 仍存在则 validateDetachedCleanupResidue → quarantineAndRemove（隔离名 `.dsh-wt-cleanup--<checkoutId8>--<operationId>`）→ collectEmptyManagedContainer 回收空容器（src/session-checkout-module.ts:2537）。失败按 quarantine_busy|directory_busy 落 cleanupMessage（zh 子串映射 cleanupReasonForMessage，src/session-checkout-module.ts:127）。
-- `cleanupExpiredRetained`（src/session-checkout-module.ts:3739）：到期 retained 记录逐个 withCleanupTimeout（30s，src/session-checkout-module.ts:91——单个占用记录不能卡住启动收敛）清理。
+- `cleanupExpiredRetained`（src/session-checkout-module.ts:3868）：到期 retained 记录逐个 withCleanupTimeout（30s，src/session-checkout-module.ts:91——单个占用记录不能卡住启动收敛）清理；`permanent === true` 的记录豁免（src/session-checkout-module.ts:3852 filter）。
+- `enforceWorktreeKeepCount`（src/session-checkout-module.ts:3890）：codex 对齐的 LRU 上限。候选 = phase/delivery 均为 finalized|retained 且 `permanent !== true`，按 `managedUpdatedAt` 升序，超出 `worktreeKeepCount` 的最旧部分逐个走 **完整 discard 安全链**（`operateDiscard(..., {confirmDirty: true})`——含 G2 放弃前快照，快照失败即中止逐出）并受 withCleanupTimeout 保护。keepCount 0 = 禁用，默认 15（src/index.ts worktreeKeepCount volatile 配置，LiveValue 支持）；挂载点：reconcileOnReady 与 retentionTimer 在 cleanupExpiredRetained 之后顺序调用（src/index.ts:339-361）。
+
+## 放弃快照与常驻标记（codex 对齐）
+
+- **G2 放弃前快照**：`SessionCheckoutGitPort.snapshotAbandonedWorktree?/restoreAbandonedSnapshot?`（src/ports.ts）；实现见 src/adapters/git.ts `abandonedSnapshotRef(checkoutId) = refs/dsh-worktree/abandoned/<checkoutId>`（必须在 checkoutRefRoot 之外，否则 releaseApplyBaseBestEffort 连删）。operateDiscard 在 dirty 且 confirmDirty 后、removeWorktree 前快照（add -A → write-tree → commit-tree → update-ref），失败中止 discard；成功记 `abandonedSnapshotOid/abandonedSnapshotAt`（src/ports.ts ManagedCheckoutRecord）。恢复 = `restoreAbandonedWorktreeSnapshot`（模块）→ 在 localRoot 建 `worktree-restore-<oid8>` 分支并释放 ref。控制台：`listAbandoned`/`restoreAbandoned` 远程命令 + WorktreeConsoleView 底部「可恢复的放弃快照」strip。
+- **G4 permanent 常驻**：`ManagedCheckoutRecord.permanent?: boolean`；`manageManagedWorktree` action `set_permanent`（src/session-checkout-module.ts:3826，discarded/delivered 拒绝 `aDeliveredWorktreeCannotBeMarkedPermanent`）；豁免 cleanupExpiredRetained 与 enforceWorktreeKeepCount，**手动清理不受限**。控制台 `setPermanent` 命令 + 行内 pin/pinOff 按钮（ReviewIcon pin/pinOff）+ facts 里「常驻」徽标。
 
 ## 管理面与授权
 
 - `listManagedWorktreesForSession`（src/session-checkout-module.ts:3639）：只列 projectId 匹配且 owner|source 为本会话的 checkout。
-- `manageManagedWorktreeForSession`（src/session-checkout-module.ts:3655）：owner 或 source（owner 会话仍在时 source 无权）；`manageManagedWorktree`（src/session-checkout-module.ts:3676）支持 discard/set_retention/cleanup——owner 会话可尚未存在，故不重新经 lookup 解析（src/session-checkout-module.ts:3681）。
+- `manageManagedWorktreeForSession`（src/session-checkout-module.ts:3655）：owner 或 source（owner 会话仍在时 source 无权）；`manageManagedWorktree`（src/session-checkout-module.ts:3783）支持 discard/set_retention/set_permanent/cleanup——owner 会话可尚未存在，故不重新经 lookup 解析（src/session-checkout-module.ts:3681）。
 - `bulkCleanupManagedWorktrees`（src/session-checkout-module.ts:3577）：候选逐个双重 CAS 后 cleanupFinalized({allowLegacyResidue:true})。
 - `runtimeContext`（src/session-checkout-module.ts:807）：同步 registry 快照生成模型上下文指引（未选目标/preview_active/preview_detached/handoff/working+autoDeliver→worktree_deliver/delivered→begin_next_iteration）。
 

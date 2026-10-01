@@ -1,6 +1,7 @@
 import type { Language } from '../i18n/core.js'
 import type { RemoteResult, TypertRemoteNamespace } from '@deepseek-ai/dsh-typert-protocol'
 import type {
+  WorktreeConsoleAbandonedListResponse,
   WorktreeConsoleCreatePreviewRecoveryHandoffResponse,
   WorktreeConsoleCreateResponse,
   WorktreeConsoleCreatePreflightResponse,
@@ -11,6 +12,7 @@ import type {
   WorktreeConsoleOutcome,
   WorktreeConsolePreflightResponse,
   WorktreeConsolePreviewRecoveryPreflightResponse,
+  WorktreeConsoleRestoreAbandonedResponse,
   WorktreeConsoleReviewDiffResponse,
   WorktreeConsoleGitGraphResponse,
   WorktreeConsoleGitMutationResponse,
@@ -52,12 +54,15 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
     'gitWorktree/finalize': (agentId: string, checkoutId: string, expectedRevision: number, expectedReviewId: string, commitMessage: string, retention: WorktreeRetentionMode, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>>
     'gitWorktree/finalizePreview': (agentId: string, checkoutId: string, expectedRevision: number, expectedReviewId: string, commitMessage: string, retention: WorktreeRetentionMode, recoveryProof?: WorktreePreviewRecoveryProof, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>>
     'gitWorktree/setRetention': (agentId: string, checkoutId: string, expectedRevision: number, retention: Exclude<WorktreeRetentionMode, 'cleanup'>, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>>
+    'gitWorktree/setPermanent': (agentId: string, checkoutId: string, expectedRevision: number, permanent: boolean, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>>
     'gitWorktree/retryCleanup': (agentId: string, checkoutId: string, expectedRevision: number, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>>
     'gitWorktree/beginNextIteration': (agentId: string, checkoutId: string, expectedRevision: number, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>>
     'gitWorktree/gitOverview': (agentId: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleGitOverviewResponse>>>
     'gitWorktree/gitGraph': (agentId: string, limit?: number, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleGitGraphResponse>>>
     'gitWorktree/gitCreateBranch': (agentId: string, name: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>>
     'gitWorktree/gitSwitchBranch': (agentId: string, branch: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>>
+    'gitWorktree/listAbandoned': (agentId: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleAbandonedListResponse>>>
+    'gitWorktree/restoreAbandoned': (agentId: string, checkoutId: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleRestoreAbandonedResponse>>>
   }
 
   interface TypertRemoteNamespaceMap {

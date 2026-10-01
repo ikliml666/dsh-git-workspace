@@ -75,10 +75,11 @@ it('lists only gitignored files matched by .worktreeinclude', async () => {
   const env = { ...process.env, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: process.platform === 'win32' ? 'NUL' : '/dev/null' }
   const git = (cwd: string, args: string[]) => spawnSync('git', args, { cwd, env, encoding: 'utf8' })
   git(root, ['init', '-b', 'main'])
-  await writeFile(join(root, '.gitignore'), '.env*\n')
+  await writeFile(join(root, '.gitignore'), '.env*\nAGENTS.override.md\n')
   await writeFile(join(root, '.worktreeinclude'), '.env.local\ntracked.txt\n')
   await writeFile(join(root, '.env.local'), 'SECRET=1\n')
   await writeFile(join(root, '.env.other'), 'OTHER=1\n')
+  await writeFile(join(root, 'AGENTS.override.md'), 'override\n')
   await writeFile(join(root, 'tracked.txt'), 'tracked\n')
   git(root, ['add', '.gitignore', '.worktreeinclude', 'tracked.txt'])
   git(root, ['-c', 'user.name=Test', '-c', 'user.email=test@example.test', 'commit', '-m', 'base'])
@@ -90,5 +91,43 @@ it('lists only gitignored files matched by .worktreeinclude', async () => {
   } } } as unknown as Context
   const port = createDshGitPort(ctx, { hooksPath: join(root, 'hooks') })
   const files = await port.listWorktreeincludeFiles?.(root, join(root, '.worktreeinclude'))
-  expect(files).toEqual(['.env.local'])
+  // AGENTS.override.md 未列入清单但被 ignore：codex 语义自动带入。
+  expect(files).toEqual(['.env.local', 'AGENTS.override.md'])
+})
+
+it('snapshots a dirty managed worktree before discard and restores it to a local branch', async () => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), 'dsh-abandon-')))
+  roots.push(root)
+  const repo = join(root, 'repo'), managed = join(root, 'managed')
+  await mkdir(repo)
+  const env = { ...process.env, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: process.platform === 'win32' ? 'NUL' : '/dev/null' }
+  const git = (cwd: string, args: string[]) => spawnSync('git', args, { cwd, env, encoding: 'utf8' })
+  git(repo, ['init', '-b', 'main'])
+  await writeFile(join(repo, 'a.txt'), 'base\n')
+  git(repo, ['add', 'a.txt'])
+  git(repo, ['-c', 'user.name=Test', '-c', 'user.email=test@example.test', 'commit', '-m', 'base'])
+  const baseOid = git(repo, ['rev-parse', 'HEAD']).stdout.trim()
+  git(repo, ['worktree', 'add', '--detach', managed, baseOid])
+  await writeFile(join(managed, 'a.txt'), 'modified\n')
+  await writeFile(join(managed, 'untracked.txt'), 'untracked\n')
+  const ctx = { subprocess: { spawn(spec: { argv: string[]; cwd: string; signal: AbortSignal }) {
+    const result = git(spec.cwd, spec.argv.slice(1))
+    return { done: Promise.resolve({ exitCode: result.status }), terminate() {}, waitForExit: async () => true, collected: {
+      stdout: { readFrom: () => ({ text: result.stdout ?? '' }) }, stderr: { readFrom: () => ({ text: result.stderr ?? '' }) },
+    } }
+  } } } as unknown as Context
+  const port = createDshGitPort(ctx, { hooksPath: join(repo, 'hooks') })
+
+  const snapshotOid = await port.snapshotAbandonedWorktree?.(repo, managed, 'checkout-1')
+  expect(snapshotOid).toMatch(/^[0-9a-f]{40,64}$/iu)
+  const refOid = git(repo, ['rev-parse', 'refs/dsh-worktree/abandoned/checkout-1']).stdout.trim()
+  expect(refOid).toBe(snapshotOid)
+  expect(git(repo, ['show', `${snapshotOid}:a.txt`]).stdout).toBe('modified\n')
+  expect(git(repo, ['show', `${snapshotOid}:untracked.txt`]).stdout).toBe('untracked\n')
+  expect(git(repo, ['rev-parse', `${snapshotOid}^`]).stdout.trim()).toBe(baseOid)
+
+  const branch = await port.restoreAbandonedSnapshot?.(repo, 'checkout-1', snapshotOid!)
+  expect(branch).toBe(`worktree-restore-${snapshotOid!.slice(0, 8)}`)
+  expect(git(repo, ['rev-parse', `refs/heads/${branch}`]).stdout.trim()).toBe(snapshotOid)
+  expect(git(repo, ['rev-parse', '--verify', '--quiet', 'refs/dsh-worktree/abandoned/checkout-1']).status).not.toBe(0)
 })

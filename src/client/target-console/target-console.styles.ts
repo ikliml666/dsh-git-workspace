@@ -136,6 +136,8 @@ export const TARGET_CONSOLE_STYLES = String.raw`
 .dsh-wtc-branch-select { max-width: 220px; cursor: pointer; font-weight: 500; }
 .dsh-wtc-empty, .dsh-wtc-loading { padding: 24px 14px; color: var(--wtc-muted); text-align: center; }
 .dsh-wtc-error { padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--wtc-red) 35%, transparent); border-radius: 10px; background: color-mix(in srgb, var(--wtc-red) 8%, transparent); color: var(--wtc-red); overflow-wrap: anywhere; }
+.dsh-wtc-notice { padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--wtc-green, #25885d) 35%, transparent); border-radius: 10px; background: color-mix(in srgb, var(--wtc-green, #25885d) 8%, transparent); color: var(--wtc-green, #25885d); overflow-wrap: anywhere; }
+.dsh-wtc-state[data-abandoned] { --wtc-state: #c47a1c; }
 .dsh-wtc-confirm { position: absolute; z-index: 2; inset: 12px; align-self: start; display: grid; gap: 10px; max-width: 520px; margin: 64px auto 0; padding: 18px; border: 1px solid color-mix(in srgb, var(--wtc-red) 35%, var(--wtc-line)); border-radius: 14px; background: Canvas; color: CanvasText; box-shadow: 0 20px 60px rgba(0,0,0,.24); }
 .dsh-wtc-confirm p { margin: 0; color: color-mix(in srgb, currentColor 68%, transparent); line-height: 1.5; }
 .dsh-wtc-confirm-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }

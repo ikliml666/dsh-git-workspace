@@ -450,6 +450,8 @@ export interface ManagedWorktreeSummaryView {
   retention?: Exclude<WorktreeRetentionMode, 'cleanup'>
   retainedAt?: number
   expiresAt?: number | null
+  /** codex 对齐：常驻标记的 Worktree 豁免自动清理。 */
+  permanent?: boolean
   cleanupMessage?: string
   cleanupReason?: WorktreeCleanupReason
   approximateBytes: number | null
@@ -459,6 +461,15 @@ export interface ManagedWorktreeSummaryView {
   cleanup?: ManagedWorktreeCleanupView
   /** Active owner sessions the management surface stops before a forced discard. */
   activeSessionIds?: string[]
+}
+
+/** codex 对齐：带未提交内容放弃 Worktree 时留下的安全快照（可恢复为 Local 分支）。 */
+export interface AbandonedWorktreeSnapshotView {
+  checkoutId: string
+  projectName: string
+  snapshotOid: string
+  snapshotAt: number
+  revision: number
 }
 
 export type ApplyBaseStrategy =

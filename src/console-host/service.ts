@@ -6,6 +6,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import type {
+  WorktreeConsoleAbandonedListResponse,
   WorktreeConsoleCreatePreviewRecoveryHandoffResponse,
   WorktreeConsoleCreateResponse,
   WorktreeConsoleCreatePreflightResponse,
@@ -19,6 +20,7 @@ import type {
   WorktreeConsoleOutcome,
   WorktreeConsolePreflightResponse,
   WorktreeConsolePreviewRecoveryPreflightResponse,
+  WorktreeConsoleRestoreAbandonedResponse,
   WorktreeConsoleReviewDiffResponse,
   WorktreeApplyConflictContinuation,
   WorktreeClientBootReport,
@@ -261,6 +263,17 @@ export class WorktreeConsoleService extends TypertRemoteService {
   }
 
   @Remote
+  setPermanent(
+    agent: Agent,
+    checkoutId: string,
+    expectedRevision: number,
+    permanent: boolean,
+    locale?: Language,
+  ): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>> {
+    return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.setPermanent({ sessionId: agent.id, checkoutId, expectedRevision, permanent }))
+  }
+
+  @Remote
   retryCleanup(agent: Agent, checkoutId: string, expectedRevision: number, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>> {
     return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.retryCleanup({ sessionId: agent.id, checkoutId, expectedRevision }))
   }
@@ -288,5 +301,15 @@ export class WorktreeConsoleService extends TypertRemoteService {
   @Remote
   gitSwitchBranch(agent: Agent, branch: string, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>> {
     return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.gitSwitchBranch(agent.id, branch))
+  }
+
+  @Remote
+  listAbandoned(agent: Agent, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleAbandonedListResponse>> {
+    return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.listAbandoned(agent.id))
+  }
+
+  @Remote
+  restoreAbandoned(agent: Agent, checkoutId: string, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleRestoreAbandonedResponse>> {
+    return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.restoreAbandoned({ sessionId: agent.id, checkoutId }))
   }
 }

@@ -14,6 +14,8 @@ import {
   gitGraphResponseSchema,
   gitMutationResponseSchema,
   gitOverviewResponseSchema,
+  abandonedListResponseSchema,
+  restoreAbandonedResponseSchema,
   requestIdSchema,
   inspectResponseSchema,
   listResponseSchema,
@@ -186,6 +188,11 @@ export const WORKTREE_CONSOLE_DESCRIPTORS: readonly InvocationDescriptor[] = Obj
     json('expectedRevision', revisionSchema, `${PACKAGE}/console-contract#WorktreeConsoleSetRetentionRequest.expectedRevision`),
     json('retention', retainedModeSchema, `${PACKAGE}/console-contract#WorktreeConsoleSetRetentionRequest.retention`),
   ], outcomeSchema(mutationResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>'),
+  descriptor('setPermanent', [
+    json('checkoutId', checkoutIdSchema, `${PACKAGE}/console-contract#WorktreeConsoleSetPermanentRequest.checkoutId`),
+    json('expectedRevision', revisionSchema, `${PACKAGE}/console-contract#WorktreeConsoleSetPermanentRequest.expectedRevision`),
+    json('permanent', booleanSchema, `${PACKAGE}/console-contract#WorktreeConsoleSetPermanentRequest.permanent`),
+  ], outcomeSchema(mutationResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>'),
   descriptor('retryCleanup', [
     json('checkoutId', checkoutIdSchema, `${PACKAGE}/console-contract#WorktreeConsoleRetryCleanupRequest.checkoutId`),
     json('expectedRevision', revisionSchema, `${PACKAGE}/console-contract#WorktreeConsoleRetryCleanupRequest.expectedRevision`),
@@ -200,6 +207,10 @@ export const WORKTREE_CONSOLE_DESCRIPTORS: readonly InvocationDescriptor[] = Obj
   descriptor('gitSwitchBranch', [
     json('branch', branchNameSchema, `${PACKAGE}/console-contract#WorktreeConsoleGitBranch.name`),
   ], outcomeSchema(gitMutationResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>'),
+  descriptor('listAbandoned', [], outcomeSchema(abandonedListResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleAbandonedListResponse>'),
+  descriptor('restoreAbandoned', [
+    json('checkoutId', checkoutIdSchema, `${PACKAGE}/console-contract#WorktreeConsoleRestoreAbandonedRequest.checkoutId`),
+  ], outcomeSchema(restoreAbandonedResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleRestoreAbandonedResponse>'),
 ])
 
 export const WORKTREE_CONSOLE_REMOTE: TypertRemoteContribution = Object.freeze({

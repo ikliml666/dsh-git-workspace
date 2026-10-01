@@ -26,6 +26,8 @@ import { SessionCheckoutError } from '../index.js'
 const GIT_TERMINATION_GRACE_MS = 1_000
 /** Collected-output cap per stream; git output is small but removals can warn. */
 const GIT_COLLECT_BYTES = 1 << 20
+/** Binary WIP patches can legitimately exceed the default cap (base85 inflation). */
+const WIP_PATCH_COLLECT_BYTES = 16 << 20
 
 export interface GitPortOptions extends GitTimeoutOptions {
   /** Directory holding the empty `core.hooksPath` target; created by the caller. */
@@ -69,7 +71,7 @@ async function settleCreationTree(handle: SubprocessHandle): Promise<boolean> {
  * the caller decides whether a non-zero exit is an error. Never
  * shell-interpreted; argv passes verbatim.
  */
-async function runGit(ctx: Context, cwd: string, args: string[], options: GitPortOptions, input?: string | GitCommitProtocol, creation?: { deadline: number }): Promise<GitCommandResult> {
+async function runGit(ctx: Context, cwd: string, args: string[], options: GitPortOptions, input?: string | GitCommitProtocol, creation?: { deadline: number }, collectBytes?: number): Promise<GitCommandResult> {
   const graceMs = creation ? creation.deadline - Date.now() : gitTimeoutMs(args, options)
   if (creation && graceMs <= 0) return { code: -1, stdout: '', stderr: hostMessage('gitTimedOutMsAndWasTerminated', { p0: args.join(' '), p1: 0 }), quiescent: true }
   const controller = new AbortController()
@@ -92,7 +94,7 @@ async function runGit(ctx: Context, cwd: string, args: string[], options: GitPor
       cwd,
       stdio: {
         stdin: input === undefined ? 'ignore' : 'pipe',
-        stdout: { maxBytes: GIT_COLLECT_BYTES },
+        stdout: { maxBytes: collectBytes ?? GIT_COLLECT_BYTES },
         stderr: { maxBytes: GIT_COLLECT_BYTES },
       },
       graceMs: GIT_TERMINATION_GRACE_MS,
@@ -199,6 +201,15 @@ function internalArtifactRef(checkoutId: string, artifactName: string): string {
 
 function applyBaseRef(checkoutId: string): string {
   return internalArtifactRef(checkoutId, 'apply-base')
+}
+
+/**
+ * Abandoned-snapshot refs live OUTSIDE checkoutRefRoot on purpose: the discard
+ * flow releases the whole per-checkout artifact namespace, which must not take
+ * the freshly written safety snapshot with it.
+ */
+function abandonedSnapshotRef(checkoutId: string): string {
+  return `refs/dsh-worktree/abandoned/${checkoutId}`
 }
 
 async function hasGitMetadata(root: string): Promise<boolean> {
@@ -395,11 +406,19 @@ export function createDshGitPort(ctx: Context, options: GitPortOptions): Session
       // Local adaptation (.worktreeinclude): the intersection of the two
       // `ls-files --others --ignored` calls is exactly "matched ∧ gitignored"
       // — negation/anchoring/dir patterns all stay in git, no local matcher.
+      // The matched call uses --exclude-from (not --exclude-standard + -c
+      // core.excludesFile): --exclude-standard unions the repo .gitignore,
+      // which would let through ignored-but-unlisted files. `ls-files -s`
+      // prints no mode for --others entries, so symlink detection happens
+      // at copy time via the files port instead.
       const all = await runSessionGit(localRoot, ['ls-files', '--others', '--ignored', '--exclude-standard', '-z'])
-      const matched = await runSessionGit(localRoot, ['-c', `core.excludesFile=${includeFile}`, 'ls-files', '--others', '--ignored', '--exclude-standard', '-z'])
+      const matched = await runSessionGit(localRoot, ['ls-files', '--others', '--ignored', `--exclude-from=${includeFile}`, '-z'])
       if (all.code !== 0 || matched.code !== 0) return []
       const ignored = new Set(all.stdout.split('\0').filter(Boolean))
-      return [...new Set(matched.stdout.split('\0').filter(Boolean))].filter((path) => ignored.has(path))
+      const files = new Set(matched.stdout.split('\0').filter(Boolean).filter((path) => path && ignored.has(path)))
+      // 自动带入被 ignore 的 AGENTS.override.md（codex 语义）。
+      if (ignored.has('AGENTS.override.md')) files.add('AGENTS.override.md')
+      return [...files]
     },
     branchOverview: async (root) => {
       const [refs, status] = await Promise.all([
@@ -454,8 +473,65 @@ export function createDshGitPort(ctx: Context, options: GitPortOptions): Session
     switchLocalBranch: async (root, branch) => {
       const switched = await runSessionGit(root, ['switch', branch])
       if (switched.code !== 0) {
-        throw new SessionCheckoutError('git_operation_failed', (switched.stderr || switched.stdout).trim() || hostMessage('gitOperationFailedGit', { p0: 'switch', p1: branch }))
+        const stderr = (switched.stderr || switched.stdout).trim()
+        // git: fatal: '<branch>' is already used by worktree at '<path>'（旧版为 already checked out at）
+        const busy = stderr.match(/'(?:[^']*)' is (?:already used by|already checked out at) worktree at '([^']+)'/u)
+        if (busy) {
+          throw new SessionCheckoutError('git_operation_failed', hostMessage('branchCheckedOutInAnotherWorktree', { p0: branch, p1: busy[1] ?? '' }))
+        }
+        throw new SessionCheckoutError('git_operation_failed', stderr || hostMessage('gitOperationFailedGit', { p0: 'switch', p1: branch }))
       }
+    },
+    captureLocalWip: async (root) => {
+      // codex 对齐：`diff --binary HEAD` 同时覆盖已暂存与未暂存的 tracked
+      // 修改；空输出返回 null（干净工作树无需携带）。
+      const diff = await runGit(ctx, root, ['diff', '--binary', '--full-index', 'HEAD'], options, undefined, undefined, WIP_PATCH_COLLECT_BYTES)
+      if (diff.code !== 0) {
+        throw new SessionCheckoutError('git_operation_failed', diff.stderr.trim() || hostMessage('gitOperationFailedGit', { p0: 'diff', p1: '' }))
+      }
+      return diff.stdout.trim() === '' ? null : diff.stdout
+    },
+    applyWorktreePatch: async (root, patch) => {
+      // git apply 默认原子：整包应用或整体失败，不会留下半套修改。
+      const applied = await runSessionGit(root, ['apply', '--binary', '--whitespace=nowarn', '-'], patch)
+      if (applied.code !== 0) {
+        throw new SessionCheckoutError('git_operation_failed', (applied.stderr || applied.stdout).trim() || hostMessage('gitOperationFailedGit', { p0: 'apply', p1: '' }))
+      }
+    },
+    listUntrackedFiles: async (root) => {
+      // 非 ignore 的 untracked（ignored 文件由 .worktreeinclude 通道负责）。
+      const output = await runSessionGitChecked(root, ['ls-files', '--others', '--exclude-standard', '-z'])
+      return output.split('\0').filter(Boolean)
+    },
+    snapshotAbandonedWorktree: async (localRoot, managedRoot, checkoutId) => {
+      // codex 对齐：add -A 把 tracked 修改与未 ignore 的 untracked 文件一并
+      // 写入 worktree 索引（ignored 文件源头在 Local，不属可丢失内容），
+      // write-tree 固化目录，commit-tree 以显式身份生成快照提交——不依赖
+      // 用户的 git 身份配置。
+      await runSessionGitChecked(managedRoot, ['add', '-A'])
+      const tree = await runSessionGitChecked(managedRoot, ['write-tree'])
+      const head = await runSessionGit(managedRoot, ['rev-parse', '--verify', '--quiet', 'HEAD^{commit}'])
+      const parentArgs = head.code === 0 && /^[0-9a-f]{40,64}$/iu.test(head.stdout) ? ['-p', head.stdout] : []
+      const committed = await runSessionGit(localRoot, [
+        '-c', 'user.name=dsh-git-worktree',
+        '-c', 'user.email=dsh-git-worktree@localhost',
+        'commit-tree', tree, ...parentArgs,
+      ])
+      if (committed.code !== 0) {
+        throw new SessionCheckoutError('git_operation_failed', (committed.stderr || committed.stdout).trim() || hostMessage('gitOperationFailedGit', { p0: 'commit-tree', p1: '' }))
+      }
+      const snapshotOid = committed.stdout.trim()
+      await runSessionGitChecked(localRoot, ['update-ref', abandonedSnapshotRef(checkoutId), snapshotOid])
+      return snapshotOid
+    },
+    restoreAbandonedSnapshot: async (localRoot, checkoutId, snapshotOid) => {
+      const branch = `worktree-restore-${snapshotOid.slice(0, 8)}`
+      const created = await runSessionGit(localRoot, ['branch', branch, snapshotOid])
+      if (created.code !== 0) {
+        throw new SessionCheckoutError('git_operation_failed', (created.stderr || created.stdout).trim() || hostMessage('gitOperationFailedGit', { p0: 'branch', p1: branch }))
+      }
+      await runSessionGitChecked(localRoot, ['update-ref', '-d', abandonedSnapshotRef(checkoutId)])
+      return branch
     },
   }
   return Object.assign(port, initialCommitActions(port.inspect, runSessionGit))

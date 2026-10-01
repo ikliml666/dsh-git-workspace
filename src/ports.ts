@@ -132,6 +132,23 @@ export interface SessionCheckoutGitPort {
   createLocalBranch?(root: string, name: string): Promise<void>
   /** Local adaptation: switch the local checkout to an existing local branch. */
   switchLocalBranch?(root: string, branch: string): Promise<void>
+  /**
+   * Local adaptation (codex parity): capture the checkout's uncommitted tracked
+   * changes as a binary patch against HEAD, or null when the worktree is clean.
+   */
+  captureLocalWip?(root: string): Promise<string | null>
+  /** Local adaptation (codex parity): apply a captured WIP patch inside a freshly created worktree. */
+  applyWorktreePatch?(root: string, patch: string): Promise<void>
+  /** Local adaptation (codex parity): non-ignored untracked paths, relative to root. */
+  listUntrackedFiles?(root: string): Promise<string[]>
+  /**
+   * codex 对齐：删除带未提交内容的受管 Worktree 前，把全部可丢失内容
+   * （tracked 修改 + 未 ignore 的 untracked 文件）固化为一个提交，保留在
+   * `refs/dsh-worktree/abandoned/<checkoutId>`；返回快照提交号。
+   */
+  snapshotAbandonedWorktree?(localRoot: string, managedRoot: string, checkoutId: string): Promise<string>
+  /** codex 对齐：把放弃快照恢复为 Local 仓库中的分支并释放快照 ref；返回分支名。 */
+  restoreAbandonedSnapshot?(localRoot: string, checkoutId: string, snapshotOid: string): Promise<string>
 }
 
 export interface DirectoryIdentity {
@@ -155,6 +172,8 @@ export interface SessionCheckoutFilesPort {
   measureDirectoryBytes(path: string): Promise<number>
   readTextFile?(path: string): string | null
   copyFile?(from: string, to: string): void
+  /** Reports whether an existing path is a symlink; copy sources that are links are skipped (.worktreeinclude). */
+  isSymbolicLink?(path: string): Promise<boolean>
 }
 
 export interface SessionBindingRecord {
@@ -406,6 +425,11 @@ export interface ManagedCheckoutRecord {
   checkpoints?: ManagedWorktreeCheckpointRecord[]
   /** Host-authoritative one-shot context for an explicitly resumed apply conflict. */
   recoveryContinuation?: ManagedRecoveryContinuation
+  /** codex 对齐：放弃前快照的提交号；恢复入口据此在 Local 重建分支。 */
+  abandonedSnapshotOid?: string
+  abandonedSnapshotAt?: number
+  /** codex 对齐：常驻标记；豁免保留期到期清理与 keep-count LRU 逐出（手动清理不受限）。 */
+  permanent?: boolean
   sourceRef: string
   phase: SessionCheckoutPhase
   delivery: ManagedCheckoutDelivery
@@ -456,4 +480,18 @@ export interface SessionCheckoutDependencies {
    * naming whenever the agent supplies a topic.
    */
   worktreesRoot?: string | LiveValue<string | undefined>
+  /**
+   * Local adaptation (codex parity): carry the local checkout's uncommitted
+   * changes into a newly created managed Worktree. Only applies when the
+   * Worktree's base commit equals the local HEAD; failures degrade to a
+   * warning. Default true.
+   */
+  inheritLocalChanges?: boolean | LiveValue<boolean | undefined>
+  /**
+   * Local adaptation (codex parity): keep-count LRU cap for managed Worktrees.
+   * When the number of live finalized/retained Worktrees exceeds this, the
+   * oldest (by managedUpdatedAt) are evicted through the discard safety chain;
+   * permanent records are exempt. 0 disables. Default 15.
+   */
+  worktreeKeepCount?: number | LiveValue<number | undefined>
 }

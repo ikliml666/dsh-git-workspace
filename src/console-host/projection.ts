@@ -91,6 +91,7 @@ export function capabilities(
     finalize: owner && ready,
     finalizePreview: owner && (previewActive || previewDetached),
     setRetention: manageAuthorized && record.delivery.state === 'retained',
+    setPermanent: manageAuthorized && active,
     retryCleanup: manageAuthorized && cleanup,
     beginNextIteration: owner && delivered,
   }
@@ -144,6 +145,7 @@ export function projectRecord(
     ...((delivery.state === 'retained' || delivery.state === 'finalized') && delivery.cleanupMessage !== undefined
       ? { cleanupMessage: hostPersistedCleanupMessage(delivery.cleanupMessage, hostMessage) }
       : {}),
+    ...(record.permanent === true ? { permanent: true } : {}),
     ...(projectedProof === undefined ? {} : { deliveryProof: projectedProof }),
     ...(projectedReview === undefined ? {} : { review: projectedReview }),
     ...((record.checkpoints?.length ?? 0) > 0 ? {
@@ -271,6 +273,7 @@ export function projectLocal(target: SessionTargetView, sessionId: string): Work
       finalize: false,
       finalizePreview: false,
       setRetention: false,
+      setPermanent: false,
       retryCleanup: false,
       beginNextIteration: false,
     },

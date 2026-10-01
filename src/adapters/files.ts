@@ -102,5 +102,8 @@ export function createNodeFilesPort(): SessionCheckoutFilesPort {
       if (existsSync(to)) rmSync(to, { force: true })
       copyFileSync(from, to)
     },
+    isSymbolicLink: async (path) => {
+      try { return lstatSync(path).isSymbolicLink() } catch { return false }
+    },
   }
 }
