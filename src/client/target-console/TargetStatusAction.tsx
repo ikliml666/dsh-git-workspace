@@ -15,6 +15,7 @@ import { WorktreeManagerModal } from './WorktreeManagerModal.js'
 import { BranchGraphModal } from './BranchGraphModal.js'
 import {
   ensureBranchOverview,
+  cachedBranchOverview,
   invalidateBranchOverview,
   patchBranchOverview,
   refreshBranchOverviewInBackground,
@@ -157,10 +158,10 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
         branch: outcome.value.branch,
         branches: current.branches.map(item => ({ ...item, isCurrent: item.name === outcome.value.branch })),
       }))
-      invalidateBranchOverview(sessionId)
-      void ensureBranchOverview(adapter, sessionId).then(value => {
-        if (mounted.current && value !== null) setOverview(value)
-      })
+      // 乐观补丁即最终态：switch 的 RPC 已确认分支，直接读回补丁后的缓存，
+      // 省一次 invalidate+ensure 重取（4 个 git spawn + UI 闪回旧值）。
+      const patched = cachedBranchOverview(sessionId)
+      if (patched !== null) setOverview(patched)
       requestWorktreeReviewRefresh(sessionId)
     } catch (reason) {
       if (mounted.current) setError(reason instanceof Error ? reason.message : String(reason))

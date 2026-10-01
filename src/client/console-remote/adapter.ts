@@ -51,9 +51,11 @@ function isCodecRejection(value: unknown): boolean {
  */
 const FAST_TIMEOUT_MS = 30_000
 const SLOW_TIMEOUT_MS = 180_000
+// list/preflight/preflightCreate 全量重算（多记录时 20+ 次 git spawn）可能
+// 逼近 30s，放 SLOW 档；其余快路径方法保持 30s。
 const FAST_METHODS = new Set([
-  'sidebarTopology', 'current', 'list', 'inspect',
-  'preflight', 'preflightCreate', 'previewRecoveryPreflight',
+  'sidebarTopology', 'current', 'inspect',
+  'previewRecoveryPreflight',
   'gitOverview', 'gitGraph',
   'listAbandoned',
 ])
