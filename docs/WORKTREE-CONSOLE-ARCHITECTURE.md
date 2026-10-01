@@ -34,7 +34,6 @@ Harness 的内置 Remote contribution 集合不会自动发现第三方插件。
 
 当前 Harness 已确认可用：
 
-- `conversation.input.left`：blank Local Session 的 pre-session Worktree switch；
 - `conversation.session.header.actions`：Session 级 Target 状态胶囊与关联 Manager 入口；
 - `conversation.view`：Harness seam 仍可用，但当前不注册 Worktree Console tab，避免与 Header Manager、Review 卡重复；
 - `shell.overlay`：根级抽屉或弹层；
@@ -42,7 +41,6 @@ Harness 的内置 Remote contribution 集合不会自动发现第三方插件。
 
 推荐的 Harness-native 组合：
 
-- blank Local composer 的 input-left switch 点击后只打开确认弹窗；用户确认后才 block source、准备并打开 target，再把后续发送交还标准 composer；
 - Header action 显示 `Local / Worktree · Working / Ready / Recovery`，点击后提供当前目标详情、工作位置、来源 Session、关联 Manager 与 capability 驱动的 lifecycle 操作；
 - Worktree Console 通过 Header 打开的 Modal 承载同一 `sourceSessionId + projectId + canonical localRoot` 关联组，暂不挂载 `conversation.view` 页签；
 - source 与任一 owner target 都可查看关联组；兄弟 target 只有 path-free list 与 identity-validated open（Client 内部仍通过 inspect 取得当次授权路径），mutation 继续由各自 owner/source 特例控制；
@@ -58,11 +56,10 @@ Harness 的内置 Remote contribution 集合不会自动发现第三方插件。
 adapter.create({ sourceSessionId })
 → workspaces.create({ path: managedRoot })
 → sessions.create({ workspaceId, sessionId: targetSessionId })
-→ conversation.input.for(targetBinding.ctx).setDraft/addImages
 → sessions.open(targetSessionId)
 ```
 
-pre-session flow 不拦截私有 submit sink：点击开关只冻结一份确认时草稿快照并打开受控弹窗，不创建 Host 资源；用户确认后才通过 `conversation.blocks` block source composer。target input 写入成功且 source `draftRev`、文本、附件仍与确认快照一致后才打开；随后第一条消息仍由 Harness 标准 composer 发送。Host 分配 `targetSessionId`，Client 不得自行选择 owner identity。target Session 持久化 cwd 必须 canonicalize 为 `managedRoot`，否则 fail closed。失败时 source draft 保持原样；若 checkout 已创建，Client 先按 target/source caller 边界请求 Discard，只有确认 Discard 成功后才归档 target Session、删除临时 Workspace。
+blank Local Session 的 pre-session Worktree 开关与草稿交接流程已移除；创建入口为 Session Header 的关联 Manager 与 `/worktree` 命令。Host 分配 `targetSessionId`，Client 不得自行选择 owner identity。target Session 持久化 cwd 必须 canonicalize 为 `managedRoot`，否则 fail closed。
 
 ## 3. 共享状态模型
 
@@ -207,7 +204,7 @@ Review UI 只能显示与当前 review identity 绑定的只读 diff：
 | 共享契约 | `src/console-contract.ts`、`tests/support/worktree-console.ts` | DTO、状态投影契约与测试 fixture；Host 和 Client 使用同一套协议 |
 | Host Control Plane | `src/console-host/`、`src/console-remote/` | caller-scoped API、权限校验、只读 diff、strict Typert contribution |
 | Client Remote | `src/client/console-remote/` | mount Remote、归一化 transport/domain outcome、提供 adapter |
-| Session Target UI | `src/client/target-console/`、`src/client/pre-session/` | Header 状态、关联 Manager、创建和打开 Worktree |
+| Session Target UI | `src/client/target-console/` | Header 状态、关联 Manager、创建和打开 Worktree |
 | Review UI | `src/client/review-console/`、`src/client/WorktreeReviewRow.tsx` | Review 展示、Preflight、Preview 与恢复操作 |
 | Client 集成 | `src/client/index.tsx`、`src/client/console-remote/index.ts` | Slot 注册、服务依赖与生命周期 |
 | 构建与发布 | `package.json`、`tsdown.config.ts`、`scripts/check-publish.mjs` | exports/files、Client bundle 与发布门禁 |

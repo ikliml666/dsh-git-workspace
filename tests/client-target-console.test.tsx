@@ -937,7 +937,6 @@ describe('Client entry integration', () => {
     expect(descriptors).toEqual(expect.arrayContaining([
       expect.objectContaining({ name: 'conversation.session.header.actions', id: 'worktree-target' }),
       expect.objectContaining({ name: 'conversation.input.dock', id: 'worktree-review-status' }),
-      expect.objectContaining({ name: 'conversation.input.left', id: 'worktree-pre-session' }),
     ]))
     expect(descriptors).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ name: 'conversation.view', id: 'worktree' }),
@@ -984,7 +983,6 @@ describe('Client entry integration', () => {
       expect.objectContaining({ name: 'tool.call.toolview', key: 'worktree_ready_for_review' }),
       expect.objectContaining({ name: 'conversation.session.header.actions', id: 'worktree-target' }),
       expect.objectContaining({ name: 'conversation.input.dock', id: 'worktree-review-status', order: 10 }),
-      expect.objectContaining({ name: 'conversation.input.left', id: 'worktree-pre-session', order: 40 }),
     ]))
     expect(descriptors).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ name: 'conversation.view', id: 'worktree' }),

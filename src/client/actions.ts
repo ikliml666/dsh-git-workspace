@@ -79,24 +79,15 @@ export interface WorktreeClientServices {
   }
 }
 
-export type PreSessionInput = import('./pre-session/harness-input.js').HarnessInputActions
-
-/** Additional public Harness faces used only by the blank-session preparation flow. */
-export interface PreSessionWorktreeServices extends WorktreeClientServices {
-  sessions: ClientSessions
-  workspaces: ClientWorkspaces & {
-    archiveSession(sessionId: string): Promise<void>
-    delete(workspaceId: string): Promise<void>
-  }
-  conversation: {
-    input: {
-      for(ctx: unknown): PreSessionInput
-    }
-    blocks: {
-      set(sessionId: string, block: { reason: string } | undefined): void
-      storeFor(sessionId: string): { getSnapshot(): { reason: string } | undefined }
-    }
-  }
+/** Composer draft actions. Harness renamed the image-only API when adding general attachments. */
+export type PreSessionInput = {
+  setDraft(text: string): void
+  addImages(ids: readonly string[]): boolean
+  removeImage(id: string): void
+} | {
+  setDraft(text: string): void
+  addAttachments(ids: readonly string[]): boolean
+  removeAttachment(id: string): void
 }
 
 function samePath(left: string, right: string): boolean {
