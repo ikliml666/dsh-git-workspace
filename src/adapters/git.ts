@@ -361,7 +361,10 @@ export function createDshGitPort(ctx: Context, options: GitPortOptions): Session
         : `${checkoutRefRoot(checkoutId)}/`
       const output = await runSessionGitChecked(localRoot, ['for-each-ref', '--format=%(refname)', prefix])
       const refs = output.split(/\r?\n/).map((ref) => ref.trim()).filter(Boolean)
-      for (const ref of refs) await runSessionGitChecked(localRoot, ['update-ref', '-d', ref])
+      if (refs.length === 0) return
+      // 单次 spawn 事务删除全部 ref（原逐个 update-ref -d 为 1+N 次串行）。
+      const result = await runSessionGit(localRoot, ['update-ref', '--stdin'], `start\n${refs.map((ref) => `delete ${ref}`).join('\n')}\ncommit\n`)
+      if (result.code !== 0) throw new SessionCheckoutError('git_operation_failed', result.stderr || hostMessage('gitOperationFailedGit', { p0: 'update-ref', p1: '' }))
     },
     isAncestor: async (root, ancestorOid, descendantOid) => {
       const result = await runSessionGit(root, ['merge-base', '--is-ancestor', ancestorOid, descendantOid])
@@ -411,8 +414,10 @@ export function createDshGitPort(ctx: Context, options: GitPortOptions): Session
       // which would let through ignored-but-unlisted files. `ls-files -s`
       // prints no mode for --others entries, so symlink detection happens
       // at copy time via the files port instead.
-      const all = await runSessionGit(localRoot, ['ls-files', '--others', '--ignored', '--exclude-standard', '-z'])
-      const matched = await runSessionGit(localRoot, ['ls-files', '--others', '--ignored', `--exclude-from=${includeFile}`, '-z'])
+      const [all, matched] = await Promise.all([
+        runSessionGit(localRoot, ['ls-files', '--others', '--ignored', '--exclude-standard', '-z']),
+        runSessionGit(localRoot, ['ls-files', '--others', '--ignored', `--exclude-from=${includeFile}`, '-z']),
+      ])
       if (all.code !== 0 || matched.code !== 0) return []
       const ignored = new Set(all.stdout.split('\0').filter(Boolean))
       const files = new Set(matched.stdout.split('\0').filter(Boolean).filter((path) => path && ignored.has(path)))

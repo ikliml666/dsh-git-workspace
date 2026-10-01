@@ -175,52 +175,63 @@ export function createGitWorktreeReviewDiffReader(projectSkills?: ProjectSkillSt
 
         const files: WorktreeConsoleDiffFile[] = []
         let truncated = entries.length > REVIEW_DIFF_MAX_FILES
-        for (const entry of entries.slice(0, REVIEW_DIFF_MAX_FILES)) {
-          const numstat = await git(
-            input.managedRoot,
-            ['diff', '--cached', '--numstat', '-z', input.baseOid, '--', entry.path],
-            env,
-            32 * 1024,
-          )
-          const binary = numstat.stdout.toString('utf8').startsWith('-\t-\t')
-          let patch: string | null = null
-          let fileTruncated = false
-          if (!binary) {
-            const patchResult = await git(
+        const sliced = entries.slice(0, REVIEW_DIFF_MAX_FILES)
+        // 逐文件 2 次 spawn 串行时最坏 400 次（会顶爆 SLOW 180s 超时）；
+        // 按批并行取证，预算/截断折叠仍按原文件顺序逐个进行，语义不变。
+        const REVIEW_DIFF_BATCH_SIZE = 8
+        let stop = false
+        for (let start = 0; start < sliced.length && !stop; start += REVIEW_DIFF_BATCH_SIZE) {
+          const sampled = await Promise.all(sliced.slice(start, start + REVIEW_DIFF_BATCH_SIZE).map(async (entry) => {
+            const numstat = await git(
               input.managedRoot,
-              ['diff', '--cached', '--no-ext-diff', '--no-textconv', '--find-renames', input.baseOid, '--', entry.path],
+              ['diff', '--cached', '--numstat', '-z', input.baseOid, '--', entry.path],
               env,
-              REVIEW_DIFF_MAX_PATCH_BYTES,
+              32 * 1024,
             )
-            patch = patchResult.stdout.toString('utf8')
-            fileTruncated = patchResult.truncated
-          }
-          const file: WorktreeConsoleDiffFile = {
-            path: entry.path,
-            ...(entry.previousPath === undefined ? {} : { previousPath: entry.previousPath }),
-            status: binary ? 'binary' : entry.status,
-            patch,
-            truncated: fileTruncated,
-          }
-          let candidate: WorktreeConsoleReviewDiffResponse = {
-            reviewId: input.reviewId,
-            revision: input.revision,
-            files: [...files, file],
-            truncated: truncated || fileTruncated,
-          }
-          if (payloadBytes(candidate) > REVIEW_DIFF_MAX_PAYLOAD_BYTES) {
-            truncated = true
-            if (file.patch !== null) {
-              const shell = { ...file, patch: '', truncated: true }
-              const overhead = payloadBytes({ ...candidate, files: [...files, shell], truncated: true })
-              const reduced = { ...shell, patch: utf8Prefix(file.patch, Math.max(0, REVIEW_DIFF_MAX_PAYLOAD_BYTES - overhead - 16)) }
-              candidate = { ...candidate, files: [...files, reduced], truncated: true }
-              if (payloadBytes(candidate) <= REVIEW_DIFF_MAX_PAYLOAD_BYTES) files.push(reduced)
+            const binary = numstat.stdout.toString('utf8').startsWith('-\t-\t')
+            let patch: string | null = null
+            let fileTruncated = false
+            if (!binary) {
+              const patchResult = await git(
+                input.managedRoot,
+                ['diff', '--cached', '--no-ext-diff', '--no-textconv', '--find-renames', input.baseOid, '--', entry.path],
+                env,
+                REVIEW_DIFF_MAX_PATCH_BYTES,
+              )
+              patch = patchResult.stdout.toString('utf8')
+              fileTruncated = patchResult.truncated
             }
-            break
+            return { entry, binary, patch, fileTruncated }
+          }))
+          for (const { entry, binary, patch, fileTruncated } of sampled) {
+            const file: WorktreeConsoleDiffFile = {
+              path: entry.path,
+              ...(entry.previousPath === undefined ? {} : { previousPath: entry.previousPath }),
+              status: binary ? 'binary' : entry.status,
+              patch,
+              truncated: fileTruncated,
+            }
+            let candidate: WorktreeConsoleReviewDiffResponse = {
+              reviewId: input.reviewId,
+              revision: input.revision,
+              files: [...files, file],
+              truncated: truncated || fileTruncated,
+            }
+            if (payloadBytes(candidate) > REVIEW_DIFF_MAX_PAYLOAD_BYTES) {
+              truncated = true
+              if (file.patch !== null) {
+                const shell = { ...file, patch: '', truncated: true }
+                const overhead = payloadBytes({ ...candidate, files: [...files, shell], truncated: true })
+                const reduced = { ...shell, patch: utf8Prefix(file.patch, Math.max(0, REVIEW_DIFF_MAX_PAYLOAD_BYTES - overhead - 16)) }
+                candidate = { ...candidate, files: [...files, reduced], truncated: true }
+                if (payloadBytes(candidate) <= REVIEW_DIFF_MAX_PAYLOAD_BYTES) files.push(reduced)
+              }
+              stop = true
+              break
+            }
+            files.push(file)
+            if (fileTruncated) truncated = true
           }
-          files.push(file)
-          if (fileTruncated) truncated = true
         }
         return { reviewId: input.reviewId, revision: input.revision, files, truncated }
       } finally {

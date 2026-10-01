@@ -524,9 +524,20 @@ export function createSessionCheckoutModule(
       ) return false
       checkpointIds.add(checkpoint.checkpointId)
       reviewIds.add(checkpoint.reviewId)
-      if (await dependencies.git.readInternalArtifact(record.localRoot, record.checkoutId, `checkpoints/${checkpoint.checkpointId}`) !== checkpoint.commitOid) return false
-      if (!(await dependencies.git.isAncestor(managedRoot, checkpoint.parentOid, checkpoint.commitOid))) return false
-      if (index > 0 && !(await dependencies.git.isAncestor(managedRoot, checkpoints[index - 1]!.commitOid, checkpoint.parentOid))) return false
+    }
+    // 结构校验通过后并行取证（原为循环内 3n+1 次串行 spawn），再按原短路顺序判定。
+    const [artifactResults, pairResults] = await Promise.all([
+      Promise.all(checkpoints.map(async (checkpoint) =>
+        await dependencies.git.readInternalArtifact(record.localRoot, record.checkoutId, `checkpoints/${checkpoint.checkpointId}`) === checkpoint.commitOid)),
+      Promise.all(checkpoints.map(async (checkpoint, index) => Promise.all([
+        dependencies.git.isAncestor(managedRoot, checkpoint.parentOid, checkpoint.commitOid),
+        index > 0 ? dependencies.git.isAncestor(managedRoot, checkpoints[index - 1]!.commitOid, checkpoint.parentOid) : true,
+      ]))),
+    ])
+    for (let index = 0; index < checkpoints.length; index += 1) {
+      if (!artifactResults[index]) return false
+      if (!pairResults[index]![0]) return false
+      if (index > 0 && !pairResults[index]![1]) return false
     }
     return dependencies.git.isAncestor(managedRoot, checkpoints[checkpoints.length - 1]!.commitOid, headOid)
   }
