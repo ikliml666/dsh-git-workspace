@@ -41,6 +41,14 @@ interface GitCommandResult {
   quiescent?: boolean
 }
 
+/** `%D` decoration → ref names, without the HEAD/tag plumbing prefixes. */
+function parseDecoration(decoration: string): string[] {
+  if (decoration === '') return []
+  return decoration.split(', ').map((part) =>
+    part.replace(/^HEAD -> /u, '').replace(/^tag: /u, '').trim(),
+  ).filter((name) => name !== '')
+}
+
 async function settleCreationTree(handle: SubprocessHandle): Promise<boolean> {
   if (typeof handle.waitForExit !== 'function' || typeof handle.terminate !== 'function') return false
   const controller = new AbortController()
@@ -392,6 +400,62 @@ export function createDshGitPort(ctx: Context, options: GitPortOptions): Session
       if (all.code !== 0 || matched.code !== 0) return []
       const ignored = new Set(all.stdout.split('\0').filter(Boolean))
       return [...new Set(matched.stdout.split('\0').filter(Boolean))].filter((path) => ignored.has(path))
+    },
+    branchOverview: async (root) => {
+      const [refs, status] = await Promise.all([
+        runSessionGit(root, ['for-each-ref', '--format=%(refname)%00%(objectname)%00%(HEAD)%00%(upstream:short)', 'refs/heads']),
+        runSessionGit(root, ['status', '--porcelain=v1', '-z', '--untracked-files=all']),
+      ])
+      if (refs.code !== 0) return null
+      const branches = refs.stdout.split(/\r?\n/).filter(Boolean).map((line) => {
+        const [refname, oid, head, upstream] = line.split('\0')
+        return {
+          name: (refname ?? '').replace(/^refs\/heads\//u, ''),
+          oid: oid ?? '',
+          isCurrent: head === '*',
+          upstream: upstream ? upstream : null,
+        }
+      }).filter((branch) => branch.name && /^[0-9a-f]{40,64}$/iu.test(branch.oid))
+      return { branches, dirtyCount: status.stdout ? status.stdout.split('\0').filter(Boolean).length : 0 }
+    },
+    graphLog: async (root, limit) => {
+      const capped = Math.max(1, Math.min(1000, Math.floor(limit)))
+      const result = await runSessionGit(root, [
+        'log', '--branches', '--tags', '--remotes', '--topo-order', '--parents',
+        `--max-count=${capped}`,
+        '--format=%H%x00%P%x00%an%x00%at%x00%D%x00%s%x1e',
+      ])
+      if (result.code !== 0) {
+        throw new SessionCheckoutError('git_operation_failed', result.stderr.trim() || hostMessage('gitOperationFailedGit', { p0: 'log', p1: '' }))
+      }
+      return result.stdout.split('\x1e').map((record) => record.replace(/^[\r\n]+/u, '').trimEnd()).filter(Boolean).map((record) => {
+        const parts = record.split('\0')
+        const [oid = '', parentsLine = '', author = '', time = '', decoration = ''] = parts
+        return {
+          oid,
+          parents: parentsLine ? parentsLine.split(' ').filter(Boolean) : [],
+          author,
+          authorTime: Number.parseInt(time, 10) || 0,
+          refs: parseDecoration(decoration),
+          subject: parts.slice(5).join('\0'),
+        }
+      }).filter((commit) => /^[0-9a-f]{40,64}$/iu.test(commit.oid))
+    },
+    createLocalBranch: async (root, name) => {
+      const check = await runSessionGit(root, ['check-ref-format', '--branch', name])
+      if (check.code !== 0) {
+        throw new SessionCheckoutError('git_operation_failed', check.stderr.trim() || hostMessage('gitOperationFailedGit', { p0: 'check-ref-format', p1: name }))
+      }
+      const created = await runSessionGit(root, ['branch', name, 'HEAD'])
+      if (created.code !== 0) {
+        throw new SessionCheckoutError('git_operation_failed', (created.stderr || created.stdout).trim() || hostMessage('gitOperationFailedGit', { p0: 'branch', p1: name }))
+      }
+    },
+    switchLocalBranch: async (root, branch) => {
+      const switched = await runSessionGit(root, ['switch', branch])
+      if (switched.code !== 0) {
+        throw new SessionCheckoutError('git_operation_failed', (switched.stderr || switched.stdout).trim() || hostMessage('gitOperationFailedGit', { p0: 'switch', p1: branch }))
+      }
     },
   }
   return Object.assign(port, initialCommitActions(port.inspect, runSessionGit))

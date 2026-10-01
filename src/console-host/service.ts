@@ -10,6 +10,9 @@ import type {
   WorktreeConsoleCreateResponse,
   WorktreeConsoleCreatePreflightResponse,
   WorktreeConsoleCurrentResponse,
+  WorktreeConsoleGitGraphResponse,
+  WorktreeConsoleGitMutationResponse,
+  WorktreeConsoleGitOverviewResponse,
   WorktreeConsoleInspectResponse,
   WorktreeConsoleListResponse,
   WorktreeConsoleMutationResponse,
@@ -265,5 +268,25 @@ export class WorktreeConsoleService extends TypertRemoteService {
   @Remote
   beginNextIteration(agent: Agent, checkoutId: string, expectedRevision: number, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>> {
     return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.beginNextIteration({ sessionId: agent.id, checkoutId, expectedRevision }))
+  }
+
+  @Remote
+  gitOverview(agent: Agent, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitOverviewResponse>> {
+    return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.gitOverview(agent.id))
+  }
+
+  @Remote
+  gitGraph(agent: Agent, limit?: number, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitGraphResponse>> {
+    return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.gitGraph(agent.id, limit))
+  }
+
+  @Remote
+  gitCreateBranch(agent: Agent, name: string, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>> {
+    return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.gitCreateBranch(agent.id, name))
+  }
+
+  @Remote
+  gitSwitchBranch(agent: Agent, branch: string, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>> {
+    return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.gitSwitchBranch(agent.id, branch))
   }
 }

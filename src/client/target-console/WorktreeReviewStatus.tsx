@@ -26,6 +26,8 @@ export function WorktreeReviewStatus({ session, adapter, services }: WorktreeRev
   const t = useClientTranslator()
   const language = useClientLanguage()
   const [detailsOpen, setDetailsOpen] = useState(false)
+  // Dismissal is scoped to the delivered iteration: a new review reopens the dock.
+  const [dismissed, setDismissed] = useState<{ checkoutId: string | null; reviewId: string } | null>(null)
 
   const sessionId = session.sessionId
   const [target, setTarget] = useState<WorktreeConsoleTargetDetails | null>(null)
@@ -106,6 +108,9 @@ export function WorktreeReviewStatus({ session, adapter, services }: WorktreeRev
   const review = reviewEvidenceFromTarget(target)
   const identity = reviewIdentityFromTarget(sessionId, target)
   if (!review || !identity) return null
+  const terminalDock = target.state === 'cleanup_pending' || target.state === 'retained'
+  const dockReviewId = target.review?.reviewId ?? null
+  if (terminalDock && dockReviewId !== null && dismissed?.checkoutId === target.checkoutId && dismissed.reviewId === dockReviewId) return null
   const actionGeneration = sessionGeneration.current
 
   const applyTarget = (nextTarget: WorktreeConsoleTargetSummary): void => {
@@ -145,6 +150,7 @@ export function WorktreeReviewStatus({ session, adapter, services }: WorktreeRev
         target={target}
         disabled={false}
         unavailableMessage={t("live.worktree.console.is.disconnected")}
+        proofVariant="compact"
         focusReview={() => setDetailsOpen(true)}
         renderStatus={operation => (
           <span className="dsh-wt-review-dock-copy" role="status" aria-live="polite" aria-atomic="true">
@@ -162,6 +168,15 @@ export function WorktreeReviewStatus({ session, adapter, services }: WorktreeRev
         onStale={() => { void refresh() }}
         onTargetChange={applyTarget}
       />
+      {terminalDock && dockReviewId !== null ? (
+        <button
+          type="button"
+          className="dsh-wt-details-trigger dsh-wt-dock-dismiss"
+          aria-label={t("dock.dismiss")}
+          title={t("dock.dismiss")}
+          onClick={() => setDismissed({ checkoutId: target.checkoutId, reviewId: target.review?.reviewId ?? '' })}
+        ><ReviewIcon name="close" /></button>
+      ) : null}
     </section>
   )
 }

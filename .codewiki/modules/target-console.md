@@ -7,6 +7,8 @@ source_files:
   - src/client/target-console/WorktreeConsoleView.tsx
   - src/client/target-console/WorktreeReviewStatus.tsx
   - src/client/target-console/WorktreeManagerModal.tsx
+  - src/client/target-console/BranchGraphModal.tsx
+  - src/client/target-console/branch-overview-cache.ts
   - src/client/target-console/current-polling.ts
   - src/client/target-console/target-console.styles.ts
   - src/client/actions.ts
@@ -15,6 +17,7 @@ tags:
   - target-console
   - polling
   - navigation
+  - git-branch-ui
 ---
 
 # Target Console 目标徽章与 Worktree 控制台
@@ -67,5 +70,16 @@ tags:
 - :73-97 standaloneRecovery 卡片：恢复请求与当前 target 匹配且（state working 或无 review）时展示 queued/sending/sent/cancelled/failed 状态与重试按钮。
 - :100-108 渲染门槛：无 review 或 state 不在 `[ready_for_review, preview_active, preview_detached, cleanup_pending, recovery_required, retained]` 直接 null；:115-132 按 state 出文案（reviewSlot waiting 提示占用者、preview_detached + stale_local 提示分支快进）。
 - :134-166 把 `reviewEvidenceFromTarget`/`reviewIdentityFromTarget` 的产物交给 ReviewActions；`isActive`（:161）叠加 mounted、会话与代际三重校验；onStale → refresh，onTargetChange → applyTarget。
+- terminal 态（retained/cleanup_pending）的 dock 渲染紧凑交付证明：ReviewActions 传 `proofVariant="compact"`（ReviewActions 不再重复状态标题），dock 末尾附「收起」钮——dismiss 按 `checkoutId+reviewId` 记忆于组件 state，同轮验收不再重现，新一轮验收（新 reviewId）自动恢复；全尺寸交付证明只出现在详情弹窗，避免撑爆 dock 横向 flex。
+
+## 分支胶囊与提交图（git-graph 融合）
+
+借鉴 `@linxin666/dsh-client-ui-git-graph`（BranchChip/BranchPopover/GraphDialog）重构会话头胶囊与分支操作：
+
+- 胶囊主标签改为**分支名优先**（`target.currentBranch`，`.dsh-wtc-target-branch` 220px 省略），无分支时回退 `Worktree · <状态>`；chevron 旋转指示展开，与图 2 参考形态一致。
+- src/client/target-console/branch-overview-cache.ts：模块级按 `(adapter, sessionId)` 缓存 `gitOverview` 结果，TTL 60s + in-flight 去重（`ensureBranchOverview`）；`refreshBranchOverviewInBackground` 是 stale-while-revalidate——过期也先返回缓存值再后台刷新；`patchBranchOverview` 供切分支后就地改写（乐观 current 标记），`invalidateBranchOverview` 在切分支/建分支后强制重读。
+- TargetStatusAction 菜单新增：分支列表（最多 12 项，当前分支与会话分支置顶，显示 upstream 与「当前会话」徽章，点击即 `adapter.gitSwitchBranch`）、新建分支（`branchNameSchema` 前端校验 + Modal 输入 + `adapter.gitCreateBranch`）、查看提交图。mount 预取 + 菜单打开时后台刷新，首次展开零等待。
+- src/client/target-console/BranchGraphModal.tsx：`computeGraphLanes` 移植 git-graph 的 lane 算法（first parent 保留本道、其余 parent 开新道、无子提交后收道）；`INITIAL_LIMIT=200`/`PAGE_STEP=100` 加载更多，`requestSeq` 乱序守卫；行渲染 oid 7 位 + 着色 lane 字符（●/◆/│）+ 主题 + refs 徽章（当前分支高亮）+ 作者 + 相对时间（`formatTime`）。
+- Host 语义：四个 git 端点全部作用于**本地仓库根**（`projectRootFor`，repo 级读取，非 managed worktree）；`gitSwitchBranch` 在 owner 会话验收中途（ready_for_review/preview_active/preview_detached/recovery_required）拒绝（`localBranchSwitchBlockedDuringDelivery`），已交付后的本地漂移由既有 stale_local 机制容错。
 
 样式见 src/client/target-console/target-console.styles.ts（`TARGET_CONSOLE_STYLES`，String.raw 胶囊/菜单样式，被 client 样式聚合注入）。

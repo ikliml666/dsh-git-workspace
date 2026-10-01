@@ -40,6 +40,8 @@ interface ReviewActionsProps {
   disabled: boolean
   unavailableMessage: string
   renderStatus?: (operation: Mutation | null) => ReactNode
+  /** Compact one-line delivery proof for dock contexts; the full card stays in panels/modals. */
+  proofVariant?: 'compact'
   focusReview?: () => void
   isActive?: () => boolean
   onStale: (error: WorktreeConsoleError) => void
@@ -80,6 +82,7 @@ export function ReviewActions({
   unavailableMessage,
   focusReview,
   renderStatus,
+  proofVariant,
   isActive = () => true,
   onStale,
   onTargetChange,
@@ -942,13 +945,13 @@ export function ReviewActions({
     {renderStatus?.(submitting)}
     <section className="dsh-wt-review-actions" aria-label={t("review.actions")}>
       {!live ? <p className="dsh-wt-status">{unavailableMessage}</p> : null}
-      {terminal ? (
+      {terminal && !renderStatus ? (
         <p className="dsh-wt-status">
           {target.state === 'retained'
             ? t("this.iteration.was.committed.the.environment.is.temporarily", { p0: target.commitOid ? ` · ${target.commitOid.slice(0, 8)}` : '' })
             : t("this.iteration.was.delivered", { p0: target.commitOid ? ` · ${target.commitOid.slice(0, 8)}` : '' })}
         </p>
-      ) : (
+      ) : !terminal ? (
         <div className="dsh-wt-actions">
           {primary}
           <details ref={moreMenuRef} className="dsh-wt-more-menu">
@@ -1009,7 +1012,7 @@ export function ReviewActions({
             </div>
           </details>
         </div>
-      )}
+      ) : null}
 
       <Modal
         open={checkpointOpen}
@@ -1173,7 +1176,7 @@ export function ReviewActions({
           ) : null}
         </div>
       ) : null}
-      {target && (target.state === 'cleanup_pending' || terminal) ? <DeliveryProof target={target} /> : null}
+      {target && (target.state === 'cleanup_pending' || terminal) ? <DeliveryProof target={target} compact={proofVariant === 'compact'} /> : null}
       <div className="dsh-wt-action-status" aria-live="polite">
         {submitting ? (renderStatus ? null : t("processing.worktree.please.wait")) : message?.(t)}
       </div>

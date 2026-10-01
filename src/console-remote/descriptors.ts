@@ -10,6 +10,10 @@ import {
   createPreflightResponseSchema,
   currentResponseSchema,
   generationSchema,
+  gitGraphLimitSchema,
+  gitGraphResponseSchema,
+  gitMutationResponseSchema,
+  gitOverviewResponseSchema,
   requestIdSchema,
   inspectResponseSchema,
   listResponseSchema,
@@ -85,6 +89,10 @@ export const WORKTREE_CONSOLE_DESCRIPTORS: readonly InvocationDescriptor[] = Obj
     json('needsAttention', optionalBooleanSchema, 'boolean | undefined', true),
     json('includeDelivered', optionalBooleanSchema, 'boolean | undefined', true),
   ], outcomeSchema(listResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleListResponse>'),
+  descriptor('gitOverview', [], outcomeSchema(gitOverviewResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleGitOverviewResponse>'),
+  descriptor('gitGraph', [
+    json('limit', gitGraphLimitSchema, 'number | undefined', true),
+  ], outcomeSchema(gitGraphResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleGitGraphResponse>'),
   descriptor('preflightCreate', [], outcomeSchema(createPreflightResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleCreatePreflightResponse>'),
   descriptor('createWithInitialCommit', [json('confirmationToken', requestIdSchema, 'string')], outcomeSchema(createResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleCreateResponse>'),
   descriptor('create', [json('branch', branchNameSchema, 'string | undefined', true)], outcomeSchema(createResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleCreateResponse>'),
@@ -186,6 +194,12 @@ export const WORKTREE_CONSOLE_DESCRIPTORS: readonly InvocationDescriptor[] = Obj
     json('checkoutId', checkoutIdSchema, `${PACKAGE}/console-contract#WorktreeConsoleBeginNextIterationRequest.checkoutId`),
     json('expectedRevision', revisionSchema, `${PACKAGE}/console-contract#WorktreeConsoleBeginNextIterationRequest.expectedRevision`),
   ], outcomeSchema(mutationResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>'),
+  descriptor('gitCreateBranch', [
+    json('name', branchNameSchema, `${PACKAGE}/console-contract#WorktreeConsoleGitBranch.name`),
+  ], outcomeSchema(gitMutationResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>'),
+  descriptor('gitSwitchBranch', [
+    json('branch', branchNameSchema, `${PACKAGE}/console-contract#WorktreeConsoleGitBranch.name`),
+  ], outcomeSchema(gitMutationResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>'),
 ])
 
 export const WORKTREE_CONSOLE_REMOTE: TypertRemoteContribution = Object.freeze({

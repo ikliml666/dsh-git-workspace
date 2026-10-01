@@ -6,6 +6,9 @@
 
 ### Added
 
+- 会话 Target 胶囊分支化（融合 dsh-client-ui-git-graph 交互）：胶囊主标签优先显示本地仓库当前分支名（git-branch 图标 + chevron），无分支信息时回退 `Worktree · 状态`；面板新增本地分支列表（当前分支/会话分支置顶、最多 12 项、显示 upstream 与会话徽章）、新建本地分支（`check-ref-format` 预校验）与提交图弹窗（topo-order 泳道渲染、200 条起步/每次 +100 分页、请求乱序守卫）。宿主配套 4 个控制台端点：`gitOverview`/`gitGraph`（只读）与 `gitCreateBranch`/`gitSwitchBranch`（变更，均作用于本地仓库根）；owner 会话交付验收中途（ready_for_review/preview_active/preview_detached/recovery_required）拒绝切换本地分支（`localBranchSwitchBlockedDuringDelivery`），非验收期本地漂移由既有 stale_local 机制容错。
+- 分支概览读取性能：模块级 60s TTL 缓存 + 胶囊挂载预取 + 面板打开时 stale-while-revalidate，展开分支面板不再每次现拉 git（此前与 git-graph 原版一致为每次展开冷拉，Windows 冷 spawn 最坏 ~3.5s）。
+
 - 客户端设置页（Plugins 页卡片，借鉴 dsh-worktree-panel）：把 volatile 配置字段（`autoDeliver`/`autoPush`/`worktreesRoot`/`gitTimeoutMs`/`worktreeAddTimeoutMs`）投影为中文标签的开关与输入框，暂存编辑、revision 栅栏原子保存；写入经宿主 settings 服务落 cordis.patch.yml，不重挂载插件。设置服务缺失时静默不挂载。
 - 上述五个配置字段改为 volatile（`meta.volatile`），值以 `{get()}` LiveRef 到达、消费方逐次解包：超时对下一条 git 命令生效，`autoDeliver`/`autoPush` 对下一次指引/交付生效，`worktreesRoot` 对之后新建的 worktree 生效（换根只影响新建，既有 worktree 原地不动）；`stateDir`/`enableWorkspaceProvider` 保持启动期语义。
 - `worktree_create` 支持可选 `branch` 基准分支参数：预检返回本地分支列表，控制台创建表单提供分支下拉（聚焦懒加载、当前源分支默认项）。branch 只决定创建基点，交付仍写源会话分支（[[.codewiki/decisions/create-from-branch-is-base-only.md]]）。
@@ -19,6 +22,8 @@
 - 预会话开关陈旧优先渲染（stale-while-revalidate）：上次已知目标按（适配器、会话）缓存，重进会话立即呈现并后台静默刷新，加载占位胶囊只在冷启动出现；静默刷新失败时保留陈旧界面不闪回错误态。
 
 ### Fixed
+
+- 交付后「已提交 · 环境保留」dock 排版炸裂与无法收起（2026-10-01）：交付证明整卡 grid 直接塞进 dock 横向 flex 行，max-content 把左侧文案挤成一字宽竖排。现终态 dock 改为紧凑单行（`proofVariant='compact'` 交付证明 + 关闭按钮），完整交付证明只经「查看详情」弹窗展示；dock 可按会话身份收起（checkoutId+reviewId 失效，新一轮验收自动重现）。dock 内动作列改纵向 flex 并限制证明卡 min-width，根治挤压。
 
 - Worktree 面板 `list` 不再因单条记录身份无法验证（`checkout_mismatch`）而整体失败：批量观察失败退回逐条降级观察，验证不过的记录以无观察投影（回退 oid 与模块 summary）照常呈现，面板其余记录不受影响。
 

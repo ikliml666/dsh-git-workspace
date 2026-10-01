@@ -12,6 +12,9 @@ import type {
   WorktreeConsolePreflightResponse,
   WorktreeConsolePreviewRecoveryPreflightResponse,
   WorktreeConsoleReviewDiffResponse,
+  WorktreeConsoleGitGraphResponse,
+  WorktreeConsoleGitMutationResponse,
+  WorktreeConsoleGitOverviewResponse,
   WorktreeApplyConflictContinuation,
   WorktreeClientBootReport,
   WorktreeSidebarTopologyResponse,
@@ -51,6 +54,10 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
     'gitWorktree/setRetention': (agentId: string, checkoutId: string, expectedRevision: number, retention: Exclude<WorktreeRetentionMode, 'cleanup'>, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>>
     'gitWorktree/retryCleanup': (agentId: string, checkoutId: string, expectedRevision: number, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>>
     'gitWorktree/beginNextIteration': (agentId: string, checkoutId: string, expectedRevision: number, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>>
+    'gitWorktree/gitOverview': (agentId: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleGitOverviewResponse>>>
+    'gitWorktree/gitGraph': (agentId: string, limit?: number, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleGitGraphResponse>>>
+    'gitWorktree/gitCreateBranch': (agentId: string, name: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>>
+    'gitWorktree/gitSwitchBranch': (agentId: string, branch: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>>
   }
 
   interface TypertRemoteNamespaceMap {

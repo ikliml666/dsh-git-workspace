@@ -52,7 +52,8 @@ tags:
   - `discard`（:689-712）`confirmDirty: true`。
 - 冲突/再生恢复入口：`startConflictRecovery`（:255-348）强制重读预检 → 核对冲突身份五元组（checkoutId/reviewId/revision/localHeadOid/conflictingFiles，:280-286）→ `adapter.resumeRevision` 带 conflictContinuation → 核验返回 target state working、revision+1、recoveryContinuation 精确匹配（:309-333）→ `enqueueWorktreeRecovery`；`startReviewRegeneration`（:350-412）走 blocked + stale_isolated → `prepareReviewRegeneration` → 入队。
 - 只读分析与交接：`analyzeRecovery`（:731-785）`preparePreviewRecoveryAnalysis` → 校验 continuation → openAuthorizedWorktreeTarget 回源会话 → 二次 inspect 核对 recoveryContinuation requestId/generation（:765-770）→ `binding.session.prompt([...], 'queue')` 下发只读分析指令；`handoffRecovery`（:787-846）`createPreviewRecoveryHandoff` → 校验 sourceCheckoutId 且 checkoutId 与当前不同 → openIsolatedTarget 切到新 owner 会话 → 二次 inspect → prompt 交接。
-- :1143-1175 恢复面板按钮（ask.agent.for.read.only.analysis / hand.off.to.a.new.worktree / ask.agent.to.resolve.conflicts）与活动恢复状态条（failed 可 Resend）；:1176 cleanup_pending/终态渲染 DeliveryProof；:1180-1182 错误条按 meta 渲染 error.category.*/error.recovery.* 翻译键。
+- :1143-1175 恢复面板按钮（ask.agent.for.read.only.analysis / hand.off.to.a.new.worktree / ask.agent.to.resolve.conflicts）与活动恢复状态条（failed 可 Resend）；:1180-1182 错误条按 meta 渲染 error.category.*/error.recovery.* 翻译键。
+- 交付后终态 dock（retained/cleanup_pending）：ReviewActions 接受 `proofVariant?: 'compact'`（:44/:85），DeliveryProof 以紧凑单行变体渲染（`.dsh-wt-delivery-proof-compact`），整卡只经「查看详情」弹窗展示；`:948` 的终态标题行由 `terminal && !renderStatus` 守卫（dock 场景由 TargetConsole 的 WorktreeReviewStatus 渲染紧凑 dock，避免重复标题）。dock 内 `.dsh-wt-review-actions` 为纵向 flex（flex:1 1 0 + min-width:0），`.dsh-wt-delivery-proof(-compact)` 限 min-width:0/max-width:100%——防止全卡 grid 的 max-content 撑爆横向 flex 行（此前把左侧文案挤成一字宽竖排）。关闭 dock 由 WorktreeReviewStatus 的 `dismissed {checkoutId, reviewId}` 身份失效实现（见 [[target-console]]）。
 
 ## 恢复请求持久队列（src/client/review-console/recovery-continuation.ts）
 

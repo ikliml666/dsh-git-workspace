@@ -52,6 +52,25 @@ export interface GitCheckoutSnapshot {
   headRef: string
 }
 
+/** One local branch in the header chip's branch overview (one spawn per refresh). */
+export interface BranchOverviewEntry {
+  name: string
+  oid: string
+  isCurrent: boolean
+  upstream: string | null
+}
+
+/** One parsed `git log` row for the commit graph (lanes are computed client-side). */
+export interface GraphLogCommit {
+  oid: string
+  parents: string[]
+  author: string
+  /** Author time in epoch seconds. */
+  authorTime: number
+  refs: string[]
+  subject: string
+}
+
 export interface InitialCommitPreflight {
   kind: 'ready' | 'empty' | 'files'
   fingerprint: string
@@ -101,6 +120,18 @@ export interface SessionCheckoutGitPort {
    * from disk (`git worktree prune`). Hygiene only; callers tolerate absence.
    */
   pruneWorktrees?(localRoot: string): Promise<void>
+  /**
+   * Local adaptation: branch overview for the header chip popover — every
+   * local branch with its tip, upstream, and the checkout marker, plus the
+   * dirty entry count. Two parallel spawns per refresh; null on git failure.
+   */
+  branchOverview?(root: string): Promise<{ branches: BranchOverviewEntry[]; dirtyCount: number } | null>
+  /** Local adaptation: one read-only page of the commit graph (topo-order, all refs). */
+  graphLog?(root: string, limit: number): Promise<GraphLogCommit[]>
+  /** Local adaptation: create a local branch at HEAD after `git check-ref-format`. */
+  createLocalBranch?(root: string, name: string): Promise<void>
+  /** Local adaptation: switch the local checkout to an existing local branch. */
+  switchLocalBranch?(root: string, branch: string): Promise<void>
 }
 
 export interface DirectoryIdentity {

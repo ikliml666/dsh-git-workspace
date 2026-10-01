@@ -11,6 +11,10 @@ import type {
   WorktreeConsoleDiscardRequest,
   WorktreeConsoleFinalizePreviewRequest,
   WorktreeConsoleFinalizeRequest,
+  WorktreeConsoleGitBranch,
+  WorktreeConsoleGitGraphResponse,
+  WorktreeConsoleGitMutationResponse,
+  WorktreeConsoleGitOverviewResponse,
   WorktreeConsoleInspectRequest,
   WorktreeConsoleInspectResponse,
   WorktreeConsoleListRequest,
@@ -383,6 +387,31 @@ export function createWorktreeConsoleAdapterFixture(stateful = false): WorktreeC
         commitOid: null,
         capabilities: { ...target.capabilities, preflight: false, preview: false, resumeRevision: false, finalize: false, beginNextIteration: false },
       } })
+    },
+    async gitOverview(sessionId: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitOverviewResponse>> {
+      record('gitOverview', sessionId)
+      const branches: WorktreeConsoleGitBranch[] = target.currentBranch
+        ? [{ name: target.currentBranch, oid: target.currentOid, isCurrent: true, upstream: null }, { name: 'main', oid: 'a'.repeat(40), isCurrent: false, upstream: 'origin/main' }]
+        : [{ name: 'main', oid: 'a'.repeat(40), isCurrent: true, upstream: 'origin/main' }]
+      return outcome({
+        root: target.sourceRoot ?? '/fixture/project',
+        branch: target.currentBranch,
+        headOid: target.currentOid,
+        branches,
+        dirtyCount: target.dirty ? 1 : 0,
+      })
+    },
+    async gitGraph(sessionId: string, limit?: number): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitGraphResponse>> {
+      record('gitGraph', { sessionId, limit })
+      return outcome({ root: target.sourceRoot ?? '/fixture/project', branch: target.currentBranch, commits: [] })
+    },
+    async gitCreateBranch(sessionId: string, name: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>> {
+      record('gitCreateBranch', { sessionId, name })
+      return outcome({ branch: name })
+    },
+    async gitSwitchBranch(sessionId: string, branch: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>> {
+      record('gitSwitchBranch', { sessionId, branch })
+      return outcome({ branch })
     },
   }
 

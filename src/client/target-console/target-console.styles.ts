@@ -154,4 +154,29 @@ export const TARGET_CONSOLE_STYLES = String.raw`
 .dsh-wtc-console-head[data-embedded] { justify-content:flex-end; }
 .dsh-wtc-task-name { min-width:0; overflow-wrap:anywhere; font-weight:500; }
 .dsh-wtc-facts .dsh-wtc-checkout-id { font-size:11px; overflow-wrap:anywhere; }
+.dsh-wtc-target-branch { min-width:0; max-width:220px; overflow:hidden; text-overflow:ellipsis; }
+.dsh-wtc-branches-title { display:flex; align-items:center; gap:6px; font-size:10px; font-weight:720; letter-spacing:.08em; text-transform:uppercase; color:color-mix(in srgb, currentColor 55%, transparent); }
+.dsh-wtc-branches-dirty { font-weight:560; letter-spacing:0; text-transform:none; color:color-mix(in srgb, #c47a1c 82%, currentColor); }
+.dsh-wtc-branches-more { font-size:11px; color:color-mix(in srgb, currentColor 55%, transparent); }
+.dsh-wtc-branch-item { display:inline-flex; align-items:center; gap:6px; min-width:0; max-width:340px; overflow:hidden; text-overflow:ellipsis; font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px; }
+.dsh-wtc-branch-item[data-branch-current] { font-weight:700; }
+.dsh-wtc-branch-session { flex:0 0 auto; padding:1px 5px; border-radius:999px; background:color-mix(in srgb, #2f6fd0 14%, transparent); color:#2f6fd0; font-family:inherit; font-size:10px; font-weight:650; }
+.dsh-wtc-branch-upstream { flex:0 0 auto; color:color-mix(in srgb, currentColor 52%, transparent); font-family:inherit; font-size:10px; }
+.dsh-wtc-create-branch { display:grid; gap:8px; }
+.dsh-wtc-create-branch-input { min-height:32px; border:1px solid color-mix(in srgb, currentColor 22%, transparent); border-radius:8px; padding:6px 10px; background:transparent; color:inherit; font:inherit; font-size:13px; }
+.dsh-wtc-create-branch-input:focus-visible { outline:2px solid #5b8fe8; outline-offset:1px; }
+.dsh-wtc-graph { display:grid; gap:2px; max-height:min(64vh, 620px); overflow:auto; font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px; }
+.dsh-wtc-graph-row { display:flex; align-items:baseline; gap:8px; min-width:0; padding:2px 4px; border-radius:6px; }
+.dsh-wtc-graph-row:hover { background:color-mix(in srgb, currentColor 5%, transparent); }
+.dsh-wtc-graph-oid { flex:0 0 auto; color:color-mix(in srgb, currentColor 55%, transparent); }
+.dsh-wtc-graph-lanes { flex:0 0 auto; display:inline-flex; align-items:center; justify-content:center; width:64px; overflow:hidden; letter-spacing:1px; white-space:pre; }
+.dsh-wtc-graph-lanes [data-gitgraph-glyph="pass"] { opacity:.45; }
+.dsh-wtc-graph-lanes [data-gitgraph-glyph="merge"] { font-size:10px; }
+.dsh-wtc-graph-main { min-width:0; display:grid; gap:2px; font-family:inherit; }
+.dsh-wtc-graph-subject { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:system-ui, sans-serif; font-weight:560; }
+.dsh-wtc-graph-meta { display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; color:color-mix(in srgb, currentColor 55%, transparent); font-family:system-ui, sans-serif; font-size:11px; }
+.dsh-wtc-graph-ref { padding:1px 6px; border-radius:999px; background:color-mix(in srgb, currentColor 9%, transparent); font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:10px; }
+.dsh-wtc-graph-ref[data-gitgraph-ref-current] { background:color-mix(in srgb, #2f6fd0 16%, transparent); color:#2f6fd0; font-weight:650; }
+.dsh-wtc-graph-empty { padding:26px 14px; color:color-mix(in srgb, currentColor 55%, transparent); text-align:center; font-family:system-ui, sans-serif; }
+.dsh-wtc-graph-footer { display:flex; justify-content:center; gap:8px; }
 `

@@ -12,6 +12,9 @@ import {
   type WorktreeConsolePreflightResponse,
   type WorktreeConsolePreviewRecoveryPreflightResponse,
   type WorktreeConsoleReviewDiffResponse,
+  type WorktreeConsoleGitGraphResponse,
+  type WorktreeConsoleGitMutationResponse,
+  type WorktreeConsoleGitOverviewResponse,
   type WorktreeClientBootReport,
   type WorktreeSidebarTopologyResponse,
 } from '../console-contract.js'
@@ -363,3 +366,33 @@ export const reviewDiffResponseSchema: z.ZodType<WorktreeConsoleReviewDiffRespon
   files: z.array(diffFileSchema).max(200),
   truncated: z.boolean(),
 })
+
+const gitBranchSchema = strict({
+  name: branchNameSchema,
+  oid: gitOidSchema,
+  isCurrent: booleanSchema,
+  upstream: z.string().min(1).max(300).nullable(),
+})
+export const gitOverviewResponseSchema: z.ZodType<WorktreeConsoleGitOverviewResponse> = strict({
+  root: z.string().min(1),
+  branch: z.string().min(1).max(300).nullable(),
+  headOid: z.union([gitOidSchema, z.literal('unborn')]),
+  branches: z.array(gitBranchSchema).max(2000),
+  dirtyCount: z.number().int().nonnegative(),
+})
+export const gitGraphResponseSchema: z.ZodType<WorktreeConsoleGitGraphResponse> = strict({
+  root: z.string().min(1),
+  branch: z.string().min(1).max(300).nullable(),
+  commits: z.array(strict({
+    oid: gitOidSchema,
+    parents: z.array(gitOidSchema).max(32),
+    author: z.string().max(300),
+    authorTime: z.number().int().nonnegative(),
+    refs: z.array(z.string().min(1).max(300)).max(50),
+    subject: z.string().max(2000),
+  })).max(1000),
+})
+export const gitMutationResponseSchema: z.ZodType<WorktreeConsoleGitMutationResponse> = strict({
+  branch: z.string().min(1).max(300),
+})
+export const gitGraphLimitSchema = z.number().int().min(1).max(1000).optional()

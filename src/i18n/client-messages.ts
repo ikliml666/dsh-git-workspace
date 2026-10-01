@@ -6,6 +6,7 @@ export const clientMessages = {
   "manager.task.id": {"zh":"任务标识","en":"Task ID"},
   "detail.title": {"zh": "验收详情", "en": "Review details"},
   "detail.close": {"zh": "关闭验收详情", "en": "Close review details"},
+  "dock.dismiss": {"zh": "收起交付状态（新一轮验收会重新出现）", "en": "Dismiss delivery status (reappears for the next review)"},
   "detail.passed": {"zh": "验证通过", "en": "Passed"},
   "detail.failed": {"zh": "验证失败", "en": "Failed"},
   "detail.partial": {"zh": "部分验证完成", "en": "Partially validated"},
@@ -1116,6 +1117,74 @@ export const clientMessages = {
   "manage.linked.worktrees": {
     "zh": "管理关联 Worktrees",
     "en": "Manage linked Worktrees"
+  },
+  "branch.list.title": {
+    "zh": "本地分支",
+    "en": "Local branches"
+  },
+  "branch.list.more": {
+    "zh": "还有 {p0} 个分支未显示",
+    "en": "{p0} more branches not shown"
+  },
+  "branch.dirty.hint": {
+    "zh": "（{p0} 处未提交改动）",
+    "en": "({p0} uncommitted changes)"
+  },
+  "branch.session.badge": {
+    "zh": "当前会话",
+    "en": "session"
+  },
+  "branch.create.title": {
+    "zh": "新建分支",
+    "en": "Create branch"
+  },
+  "branch.create.description": {
+    "zh": "基于当前 HEAD 创建新的本地分支。",
+    "en": "Create a new local branch from the current HEAD."
+  },
+  "branch.create.placeholder": {
+    "zh": "分支名，例如 feat/my-feature",
+    "en": "Branch name, e.g. feat/my-feature"
+  },
+  "branch.create.invalid": {
+    "zh": "分支名不合法",
+    "en": "Invalid branch name"
+  },
+  "branch.create.confirm": {
+    "zh": "创建",
+    "en": "Create"
+  },
+  "commit.graph.title": {
+    "zh": "查看提交图",
+    "en": "View commit graph"
+  },
+  "commit.graph.empty": {
+    "zh": "没有提交记录",
+    "en": "No commits found"
+  },
+  "commit.graph.loading": {
+    "zh": "正在加载提交图…",
+    "en": "Loading commit graph…"
+  },
+  "commit.graph.more": {
+    "zh": "加载更多（已显示 {p0} 条）",
+    "en": "Load more ({p0} shown)"
+  },
+  "time.just.now": {
+    "zh": "刚刚",
+    "en": "just now"
+  },
+  "time.minutes.ago": {
+    "zh": "{p0} 分钟前",
+    "en": "{p0} min ago"
+  },
+  "time.hours.ago": {
+    "zh": "{p0} 小时前",
+    "en": "{p0} h ago"
+  },
+  "time.days.ago": {
+    "zh": "{p0} 天前",
+    "en": "{p0} d ago"
   },
   "discard.task.and.clean.up.worktree": {
     "zh": "放弃任务并清理 Worktree",

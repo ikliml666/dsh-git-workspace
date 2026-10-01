@@ -88,7 +88,9 @@ export const REVIEW_CONSOLE_STYLES = String.raw`
 .dsh-wt-review-dock-copy { order:-1; order:-1; display:grid; min-width:0; flex:1; gap:1px; }
 .dsh-wt-review-dock-copy strong { font-weight:500; overflow-wrap:anywhere; }
 .dsh-wt-review-dock-copy span { color:var(--wt-muted); font-size:12px; }
-.dsh-wt-review-dock .dsh-wt-review-actions { min-width:0; max-width:100%; padding:0; }
+.dsh-wt-review-dock .dsh-wt-review-actions { display:flex; flex-direction:column; align-items:stretch; flex:1 1 0; min-width:0; max-width:100%; padding:0; }
+.dsh-wt-review-dock .dsh-wt-delivery-proof,
+.dsh-wt-review-dock .dsh-wt-delivery-proof-compact { min-width:0; max-width:100%; }
 .dsh-wt-action-status:empty { min-height:0; margin-top:0; }
 .dsh-wt-action-status:empty { min-height:0; margin-top:0; }
 .dsh-wt-review-dock .dsh-wt-action-status:empty { display:none; }

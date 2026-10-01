@@ -135,12 +135,12 @@ afterEach(() => cleanup())
 
 describe('Harness-native Session Target slots', () => {
   test.each([
-    ['local', 'Local'],
-    ['working', '修改中'],
-    ['ready_for_review', '待验收'],
-    ['preview_active', 'Local 验收中'],
-    ['preview_detached', '预览待恢复'],
-    ['recovery_required', '需要恢复'],
+    ['local', 'Worktree · Local'],
+    ['working', 'Worktree · 修改中'],
+    ['ready_for_review', 'Worktree · 待验收'],
+    ['preview_active', 'Worktree · Local 验收中'],
+    ['preview_detached', 'Worktree · 预览待恢复'],
+    ['recovery_required', 'Worktree · 需要恢复'],
   ] as const)('projects the server %s state in the Header capsule', async (state, label) => {
     const fixture = createWorktreeConsoleAdapterFixture()
     fixture.adapter.current = vi.fn(async () => ({
@@ -167,8 +167,8 @@ describe('Harness-native Session Target slots', () => {
     const Header = entry!.component
     render(<Header sessionId="session-from-slot-props" />)
     expect(screen.getByText('加载中…')).toBeTruthy()
-    await waitFor(() => expect(screen.getByText('Local')).toBeTruthy())
-    const status = screen.getByRole('button', { name: 'Session Target：Local' })
+    await waitFor(() => expect(screen.getByText('main')).toBeTruthy())
+    const status = screen.getByRole('button', { name: 'Session Target：main' })
     expect(status.tagName).toBe('BUTTON')
     expect(status.getAttribute('title')).toBe('Session Target 与关联 Worktrees')
     expect(fixture.adapter.current).toHaveBeenCalledWith({ sessionId: 'session-from-slot-props' })

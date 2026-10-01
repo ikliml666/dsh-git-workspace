@@ -42,6 +42,8 @@ const METHODS = [
   'clientBootReport',
   'current',
   'list',
+  'gitOverview',
+  'gitGraph',
   'preflightCreate',
   'createWithInitialCommit',
   'create',
@@ -63,6 +65,8 @@ const METHODS = [
   'setRetention',
   'retryCleanup',
   'beginNextIteration',
+  'gitCreateBranch',
+  'gitSwitchBranch',
 ]
 
 describe('manual strict Worktree Console Remote contribution', () => {

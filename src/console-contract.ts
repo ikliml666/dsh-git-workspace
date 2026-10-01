@@ -409,6 +409,44 @@ export interface WorktreeConsoleReviewDiffResponse {
   truncated: boolean
 }
 
+/** Read-only branch overview behind the header chip's branch popover. */
+export interface WorktreeConsoleGitBranch {
+  name: string
+  oid: string
+  isCurrent: boolean
+  upstream: string | null
+}
+
+export interface WorktreeConsoleGitOverviewResponse {
+  root: string
+  branch: string | null
+  headOid: string
+  branches: WorktreeConsoleGitBranch[]
+  dirtyCount: number
+}
+
+/** One `git log` row of the commit graph (lane topology is computed client-side). */
+export interface WorktreeConsoleGitGraphCommit {
+  oid: string
+  parents: string[]
+  author: string
+  /** Author time in epoch seconds. */
+  authorTime: number
+  refs: string[]
+  subject: string
+}
+
+export interface WorktreeConsoleGitGraphResponse {
+  root: string
+  branch: string | null
+  commits: WorktreeConsoleGitGraphCommit[]
+}
+
+export interface WorktreeConsoleGitMutationResponse {
+  /** The branch that was created or switched to. */
+  branch: string
+}
+
 export const WORKTREE_CONSOLE_ERROR_CODES = [
   ...SESSION_CHECKOUT_ERROR_CODES,
   'transport_unavailable',
@@ -570,4 +608,8 @@ export interface WorktreeConsoleAdapter {
   setRetention(request: WorktreeConsoleSetRetentionRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   retryCleanup(request: WorktreeConsoleRetryCleanupRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   beginNextIteration(request: WorktreeConsoleBeginNextIterationRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
+  gitOverview(sessionId: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitOverviewResponse>>
+  gitGraph(sessionId: string, limit?: number): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitGraphResponse>>
+  gitCreateBranch(sessionId: string, name: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>
+  gitSwitchBranch(sessionId: string, branch: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>
 }

@@ -12,6 +12,9 @@ import type {
   WorktreeConsoleDiscardRequest,
   WorktreeConsoleFinalizePreviewRequest,
   WorktreeConsoleFinalizeRequest,
+  WorktreeConsoleGitGraphResponse,
+  WorktreeConsoleGitMutationResponse,
+  WorktreeConsoleGitOverviewResponse,
   WorktreeConsoleInspectResponse,
   WorktreeConsoleListRequest,
   WorktreeConsoleListResponse,
@@ -84,6 +87,10 @@ export interface WorktreeConsoleControlPlane {
   setRetention(request: WorktreeConsoleSetRetentionRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   retryCleanup(request: WorktreeConsoleRetryCleanupRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   beginNextIteration(request: WorktreeConsoleBeginNextIterationRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
+  gitOverview(sessionId: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitOverviewResponse>>
+  gitGraph(sessionId: string, limit?: number): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitGraphResponse>>
+  gitCreateBranch(sessionId: string, name: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>
+  gitSwitchBranch(sessionId: string, branch: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>
 }
 
 function recordOf(registry: SessionCheckoutRegistryPort, checkoutId: string): ManagedCheckoutRecord {
@@ -452,6 +459,23 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
     }
     return project
   }
+
+  /**
+   * Resolve the calling session's project repo (the local root, never a
+   * managed worktree): the branch chip's git surface is repo-wide and must
+   * stay independent of which worktree the session happens to occupy.
+   */
+  async function projectRootFor(sessionId: string): Promise<{ root: string; snapshot: GitCheckoutSnapshot }> {
+    const session = options.lookup.getSession(sessionId)
+    if (session === undefined) throw domainError('session_not_found', hostMessage('theCurrentSessionDoesNotExist'))
+    if (session.projectId === undefined) throw domainError('project_not_found', hostMessage('theCurrentSessionIsNotAssociatedWithAProject'))
+    const project = options.lookup.getProject(session.projectId)
+    if (project === undefined) throw domainError('project_not_found', hostMessage('theCurrentSessionSProjectDoesNotExist'))
+    if (!options.files.exists(project.root)) throw domainError('project_root_missing', hostMessage('theCurrentSessionSProjectDirectoryDoesNotExist'))
+    const snapshot = await options.git.inspect(project.root)
+    if (snapshot === null) throw domainError('not_git_repository', hostMessage('theCurrentSessionSProjectIsNotAnAvailable'))
+    return { root: project.root, snapshot }
+  }
   async function withCreation<T>(sessionId: string, action: (project: Awaited<ReturnType<typeof localProject>>) => Promise<T>): Promise<T> {
     const sessionKey = `session:${sessionId}`
     if (creating.has(sessionKey)) throw domainError('operation_not_allowed', hostMessage('initialRepositoryBusy'))
@@ -557,6 +581,52 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
       return {
         target: await details(sessionId, target.checkout.id, deliveryProofFromTarget(target), target),
       }
+    }),
+
+    gitOverview: sessionId => outcome(async () => {
+      const { root, snapshot } = await projectRootFor(sessionId)
+      const overview = options.git.branchOverview
+        ? await options.git.branchOverview(root)
+        : null
+      if (overview === null) throw domainError('git_error', hostMessage('gitOperationFailedGit', { p0: 'for-each-ref', p1: '' }))
+      return {
+        root,
+        branch: snapshot.branch,
+        headOid: snapshot.headOid,
+        branches: overview.branches,
+        dirtyCount: overview.dirtyCount,
+      }
+    }),
+
+    gitGraph: (sessionId, limit) => outcome(async () => {
+      const { root, snapshot } = await projectRootFor(sessionId)
+      if (options.git.graphLog === undefined) throw domainError('git_error', hostMessage('gitOperationFailedGit', { p0: 'log', p1: '' }))
+      const commits = await options.git.graphLog(root, limit ?? 200)
+      return { root, branch: snapshot.branch, commits }
+    }),
+
+    gitCreateBranch: (sessionId, name) => outcome(async () => {
+      const { root } = await projectRootFor(sessionId)
+      if (options.git.createLocalBranch === undefined) throw domainError('git_error', hostMessage('gitOperationFailedGit', { p0: 'branch', p1: name }))
+      await options.git.createLocalBranch(root, name)
+      return { branch: name }
+    }),
+
+    gitSwitchBranch: (sessionId, branch) => outcome(async () => {
+      const { root } = await projectRootFor(sessionId)
+      // Switching the local root re-bases every future apply-to-local; refuse
+      // while this session holds an acceptance slot mid-delivery on that repo.
+      const delivering = Object.values(options.registry.read().managedCheckouts).some(record =>
+        record.ownerSessionId === sessionId
+        && (record.phase === 'recovery_required'
+          || (record.phase === 'ready'
+            && (record.delivery.state === 'ready_for_review'
+              || record.delivery.state === 'preview_active'
+              || record.delivery.state === 'preview_detached'))))
+      if (delivering) throw domainError('operation_not_allowed', hostMessage('localBranchSwitchBlockedDuringDelivery'))
+      if (options.git.switchLocalBranch === undefined) throw domainError('git_error', hostMessage('gitOperationFailedGit', { p0: 'switch', p1: branch }))
+      await options.git.switchLocalBranch(root, branch)
+      return { branch }
     }),
 
     list: request => outcome(async () => {

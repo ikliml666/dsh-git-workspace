@@ -1409,6 +1409,10 @@ export const hostMessages = {
     "zh": "Git 操作失败: git {p0}{p1}",
     "en": "Git operation failed: git {p0}{p1}"
   },
+  "localBranchSwitchBlockedDuringDelivery": {
+    "zh": "本会话正在验收 Worktree 交付，暂不能切换本地分支",
+    "en": "This session has a Worktree delivery under review; the local branch cannot be switched right now."
+  },
   "invalidInternalGitArtifactName": {
     "zh": "内部 Git artifact 名称无效",
     "en": "Invalid internal Git artifact name."

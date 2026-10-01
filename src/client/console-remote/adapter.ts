@@ -7,6 +7,9 @@ import type {
   WorktreeConsoleCreateResponse,
   WorktreeConsoleCreatePreflightResponse,
   WorktreeConsoleCurrentResponse,
+  WorktreeConsoleGitGraphResponse,
+  WorktreeConsoleGitMutationResponse,
+  WorktreeConsoleGitOverviewResponse,
   WorktreeConsoleInspectResponse,
   WorktreeConsoleListResponse,
   WorktreeConsoleMutationResponse,
@@ -49,6 +52,7 @@ const SLOW_TIMEOUT_MS = 180_000
 const FAST_METHODS = new Set([
   'sidebarTopology', 'current', 'list', 'inspect',
   'preflight', 'preflightCreate', 'previewRecoveryPreflight',
+  'gitOverview', 'gitGraph',
 ])
 
 function timeoutOutcome<T>(method: string, locale: Language, timeoutMs: number): WorktreeConsoleOutcome<T> {
@@ -125,5 +129,9 @@ export function createWorktreeConsoleRemoteAdapter(remote: GitWorktreeRemote, ge
     setRetention: request => invoke<WorktreeConsoleMutationResponse>('setRetention', locale => remote.setRetention(request.sessionId, request.checkoutId, request.expectedRevision, request.retention, locale)),
     retryCleanup: request => invoke<WorktreeConsoleMutationResponse>('retryCleanup', locale => remote.retryCleanup(request.sessionId, request.checkoutId, request.expectedRevision, locale)),
     beginNextIteration: request => invoke<WorktreeConsoleMutationResponse>('beginNextIteration', locale => remote.beginNextIteration(request.sessionId, request.checkoutId, request.expectedRevision, locale)),
+    gitOverview: sessionId => invoke<WorktreeConsoleGitOverviewResponse>('gitOverview', locale => remote.gitOverview(sessionId, locale)),
+    gitGraph: (sessionId, limit) => invoke<WorktreeConsoleGitGraphResponse>('gitGraph', locale => remote.gitGraph(sessionId, limit, locale)),
+    gitCreateBranch: (sessionId, name) => invoke<WorktreeConsoleGitMutationResponse>('gitCreateBranch', locale => remote.gitCreateBranch(sessionId, name, locale)),
+    gitSwitchBranch: (sessionId, branch) => invoke<WorktreeConsoleGitMutationResponse>('gitSwitchBranch', locale => remote.gitSwitchBranch(sessionId, branch, locale)),
   }
 }
