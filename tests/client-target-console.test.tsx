@@ -572,8 +572,8 @@ describe('Worktree Console loading and inspection', () => {
       error: { code: 'project_mismatch', message: 'The target belongs to another project.' },
     }))
     renderConsole(failed.adapter)
-    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('project_mismatch'))
-    expect(screen.getByRole('alert').textContent).toContain('当前 Session')
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('The target belongs to another project'))
+    expect(screen.getByRole('alert').textContent).toContain('（权限；恢复方式：无）')
   })
 
   test('keeps Manager rows focused on navigation and lifecycle actions without duplicate inspect/review controls', async () => {
@@ -1089,7 +1089,7 @@ describe('Worktree Console guarded mutations', () => {
     const row = await screen.findByRole('listitem')
     fireEvent.click(within(row).getByRole('button', { name: '放弃 checkout-1' }))
 
-    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('stale_target'))
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Target revision changed.（状态已变化；恢复方式：刷新）'))
     await waitFor(() => expect(fixture.adapter.list).toHaveBeenCalledTimes(2))
     expect(fixture.adapter.discard).toHaveBeenCalledTimes(1)
   })
@@ -1277,4 +1277,18 @@ test('管理弹窗只保留一个标题，以任务摘要为主、标识为辅',
   expect(row.querySelector('.dsh-wtc-facts .dsh-wtc-checkout-id')?.textContent).toBe('checkout-1')
   expect(within(row).getByText('打开工作目录')).toBeTruthy()
   expect(within(row).getByText('放弃任务')).toBeTruthy()
+})
+
+test('列表过滤开关把 needsAttention/includeDelivered 传给 list 适配器', async () => {
+  const fixture = createWorktreeConsoleAdapterFixture()
+  const local = localTarget()
+  fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { target: local } }))
+  fixture.adapter.list = vi.fn(async () => ({ ok: true, value: { project: local.project, worktrees: [] } }))
+  renderConsole(fixture.adapter)
+
+  await waitFor(() => expect(fixture.adapter.list).toHaveBeenCalledWith({ sessionId: 'source-session' }))
+  fireEvent.click(screen.getByRole('checkbox', { name: '只看需要关注' }))
+  await waitFor(() => expect(fixture.adapter.list).toHaveBeenCalledWith({ sessionId: 'source-session', needsAttention: true }))
+  fireEvent.click(screen.getByRole('checkbox', { name: '包含已交付' }))
+  await waitFor(() => expect(fixture.adapter.list).toHaveBeenCalledWith({ sessionId: 'source-session', needsAttention: true, includeDelivered: true }))
 })

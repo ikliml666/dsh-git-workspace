@@ -1367,6 +1367,14 @@ export const clientMessages = {
     "zh": "恢复中…",
     "en": "Restoring…"
   },
+  "filter.attention.only": {
+    "zh": "只看需要关注",
+    "en": "Attention only"
+  },
+  "filter.include.delivered": {
+    "zh": "包含已交付",
+    "en": "Include delivered"
+  },
   "abandoned.restored.to.branch": {
     "zh": "已恢复到本地分支 {branch}",
     "en": "Restored to local branch {branch}"

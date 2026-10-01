@@ -4,12 +4,13 @@ type: decision
 source_files:
   - "src/adapters/initial-commit.ts"
   - "src/console-host/control-plane.ts"
-  - "src/client/pre-session/PreSessionWorktreeToggle.tsx"
 tags:
   - design
   - non-git
   - onboarding
 ---
+
+> 2026-10-01 更新：作为入口 UI 的预会话开关（src/client/pre-session/，含 PreSessionWorktreeToggle）已整体移除，创建入口收敛到会话 Header 的 Worktree Manager 与 `/worktree` 命令。init + 首次提交的能力链（src/adapters/initial-commit.ts:101 `initializeProject` → control-plane `initProject` → 客户端 adapter `initializeProject`）保留，当前暂无客户端调用方，供未来入口复用。本文其余内容为当时的决策记录。
 
 ## 背景
 

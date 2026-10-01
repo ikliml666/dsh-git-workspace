@@ -30,7 +30,7 @@ tags:
 
 ## 会话导航编排（src/client/actions.ts）
 
-浏览器侧对 Harness Workspace/Session 运行时面孔的编排层，pre-session 与评审恢复同样复用：
+浏览器侧对 Harness Workspace/Session 运行时面孔的编排层，评审恢复同样复用：
 
 - `samePath`（src/client/actions.ts:102-109）：统一斜杠与尾斜杠后比较，任一路径带 Windows 盘符则大小写不敏感。
 - `navigateToSession`（:112-119）：优先 `uiWorkspace.openSession`（导航的 UI 所有者），退化 `sessions.open`，两者皆无则抛 `t('harness.session.navigation.unavailable')`——拒绝静默丢失目标选择。

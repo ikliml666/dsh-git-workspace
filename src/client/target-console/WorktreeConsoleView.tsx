@@ -50,14 +50,11 @@ interface ConsoleSnapshot {
 
 function errorText(error: WorktreeConsoleError, t: ClientTranslator = defaultClientTranslator): string {
   const meta = worktreeConsoleErrorMeta(error.code)
-  const next = {
-    refresh: t("refresh.to.read.the.latest.host.state"),
-    confirm_dirty: t("explicitly.confirm.the.dirty.worktree.and.retry"),
-    open_recovery: t("read.recovery.information.before.trying.again"),
-    retry: t("retry.after.the.temporary.failure.clears"),
-    none: t("the.current.session.is.not.authorized.to.perform"),
-  }[meta.recovery]
-  return `${error.code}: ${error.message} ${next}`
+  return t("error.detail", {
+    message: error.message,
+    category: t(`error.category.${meta.category}`),
+    recovery: t(`error.recovery.${meta.recovery}`),
+  })
 }
 
 function retentionLabel(retention: NonNullable<WorktreeConsoleTargetSummary['retention']>, t: ClientTranslator = defaultClientTranslator): string {
@@ -115,6 +112,8 @@ export function WorktreeConsoleView({
   const [confirmTarget, setConfirmTarget] = useState<WorktreeConsoleTargetSummary | null>(null)
   const [createBranch, setCreateBranch] = useState('')
   const [knownBranches, setKnownBranches] = useState<string[] | null>(null)
+  const [needsAttentionOnly, setNeedsAttentionOnly] = useState(false)
+  const [includeDelivered, setIncludeDelivered] = useState(false)
   const confirmButton = useRef<HTMLButtonElement>(null)
   const visibleSnapshot = snapshot?.sessionId === sessionId ? snapshot : null
   const currentSourceBranch = visibleSnapshot?.current.sourceBranch ?? null
@@ -150,7 +149,7 @@ export function WorktreeConsoleView({
     try {
       const [current, list, abandonedOutcome] = await Promise.all([
         adapter.current({ sessionId }),
-        adapter.list({ sessionId }),
+        adapter.list({ sessionId, ...(needsAttentionOnly ? { needsAttention: true } : {}), ...(includeDelivered ? { includeDelivered: true } : {}) }),
         adapter.listAbandoned ? adapter.listAbandoned({ sessionId }) : Promise.resolve(null),
       ])
       if (!isActive(generation) || token !== request.current) return
@@ -172,7 +171,7 @@ export function WorktreeConsoleView({
     } finally {
       if (isActive(generation) && token === request.current) setLoading(false)
     }
-  }, [adapter, sessionId])
+  }, [adapter, sessionId, needsAttentionOnly, includeDelivered])
 
   // 轻量刷新：只拉恢复条（清理/放弃可能新增可恢复快照），不重跑 current+list。
   const refreshAbandoned = useCallback(async (): Promise<void> => {
@@ -501,7 +500,27 @@ export function WorktreeConsoleView({
                 <span className="dsh-wtc-label">{t("logical.links")}</span>
                 <h3>{visibleSnapshot.list.project.name}</h3>
               </div>
-              <span className="dsh-wtc-count">{visibleSnapshot.list.worktrees.length}</span>
+              <div className="dsh-wtc-list-filters">
+                <label className="dsh-wtc-list-filter">
+                  <input
+                    type="checkbox"
+                    checked={needsAttentionOnly}
+                    disabled={loading}
+                    onChange={event => { setNeedsAttentionOnly(event.target.checked) }}
+                  />
+                  {t("filter.attention.only")}
+                </label>
+                <label className="dsh-wtc-list-filter">
+                  <input
+                    type="checkbox"
+                    checked={includeDelivered}
+                    disabled={loading}
+                    onChange={event => { setIncludeDelivered(event.target.checked) }}
+                  />
+                  {t("filter.include.delivered")}
+                </label>
+                <span className="dsh-wtc-count">{visibleSnapshot.list.worktrees.length}</span>
+              </div>
             </div>
             {visibleSnapshot.list.worktrees.length === 0 ? (
               <div className="dsh-wtc-empty">{t("this.project.has.no.managed.worktrees.yet")}</div>

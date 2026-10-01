@@ -42,7 +42,7 @@ Client 侧是插件的浏览器运行时：把 Host 暴露的 Remote 服务适�
 
 ## 样式与 i18n
 
-- src/client/styles.ts:3 `WORKTREE_STYLES` 用 `String.raw` 聚合侧边栏徽章/卡片样式，并在 :143 插值 `REVIEW_CONSOLE_STYLES`；:145-148 是 pre-session/创建对话框按钮的晚期覆盖。
+- src/client/styles.ts:3 `WORKTREE_STYLES` 用 `String.raw` 聚合侧边栏徽章/卡片样式，并在 :132 插值 `REVIEW_CONSOLE_STYLES`；:134-135 是创建对话框按钮的晚期覆盖。
 - src/client/i18n.tsx:19-21 `readClientLanguage` 从 LocaleFace `snapshot.active` 归一语言（失败回退 `'zh'`）；:29-40 `ClientI18nProvider` 用 `useSyncExternalStore` 订阅语言变化；:49-51 `translatorForServices` 在调用时才解析语言（命令式路径不能吃模块加载时的快照）。
 - 词典与占位符插值基础在 src/i18n/core.ts（`createTranslator`/`normalizeLanguage`），client 文案集中在 src/i18n/client-messages.ts 与 src/i18n/transport-messages.ts 两份 zh/en 目录。
 
@@ -70,4 +70,4 @@ Client 侧是插件的浏览器运行时：把 Host 暴露的 Remote 服务适�
 
 ## 相关模块
 
-- 会话徽章/控制台/轮询见 [[target-console|Target Console]]；会话前开关见 [[pre-session-toggle|Pre-Session Toggle]]；评审与恢复见 [[review-console|Review Console]]。
+- 会话徽章/控制台/轮询见 [[target-console|Target Console]]；评审与恢复见 [[review-console|Review Console]]。

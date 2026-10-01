@@ -17,7 +17,6 @@
 - [[modules\client-boot|Client Boot 客户端入口与启动]]
 - [[modules\console-host|Console Host Control Plane]]
 - [[modules\host-overview|Host Entry and Registration Surface]]
-- [[modules\pre-session-toggle|Pre-Session Toggle 会话前隔离开关]]
 - [[modules\review-console|Review Console 评审操作与恢复]]
 - [[modules\session-checkout-apply|Session Checkout Apply Pipeline]]
 - [[modules\session-checkout-module|Session Checkout State Machine]]

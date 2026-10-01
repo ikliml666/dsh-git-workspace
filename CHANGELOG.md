@@ -10,6 +10,8 @@
 
 - i18n 引用键护栏测试（2026-10-01）：扫描 `src/` 断言 `t(...)` 与 `hostMessage(...)`/`hostRegistrationMessage(...)` 的字面键均存在于对应中英文目录，杜绝改键名漏改目录。
 
+- Worktree 面板列表过滤（2026-10-01）：逻辑链接列表头新增「只看需要关注」与「包含已交付」两个开关，接通 list 端点既有的 `needsAttention`/`includeDelivered` 服务端参数（此前契约与客户端适配器已支持、UI 未接入）；切换即重取，计数徽章随结果更新。
+
 - 会话 Target 胶囊分支化（融合 dsh-client-ui-git-graph 交互）：胶囊主标签优先显示本地仓库当前分支名（git-branch 图标 + chevron），无分支信息时回退 `Worktree · 状态`；面板新增本地分支列表（当前分支/会话分支置顶、最多 12 项、显示 upstream 与会话徽章）、新建本地分支（`check-ref-format` 预校验）与提交图弹窗（topo-order 泳道渲染、200 条起步/每次 +100 分页、请求乱序守卫）。宿主配套 4 个控制台端点：`gitOverview`/`gitGraph`（只读）与 `gitCreateBranch`/`gitSwitchBranch`（变更，均作用于本地仓库根）；owner 会话交付验收中途（ready_for_review/preview_active/preview_detached/recovery_required）拒绝切换本地分支（`localBranchSwitchBlockedDuringDelivery`），非验收期本地漂移由既有 stale_local 机制容错。
 - 分支概览读取性能：模块级 60s TTL 缓存 + 胶囊挂载预取 + 面板打开时 stale-while-revalidate，展开分支面板不再每次现拉 git（此前与 git-graph 原版一致为每次展开冷拉，Windows 冷 spawn 最坏 ~3.5s）。
 
@@ -28,6 +30,8 @@
 - 移除新会话 composer 的预会话 Worktree 开关（`conversation.input.left` 槽位，2026-10-01）：空白会话不再显示「Worktree」切换与草稿交接确认流程；Worktree 创建入口保留在会话 Header 的关联 Manager 与 `/worktree` 命令，恢复请求的草稿预填（`prefillSessionDraft`）不受影响。
 
 - Worktree 控制台客户端减负（2026-10-01）：创建/放弃/常驻/保留期变更成功后不再全量重拉三路 RPC（`applyMutation` 局部补丁即最终态），放弃改为只刷新「可恢复快照」区；切换本地分支改用乐观补丁直接呈现最终态，省去 invalidate+重取（少 4 次 spawn、不再闪旧值）；`list`/`preflight`/`preflightCreate` 等 20-25 次 spawn 的重方法从 30s 快超时挪入 180s 慢超时（Windows 冷 spawn 不再误报超时）。
+
+- Worktree 控制台错误条与评审控制台统一（2026-10-01）：错误提示改用 `error.detail` 模板（「{message}（{category}；恢复方式：{recovery}）」）与 `error.category.*`/`error.recovery.*` 翻译键，不再裸显机器错误码，两类控制台的错误呈现一致。
 
 - 宿主读取链路减 spawn（2026-10-01）：checkpoint 头不变量校验由 3n+1 次串行 git 改为两轮并行取证（语义与短路顺序不变）；`.worktreeinclude` 两次 `ls-files` 并行；内部 ref 清理由 1+N 次 `update-ref` 合并为单次 `update-ref --stdin`；交付评审 diff 由逐文件串行 numstat+patch（200 文件最坏 400 次 spawn）改为 8 个一批并行取数，payload 预算折叠顺序不变。
 

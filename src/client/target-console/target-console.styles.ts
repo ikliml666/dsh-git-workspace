@@ -98,6 +98,10 @@ export const TARGET_CONSOLE_STYLES = String.raw`
 .dsh-wtc-list-section { overflow: hidden; }
 .dsh-wtc-section-head { padding: 12px 14px; border-bottom: 1px solid var(--wtc-line); }
 .dsh-wtc-count { min-width: 26px; padding: 3px 7px; border-radius: 999px; background: var(--wtc-panel); color: var(--wtc-muted); text-align: center; font-size: 11px; }
+.dsh-wtc-section-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.dsh-wtc-list-filters { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.dsh-wtc-list-filter { display: inline-flex; align-items: center; gap: 5px; color: var(--wtc-muted); font-size: 12px; white-space: nowrap; cursor: pointer; }
+.dsh-wtc-list-filter input { accent-color: var(--wtc-blue); }
 .dsh-wtc-list { list-style: none; margin: 0; padding: 0; }
 .dsh-wtc-row { position: relative; gap: 14px; min-width: 0; padding: 12px 14px; border-bottom: 1px solid var(--wtc-line); }
 .dsh-wtc-row:last-child { border-bottom: 0; }
