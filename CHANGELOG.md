@@ -6,6 +6,10 @@
 
 ### Added
 
+- Worktree 面板行内保留期选择（2026-10-01）：`retain_24h`/`retain_3d`/`retain_manual` 直接在行内下拉切换（此前仅有契约、能力位与适配器方法，无 UI 入口）；恢复放弃快照后面板自动刷新列表。
+
+- i18n 引用键护栏测试（2026-10-01）：扫描 `src/` 断言 `t(...)` 与 `hostMessage(...)`/`hostRegistrationMessage(...)` 的字面键均存在于对应中英文目录，杜绝改键名漏改目录。
+
 - 会话 Target 胶囊分支化（融合 dsh-client-ui-git-graph 交互）：胶囊主标签优先显示本地仓库当前分支名（git-branch 图标 + chevron），无分支信息时回退 `Worktree · 状态`；面板新增本地分支列表（当前分支/会话分支置顶、最多 12 项、显示 upstream 与会话徽章）、新建本地分支（`check-ref-format` 预校验）与提交图弹窗（topo-order 泳道渲染、200 条起步/每次 +100 分页、请求乱序守卫）。宿主配套 4 个控制台端点：`gitOverview`/`gitGraph`（只读）与 `gitCreateBranch`/`gitSwitchBranch`（变更，均作用于本地仓库根）；owner 会话交付验收中途（ready_for_review/preview_active/preview_detached/recovery_required）拒绝切换本地分支（`localBranchSwitchBlockedDuringDelivery`），非验收期本地漂移由既有 stale_local 机制容错。
 - 分支概览读取性能：模块级 60s TTL 缓存 + 胶囊挂载预取 + 面板打开时 stale-while-revalidate，展开分支面板不再每次现拉 git（此前与 git-graph 原版一致为每次展开冷拉，Windows 冷 spawn 最坏 ~3.5s）。
 
@@ -20,6 +24,12 @@
 - 创建 Isolated Checkout 时支持仓库根 `.worktreeinclude` 清单（.gitignore 语法，与 Conductor/Codex 同语义）：仅复制「被 gitignore 且被清单匹配」的文件（如 `.env.local`、本地证书），tracked 文件永不复制。匹配交给 git 原生完成（`ls-files --others --ignored` 两次调用取交集，清单经 `--exclude-from` 注入，不受仓库 .gitignore 之外的 excludes 影响语义）；被 ignore 的 `AGENTS.override.md` 自动带入、符号链接跳过、已存在的目标文件不覆盖，逐文件失败仅告警不阻塞创建。
 
 ### Changed
+
+- 移除新会话 composer 的预会话 Worktree 开关（`conversation.input.left` 槽位，2026-10-01）：空白会话不再显示「Worktree」切换与草稿交接确认流程；Worktree 创建入口保留在会话 Header 的关联 Manager 与 `/worktree` 命令，恢复请求的草稿预填（`prefillSessionDraft`）不受影响。
+
+- Worktree 控制台客户端减负（2026-10-01）：创建/放弃/常驻/保留期变更成功后不再全量重拉三路 RPC（`applyMutation` 局部补丁即最终态），放弃改为只刷新「可恢复快照」区；切换本地分支改用乐观补丁直接呈现最终态，省去 invalidate+重取（少 4 次 spawn、不再闪旧值）；`list`/`preflight`/`preflightCreate` 等 20-25 次 spawn 的重方法从 30s 快超时挪入 180s 慢超时（Windows 冷 spawn 不再误报超时）。
+
+- 宿主读取链路减 spawn（2026-10-01）：checkpoint 头不变量校验由 3n+1 次串行 git 改为两轮并行取证（语义与短路顺序不变）；`.worktreeinclude` 两次 `ls-files` 并行；内部 ref 清理由 1+N 次 `update-ref` 合并为单次 `update-ref --stdin`；交付评审 diff 由逐文件串行 numstat+patch（200 文件最坏 400 次 spawn）改为 8 个一批并行取数，payload 预算折叠顺序不变。
 
 - Worktree 面板读取链路减 spawn：`git.inspect` 的 4 次顺序 git 调用合并为 1 次 `rev-parse`（`symbolic-ref` 并行补分支；unborn/broken HEAD 与换行路径歧义保留原逐项回退）；Local inspect 与托管校验的 git 读取并行化（inspect ∥ status、双端 inspect 并行）；`list` 的逐记录观察合并为批量 `observeManagedCheckouts`（一次 binding lock 并行验证；宿主模块缺批量方法时回退逐条 observe）。
 - 预会话开关陈旧优先渲染（stale-while-revalidate）：上次已知目标按（适配器、会话）缓存，重进会话立即呈现并后台静默刷新，加载占位胶囊只在冷启动出现；静默刷新失败时保留陈旧界面不闪回错误态。
