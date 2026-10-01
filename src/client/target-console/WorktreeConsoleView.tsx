@@ -104,6 +104,7 @@ export function WorktreeConsoleView({
 
   const mounted = useRef(true)
   const request = useRef(0)
+  const abandonedRequest = useRef(0)
   const sessionGeneration = useRef(0)
   const [snapshot, setSnapshot] = useState<ConsoleSnapshot | null>(null)
   const [abandoned, setAbandoned] = useState<WorktreeConsoleAbandonedSnapshot[] | null>(null)
@@ -170,6 +171,20 @@ export function WorktreeConsoleView({
       }
     } finally {
       if (isActive(generation) && token === request.current) setLoading(false)
+    }
+  }, [adapter, sessionId])
+
+  // 轻量刷新：只拉恢复条（清理/放弃可能新增可恢复快照），不重跑 current+list。
+  const refreshAbandoned = useCallback(async (): Promise<void> => {
+    if (adapter.listAbandoned === undefined) return
+    const generation = sessionGeneration.current
+    const token = ++abandonedRequest.current
+    try {
+      const outcome = await adapter.listAbandoned({ sessionId })
+      if (!isActive(generation) || token !== abandonedRequest.current) return
+      setAbandoned(outcome.ok ? outcome.value.snapshots : [])
+    } catch {
+      // 恢复条是增强功能：加载失败不打断主面板。
     }
   }, [adapter, sessionId])
 
@@ -263,7 +278,6 @@ export function WorktreeConsoleView({
         },
       })
       onTargetChange?.()
-      void refresh()
     } catch (reason) {
       if (isActive(generation)) {
         setError(reason instanceof Error ? reason.message : String(reason))
@@ -319,7 +333,7 @@ export function WorktreeConsoleView({
         return
       }
       applyMutation(outcome.value, generation)
-      void refresh()
+      void refreshAbandoned()
     } catch (reason) {
       if (isActive(generation)) setError(reason instanceof Error ? reason.message : String(reason))
     } finally {
@@ -345,7 +359,26 @@ export function WorktreeConsoleView({
         return
       }
       applyMutation(outcome.value, generation)
-      void refresh()
+    } catch (reason) {
+      if (isActive(generation)) setError(reason instanceof Error ? reason.message : String(reason))
+    } finally {
+      if (isActive(generation)) setPendingAction(null)
+    }
+  }
+
+  const setRetentionMode = async (target: WorktreeConsoleTargetSummary, retention: NonNullable<WorktreeConsoleTargetSummary['retention']>): Promise<void> => {
+    if (pendingAction !== null || target.checkoutId === null || !target.capabilities.setRetention) return
+    const generation = sessionGeneration.current
+    setPendingAction(`retention:${target.checkoutId}`)
+    setError(null)
+    try {
+      const outcome = await adapter.setRetention({ sessionId, checkoutId: target.checkoutId, expectedRevision: target.revision, retention })
+      if (!isActive(generation)) return
+      if (!outcome.ok) {
+        mutationError(outcome.error.code, outcome.error.message, generation)
+        return
+      }
+      applyMutation(outcome.value, generation)
     } catch (reason) {
       if (isActive(generation)) setError(reason instanceof Error ? reason.message : String(reason))
     } finally {
@@ -367,6 +400,7 @@ export function WorktreeConsoleView({
       }
       setAbandoned(current => (current ?? []).filter(candidate => candidate.checkoutId !== row.checkoutId))
       invalidateBranchOverview(sessionId)
+      void refresh(false)
       setNotice(t("abandoned.restored.to.branch", { branch: outcome.value.branch }))
     } catch (reason) {
       if (isActive(generation)) setError(reason instanceof Error ? reason.message : String(reason))
@@ -493,7 +527,19 @@ export function WorktreeConsoleView({
                         <span>{t("iteration")} {t("count.iterations", { count: target.iteration })}</span>
                         {target.dirty ? <span>{t("uncommitted.changes")}</span> : <span>{t("clean")}</span>}
                         {(target.checkpoints?.length ?? 0) > 0 ? <span>{t("saved")} {target.checkpoints!.length} {t("undelivered.stages")}</span> : null}
-                        {target.retention ? <span>{t("retention")}{retentionLabel(target.retention, t)}</span> : null}
+                        {target.retention && target.capabilities.setRetention && target.checkoutId !== null ? (
+                          <select
+                            className="dsh-wtc-button dsh-wtc-branch-select"
+                            aria-label={t("retention.period")}
+                            value={target.retention}
+                            disabled={pendingAction !== null}
+                            onChange={event => { void setRetentionMode(target, event.target.value as NonNullable<WorktreeConsoleTargetSummary['retention']>) }}
+                          >
+                            {(['retain_24h', 'retain_3d', 'retain_manual'] as const).map(mode => (
+                              <option key={mode} value={mode}>{retentionLabel(mode, t)}</option>
+                            ))}
+                          </select>
+                        ) : target.retention ? <span>{t("retention")}{retentionLabel(target.retention, t)}</span> : null}
                         {target.expiresAt ? <span>{t("expires")}{new Date(target.expiresAt).toLocaleString(language === 'en' ? 'en-US' : 'zh-CN')}</span> : null}
                         {target.permanent ? <span className="dsh-wtc-relation">{t("permanent.pinned")}</span> : null}
                         {target.cleanupMessage ? <span className="dsh-wtc-recovery-message">{target.cleanupMessage}</span> : null}
