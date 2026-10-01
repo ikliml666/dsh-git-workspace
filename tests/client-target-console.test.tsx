@@ -542,7 +542,7 @@ describe('Harness-native Session Target slots', () => {
     expect(fixture.calls.some(call => call.method === 'previewRecoveryPreflight')).toBe(false)
   })
 
-  test('暂不注册 conversation.view，同时保留 Header 状态胶囊和验收 dock', () => {
+  test('暂不注册 conversation.view，同时保留 Header 状态胶囊、验收 dock 和空白会话 hero 胶囊', () => {
     const fixture = createWorktreeConsoleAdapterFixture()
     const slots = new SlotsDouble()
 
@@ -552,7 +552,39 @@ describe('Harness-native Session Target slots', () => {
     expect(slots.entries).toEqual(expect.arrayContaining([
       expect.objectContaining({ descriptor: expect.objectContaining({ name: 'conversation.session.header.actions', id: 'worktree-target' }) }),
       expect.objectContaining({ descriptor: expect.objectContaining({ name: 'conversation.input.dock', id: 'worktree-review-status' }) }),
+      expect.objectContaining({ descriptor: expect.objectContaining({ name: 'conversation.input.dock', id: 'worktree-hero-chip' }) }),
     ]))
+  })
+
+  test('空白会话 hero 行 portal 出 Session Target 胶囊；无 hero 行与非 blank 会话不渲染', async () => {
+    const fixture = createWorktreeConsoleAdapterFixture()
+    fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { target: localTarget() } }))
+    const slots = new SlotsDouble()
+    registerTargetConsole({ slots }, fixture.adapter, clientServices())
+
+    const entry = slots.entries.find(candidate => candidate.descriptor.id === 'worktree-hero-chip')
+    expect(entry?.descriptor).toMatchObject({ name: 'conversation.input.dock', id: 'worktree-hero-chip' })
+    const HeroChip = entry!.component
+
+    render(<HeroChip session={{ sessionId: 'blank-session' }} input={{}} />)
+    expect(screen.queryByRole('button', { name: 'Session Target：main' })).toBeNull()
+    expect(fixture.adapter.current).not.toHaveBeenCalled()
+
+    const heroRow = document.createElement('div')
+    heroRow.className = 'dsh-heroWorkspaceRow'
+    document.body.appendChild(heroRow)
+    try {
+      cleanup()
+      render(<HeroChip session={{ sessionId: 'blank-session', blank: true }} input={{}} />)
+      const chip = await screen.findByRole('button', { name: 'Session Target：main' })
+      expect(heroRow.contains(chip)).toBe(true)
+
+      cleanup()
+      render(<HeroChip session={{ sessionId: 'blank-session', blank: false }} input={{}} />)
+      expect(screen.queryByRole('button', { name: 'Session Target：main' })).toBeNull()
+    } finally {
+      heroRow.remove()
+    }
   })
 })
 

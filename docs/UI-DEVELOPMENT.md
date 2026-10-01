@@ -41,9 +41,8 @@ Remote mount 的 disposer 由 Client effect 管理。Workspace Sidebar 先注册
 | Slot | 用途 |
 | --- | --- |
 | `tool.call.toolview` | `worktree_create` 与 `worktree_ready_for_review` 的调用卡片 |
-| `conversation.input.left` | blank Local Session 的 Worktree 开关与确认流程 |
 | `conversation.session.header.actions` | Target 状态与关联 Manager 入口 |
-| `conversation.input.dock` | 当前 Worktree 的验收入口与操作 |
+| `conversation.input.dock` | 当前 Worktree 的验收入口与操作；空白会话时额外把 Target 胶囊 portal 进 hero 工作区行（「标准模式」旁） |
 
 当前不注册 `conversation.view` Worktree 页签。Manager 通过 Header 打开，不另建重复的常驻工作台。
 

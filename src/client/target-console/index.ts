@@ -2,6 +2,7 @@ import { createElement, type ComponentType } from 'react'
 import type { WorktreeConsoleAdapter } from '../../console-contract.js'
 import type { WorktreeClientServices } from '../actions.js'
 import { TargetStatusAction } from './TargetStatusAction.js'
+import { WorktreeHeroChip } from './WorktreeHeroChip.js'
 import { WorktreeReviewStatus } from './WorktreeReviewStatus.js'
 
 export interface TargetConsoleContextLike {
@@ -24,6 +25,8 @@ export function registerTargetConsole(
     createElement(TargetStatusAction, { sessionId, adapter, services })
   const ReviewStatus = ({ session }: { session: { sessionId: string } }) =>
     createElement(WorktreeReviewStatus, { session, adapter, services })
+  const HeroChip = ({ session, sessionId }: { session?: { sessionId?: string; blank?: boolean } | null; sessionId?: string }) =>
+    createElement(WorktreeHeroChip, { session, sessionId, adapter, services })
   ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register({
     name: 'conversation.session.header.actions',
     id: 'worktree-target',
@@ -35,9 +38,15 @@ export function registerTargetConsole(
     id: 'worktree-review-status',
     order: 10,
   }, ReviewStatus))
+  ctx.slots.inject('conversation.input.dock', () => ctx.slots.register({
+    name: 'conversation.input.dock',
+    id: 'worktree-hero-chip',
+    order: 20,
+  }, HeroChip))
 }
 
 export { TargetStatusAction } from './TargetStatusAction.js'
 export { WorktreeConsoleView } from './WorktreeConsoleView.js'
+export { WorktreeHeroChip } from './WorktreeHeroChip.js'
 export { WorktreeManagerModal } from './WorktreeManagerModal.js'
 export { WorktreeReviewStatus } from './WorktreeReviewStatus.js'

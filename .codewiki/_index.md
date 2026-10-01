@@ -11,6 +11,7 @@
 - [[learnings\web-rpc-transport-has-no-timeout|Web RPC 传输层全程无超时：一次『创建中…』永久卡死的根因]]
 - [[learnings\git-spawn-budget-list-latency|git spawn 预算与 list 延迟]]
 - [[learnings\host-rc-bump-breaks-exact-pin-peers|宿主 rc 升级会拒载精确钉版本的 dsh-* peer]]
+- [[learnings\platform-gated-tests-win32|平台门控测试：win32 上跳过的 4 个用例均为有意设计]]
 ## Module
 
 - [[modules\adapters|Adapter Layer]]

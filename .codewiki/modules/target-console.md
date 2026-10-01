@@ -5,6 +5,7 @@ source_files:
   - src/client/target-console/index.ts
   - src/client/target-console/TargetStatusAction.tsx
   - src/client/target-console/WorktreeConsoleView.tsx
+  - src/client/target-console/WorktreeHeroChip.tsx
   - src/client/target-console/WorktreeReviewStatus.tsx
   - src/client/target-console/WorktreeManagerModal.tsx
   - src/client/target-console/BranchGraphModal.tsx
@@ -26,7 +27,7 @@ tags:
 
 ## 槽位注册（src/client/target-console/index.ts）
 
-- src/client/target-console/index.ts:18-38 `registerTargetConsole` 注入两个槽位：`conversation.session.header.actions` 注册 `{id 'worktree-target', order 30}` → TargetStatusAction；`conversation.input.dock` 注册 `{id 'worktree-review-status', order 10}` → WorktreeReviewStatus。:40-43 再导出面板组件供 Manager Modal 复用。
+- src/client/target-console/index.ts:19-46 `registerTargetConsole` 注入两个槽位三条目：`conversation.session.header.actions` 注册 `{id 'worktree-target', order 30}` → TargetStatusAction；`conversation.input.dock` 注册 `{id 'worktree-review-status', order 10}` → WorktreeReviewStatus 与 `{id 'worktree-hero-chip', order 20}` → WorktreeHeroChip（空白会话，见下节）。:48-52 再导出面板组件供 Manager Modal 复用。
 
 ## 会话导航编排（src/client/actions.ts）
 
@@ -53,6 +54,12 @@ tags:
 - :49-54 渲染期失效：`activeSession.current !== sessionId` 时当场 bump `actionScope`，旧会话的异步回调一律作废；:66-85 effect 按 `[adapter, language, sessionId]` 重置全部状态后 `subscribeCurrent`。
 - 菜单动作全部先查 capabilities：reveal → `workspaces.openPath(managedRoot)`（:95-101）；openSource 用 openExistingSession 校验源会话 cwd（:103-109）；retryCleanup（:111-139）与 beginNextIteration（:141-163）成功后本地合并 `outcome.value.target`，`stale_target` 触发 `requestWorktreeReviewRefresh` 让各面板重读；discard（:165-197）恒传 `confirmDirty: true`，`preview_active || capabilities.rollbackPreview` 时带 `rollbackPreview: true`（:176-179），phase discarded 后把 managedRoot 置 null（:131、:189）。
 - :225-260 Menu 锚定在按钮 `.dsh-wtc-target-chip[data-target-state]`；:261-271 打开 WorktreeManagerModal；:272-287 清理确认 Modal 按 preview_active 切换"先安全回滚本地预览"与"永久丢弃"文案。
+
+## 空白会话 hero 胶囊（src/client/target-console/WorktreeHeroChip.tsx）
+
+- 新会话顶行「标准模式」旁的分支胶囊：挂 `conversation.input.dock`（`{id 'worktree-hero-chip', order 20}`），把 TargetStatusAction 原样 portal 进 hero 工作区行 `'[class*="heroWorkspaceRow"]'`（`isConnected` 守卫）——与 git-graph BranchChip 的 lift 模式一致；非空白会话（`session?.blank === false`）或找不到 hero 行时渲染 null。
+- src/client/target-console/WorktreeHeroChip.tsx `resolvePortalRenderer()` 模块级缓存懒取 react-dom：`typeof require === 'function'` 判定后经 factory 注入的 `require('react-dom')` 取 `createPortal`（兼容函数与 `{createPortal}` 两种形态），try/catch 兜底——宿主缺 react-dom 时只隐藏胶囊，不拖垮整包加载。
+- 空白会话的 `adapter.current` 命中 control-plane 的 callerTarget 兜底（target_unselected → unboundLocalTarget），返回 workspace local target，故胶囊显示 workspace 当前分支，菜单的分支切换/创建/提交图作用于 workspace cwd。
 
 ## 管理面板（src/client/target-console/WorktreeConsoleView.tsx）
 
