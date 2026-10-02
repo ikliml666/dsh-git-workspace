@@ -1,6 +1,6 @@
 import { ReviewIcon } from './review-console/ReviewIcon.js'
 import { useClientTranslator } from './i18n.js'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { openIsolatedTarget, type WorktreeClientServices } from './actions.js'
 import { parseCreateTool, type ToolCallViewPropsLike } from './model.js'
 
@@ -16,6 +16,11 @@ export function WorktreeCreateRow({ block, services }: Props) {
   const model = parseCreateTool(block, t)
   const [openState, setOpenState] = useState<OpenState>('idle')
   const [openError, setOpenError] = useState<string | null>(null)
+  const mounted = useRef(true)
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
   const payload = model.payload
   const state = model.lifecycle === 'running' ? 'running' : model.lifecycle === 'ok' ? 'ok' : 'error'
 
@@ -25,7 +30,9 @@ export function WorktreeCreateRow({ block, services }: Props) {
     setOpenError(null)
     try {
       await openIsolatedTarget(services, payload)
+      if (mounted.current) setOpenState('idle')
     } catch (error) {
+      if (!mounted.current) return
       setOpenState('error')
       setOpenError(error instanceof Error ? error.message : String(error))
     }

@@ -28,7 +28,7 @@ export interface TargetStatusActionProps {
 }
 
 const STATE_LABELS = (t: ClientTranslator = defaultClientTranslator) => ({
-  local: 'Local',
+  local: t("local.state"),
   creating: t("creating.2"),
   working: t("editing"),
   ready_for_review: t("ready.for.review"),
@@ -119,7 +119,7 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
   // Git-graph-style chip: the branch name is the primary label; the worktree
   // state only fills in when no branch is known (loading/error/detached).
   const branchLabel = target?.currentBranch?.trim() ? target.currentBranch : null
-  const triggerLabel = branchLabel ?? (target ? `Worktree · ${stateLabel}` : stateLabel)
+  const triggerLabel = branchLabel ?? (target ? t("worktree.state.prefix", { p0: stateLabel }) : stateLabel)
   const expiry = target?.state === 'retained' && target.expiresAt
     ? new Date(target.expiresAt).toLocaleDateString(language === 'en' ? 'en-US' : 'zh-CN')
     : null
@@ -297,7 +297,7 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
 
   const summary = target ? (
     <span className="dsh-wtc-menu-summary">
-      <strong>{branchLabel ?? `Worktree · ${stateLabel}`}</strong>
+      <strong>{branchLabel ?? t("worktree.state.prefix", { p0: stateLabel })}</strong>
       <span>{target.project.name}</span>
       <span>{t("source")} {shortOid(target.sourceOid)} {t("current")} {shortOid(target.currentOid)} {t("iteration.2")} {target.iteration}</span>
       {expiry ? <span>{t("retained.until")} {expiry}</span> : null}
@@ -417,7 +417,7 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
         onClose={() => setCleanupConfirmOpen(false)}
         title={t("discard.task.and.clean.up.worktree.2")}
         closeLabel={t("cancel.worktree.cleanup")}
-        description={target?.state === 'preview_active'
+        description={target?.state === 'preview_active' || target?.capabilities.rollbackPreview
           ? t("host.will.safely.roll.back.local.preview.first")
           : t("undelivered.worktree.changes.will.be.permanently.discarded.local.2")}
         footer={(

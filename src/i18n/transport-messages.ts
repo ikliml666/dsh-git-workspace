@@ -9,6 +9,10 @@ export const transportMessages = {
     zh: 'Worktree Console Remote namespace 挂载失败',
     en: 'Failed to mount the Worktree Console Remote namespace',
   },
+  workspaceGenerationUnknown: {
+    zh: '无法识别当前安装的 Host Workspace Client 形态',
+    en: 'Could not identify the installed Host Workspace generation',
+  },
   invokeTimeout: {
     zh: 'Remote {method} 在 {seconds} 秒内未返回响应，本次调用已中止。服务端操作可能仍在进行，可稍后重试或重启 dsh web。',
     en: 'Remote {method} returned no response within {seconds}s and the call was aborted. The server-side work may still be running; retry shortly or restart dsh web.',

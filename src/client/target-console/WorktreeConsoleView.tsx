@@ -30,7 +30,7 @@ export interface WorktreeConsoleViewProps {
 }
 
 const STATE_LABELS = (t: ClientTranslator = defaultClientTranslator) => ({
-  local: 'Local',
+  local: t("local.state"),
   creating: t("creating.2"),
   working: t("editing"),
   ready_for_review: t("ready.for.review"),
@@ -222,11 +222,12 @@ export function WorktreeConsoleView({
 
   const loadBranches = (): void => {
     if (knownBranches !== null || adapter.preflightCreate === undefined) return
+    const generation = sessionGeneration.current
     void adapter.preflightCreate({ sourceSessionId: sessionId }).then(outcome => {
-      if (!mounted.current) return
+      if (!isActive(generation)) return
       setKnownBranches(outcome.ok && outcome.value.kind === 'ready' ? outcome.value.branches ?? [] : [])
     }, () => {
-      if (mounted.current) setKnownBranches([])
+      if (isActive(generation)) setKnownBranches([])
     })
   }
 

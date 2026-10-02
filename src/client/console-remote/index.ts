@@ -73,11 +73,12 @@ export async function apply(ctx: ConsoleClientContext): Promise<void> {
   const elapsedTopologyMs = Date.now() - topologyStartedAt
   if (!topology.ok) {
     reportBoot('topology-failed', false, `${topology.error.code}: ${topology.error.message}`)
-    throw new Error('Could not identify the installed Host Workspace generation.')
+    throw new Error(createTranslator(transportMessages, getLanguage())('workspaceGenerationUnknown'))
   }
   const flavor = topology.value.workspaceClientFlavor
   if (flavor === 'legacy') {
-    if (typeof (ctx.get('sessions') as { open?: unknown }).open !== 'function') {
+    const sessions = ctx.get('sessions') as { open?: unknown } | undefined
+    if (typeof sessions?.open !== 'function') {
       reportBoot('legacy', false, 'sessions.open() unavailable')
       throw new Error('Legacy Workspace Browser requires sessions.open().')
     }

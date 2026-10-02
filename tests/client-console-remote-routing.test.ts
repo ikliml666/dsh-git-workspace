@@ -77,7 +77,7 @@ describe('one Host-pinned Browser provider per Client startup', () => {
     spies.topology.mockResolvedValueOnce({ ok: true, value: { projects: [], workspaceClientFlavor: 'legacy' } })
     await expect(apply(clientContext())).rejects.toThrow(/sessions\.open/u)
     spies.topology.mockResolvedValueOnce({ ok: false, error: { code: 'unavailable' } })
-    await expect(apply(clientContext())).rejects.toThrow(/identify/u)
+    await expect(apply(clientContext())).rejects.toThrow(/无法识别|identify/u)
     expect(spies.register).not.toHaveBeenCalled()
   })
 })

@@ -29,36 +29,7 @@ export const clientMessages = {
   "detail.revision": {"zh": "当前版本", "en": "Current revision"},
   "detail.commit": {"zh": "Worktree 提交", "en": "Worktree commit"},
   "detail.view": {"zh": "查看详情", "en": "View details"},
-  "detail.processing": {"zh": "正在处理，请稍候…", "en": "Processing, please wait…"},
 
-  "pre.session.initial.title": {
-    "zh": "需要创建初始版本",
-    "en": "An initial version is required"
-  },
-  "pre.session.initial.description": {
-    "zh": "当前仓库尚无提交。插件可以创建一个空的初始提交，作为独立工作目录的起点。不会提交你现有的文件。",
-    "en": "This repository has no commits yet. The plugin can create an empty initial commit as the starting point for an isolated working directory. Your existing files will not be committed."
-  },
-  "pre.session.files.description": {
-    "zh": "当前未提交的文件不会带入独立工作目录。可以先提交需要的文件，或使用本地目录开始任务。",
-    "en": "Uncommitted files will not be included in the isolated working directory. Commit the files you need first, or start the task in the local directory."
-  },
-  "pre.session.initial.confirm": {
-    "zh": "创建并继续",
-    "en": "Create and continue"
-  },
-  "pre.session.initial.unavailable": {
-    "zh": "当前连接不支持创建初始提交。请重试或使用本地目录。",
-    "en": "This connection does not support creating an initial commit. Retry or use the local directory."
-  },
-  "pre.session.initial.created.failure": {
-    "zh": "初始提交已创建并保留在本地仓库，但独立会话准备失败：{p0}",
-    "en": "The initial commit was created and remains in the local repository, but isolated session preparation failed: {p0}"
-  },
-  "pre.session.changed": {
-    "zh": "当前会话已切换，已停止准备独立工作目录。",
-    "en": "The current session changed. Isolated working directory preparation stopped."
-  },
   "500": {
     "zh": "/500",
     "en": "/500"
@@ -135,77 +106,9 @@ export const clientMessages = {
     "zh": "准备验收参数格式无效。",
     "en": "Malformed Ready for Review arguments."
   },
-  "the.draft.is.being.submitted.or.parsed.wait": {
-    "zh": "当前草稿正在提交或解析，请等待输入恢复后再创建 Worktree。",
-    "en": "The draft is being submitted or parsed. Wait for the input to become ready before creating a Worktree."
-  },
-  "the.draft.contains.unserialized.references.remove.the.reference": {
-    "zh": "草稿包含尚未序列化的引用，请先移除引用芯片或发送后再创建 Worktree。",
-    "en": "The draft contains unserialized references. Remove the reference chips or send the message before creating a Worktree."
-  },
-  "creating.isolated.worktree": {
-    "zh": "正在创建隔离 Worktree…",
-    "en": "Creating isolated Worktree…"
-  },
-  "harness.registered.the.managed.root.at.a.different": {
-    "zh": "Harness 将 managed root 注册到了不同路径：{p0}",
-    "en": "Harness registered the managed root at a different path: {p0}"
-  },
-  "harness.created.unexpected.session.expected.2": {
-    "zh": "Harness 创建了意外的 Session {p0}；预期 {p1}。",
-    "en": "Harness created unexpected Session {p0}; expected {p1}."
-  },
-  "the.target.session.was.created.but.harness.has": {
-    "zh": "目标 Session 已创建，但 Harness 尚未提供可迁移草稿的 Session binding。",
-    "en": "The target Session was created, but Harness has not provided a Session binding for moving the draft."
-  },
-  "the.local.draft.or.attachments.changed.after.confirmation": {
-    "zh": "确认后 Local 草稿或附件发生了变化，已取消迁移以避免覆盖新的输入。",
-    "en": "The Local draft or attachments changed after confirmation. Transfer was cancelled to avoid overwriting new input."
-  },
-  "the.target.session.is.temporarily.refusing.draft.attachments": {
-    "zh": "目标 Session 暂时拒绝接收草稿附件。",
-    "en": "The target Session is temporarily refusing draft attachments."
-  },
-  "the.worktree.was.persisted.but.automatic.rollback.failed": {
-    "zh": "{p0} Worktree 已持久化但自动回滚失败，请从 Worktree Console 打开 owner Session 继续恢复。",
-    "en": "{p0} The Worktree was persisted but automatic rollback failed. Open the owner Session from Worktree Console to recover."
-  },
-  "1.attachment": {
-    "zh": "1 个附件",
-    "en": "1 attachment"
-  },
-  "attachments": {
-    "zh": "{p0} 个附件",
-    "en": "{p0} attachments"
-  },
-  "the.current.input.and.will.move.to.the": {
-    "zh": "当前输入内容和 {p0}将移动到新的 Worktree 会话。",
-    "en": "The current input and {p0} will move to the new Worktree session."
-  },
-  "will.move.to.the.new.worktree.session": {
-    "zh": "{p0}将移动到新的 Worktree 会话。",
-    "en": "{p0} will move to the new Worktree session."
-  },
-  "the.current.input.will.move.to.the.new": {
-    "zh": "当前输入内容将移动到新的 Worktree 会话。",
-    "en": "The current input will move to the new Worktree session."
-  },
-  "a.new.worktree.session.will.be.created.the": {
-    "zh": "将创建新的 Worktree 会话；当前 Local 会话不会收到消息。",
-    "en": "A new Worktree session will be created; the current Local session will not receive a message."
-  },
   "creating": {
     "zh": "正在创建…",
     "en": "Creating…"
-  },
-  "created": {
-    "zh": "已创建",
-    "en": "Created"
-  },
-  "awaiting.confirmation": {
-    "zh": "待确认",
-    "en": "Awaiting confirmation"
   },
   "retry": {
     "zh": "重试",
@@ -215,10 +118,6 @@ export const clientMessages = {
     "zh": "Worktree",
     "en": "Worktree"
   },
-  "start.in.a.worktree": {
-    "zh": "在 Worktree 中开始？",
-    "en": "Start in a Worktree?"
-  },
   "close": {
     "zh": "关闭",
     "en": "Close"
@@ -226,14 +125,6 @@ export const clientMessages = {
   "cancel": {
     "zh": "取消",
     "en": "Cancel"
-  },
-  "create.and.switch": {
-    "zh": "创建并切换",
-    "en": "Create and switch"
-  },
-  "the.local.session.will.not.receive.this.message": {
-    "zh": "Local 会话不会收到这条消息；切换后请在新会话中使用原生发送按钮。",
-    "en": "The Local session will not receive this message. After switching, use the native Send button in the new session."
   },
   "validation.passed": {
     "zh": "验证通过",
@@ -303,10 +194,6 @@ export const clientMessages = {
     "zh": "文件",
     "en": "Files"
   },
-  "files.3": {
-    "zh": "个",
-    "en": " files"
-  },
   "validation": {
     "zh": "验证",
     "en": "Validation"
@@ -366,10 +253,6 @@ export const clientMessages = {
   "changes": {
     "zh": "变更",
     "en": "Changes"
-  },
-  "files.4": {
-    "zh": "个文件",
-    "en": " files"
   },
   "conflicting.files": {
     "zh": "冲突文件",
@@ -666,10 +549,6 @@ export const clientMessages = {
     "zh": "更多交付操作",
     "en": "More delivery actions"
   },
-  "symbol": {
-    "zh": "•••",
-    "en": "•••"
-  },
   "view.review": {
     "zh": "查看验收卡",
     "en": "View review"
@@ -733,14 +612,6 @@ export const clientMessages = {
   "stages.are.not.published.to.local": {
     "zh": "阶段不会发布到 Local",
     "en": "Stages are not published to Local"
-  },
-  "already.saved": {
-    "zh": "已有",
-    "en": "Already saved"
-  },
-  "stages.final.delivery.will.still.summarize.from.the": {
-    "zh": "个阶段；最终交付仍会从原始任务基线汇总为一个 Local Commit。",
-    "en": " stages; final delivery will still summarize from the original task baseline into one Local commit."
   },
   "checkpoint.commit.message": {
     "zh": "阶段提交说明",
@@ -914,17 +785,9 @@ export const clientMessages = {
     "zh": "正在处理 Worktree，请稍候…",
     "en": "Processing Worktree, please wait…"
   },
-  "symbol.2": {
-    "zh": "（",
-    "en": " ("
-  },
   "recovery": {
     "zh": "；恢复方式：",
     "en": "; recovery: "
-  },
-  "symbol.3": {
-    "zh": "）",
-    "en": ")"
   },
   "automated.validation.passed": {
     "zh": "自动验证通过",
@@ -966,10 +829,6 @@ export const clientMessages = {
     "zh": "Worktree 验收",
     "en": "Worktree review"
   },
-  "symbol.4": {
-    "zh": "✓",
-    "en": "✓"
-  },
   "branch": {
     "zh": "分支",
     "en": "branch"
@@ -986,41 +845,13 @@ export const clientMessages = {
     "zh": "从分支创建",
     "en": "Create from branch"
   },
-  "initialize.git.title": {
-    "zh": "初始化 Git 并启用 Worktree",
-    "en": "Initialize Git and enable Worktree"
-  },
-  "initialize.git.description": {
-    "zh": "该目录还没有可用的 Git 提交历史。将执行 git init（初始分支 main）、git add -A 并创建首次提交 \"Initial commit\"。操作只新增版本控制，不改动、不删除任何文件。",
-    "en": "This directory has no usable Git history yet. The host will run git init (initial branch main), git add -A, and create the initial commit \"Initial commit\". This only adds version control; no files are modified or deleted."
-  },
-  "initialize.git.confirm": {
-    "zh": "初始化并创建首次提交",
-    "en": "Initialize and create the initial commit"
-  },
-  "initialize.git.unsupported": {
-    "zh": "当前宿主不支持初始化 Git 仓库。",
-    "en": "This host cannot initialize a Git repository."
-  },
-  "initializing.git": {
-    "zh": "正在初始化…",
-    "en": "Initializing…"
-  },
   "iteration": {
     "zh": "第",
     "en": "Iteration "
   },
-  "is.ready.for.review": {
-    "zh": "轮修改已准备验收",
-    "en": " is ready for review"
-  },
   "saved": {
     "zh": "已保存",
     "en": "Saved"
-  },
-  "stages.not.published.to.local": {
-    "zh": "个阶段 · 尚未发布到 Local",
-    "en": " stages · Not published to Local"
   },
   "hide.validation.details": {
     "zh": "收起验证与版本详情",
@@ -1049,6 +880,14 @@ export const clientMessages = {
   "ready.for.review": {
     "zh": "待验收",
     "en": "Ready for review"
+  },
+  "local.state": {
+    "zh": "Local",
+    "en": "Local"
+  },
+  "worktree.state.prefix": {
+    "zh": "Worktree · {p0}",
+    "en": "Worktree · {p0}"
   },
   "reviewing.in.local": {
     "zh": "Local 验收中",
@@ -1194,10 +1033,6 @@ export const clientMessages = {
     "zh": "Session Target 与关联 Worktrees",
     "en": "Session Target and linked Worktrees"
   },
-  "worktree.2": {
-    "zh": "Worktree ·",
-    "en": "Worktree ·"
-  },
   "discard.task.and.clean.up.worktree.2": {
     "zh": "放弃任务并清理 Worktree？",
     "en": "Discard task and clean up Worktree?"
@@ -1218,26 +1053,6 @@ export const clientMessages = {
     "zh": "确认清理 Worktree",
     "en": "Confirm Worktree cleanup"
   },
-  "refresh.to.read.the.latest.host.state": {
-    "zh": "请刷新以读取最新 Host 状态。",
-    "en": "Refresh to read the latest Host state."
-  },
-  "explicitly.confirm.the.dirty.worktree.and.retry": {
-    "zh": "请明确确认脏 Worktree 后重试。",
-    "en": "Explicitly confirm the dirty Worktree and retry."
-  },
-  "read.recovery.information.before.trying.again": {
-    "zh": "再次操作前请先查看恢复信息。",
-    "en": "Read recovery information before trying again."
-  },
-  "retry.after.the.temporary.failure.clears": {
-    "zh": "临时故障消失后可以重试。",
-    "en": "Retry after the temporary failure clears."
-  },
-  "the.current.session.is.not.authorized.to.perform": {
-    "zh": "当前 Session 无权完成此操作。",
-    "en": "The current Session is not authorized to perform this operation."
-  },
   "host.returned.a.target.belonging.to.another.source": {
     "zh": "Host 返回了属于其他 source Session 的目标。",
     "en": "Host returned a target belonging to another source Session."
@@ -1257,10 +1072,6 @@ export const clientMessages = {
   "worktree.console": {
     "zh": "Worktree 控制台",
     "en": "Worktree Console"
-  },
-  "session.target": {
-    "zh": "会话目标",
-    "en": "SESSION TARGET"
   },
   "linked.worktrees": {"zh": "Worktree 管理", "en": "Worktree manager"},
   "refreshing": {
@@ -1288,10 +1099,6 @@ export const clientMessages = {
   "linked.task": {
     "zh": "关联任务",
     "en": "Linked task"
-  },
-  "iterations": {
-    "zh": "轮",
-    "en": " iterations"
   },
   "uncommitted.changes": {
     "zh": "有未提交修改",
@@ -1441,18 +1248,6 @@ export const clientMessages = {
     "zh": "恢复请求发送失败：{p0}",
     "en": "Recovery request failed: {p0}"
   },
-  "next.worktree.iteration": {
-    "zh": "Worktree 下一轮",
-    "en": "Next Worktree iteration"
-  },
-  "this.iteration.is.delivered.continue.the.next.iteration": {
-    "zh": "本轮已交付，可在原会话继续下一轮修改",
-    "en": "This iteration is delivered. Continue the next iteration in the same session."
-  },
-  "safely.recreate.the.cleaned.worktree.path.while.preserving": {
-    "zh": "将安全重建已清理的 Worktree 路径，并保留当前对话。",
-    "en": "Safely recreate the cleaned Worktree path while preserving the current conversation."
-  },
   "start.next.iteration": {
     "zh": "开始下一轮修改",
     "en": "Start next iteration"
@@ -1496,14 +1291,6 @@ export const clientMessages = {
   "automatic.rollback.will.recheck.conflicts.no.writes.if": {
     "zh": "自动撤回会重新检查冲突；无法证明安全时不会写入。",
     "en": "Automatic rollback will recheck conflicts; no writes if safety cannot be verified."
-  },
-  "files.5": {
-    "zh": "{p0} 个文件 · {p1}",
-    "en": "{p0} files · {p1}"
-  },
-  "please.check.validation.results": {
-    "zh": "请检查验证结果",
-    "en": "Please check validation results"
   },
   "worktree.ready.for.review": {
     "zh": "Worktree 待验收",
@@ -1581,14 +1368,6 @@ export const clientMessages = {
     "zh": "会话尚未选择 Session Target",
     "en": "No Session Target has been selected"
   },
-  "live.worktree.console.unavailable": {
-    "zh": "实时 Worktree Console 不可用：{p0}",
-    "en": "Live Worktree Console unavailable: {p0}"
-  },
-  "connecting.to.live.worktree.console.historical.review.evidence": {
-    "zh": "正在连接实时 Worktree Console；历史验收证据仍可查看。",
-    "en": "Connecting to live Worktree Console; historical review evidence remains available."
-  },
   "freezing.the.review.snapshot": {
     "zh": "正在冻结验收快照…",
     "en": "Freezing the review snapshot…"
@@ -1598,12 +1377,10 @@ export const clientMessages = {
     "en": "Review information unavailable"
   },
 "count.files": {"zh":"{count} 个文件","en":"{count} files"},
-"count.attachments": {"zh":"{count} 个附件","en":"{count} attachments"},
 "review.iteration.ready": {"zh":"第 {iteration} 轮修改已准备验收","en":"Iteration {iteration} is ready for review"},
 "review.identity": {"zh":"验收 {reviewId} · r{revision}","en":"Review {reviewId} · r{revision}"},
 "session.target.label": {"zh":"Session Target：{target}","en":"Session Target: {target}"},
 "count.iterations": {"zh":"{count} 轮","en":"{count} iterations"},
-"count.undelivered.stages": {"zh":"{count} 个未交付阶段","en":"{count} undelivered stages"},
 "count.saved.stages": {"zh":"已保存 {count} 个阶段 · 尚未发布到 Local","en":"{count} stages saved · Not published to Local"},
 "checkpoint.summary": {"zh":"已有 {count} 个阶段；最终交付仍会从原始任务基线汇总为一个 Local Commit。","en":"{count} stages saved; final delivery will summarize from the original task baseline into one Local commit."},
 "detached.head": {"zh":"游离 HEAD","en":"Detached HEAD"},

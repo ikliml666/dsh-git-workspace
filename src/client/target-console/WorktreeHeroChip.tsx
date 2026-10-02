@@ -50,7 +50,25 @@ export function WorktreeHeroChip({ session, sessionId, adapter, services }: Work
   const [heroRow, setHeroRow] = useState<HTMLElement | null>(null)
   const targetSessionId = sessionId ?? session?.sessionId ?? null
   useEffect(() => {
-    setHeroRow(targetSessionId === null ? null : findHeroWorkspaceRow())
+    if (targetSessionId === null) {
+      setHeroRow(null)
+      return
+    }
+    setHeroRow(findHeroWorkspaceRow())
+    // ponytail: poll for a late-mounted hero row (blank shell renders it after
+    // us); MutationObserver would be the zero-latency upgrade if 10s misses.
+    let tries = 0
+    const timer = window.setInterval(() => {
+      const row = findHeroWorkspaceRow()
+      if (row !== null) {
+        setHeroRow(row)
+        window.clearInterval(timer)
+        return
+      }
+      tries += 1
+      if (tries >= 40) window.clearInterval(timer)
+    }, 250)
+    return () => { window.clearInterval(timer) }
   }, [targetSessionId])
   const renderPortal = resolvePortalRenderer()
   if (targetSessionId === null || heroRow === null || renderPortal === null || session?.blank === false) return null

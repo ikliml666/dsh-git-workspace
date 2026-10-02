@@ -1120,7 +1120,7 @@ export function ReviewActions({
               <ReviewIcon name="refresh" />{t("check.again")} </button>
           </div>
           <p>{t("detached.is.a.delivery.recovery.state.not.git")}</p>
-          <ReviewIcon name="refresh" />{recoveryPreflight.status === 'loading' ? <p>{t("checking.local.head.index.working.tree.retained.artifacts")}</p> : null}
+          {recoveryPreflight.status === 'loading' ? <p>{t("checking.local.head.index.working.tree.retained.artifacts")}</p> : null}
           {recoveryPreflight.status === 'error' ? <p className="dsh-wt-error">{recoveryPreflight.error.message}</p> : null}
           {recoveryPreflight.status === 'success' && recoveryPreflight.preflight.status === 'blocked' ? (
             <p className="dsh-wt-error">{recoveryPreflight.preflight.message}</p>

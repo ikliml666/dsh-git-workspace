@@ -99,12 +99,6 @@ export function WorktreeReviewRow({ block, sessionId, adapter }: Props) {
         expectedReviewId: payload.reviewId,
       }
     : undefined
-  const unavailableMessage = liveError
-    ? t("live.worktree.console.unavailable", { p0: liveError })
-    : adapter && sessionId
-      ? t("connecting.to.live.worktree.console.historical.review.evidence")
-      : t("live.worktree.console.is.disconnected.review.actions.will")
-
   return (
     <section className="dsh-wt-card" data-tool="worktree_ready_for_review" data-state={state} aria-label={t("worktree.ready.for.review")}>
       {review ? (
