@@ -15,6 +15,7 @@ describe('Host-pinned Workspace generation', () => {
     expect(workspaceClientFlavorForAgentVersion('0.1.2-rc.1')).toBe('legacy')
     expect(workspaceClientFlavorForAgentVersion('0.1.6-alpha.2')).toBe('alpha')
     expect(workspaceClientFlavorForAgentVersion('0.1.7-rc.2')).toBe('next')
+    expect(workspaceClientFlavorForAgentVersion('0.2.0-rc.2')).toBe('modern')
     expect(workspaceClientFlavorForAgentVersion('0.1.7-rc.3')).toBe('unsupported')
     expect(workspaceClientFlavorForAgentVersion(undefined)).toBe('unsupported')
   })

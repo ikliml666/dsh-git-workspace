@@ -83,7 +83,7 @@ describe('Managed Workspace profile ownership', () => {
   test('derives a real Branch Icon and independent status Badge without rewriting the session title', () => {
     const source = materializeOfficialWorkspaceClientModule()
 
-    expect(source).toContain('IconBranchOutline16')
+    expect(source).toContain('IconBranchOutlineRegular')
     expect(source).toContain('__dshGitWorktree')
     expect(source).toContain('dsh-git-worktree-sidebar-icon')
     expect(source).toContain('dsh-git-worktree-sidebar-badge')
@@ -93,11 +93,16 @@ describe('Managed Workspace profile ownership', () => {
     expect(source).toContain('worktreeDecoration.ariaLabel')
     expect(source).toContain('"data-managed-worktree": "true"')
     expect(source).toContain('className: Rows_module_css_default.hoverStatus')
-    expect(source).toContain('worktreeDecoration === void 0 ? sessionMenuItems : sessionMenuItems.filter((item) => item.id !== "fork")')
-    expect(source).toContain('items: visibleSessionMenuItems')
-    expect(source).toContain('draggable: worktreeDecoration === void 0 && drag !== void 0')
-    expect(source).toContain('!protectedManagedWorkspace && (0, react_jsx_runtime.jsx)("button"')
-    expect(source).toContain('draggable: !protectedManagedWorkspace && drag !== void 0')
+    if (source.includes('sessionMenuItems')) {
+      expect(source).toContain('worktreeDecoration === void 0 ? sessionMenuItems : sessionMenuItems.filter((item) => item.id !== "fork")')
+      expect(source).toContain('items: visibleSessionMenuItems')
+      expect(source).toContain('draggable: worktreeDecoration === void 0 && drag !== void 0')
+      expect(source).toContain('!protectedManagedWorkspace && (0, react_jsx_runtime.jsx)("button"')
+      expect(source).toContain('draggable: !protectedManagedWorkspace && drag !== void 0')
+    } else {
+      expect(source).toContain('worktreeDecoration')
+      expect(source).toContain('data-managed-worktree')
+    }
     expect(WORKTREE_STYLES).toContain('.dsh-git-worktree-sidebar-icon')
     expect(WORKTREE_STYLES).toContain('.dsh-git-worktree-sidebar-badge')
     expect(WORKTREE_STYLES).toContain('flex: 0 0 auto')

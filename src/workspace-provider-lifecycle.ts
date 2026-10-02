@@ -12,6 +12,17 @@ declare module '@deepseek-ai/cordis' {
 const OFFICIAL_WORKSPACE = '@deepseek-ai/dsh-client-ui-workspace'
 // Cordis exposes FiberState as a declaration-only const enum, not a JS export.
 const UNLOADING: FiberState = 5
+// One Loader election operation that has not settled by this ceiling stops
+// blocking the chain: plugin activation must never depend on the Host's
+// concurrent entry startup unwinding first (a wedged official-fiber dispose
+// would otherwise starve every Remote, tool, and command mount).
+const DEFAULT_OPERATION_TIMEOUT_MS = 10_000
+
+/** Tuning seams for {@link mountWorkspaceProviderLifecycle} (tests). */
+export interface WorkspaceProviderLifecycleOptions {
+  /** Ceiling for a single Loader disable/restore operation in milliseconds. */
+  operationTimeoutMs?: number
+}
 
 /** Outcome of the provider election, consumed by the Sidebar topology response. */
 export interface WorkspaceProviderLifecycleResult {
@@ -25,11 +36,20 @@ export interface WorkspaceProviderLifecycleResult {
  * by plugin name; a change to the replacement alone does not re-elect Workspace.
  * Restarting the official entry through Loader operations publishes real module
  * events without saving any disabled flag or changing the user's profile.
+ *
+ * Election never blocks (or fails) plugin activation: Host boots start entries
+ * concurrently, so the official entry's disable may race a fiber that is still
+ * starting, and Loader versions differ in how such a dispose settles. Each
+ * operation therefore races a ceiling; a wedged one is reported once and the
+ * entry stays guarded until the real operation settles, while the next Loader
+ * event retries the election. The disabled expression itself already keeps any
+ * not-yet-started official entry out of the Web module graph, so the Web side
+ * never observes two `uiWorkspace` providers from a slow reconciliation.
  */
 export async function mountWorkspaceProviderLifecycle(
   ctx: Context,
   flavor: WorkspaceClientFlavor = hostWorkspaceClientFlavor(),
-  options: { enabled?: boolean } = {},
+  options: WorkspaceProviderLifecycleOptions & { enabled?: boolean } = {},
 ): Promise<WorkspaceProviderLifecycleResult> {
   // Local adaptation: taking over the official Workspace is strictly opt-in.
   // Unless explicitly enabled, the service is never provided, so the bundled
@@ -43,6 +63,7 @@ export async function mountWorkspaceProviderLifecycle(
     ctx.logger.warn('No pinned Workspace Browser for this Host generation; leaving the official Workspace provider active.')
     return { officialWorkspaceActive: true }
   }
+  const operationTimeoutMs = options.operationTimeoutMs ?? DEFAULT_OPERATION_TIMEOUT_MS
   const loader = ctx.loader
   const owned = (): Entry[] => [...loader.entries()].filter(entry => {
     const disabled = entry.options.disabled as unknown
@@ -52,14 +73,58 @@ export async function mountWorkspaceProviderLifecycle(
   })
   let released = false
   let pending = Promise.resolve()
+  // Entries whose real Loader operation is still in flight (possibly past the
+  // ceiling). Later reconciles skip them until the operation itself settles,
+  // which keeps at most one Loader mutation per entry alive at any time.
+  const inFlight = new Set<string>()
+  const operate = (entry: Entry, kind: 'disable' | 'restore'): Promise<void> => new Promise(resolve => {
+    const key = entry.id
+    const label = kind === 'disable' ? 'official Workspace disable' : 'official Workspace restore'
+    let operation: Promise<unknown>
+    try {
+      operation = kind === 'disable' ? entry.update({}, false, true) : entry.refresh()
+    } catch (error) {
+      ctx.logger.warn(`dsh-git-worktree: ${label} threw during Loader reconciliation`, error)
+      resolve()
+      return
+    }
+    const settle = (): void => { inFlight.delete(key) }
+    inFlight.add(key)
+    void operation.then(settle, settle)
+    const timer = setTimeout(() => {
+      ctx.logger.warn(
+        `dsh-git-worktree: ${label} did not settle within ${String(operationTimeoutMs)}ms; `
+        + 'plugin activation continues and election retries on the next Loader event.',
+      )
+      resolve()
+    }, operationTimeoutMs)
+    timer.unref?.()
+    void operation.then(
+      () => { clearTimeout(timer); settle(); resolve() },
+      error => {
+        clearTimeout(timer)
+        settle()
+        ctx.logger.warn(`dsh-git-worktree: ${label} failed during Loader reconciliation`, error)
+        resolve()
+      },
+    )
+  })
   const reconcile = (): Promise<void> => {
     pending = pending.then(async () => {
       if (released) return
       for (const entry of owned()) {
-        if (entry.disabled) {
-          if (!released) await entry.update({}, false, true)
+        if (inFlight.has(entry.id)) continue
+        let disabled: boolean
+        try {
+          disabled = entry.disabled
+        } catch (error) {
+          ctx.logger.warn('dsh-git-worktree: could not evaluate the official Workspace disabled expression', error)
+          continue
+        }
+        if (disabled) {
+          if (!released) await operate(entry, 'disable')
         } else {
-          await entry.refresh()
+          await operate(entry, 'restore')
         }
       }
     })
@@ -88,6 +153,9 @@ export async function mountWorkspaceProviderLifecycle(
       void reconcile().catch(error => ctx.logger.warn(error))
     }
   })
+  // Local adaptation: the first pass settles before activation returns so the
+  // Sidebar topology reports a truthful outcome. The opt-in gate above makes
+  // this a no-op by default, and every Loader operation is ceiling-bounded.
   await reconcile()
   return { officialWorkspaceActive: false }
 }

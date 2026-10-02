@@ -29,6 +29,8 @@
 
 ### Changed
 
+- 合并上游 0.10.0（2026-10-02）：收入 DSH 0.2.0-rc.2 适配、Workspace Provider 生命周期非阻塞化（10s 上限+在途防重入）、strict codec `modern` flavor、`remote.directoryPicker` 注入过滤、Typert/Skill locator 等上游改进；本地适配全部保留（Workspace 接管严格 opt-in、依赖宽区间、autoDeliver/autoPush/worktreesRoot），本地版本记为 `0.10.0-local.1`。
+
 - 死代码与缓存收敛（2026-10-02）：审查报告 ponytail 清理项落地——删除 client i18n 死键 60 个（zh/en 成对，动态拼键的 `error.*` 19 个键保留）、`onTimingEvent` 测试管线、`flavorFromAnchors`（锚点解析注释迁移至仍存活的 `workspaceFlavorDiagnostics`）与 host 死键 `initialHasFiles`；preflight-cache 与 preview-recovery-cache 两个同构缓存收敛为 `createRequestCache` 工厂（新增 `src/client/review-console/request-cache.ts`：按 adapter WeakMap 分桶、identity 串共享、单飞 in-flight、generation 防旧响应回写；两文件缩为薄封装，对外导出名与签名不变，消费者零改动；实测无 TTL 语义，未引入）。i18n 引用护栏与既有缓存测试全绿守护（570 通过）。
 
 - 提交图弹窗重绘为 GitHub 风格 SVG 泳道（2026-10-02）：`computeGraphLanes` 由逐行字形快照改为输出边几何（泳道列 + 行内 0/0.5/1 纵向锚点），渲染改为每行内联 SVG——相邻行线段首尾相接，跨行连线无缝，分支开出与汇入画三次贝塞尔曲线，节点为泳道配色圆点（合并提交不再用 ◆）；行高固定 36px、行距归零，元信息行不再换行。新增 `tests/branch-graph-lanes.test.ts` 锁泳道拓扑（线性/分支汇合/根提交）。
@@ -99,6 +101,19 @@
 
 - 默认配置下（`enableWorkspaceProvider: false`）官方 Workspace 保持启用，Worktree 模型工具与命令照常可用；此前依赖插件自动接管官方 Workspace 的用户需显式设置 `enableWorkspaceProvider: true` 并重启。
 - `gitTimeoutMs`/`worktreeAddTimeoutMs` 沿用上游 `0.9.3` 的 120s/300s 默认值（上游 #7 已修复），本地未再调整。
+
+## [0.10.0] - 2026-09-30
+
+`0.10.0` 适配 DSH `0.2.0-rc.2`，修复桌面端插件安装时因旧版 peerDependencies 声明而被拒绝的问题，并同步更新新版 Workspace、Typert、Skill 和 Client 运行时接口；同时修复新版 Host 的 Web 启动死锁、strict codec 世代判定与派生 seam 失配。
+
+### Fixed
+- 宿主端插件启动不再被 Workspace Provider 选举阻塞：`WorktreeConsoleService`、工具、命令和 Session Target 上下文先行挂载，Provider 生命周期移到最后并以非阻塞方式执行；对 Loader 禁用/恢复官方 `ui-workspace` 条目的单次操作增加 10 秒上限与在途防重入，卡住时告警并等待下一个 Loader 事件重试，避免新版 cordis-plugin-loader 并发启动下 `entry.update()` → `fiber.dispose()` 互等导致 `remote.gitWorktree` RPC 处理器永远无法就位。新增真实 Loader 时序回归测试覆盖「官方禁用操作永不返回时宿主 apply 仍完成」与「延迟生效的禁用最终落地且不产生双 Provider」。
+- 修复 0.2.0 Web 启动死锁：入口 inject 过滤 `remote.directoryPicker`（其提供者条目等待 `uiWorkspace`，原样继承官方完整列表会形成三方循环等待，插件卡 loading、12 条目 pending）；目录选择器改在托管上下文中延迟解析，调用时才读取真实服务。
+- `sidebarTopologyResponseSchema` 补充 `modern` flavor，修复 strict codec 拒绝 Host 世代判定导致无法识别已安装的 Workspace 生成。
+- 对齐 0.2.0 Workspace 派生 seam：`protectedManagedWorkspace` 定义、托管行 drag 与 new-session 抑制修正 needle，修复渲染抛 `ReferenceError` 后 slot 错误边界将整个会话列表替换为空死格；托管行徽章图标改用 `IconBranchOutlineRegular`（0.2.0 primitives 移除尺寸后缀变体）。新增 `WT_DEBUG_SEAMS=1` 派生 seam 审计开关。
+- 将 DSH Host/Client 依赖、插件兼容声明和发布版本切换到 `0.2.0-rc.2`。
+- 支持 DSH 0.2 的现代 Workspace Browser、懒加载 Typert codec 和 Skill locator，同时保留旧 codec 字段的运行时兼容。
+- 更新 DSH 0.2 客户端构建、侧边栏兼容门禁和回归测试。
 
 ## [0.9.3] - 2026-09-25
 

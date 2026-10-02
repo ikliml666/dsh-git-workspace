@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 import { createRequire } from 'node:module'
 import { randomUUID } from 'node:crypto'
 import { readFileSync, rmSync } from 'node:fs'
@@ -315,7 +317,7 @@ describe('manual strict Worktree Console Remote contribution', () => {
     const ctx = new Context()
     await ctx.plugin(TypertRegistry)
     const topology = { ok: true as const, value: { projects: [] } }
-    const expectedTopology = { ok: true as const, value: { projects: [], workspaceClientFlavor: 'legacy', officialWorkspaceActive: true } }
+    const expectedTopology = { ok: true as const, value: { projects: [], workspaceClientFlavor: 'modern', officialWorkspaceActive: true } }
     const seenLanguages: string[] = []
     const control = { sidebarTopology: vi.fn(async () => {
       seenLanguages.push(currentHostLanguage())
@@ -345,7 +347,7 @@ describe('manual strict Worktree Console Remote contribution', () => {
     new TypertGatewayService(ctx)
     ctx.typert.register(TYPERT)
     await expect(ctx.typertGateway.invoke({ namespace: 'gitWorktree', method: 'sidebarTopology', args: {} }))
-      .resolves.toEqual({ ok: true, value: { projects: [], workspaceClientFlavor: 'legacy', officialWorkspaceActive: false } })
+      .resolves.toEqual({ ok: true, value: { projects: [], workspaceClientFlavor: 'modern', officialWorkspaceActive: false } })
   })
 
   it('dispatches Client boot reports into the diagnostics sink', async () => {

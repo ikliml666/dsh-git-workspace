@@ -282,7 +282,7 @@ const RETENTION_MAINTENANCE_INTERVAL_MS = 15 * 60 * 1000
 /**
  * Mount the plugin: DSH adapters, the session-checkout module, safe worktree
  * tools, human acceptance command, dynamic target context, startup recovery,
- * and the retention-expiry timer.
+ * the retention-expiry timer. Local adaptation: the Workspace provider election is strictly opt-in (enableWorkspaceProvider) — by default it is a no-op and the official ui-workspace stays active, so it cannot starve the boot chain; when enabled, every Loader operation is ceiling-bounded and re-enters on the next Loader event.
  */
 export async function apply(ctx: Context, config: { stateDir?: string } & GitTimeoutOptions & LocalAdaptationConfig = {}): Promise<void> {
   validateGitTimeouts(config)

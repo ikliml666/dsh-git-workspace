@@ -8,7 +8,7 @@ import contribution, { type GitWorktreeRemote } from '../../console-remote/remot
 import { apply as applyToolViews, inject as toolViewInject } from '../index.js'
 import { registerDecoratedWorkspaceSidebar, registerManagedWorkspaceSidebar } from '../workspace-sidebar/index.js'
 import { mountSettingsCard } from '../settings-card/index.js'
-import { inject as officialWorkspaceInject } from 'virtual:dsh-official-workspace-client'
+import { apply as applyOfficialWorkspace, inject as officialWorkspaceInject } from 'virtual:dsh-official-workspace-client'
 import { apply as applyNextWorkspace, inject as nextWorkspaceInject } from 'virtual:dsh-official-workspace-client-next'
 import { apply as applyAlphaWorkspace, inject as alphaWorkspaceInject } from 'virtual:dsh-official-workspace-client-alpha'
 import { createWorktreeConsoleRemoteAdapter } from './adapter.js'
@@ -16,11 +16,18 @@ import { createWorktreeConsoleRemoteAdapter } from './adapter.js'
 export { createWorktreeConsoleRemoteAdapter } from './adapter.js'
 
 /**
- * Activate on the same prerequisites as the official Workspace Client. The
- * conversation-dependent Worktree surfaces run in a child fiber below so the
- * Workspace service can break the uiConversation -> uiWorkspace boot edge.
+ * Activate on nearly the same prerequisites as the official Workspace Client.
+ * The conversation-dependent Worktree surfaces run in a child fiber below so
+ * the Workspace service can break the uiConversation -> uiWorkspace boot edge.
+ *
+ * The modern (0.2.x) official Browser additionally injects
+ * `remote.directoryPicker`, whose provider entry waits for `uiWorkspace`
+ * itself. Requiring it here would deadlock the web boot: this entry could not
+ * provide `uiWorkspace` before the picker activates, and the picker would wait
+ * for `uiWorkspace` forever. The picker is therefore resolved lazily at call
+ * time through the managed context proxy (see officialContextProxy).
  */
-export const inject = [...officialWorkspaceInject]
+export const inject = officialWorkspaceInject.filter(service => service !== 'remote.directoryPicker')
 
 interface ConsoleClientContext extends Context {
   remote: ClientRemote & { gitWorktree: GitWorktreeRemote }
@@ -86,7 +93,43 @@ export async function apply(ctx: ConsoleClientContext): Promise<void> {
       ctx as unknown as Parameters<typeof registerManagedWorkspaceSidebar>[0], adapter,
     )
     mountTools(ctx)
-    reportBoot('legacy', true)
+  } else if (flavor === 'modern') {
+    // Same filtered subset as the entry inject: providing `uiWorkspace` must
+    // never wait for the directory picker (see the inject comment above).
+    // Local adaptation mirrors alpha/next: with the official Workspace kept
+    // live (takeover disabled), decorate instead of re-providing uiWorkspace.
+    if (topology.value.officialWorkspaceActive === true) {
+      reportBoot('modern', false, 'decorate-pending')
+      ctx.inject(inject, child => {
+        try {
+          registerDecoratedWorkspaceSidebar(
+            child as unknown as Parameters<typeof registerDecoratedWorkspaceSidebar>[0],
+            adapter,
+          )
+          mountTools(child)
+          reportBoot('modern', true)
+        } catch (error) {
+          reportBoot('modern', false, error instanceof Error ? error.message : String(error))
+          throw error
+        }
+      })
+    } else {
+      reportBoot('modern', false, 'inject-pending')
+      ctx.inject(inject, child => {
+        try {
+          registerManagedWorkspaceSidebar(
+            child as unknown as Parameters<typeof registerManagedWorkspaceSidebar>[0],
+            adapter,
+            applyOfficialWorkspace,
+          )
+          mountTools(child)
+          reportBoot('modern', true)
+        } catch (error) {
+          reportBoot('modern', false, error instanceof Error ? error.message : String(error))
+          throw error
+        }
+      })
+    }
   } else if (flavor === 'alpha' || flavor === 'next') {
     const [required, applyWorkspace] = flavor === 'alpha'
       ? [alphaWorkspaceInject, applyAlphaWorkspace] as const

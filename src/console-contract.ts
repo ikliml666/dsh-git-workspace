@@ -212,7 +212,7 @@ export interface WorktreeSidebarProject {
 export interface WorktreeSidebarTopologyResponse {
   projects: WorktreeSidebarProject[]
   /** Server-pinned Host package generation; unknown generations must not mount a guessed Client Browser. */
-  workspaceClientFlavor?: 'legacy' | 'alpha' | 'next' | 'unsupported'
+  workspaceClientFlavor?: 'legacy' | 'alpha' | 'next' | 'modern' | 'unsupported'
   /** Host-reported election result: the official Workspace Client is the live sidebar provider. */
   officialWorkspaceActive?: boolean
 }
@@ -220,7 +220,7 @@ export interface WorktreeSidebarTopologyResponse {
 /** Client-side breadcrumb reporting which sidebar branch actually ran. */
 export interface WorktreeClientBootReport {
   flavor: string
-  branch: 'legacy' | 'alpha' | 'next' | 'unsupported' | 'topology-failed' | 'boot-failed'
+  branch: 'legacy' | 'alpha' | 'next' | 'modern' | 'unsupported' | 'topology-failed' | 'boot-failed'
   registered: boolean
   detail?: string
   /** Elapsed ms spent awaiting the Remote namespace mount before UI registration. */
