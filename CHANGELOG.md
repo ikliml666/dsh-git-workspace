@@ -29,6 +29,8 @@
 
 ### Changed
 
+- 死代码与缓存收敛（2026-10-02）：审查报告 ponytail 清理项落地——删除 client i18n 死键 60 个（zh/en 成对，动态拼键的 `error.*` 19 个键保留）、`onTimingEvent` 测试管线、`flavorFromAnchors`（锚点解析注释迁移至仍存活的 `workspaceFlavorDiagnostics`）与 host 死键 `initialHasFiles`；preflight-cache 与 preview-recovery-cache 两个同构缓存收敛为 `createRequestCache` 工厂（新增 `src/client/review-console/request-cache.ts`：按 adapter WeakMap 分桶、identity 串共享、单飞 in-flight、generation 防旧响应回写；两文件缩为薄封装，对外导出名与签名不变，消费者零改动；实测无 TTL 语义，未引入）。i18n 引用护栏与既有缓存测试全绿守护（570 通过）。
+
 - 提交图弹窗重绘为 GitHub 风格 SVG 泳道（2026-10-02）：`computeGraphLanes` 由逐行字形快照改为输出边几何（泳道列 + 行内 0/0.5/1 纵向锚点），渲染改为每行内联 SVG——相邻行线段首尾相接，跨行连线无缝，分支开出与汇入画三次贝塞尔曲线，节点为泳道配色圆点（合并提交不再用 ◆）；行高固定 36px、行距归零，元信息行不再换行。新增 `tests/branch-graph-lanes.test.ts` 锁泳道拓扑（线性/分支汇合/根提交）。
 
 - 移除新会话 composer 的预会话 Worktree 开关（`conversation.input.left` 槽位，2026-10-01）：空白会话不再显示「Worktree」切换与草稿交接确认流程；Worktree 创建入口保留在会话 Header 的关联 Manager 与 `/worktree` 命令，恢复请求的草稿预填（`prefillSessionDraft`）不受影响。
@@ -43,6 +45,18 @@
 - 预会话开关陈旧优先渲染（stale-while-revalidate）：上次已知目标按（适配器、会话）缓存，重进会话立即呈现并后台静默刷新，加载占位胶囊只在冷启动出现；静默刷新失败时保留陈旧界面不闪回错误态。
 
 ### Fixed
+
+- 遗留项批次：审查报告 P3 加固（2026-10-02）：四路审查报告遗留项的第二批（死代码与缓存收敛见 Changed 节）。
+  - git 端口加固：abandoned 快照 ref 拼接前过 `assertArtifactName`；`push` 的分支参数补 `--` 分隔。
+  - apply 路径 runGit 补齐 git.ts 同款卫生：ambient `GIT_*` 路由变量清洗（`options.env` 故意注入通道最后展开、始终胜出）、`--no-optional-locks`、`core.fsmonitor=false`、`core.hooksPath=空目录`；超时默认 30s 不变但可经 `options.timeoutMs` 覆盖。
+  - apply plans Map 收敛：同一 isolatedPath 的新 plan 落库前取代旧条目，映射不再随重复 calculatePlan 无上限增长。
+  - uncertain 交付错误（写失败且回滚亦失败）文案点名备份 index 文件路径，`.domi-backup-*` 残留可发现可清理（不加清扫器，保留证据语义）。
+  - 清理原因判定去 i18n 耦合：在线调用点显式传结构化 reason；文本匹配仅兜底历史持久化的 cleanupMessage，且 zh/en 关键词成对（runGit 清洗后 git 输出为 LC_ALL=C 英文，纯中文匹配会永久失效）。
+  - 控制面 `restoreAbandoned` 入口补 `authorize`（module 侧已有，纵深防御）。
+  - `worktree_deliver` 的 `retention` 参数改运行时白名单校验（非法值 `invalid_input`，原先 `as` 断言静默直通）。
+  - initial-commit 锁清理 finally 包 try/catch，清理失败不掩盖主错误。
+  - 客户端 UI：Hero 胶囊迟挂载改 250ms 轮询重试（10s 上限，注释标注 MutationObserver 升级路径）；TargetStatusAction 的 `Worktree · ` 前缀与 `Local` 状态文案走 i18n、discard 确认对带 rollbackPreview 能力的 target 告知回滚行为；WorktreeConsoleView 的 loadBranches 补会话代际守卫（旧会话回调不再写入新会话分支列表）；WorktreeCreateRow 的 opening 态成功后与卸载时复位（原先永久禁用）；console-remote 拓扑失败文案走 i18n + `sessions.open` 空值防护；ReviewActions 孤立 refresh 图标、WorktreeReviewRow 死变量删除。
+  - 测试：console-remote 路由断言适配新 i18n 文案（zh/en 双锚点）。全量 44 文件 570 通过/0 失败/4 跳过。
 
 - 审查加固批次：autoDeliver 门控与八项并发/状态竞态修复（2026-10-02）：四路审查（RPC/宿主、客户端、git/生命周期、ponytail 全树）后的集中修复。
   - autoDeliver 门控：`autoDeliver=false` 时模型工具 `worktree_deliver` 直接拒绝（模块新增 `isAutoDeliverEnabled()`，宿主文案 `worktreeDeliverDisabledByAutoDeliver`，zh+en）；面板/控制面等人工路径不受影响，`tools.ts` 头注释与实际行为同步。
