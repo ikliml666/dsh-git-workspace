@@ -44,6 +44,17 @@
 
 ### Fixed
 
+- 审查加固批次：autoDeliver 门控与八项并发/状态竞态修复（2026-10-02）：四路审查（RPC/宿主、客户端、git/生命周期、ponytail 全树）后的集中修复。
+  - autoDeliver 门控：`autoDeliver=false` 时模型工具 `worktree_deliver` 直接拒绝（模块新增 `isAutoDeliverEnabled()`，宿主文案 `worktreeDeliverDisabledByAutoDeliver`，zh+en）；面板/控制面等人工路径不受影响，`tools.ts` 头注释与实际行为同步。
+  - finish 索引锁：`session-checkout-apply.ts` 的 finish 段补齐 finalize 同款锁协议（`writeIndexLock` → 持锁复检 → `rename` 上主），finish 与 finalize/create 并发不再互踩 git index。
+  - 原子 JSON 写唯一 tmp：`writeJsonFileAtomic`/`writeTextFileAtomic` 改用 pid+随机后缀唯一 tmp 名，恢复逻辑改为扫描同名 `*.tmp` 取最新可解析者提升并清理其余（旧版固定 `.tmp` 仍兼容识别），消除两并发写者互相提升对方半成品的竞态。
+  - registry 字段长度上限：`markReadyForReview` 与 `operateFinish` 补 caps（summary≤240、suggestedCommitMessage/validationSummary/tests[].command|summary≤500、detailsMarkdown≤12000、finish commitMessage≤500，超限 `invalid_input`，新增 3 个宿主消息键 zh+en）。
+  - 清理超时放宽：`CHECKOUT_CLEANUP_TIMEOUT_MS` 30s→120s（Windows 冷 spawn 下重清理不再轻易越过窗口；后台操作本就不被该超时取消，注释说明升级路径）。
+  - TargetStatusAction 陈旧会话守卫：switchBranch/createBranch/retryCleanup/discard 补 actionScope 捕获守卫（对齐 beginNextIteration），会话切换后迟到的 resolve 不再写错会话状态。
+  - 分支概览缓存补丁守卫：flight resolve 回写按 patchEpoch 门控，切换分支后的乐观本地视图不再被迟到的 overview 拉取覆盖回旧值。
+  - cancelled 恢复可重发：`retryWorktreeRecovery` 接受 cancelled 状态，恢复面板对 cancelled 也显示 Resend 按钮（重发前仍走完整重校验）。
+  - 测试：新增 tests/adapters-safe-file（5 用例）与 tests/client-branch-overview-cache（3 用例）；session-checkout-module 增长度上限与磁盘自愈用例；recovery-continuation 增 cancelled 重发用例；surface 的 deliver 工具桩补 `isAutoDeliverEnabled`。全量 44 文件 574 通过/0 失败/4 跳过（此前基线 563）。
+
 - 交付后「已提交 · 环境保留」dock 排版炸裂与无法收起（2026-10-01）：交付证明整卡 grid 直接塞进 dock 横向 flex 行，max-content 把左侧文案挤成一字宽竖排。现终态 dock 改为紧凑单行（`proofVariant='compact'` 交付证明 + 关闭按钮），完整交付证明只经「查看详情」弹窗展示；dock 可按会话身份收起（checkoutId+reviewId 失效，新一轮验收自动重现）。dock 内动作列改纵向 flex 并限制证明卡 min-width，根治挤压。
 
 - Worktree 面板 `list` 不再因单条记录身份无法验证（`checkout_mismatch`）而整体失败：批量观察失败退回逐条降级观察，验证不过的记录以无观察投影（回退 oid 与模块 summary）照常呈现，面板其余记录不受影响。
