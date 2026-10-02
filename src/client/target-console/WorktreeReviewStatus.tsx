@@ -91,7 +91,7 @@ export function WorktreeReviewStatus({ session, adapter, services }: WorktreeRev
             {standaloneRecovery.status === 'failed' ? t("recovery.request.failed.2", { p0: standaloneRecovery.error ?? '' }) : null}
           </span>
         </span>
-        {standaloneRecovery.status === 'failed' ? (
+        {standaloneRecovery.status === 'failed' || standaloneRecovery.status === 'cancelled' ? (
           <button type="button" className="dsh-wt-button" onClick={() => retryWorktreeRecovery(sessionId)}>{t("resend")}</button>
         ) : null}
       </section>

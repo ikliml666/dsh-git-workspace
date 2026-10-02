@@ -274,6 +274,37 @@ describe('Worktree recovery continuation', () => {
     expect(fixture.adapter.resumeRevision).not.toHaveBeenCalled()
   })
 
+  test('a cancelled send can be retried explicitly and completes without repeating Host mutation', async () => {
+    const fixture = createWorktreeConsoleAdapterFixture()
+    const request = conflictRequest(8, 'retry-cancelled')
+    const working = authorizedTarget({ ...fixture.target, state: 'working' as const, revision: 8, review: undefined }, request)
+    fixture.adapter.inspect = vi.fn(async () => ({ ok: true as const, value: { target: working } }))
+    fixture.adapter.resumeRevision = vi.fn(fixture.adapter.resumeRevision)
+    const client = runtime(working)
+    let cancelSends = true
+    client.prompt.mockImplementation(async (_content, _mode, signal) => new Promise(resolve => {
+      if (!cancelSends) {
+        resolve({ ok: true, value: { accepted: true } } as never)
+        return
+      }
+      signal?.addEventListener('abort', () => resolve({ ok: false, error: { code: 'cancelled', message: 'aborted' } } as never), { once: true })
+    }))
+    let active = true
+
+    enqueueWorktreeRecovery({ adapter: fixture.adapter, services: client.services, request, isActive: () => active })
+    await vi.waitFor(() => expect(getWorktreeRecoverySnapshot('target-session')).toMatchObject({ status: 'sending' }))
+    active = false
+    await vi.waitFor(() => expect(getWorktreeRecoverySnapshot('target-session')).toMatchObject({ status: 'cancelled' }))
+    expect(client.prompt).toHaveBeenCalledTimes(1)
+
+    active = true
+    cancelSends = false
+    retryWorktreeRecovery('target-session')
+    await vi.waitFor(() => expect(getWorktreeRecoverySnapshot('target-session')).toMatchObject({ status: 'sent', request }))
+    expect(client.prompt).toHaveBeenCalledTimes(2)
+    expect(fixture.adapter.resumeRevision).not.toHaveBeenCalled()
+  })
+
   test('a newer recovery request supersedes a deferred older request without duplicate sends', async () => {
     const fixture = createWorktreeConsoleAdapterFixture()
     const older = conflictRequest(8, 'older')

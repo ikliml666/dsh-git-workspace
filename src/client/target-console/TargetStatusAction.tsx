@@ -143,12 +143,14 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
 
   const switchBranch = async (branch: string): Promise<void> => {
     if (pendingAction !== null) return
+    const scope = actionScope.current
+    const active = () => mounted.current && scope === actionScope.current
     setMenuOpen(false)
     setPendingAction('switch_branch')
     setError(null)
     try {
       const outcome = await adapter.gitSwitchBranch(sessionId, branch)
-      if (!mounted.current) return
+      if (!active()) return
       if (!outcome.ok) {
         setError(outcome.error.message)
         return
@@ -164,9 +166,9 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
       if (patched !== null) setOverview(patched)
       requestWorktreeReviewRefresh(sessionId)
     } catch (reason) {
-      if (mounted.current) setError(reason instanceof Error ? reason.message : String(reason))
+      if (active()) setError(reason instanceof Error ? reason.message : String(reason))
     } finally {
-      if (mounted.current) setPendingAction(null)
+      if (active()) setPendingAction(null)
     }
   }
 
@@ -177,11 +179,13 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
       setError(t("branch.create.invalid"))
       return
     }
+    const scope = actionScope.current
+    const active = () => mounted.current && scope === actionScope.current
     setCreateBusy(true)
     setError(null)
     try {
       const outcome = await adapter.gitCreateBranch(sessionId, name)
-      if (!mounted.current) return
+      if (!active()) return
       if (!outcome.ok) {
         setError(outcome.error.message)
         return
@@ -190,17 +194,19 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
       setCreateName('')
       invalidateBranchOverview(sessionId)
       void ensureBranchOverview(adapter, sessionId).then(value => {
-        if (mounted.current && value !== null) setOverview(value)
+        if (active() && value !== null) setOverview(value)
       })
     } catch (reason) {
-      if (mounted.current) setError(reason instanceof Error ? reason.message : String(reason))
+      if (active()) setError(reason instanceof Error ? reason.message : String(reason))
     } finally {
-      if (mounted.current) setCreateBusy(false)
+      if (active()) setCreateBusy(false)
     }
   }
 
   const retryCleanup = async (): Promise<void> => {
     if (!target?.checkoutId || !target.capabilities.retryCleanup || pendingAction !== null) return
+    const scope = actionScope.current
+    const active = () => mounted.current && scope === actionScope.current
     setMenuOpen(false)
     setPendingAction('retry_cleanup')
     setError(null)
@@ -210,7 +216,7 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
         checkoutId: target.checkoutId,
         expectedRevision: target.revision,
       })
-      if (!mounted.current) return
+      if (!active()) return
       if (!outcome.ok) {
         setError(outcome.error.message)
         if (outcome.error.code === 'stale_target') void refresh()
@@ -223,9 +229,9 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
       } : current)
       requestWorktreeReviewRefresh(sessionId)
     } catch (reason) {
-      if (mounted.current) setError(reason instanceof Error ? reason.message : String(reason))
+      if (active()) setError(reason instanceof Error ? reason.message : String(reason))
     } finally {
-      if (mounted.current) setPendingAction(null)
+      if (active()) setPendingAction(null)
     }
   }
 
@@ -255,6 +261,8 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
 
   const discard = async (): Promise<void> => {
     if (!target?.checkoutId || !target.capabilities.discard || pendingAction !== null) return
+    const scope = actionScope.current
+    const active = () => mounted.current && scope === actionScope.current
     setCleanupConfirmOpen(false)
     setPendingAction('discard')
     setError(null)
@@ -268,7 +276,7 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
           ? { rollbackPreview: true }
           : {}),
       })
-      if (!mounted.current) return
+      if (!active()) return
       if (!outcome.ok) {
         setError(outcome.error.message)
         if (outcome.error.code === 'stale_target') void refresh()
@@ -281,9 +289,9 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
       } : current)
       requestWorktreeReviewRefresh(sessionId)
     } catch (reason) {
-      if (mounted.current) setError(reason instanceof Error ? reason.message : String(reason))
+      if (active()) setError(reason instanceof Error ? reason.message : String(reason))
     } finally {
-      if (mounted.current) setPendingAction(null)
+      if (active()) setPendingAction(null)
     }
   }
 

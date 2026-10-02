@@ -490,7 +490,8 @@ export function restoreWorktreeRecovery(input: {
 
 export function retryWorktreeRecovery(sessionId: string): void {
   const entry = entries.get(sessionId)
-  if (!entry || entry.snapshot.status !== 'failed') return
+  // cancelled 也允许重发：attempt() 会重新校验身份/目标匹配，过期请求只会再次 cancel。
+  if (!entry || (entry.snapshot.status !== 'failed' && entry.snapshot.status !== 'cancelled')) return
   if (activeSessionState(entry) !== 'active') {
     cancel(entry)
     return

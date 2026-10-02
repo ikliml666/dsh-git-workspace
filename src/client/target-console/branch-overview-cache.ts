@@ -9,11 +9,20 @@ import type {
  * are stale-while-revalidate (stale data renders immediately, a flight
  * replaces it in place). Keyed by session id — the overview is repo-wide, so
  * every session of one project overwrites the same underlying repo view.
+ *
+ * 起飞于补丁/失效之前的 flight 解析时不得回写缓存：否则会踩掉 switch 确认后
+ * 写入的乐观补丁并重赋 TTL。patchEpochs 让每次 patch/invalidate 自增，
+ * flight 只在纪元未变时回写。
  */
 const TTL_MS = 60_000
 
 const cache = new Map<string, { value: WorktreeConsoleGitOverviewResponse; fetchedAt: number }>()
 const flights = new Map<string, Promise<WorktreeConsoleGitOverviewResponse | null>>()
+const patchEpochs = new Map<string, number>()
+
+function bumpEpoch(sessionId: string): void {
+  patchEpochs.set(sessionId, (patchEpochs.get(sessionId) ?? 0) + 1)
+}
 
 export function cachedBranchOverview(sessionId: string): WorktreeConsoleGitOverviewResponse | null {
   return cache.get(sessionId)?.value ?? null
@@ -24,6 +33,7 @@ function isFresh(entry: { fetchedAt: number }): boolean {
 }
 
 export function invalidateBranchOverview(sessionId: string): void {
+  bumpEpoch(sessionId)
   cache.delete(sessionId)
 }
 
@@ -31,17 +41,21 @@ export function invalidateBranchOverview(sessionId: string): void {
 export function patchBranchOverview(sessionId: string, patch: (overview: WorktreeConsoleGitOverviewResponse) => WorktreeConsoleGitOverviewResponse): void {
   const entry = cache.get(sessionId)
   if (entry === undefined) return
+  bumpEpoch(sessionId)
   cache.set(sessionId, { value: patch(entry.value), fetchedAt: entry.fetchedAt })
 }
 
 async function fetchOverview(adapter: WorktreeConsoleAdapter, sessionId: string): Promise<WorktreeConsoleGitOverviewResponse | null> {
   const existing = flights.get(sessionId)
   if (existing !== undefined) return existing
+  const epoch = patchEpochs.get(sessionId) ?? 0
   const flight = adapter.gitOverview(sessionId)
     .then(outcome => {
       flights.delete(sessionId)
       if (!outcome.ok) return null
-      cache.set(sessionId, { value: outcome.value, fetchedAt: Date.now() })
+      if ((patchEpochs.get(sessionId) ?? 0) === epoch) {
+        cache.set(sessionId, { value: outcome.value, fetchedAt: Date.now() })
+      }
       return outcome.value
     })
     .catch(() => {
