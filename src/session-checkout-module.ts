@@ -89,8 +89,10 @@ const TRANSIENT_CLEANUP_RETRY_DELAYS_MS = [100, 300, 800]
  * 单个 checkout 清理/维护操作的启动收敛超时。
  * Windows 上 Worktree 被外部进程（如残留 Agent 运行）占用时，git/fs 操作可能无限期挂起；
  * 启动收敛必须在有限时间内继续，不能因为一个损坏记录卡住整个应用启动。
+ * ponytail: 不做取消——超时后后台操作会继续跑完（withBindingLock 保证同进程重试串行，
+ * 台账写入安全）；若实际挂起普遍超过 2min，再给 files/git ports 加 AbortSignal。
  */
-const CHECKOUT_CLEANUP_TIMEOUT_MS = 30_000
+const CHECKOUT_CLEANUP_TIMEOUT_MS = 120_000
 
 async function withCleanupTimeout<T>(
   checkoutId: string,
@@ -1332,6 +1334,15 @@ export function createSessionCheckoutModule(
     const suggestedCommitMessage = input.suggestedCommitMessage.trim()
     if (!summary || !suggestedCommitMessage || input.tests.length > 20) {
       throw new SessionCheckoutError('invalid_input', hostMessage('theReviewSummaryCommitMessageOrValidationItemsAre'))
+    }
+    if (
+      summary.length > 240
+      || suggestedCommitMessage.length > 500
+      || (input.detailsMarkdown?.trim().length ?? 0) > 12_000
+      || (input.validationSummary?.trim().length ?? 0) > 500
+      || input.tests.some(test => test.command.trim().length > 500 || (test.summary?.trim().length ?? 0) > 500)
+    ) {
+      throw new SessionCheckoutError('invalid_input', hostMessage('reviewFieldsExceedLengthLimits'))
     }
     const record = dependencies.registry.read().managedCheckouts[binding.target.checkoutId]
     if (!record) throw new SessionCheckoutError('checkout_missing', hostMessage('theIsolatedCheckoutRecordDoesNotExist'))
@@ -2948,6 +2959,10 @@ export function createSessionCheckoutModule(
     if (binding.target.kind !== 'isolated') {
       return operationError('operation_not_allowed', hostMessage('localCheckoutDoesNotSupportFinish'))
     }
+    const finishCommitMessage = input.commitMessage.trim()
+    if (finishCommitMessage.length > 500) {
+      return operationError('invalid_input', hostMessage('worktreeFinishCommitMessageTooLong'))
+    }
 
     let record = dependencies.registry.read().managedCheckouts[binding.target.checkoutId]
     if (!record) return operationError('checkout_missing', hostMessage('theIsolatedCheckoutRecordDoesNotExist'))
@@ -3074,7 +3089,7 @@ export function createSessionCheckoutModule(
           validationStatus: 'not_run' as const,
           tests: [],
           changedFiles: [...planResult.plan.changedFiles],
-          suggestedCommitMessage: input.commitMessage,
+          suggestedCommitMessage: finishCommitMessage,
           isolatedFingerprint: planResult.plan.isolatedFingerprint,
           isolatedHeadOid: planResult.plan.isolatedHeadOid,
         }
@@ -3144,7 +3159,7 @@ export function createSessionCheckoutModule(
     const finishResult = await dependencies.applyEngine.finalize({
       localPath: applying.localRoot,
       receipt,
-      commitMessage: input.commitMessage,
+      commitMessage: finishCommitMessage,
       beforeCommit: async (commitOid) => {
         updateManagedCheckout(applying.checkoutId, (current) => ({
           ...current,
@@ -4555,6 +4570,8 @@ export function createSessionCheckoutModule(
       () => markReadyForReviewTarget(sessionId, input),
     ),
     operate: (input) => withBindingLock(() => operateTarget(input)),
+    // 记录在 API 面暴露 autoDeliver 的实时取值：工具层据此拒绝模型自行交付。
+    isAutoDeliverEnabled: (): boolean => liveConfigValue(dependencies.autoDeliver) ?? true,
     // 只读管理列表不占用全局 mutation lock；慢速目录诊断与用户操作互不阻塞。
     listManagedWorktrees,
     listManagedWorktreesForSession,

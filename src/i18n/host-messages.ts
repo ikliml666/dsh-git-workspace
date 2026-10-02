@@ -1069,6 +1069,18 @@ export const hostMessages = {
     "zh": "当前状态（{p0}）不能交付：先完成实现，或在 Working/Ready for Review 状态调用。",
     "en": "Cannot deliver in the current state ({p0}): finish the implementation first, or call worktree_deliver in Working or Ready for Review state."
   },
+  "worktreeDeliverDisabledByAutoDeliver": {
+    "zh": "autoDeliver 已关闭：模型不能自行交付（commit/push/清理）。请改为调用 worktree_ready_for_review 提交评审，由用户通过验收栏保存或放弃。",
+    "en": "autoDeliver is disabled: the model cannot deliver on its own (commit/push/cleanup). Call worktree_ready_for_review instead and let the user save or discard through the acceptance bar."
+  },
+  "worktreeFinishCommitMessageTooLong": {
+    "zh": "finish 的提交信息超长（上限 500 字符）。",
+    "en": "The finish commit message exceeds the 500-character limit."
+  },
+  "reviewFieldsExceedLengthLimits": {
+    "zh": "评审字段超长：summary≤240，suggestedCommitMessage≤500，detailsMarkdown≤12000，validationSummary≤500，tests[].command/summary≤500。",
+    "en": "A review field exceeds its length limit: summary≤240, suggestedCommitMessage≤500, detailsMarkdown≤12000, validationSummary≤500, tests[].command/summary≤500."
+  },
   "autoPushOutcome": {
     "zh": "自动推送：{p0}",
     "en": "Auto push: {p0}"

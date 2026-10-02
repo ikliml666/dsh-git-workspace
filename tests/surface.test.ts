@@ -194,7 +194,7 @@ describe('public surfaces', () => {
       cleanup: 'cleanup' as const,
       push: { status: 'pushed' as const },
     }))
-    const module = { inspect: vi.fn(async () => working), operate } as unknown as SessionCheckoutModule
+    const module = { inspect: vi.fn(async () => working), operate, isAutoDeliverEnabled: () => true } as unknown as SessionCheckoutModule
     registerTools({ tools: { register: (tool: typeof tools[number]) => { tools.push(tool) } } } as never, module)
     const tool = tools.find(candidate => candidate.name === 'worktree_deliver')
     if (!tool) throw new Error('deliver tool was not registered')
@@ -230,7 +230,7 @@ describe('public surfaces', () => {
       commitOid: 'c'.repeat(40),
       cleanup: 'cleanup' as const,
     }))
-    const module = { inspect: vi.fn(async () => readyTarget), operate } as unknown as SessionCheckoutModule
+    const module = { inspect: vi.fn(async () => readyTarget), operate, isAutoDeliverEnabled: () => true } as unknown as SessionCheckoutModule
     registerTools({ tools: { register: (tool: typeof tools[number]) => { tools.push(tool) } } } as never, module)
     const tool = tools.find(candidate => candidate.name === 'worktree_deliver')
     if (!tool) throw new Error('deliver tool was not registered')

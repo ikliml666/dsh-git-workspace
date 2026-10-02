@@ -144,6 +144,8 @@ export interface SessionCheckoutModule {
   ): Promise<IsolatedTargetLaunch & { continuation: ManagedPreviewRecoveryHandoffContinuation }>
   markReadyForReview(sessionId: string, input: MarkReadyForReviewInput): Promise<SessionTargetView>
   operate(input: SessionCheckoutOperation): Promise<SessionCheckoutOperationResult>
+  /** Live autoDeliver setting; the tool layer refuses model-driven delivery while it is off. */
+  isAutoDeliverEnabled(): boolean
   listManagedWorktrees(input?: ListManagedWorktreesInput): Promise<ManagedWorktreeSummaryView[]>
   /** Caller-scoped list for model and human session surfaces. */
   listManagedWorktreesForSession(sessionId: string, input?: Omit<ListManagedWorktreesInput, 'projectId'>): Promise<ManagedWorktreeSummaryView[]>

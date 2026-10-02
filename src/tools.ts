@@ -1,11 +1,13 @@
 import { hostMessage, withHostLanguage, languageForInvocation } from './i18n/host.js'
 import { hostRegistrationMessage } from './i18n/host-messages.js'
 /**
- * Model-facing worktree tools. Destructive delivery actions are deliberately
- * absent: Finish/Discard/Remove are human commands surfaced by the client
- * ToolView. The model can reserve a real target session, inspect its own
- * scoped worktrees, invalidate an unsynced review before further file edits,
- * safely begin a cleaned same-session iteration, and stop at Ready for Review.
+ * Model-facing worktree tools. The model can reserve a real target session,
+ * inspect its own scoped worktrees, invalidate an unsynced review before
+ * further file edits, safely begin a cleaned same-session iteration, and stop
+ * at Ready for Review. worktree_deliver commits/pushes/cleans and is refused
+ * while the autoDeliver setting is off — delivery then goes through
+ * worktree_ready_for_review plus the human acceptance bar. Discard/Remove
+ * remain human commands surfaced by the client ToolView.
  * @module dsh-git-worktree/tools
  */
 
@@ -348,6 +350,9 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
       return withHostLanguage(languageForInvocation(exec.agent, ctx), async () => {
         const sessionId = sessionIdOf(exec.agent)
         const current = await module.inspect(sessionId)
+        if (!module.isAutoDeliverEnabled()) {
+          throw new Error(hostMessage('worktreeDeliverDisabledByAutoDeliver'))
+        }
         const deliveryState = current.delivery?.state
         if (deliveryState !== 'working' && deliveryState !== 'ready_for_review') {
           throw new Error(hostMessage('worktreeDeliverNotAllowedInState', { p0: deliveryState ?? 'unknown' }))

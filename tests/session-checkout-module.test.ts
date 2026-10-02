@@ -577,7 +577,7 @@ describe('SessionCheckoutModule', () => {
     writeFileSync(join(managedRoot, 'tracked.txt'), 'oversized review\n')
     const oversizedMessage = `${'x'.repeat(499)}😀${'y'.repeat(438)}`
     const ready = await context.module.markReadyForReview('session-1', {
-      summary: 'oversized commit message', validationStatus: 'passed', tests: [], suggestedCommitMessage: oversizedMessage,
+      summary: 'oversized commit message', validationStatus: 'passed', tests: [], suggestedCommitMessage: 'test: oversized legacy',
     })
     if (ready.delivery?.state !== 'ready_for_review') throw new Error('expected ready review')
 
@@ -585,15 +585,63 @@ describe('SessionCheckoutModule', () => {
 
     const registryPath = join(context.configDir, 'managed-checkouts.json')
     const persisted = JSON.parse(readFileSync(registryPath, 'utf8')) as any
-    expect(persisted.managedCheckouts[target.checkout.id].previousReview.suggestedCommitMessage).toHaveLength(499)
+    // With the entry-length cap in place, legacy oversized values can only come
+    // from old on-disk registries: inject them directly and verify self-repair.
+    persisted.managedCheckouts[target.checkout.id].previousReview.suggestedCommitMessage = oversizedMessage
+    writeFileSync(registryPath, JSON.stringify(persisted, null, 2))
+
+    const repaired = new AtomicJsonCheckoutRegistry(registryPath).read()
+    expect(repaired.managedCheckouts[target.checkout.id].previousReview?.suggestedCommitMessage).toHaveLength(499)
     expect(() => context.restart()).not.toThrow()
 
     persisted.managedCheckouts[target.checkout.id].previousReview.suggestedCommitMessage = oversizedMessage
     writeFileSync(registryPath, JSON.stringify(persisted, null, 2))
-    const repaired = new AtomicJsonCheckoutRegistry(registryPath).read()
-    expect(repaired.managedCheckouts[target.checkout.id].previousReview?.suggestedCommitMessage).toHaveLength(499)
+    const repairedAgain = new AtomicJsonCheckoutRegistry(registryPath).read()
+    expect(repairedAgain.managedCheckouts[target.checkout.id].previousReview?.suggestedCommitMessage).toHaveLength(499)
     const repairedOnDisk = JSON.parse(readFileSync(registryPath, 'utf8')) as any
     expect(repairedOnDisk.managedCheckouts[target.checkout.id].previousReview.suggestedCommitMessage).toHaveLength(499)
+  })
+
+  test('Given oversized review fields When marking ready for review Then the module rejects with invalid_input', async () => {
+    const context = createContext()
+    const target = await context.module.bind('session-1', { kind: 'isolated' })
+    const managedRoot = await context.module.resolveManagedRoot(target.checkout.id)
+    writeFileSync(join(managedRoot, 'tracked.txt'), 'oversized fields\n')
+    const base = { validationStatus: 'passed' as const, tests: [] }
+    await expect(context.module.markReadyForReview('session-1', {
+      ...base, summary: 'x'.repeat(241), suggestedCommitMessage: 'test: ok',
+    })).rejects.toMatchObject({ code: 'invalid_input' })
+    await expect(context.module.markReadyForReview('session-1', {
+      ...base, summary: 'ok', suggestedCommitMessage: 'x'.repeat(501),
+    })).rejects.toMatchObject({ code: 'invalid_input' })
+    await expect(context.module.markReadyForReview('session-1', {
+      ...base, summary: 'ok', suggestedCommitMessage: 'test: ok', validationSummary: 'x'.repeat(501),
+    })).rejects.toMatchObject({ code: 'invalid_input' })
+    await expect(context.module.markReadyForReview('session-1', {
+      ...base, summary: 'ok', suggestedCommitMessage: 'test: ok', detailsMarkdown: 'x'.repeat(12001),
+    })).rejects.toMatchObject({ code: 'invalid_input' })
+    await expect(context.module.markReadyForReview('session-1', {
+      ...base, summary: 'ok', suggestedCommitMessage: 'test: ok', tests: [{ command: 'x'.repeat(501), summary: 'ok' }],
+    })).rejects.toMatchObject({ code: 'invalid_input' })
+  })
+
+  test('Given an oversized finish commit message When operating finish Then it is rejected as invalid_input without touching Local', async () => {
+    const context = createContext()
+    const target = await context.module.bind('session-1', { kind: 'isolated' })
+    const managedRoot = await context.module.resolveManagedRoot(target.checkout.id)
+    writeFileSync(join(managedRoot, 'tracked.txt'), 'finish cap\n')
+    const ready = await context.module.markReadyForReview('session-1', {
+      summary: 'finish cap', validationStatus: 'passed', tests: [], suggestedCommitMessage: 'test: finish cap',
+    })
+    if (ready.delivery?.state !== 'ready_for_review') throw new Error('expected ready review')
+
+    const localHead = git(context.projectRoot, 'rev-parse', 'HEAD')
+    const outcome = await context.module.operate({
+      action: 'finish', sessionId: 'session-1', expectedRevision: ready.revision,
+      expectedReviewId: ready.delivery.review.reviewId, commitMessage: 'x'.repeat(501), retention: 'cleanup',
+    })
+    expect(outcome).toMatchObject({ status: 'error', code: 'invalid_input' })
+    expect(git(context.projectRoot, 'rev-parse', 'HEAD')).toBe(localHead)
   })
 
   test('Given an exact Ready review When checkpoint is confirmed Then it saves one Worktree-only stage, replays the same request idempotently, and final delivery remains one cumulative Local commit', async () => {
