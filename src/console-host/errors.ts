@@ -27,6 +27,10 @@ export function consoleFailure(error: unknown): WorktreeConsoleOutcome<never> {
       },
     }
   }
+  // Verbatim third-party messages are intentional for the local console UI
+  // (kept observable by tests/host-i18n.test.ts); sanitize here before any
+  // future remote transport serializes WorktreeConsoleError off-machine.
+  // ponytail: local-only leak ceiling; truncate/replace if a remote face lands.
   return {
     ok: false,
     error: {
