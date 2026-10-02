@@ -2123,7 +2123,7 @@ class DefaultSessionCheckoutApplyEngine implements SessionCheckoutApplyEngine {
     }
 
     let tempRoot: string | null = null
-    let adjacentIndex: string | null = null
+    let ownedIndexLock: string | null = null
     try {
       tempRoot = await mkdtemp(join(tmpdir(), 'domi-finish-'))
       const objectDirectory = join(tempRoot, 'objects')
@@ -2305,8 +2305,29 @@ class DefaultSessionCheckoutApplyEngine implements SessionCheckoutApplyEngine {
       }
 
       const realIndexPath = await resolveIndexPath(stored.scope.localGitRoot)
-      adjacentIndex = `${realIndexPath}.domi-${randomUUID()}`
-      await copyFile(finalIndexPath, adjacentIndex)
+      // Git 的 index.lock 协议：持锁期间并发 git add/reset 无法改写真实 index，
+      // 校验→打补丁→update-ref→换 index 在同一把锁内完成（与 finalize 对齐）。
+      try {
+        ownedIndexLock = await writeIndexLock(realIndexPath, await readFile(finalIndexPath))
+      } catch (error) {
+        if (isIndexLockContention(error)) {
+          return { status: 'error', error: { code: 'stale_local', message: hostMessage('anotherGitOperationIsUpdatingTheLocalIndexRetry') } }
+        }
+        throw error
+      }
+      const lockedLocal = await this.captureSnapshot(
+        stored.scope.localGitRoot,
+        join(tempRoot, 'locked-local-validation.index'),
+        objectDirectory,
+        sourceObjects,
+      )
+      if (
+        lockedLocal.headOid !== stored.plan.localHeadOid
+        || lockedLocal.headRef !== stored.plan.localHeadRef
+        || lockedLocal.fingerprint !== stored.plan.localFingerprint
+      ) {
+        return { status: 'error', error: { code: 'stale_local', message: hostMessage('localChangedBeforeFinishWroteItsChangesRecalculateThe') } }
+      }
 
       let worktreePatched = false
       let refUpdated = false
@@ -2322,8 +2343,8 @@ class DefaultSessionCheckoutApplyEngine implements SessionCheckoutApplyEngine {
           local.headOid,
         ])
         refUpdated = true
-        await rename(adjacentIndex, realIndexPath)
-        adjacentIndex = null
+        await rename(ownedIndexLock, realIndexPath)
+        ownedIndexLock = null
       } catch (error) {
         const rollbackErrors: string[] = []
         if (refUpdated) {
@@ -2368,7 +2389,7 @@ class DefaultSessionCheckoutApplyEngine implements SessionCheckoutApplyEngine {
     } catch (error) {
       return { status: 'error', error: { code: 'git_error', message: this.errorMessage(error) } }
     } finally {
-      await removeBestEffort(adjacentIndex)
+      await removeBestEffort(ownedIndexLock)
       if (tempRoot) await this.cleanup(tempRoot)
     }
   }
