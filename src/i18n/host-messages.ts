@@ -10,7 +10,6 @@ export const hostMessages = {
   "initializationUnsupported": {"zh": "当前宿主不支持初始化 Git 仓库。", "en": "This host cannot initialize a Git repository."},
   "initialRepositoryBusy": {"zh": "仓库正在被其他操作使用。请等待操作完成后重试。", "en": "The repository is busy. Wait for the other operation to finish, then retry."},
   "initialConfirmationRequired": {"zh": "当前仓库尚无提交。请通过工作目录菜单确认创建初始版本，或使用本地目录。", "en": "This repository has no commits. Confirm an initial version through the working directory menu, or use the local directory."},
-  "initialHasFiles": {"zh": "当前未提交的文件不会带入独立工作目录。可以先提交需要的文件，或使用本地目录开始任务。", "en": "Uncommitted files will not be included in the independent working directory. Commit the files you need first, or start in the local directory."},
   "initialCreatedWorktreeFailed": {"zh": "初始版本已创建，但独立 Worktree 创建失败。提交已保留，请重新选择独立 Worktree 重试。", "en": "The initial version was created, but Worktree creation failed. The commit is retained. Select Independent Worktree again to retry."},
 
   "repositoryInspectionFailed": {
@@ -906,8 +905,8 @@ export const hostMessages = {
     "en": "The Preview commit write could not be verified and was fully rolled back: {p0}"
   },
   "cannotProveSuccessOrCompleteRollbackAfterWritingThe": {
-    "zh": "Preview 提交写入后无法证明成功或完整回滚，需要保留现场确认：{p0}{p1}",
-    "en": "Cannot prove success or complete rollback after writing the Preview commit. The environment must be preserved for inspection: {p0}{p1}"
+    "zh": "Preview 提交写入后无法证明成功或完整回滚，需要保留现场确认（备份 index 文件：{p2}）：{p0}{p1}",
+    "en": "Cannot prove success or complete rollback after writing the Preview commit. The environment must be preserved for inspection (backup index file: {p2}): {p0}{p1}"
   },
   "theFinishPlanIsMissingAlreadyUsedOrModified": {
     "zh": "Finish plan 不存在、已使用或已被修改",
@@ -1072,6 +1071,10 @@ export const hostMessages = {
   "worktreeDeliverDisabledByAutoDeliver": {
     "zh": "autoDeliver 已关闭：模型不能自行交付（commit/push/清理）。请改为调用 worktree_ready_for_review 提交评审，由用户通过验收栏保存或放弃。",
     "en": "autoDeliver is disabled: the model cannot deliver on its own (commit/push/cleanup). Call worktree_ready_for_review instead and let the user save or discard through the acceptance bar."
+  },
+  "worktreeDeliverInvalidRetention": {
+    "zh": "worktree_deliver 的 retention 参数无效：{p0}（可选值：cleanup、retain_24h、retain_3d、retain_manual）。",
+    "en": "Invalid retention value for worktree_deliver: {p0} (expected cleanup, retain_24h, retain_3d, or retain_manual)."
   },
   "worktreeFinishCommitMessageTooLong": {
     "zh": "finish 的提交信息超长（上限 500 字符）。",

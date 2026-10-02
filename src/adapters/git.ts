@@ -209,6 +209,7 @@ function applyBaseRef(checkoutId: string): string {
  * the freshly written safety snapshot with it.
  */
 function abandonedSnapshotRef(checkoutId: string): string {
+  assertArtifactName(checkoutId)
   return `refs/dsh-worktree/abandoned/${checkoutId}`
 }
 
@@ -395,7 +396,7 @@ export function createDshGitPort(ctx: Context, options: GitPortOptions): Session
       if (upstream.code !== 0 || !upstream.stdout) {
         return { ok: false, message: hostMessage('pushSkippedNoUpstream', { p0: branch }) }
       }
-      const pushed = await runSessionGit(root, ['push', branch])
+      const pushed = await runSessionGit(root, ['push', '--', branch])
       if (pushed.code === 0) return { ok: true }
       return { ok: false, message: (pushed.stderr || pushed.stdout || hostMessage('gitOperationFailedGit', { p0: 'push', p1: '' })).trim() }
     },

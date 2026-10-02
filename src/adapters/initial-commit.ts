@@ -89,9 +89,12 @@ prepare
       }
       throw error
     } finally {
+      // ponytail: lock cleanup failures must not mask the primary error.
       for (const lock of locks.reverse()) {
-        await lock.handle.close()
-        await unlink(lock.path)
+        try {
+          await lock.handle.close()
+          await unlink(lock.path)
+        } catch { /* best effort */ }
       }
     }
   }

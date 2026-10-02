@@ -2,7 +2,7 @@ import { type ProjectSkillStore, trackedSkillPaths } from './adapters/project-sk
 import { hostMessage } from './i18n/host.js'
 import { spawn } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
-import { realpathSync } from 'node:fs'
+import { mkdtempSync, realpathSync } from 'node:fs'
 import { copyFile, mkdir, mkdtemp, open, readFile, rename, rm, unlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { delimiter, isAbsolute, join, relative, resolve } from 'node:path'
@@ -342,24 +342,57 @@ class GitCommandFailure extends Error {
   }
 }
 
+// ponytail: same ambient-git-env hygiene as git.ts — these variables would
+// redirect git away from the authorized repository.
+const AMBIENT_GIT_ENV_PATTERN = /^(GIT_(DIR|WORK_TREE|COMMON_DIR|INDEX_FILE|OBJECT_DIRECTORY|ALTERNATE_OBJECT_DIRECTORIES|NAMESPACE|CEILING_DIRECTORIES|DISCOVERY_ACROSS_FILESYSTEM|CONFIG_PARAMETERS|CONFIG_COUNT|CONFIG_KEY_.*|CONFIG_VALUE_.*))$/i
+
+function scrubbedAmbientGitEnv(): NodeJS.ProcessEnv {
+  return Object.fromEntries(
+    Object.keys(process.env)
+      .filter((key) => AMBIENT_GIT_ENV_PATTERN.test(key))
+      .map((key) => [key, undefined]),
+  )
+}
+
+let disabledGitHooksDirectory: string | undefined
+// ponytail: git.ts disables hooks via a caller-created empty directory; this
+// lazily created empty directory serves the same purpose for apply-path
+// commands that run without a stateDir.
+function disabledGitHooksPath(): string {
+  disabledGitHooksDirectory ??= mkdtempSync(join(tmpdir(), 'dsh-disabled-git-hooks-'))
+  return disabledGitHooksDirectory
+}
+
+// ponytail: apply-path git commands are short; git.ts runs with a 120s default.
+// Keep 30s here and let callers override via options.timeoutMs.
 const GIT_TIMEOUT_MS = 30_000
 const OID_PATTERN = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i
 
 async function runGit(
   cwd: string,
   args: string[],
-  options: { env?: NodeJS.ProcessEnv; input?: Buffer | string; allowedExitCodes?: number[] } = {},
+  options: { env?: NodeJS.ProcessEnv; input?: Buffer | string; allowedExitCodes?: number[]; timeoutMs?: number } = {},
 ): Promise<GitResult> {
   return await new Promise<GitResult>((resolveResult, reject) => {
     // Review/delivery must support the same Windows paths as initial creation.
     const child = spawn('git', [
+      '--no-optional-locks',
       ...(process.platform === 'win32' ? ['-c', 'core.longpaths=true'] : []),
-      '-c', 'core.quotePath=false', ...args,
+      '-c', 'core.quotePath=false',
+      '-c', 'core.fsmonitor=false',
+      '-c', `core.hooksPath=${disabledGitHooksPath()}`,
+      ...args,
     ], {
       cwd,
       env: {
-        ...process.env,
+        // ponytail: mirror git.ts ambient-env scrubbing — repository routing must
+        // come from the authorized cwd. options.env is the deliberate injection
+        // channel (GIT_INDEX_FILE etc.) and always wins.
+        ...scrubbedAmbientGitEnv(),
+        GIT_OPTIONAL_LOCKS: '0',
         GIT_TERMINAL_PROMPT: '0',
+        LC_ALL: 'C',
+        LANG: 'C',
         ...options.env,
       },
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -392,7 +425,7 @@ async function runGit(
     const timeout = setTimeout(() => {
       child.kill('SIGTERM')
       finish(new Error(hostMessage('gitCommandTimedOut', { p0: args[0] ?? 'unknown' })))
-    }, GIT_TIMEOUT_MS)
+    }, options.timeoutMs ?? GIT_TIMEOUT_MS)
 
     if (options.input !== undefined) child.stdin.end(options.input)
     else child.stdin.end()
@@ -1454,6 +1487,12 @@ class DefaultSessionCheckoutApplyEngine implements SessionCheckoutApplyEngine {
         changedFiles: merge.changedFiles,
       }
       if (persistPlan) {
+        // ponytail: this map must hold at most one stored plan per isolated
+        // checkout — a freshly calculated plan supersedes the previous one for
+        // the same path, so it cannot grow across repeated calculatePlan calls.
+        for (const [storedRevision, storedPlan] of this.plans) {
+          if (storedPlan.input.isolatedPath === input.isolatedPath) this.plans.delete(storedRevision)
+        }
         this.plans.set(revision, {
           input: { ...input },
           patch: merge.patch,
@@ -2093,7 +2132,7 @@ class DefaultSessionCheckoutApplyEngine implements SessionCheckoutApplyEngine {
         status: 'error',
         error: {
           code: 'git_error',
-          message: hostMessage('cannotProveSuccessOrCompleteRollbackAfterWritingThe', { p0: this.errorMessage(writeError), p1: rollbackDetail }),
+          message: hostMessage('cannotProveSuccessOrCompleteRollbackAfterWritingThe', { p0: this.errorMessage(writeError), p1: rollbackDetail, p2: backupIndex ?? 'unknown' }),
           recoveryState: 'uncertain',
         },
       }

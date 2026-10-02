@@ -129,10 +129,12 @@ async function pushLocalBranchBestEffort(
 }
 
 function cleanupReasonForMessage(message: string): WorktreeCleanupReason {
-  if (message.includes('提交后出现了新修改')) return 'modified_after_finalize'
-  if (message.includes('解除注册') || message.includes('目录残余')) return 'detached_residue'
+  // ponytail: 文本匹配只兜底历史持久化的 cleanupMessage（重建路径），在线调用
+  // 点必须向 block() 显式传结构化 reason；zh/en 关键词成对匹配。
+  if (message.includes('提交后出现了新修改') || message.includes('new changes')) return 'modified_after_finalize'
+  if (message.includes('解除注册') || message.includes('目录残余') || message.includes('unregistered') || message.includes('residue')) return 'detached_residue'
   if (message.includes('quarantine')) return 'quarantine_busy'
-  if (message.includes('身份') || message.includes('记录') || message.includes('Local index')) return 'identity_changed'
+  if (message.includes('身份') || message.includes('记录') || message.includes('Local index') || message.includes('identity')) return 'identity_changed'
   return 'directory_busy'
 }
 
@@ -2625,12 +2627,13 @@ export function createSessionCheckoutModule(
       return { cleaned: false, message: hostPersistedCleanupMessage(message, hostMessage), reason }
     }
     if (record.delivery.state !== 'finalized' && record.delivery.state !== 'retained') {
-      return block(hostMessages.cleanupIncompleteDelivery.zh)
+      return block(hostMessages.cleanupIncompleteDelivery.zh, 'directory_busy')
     }
     if (
       (record.delivery.state === 'finalized' || record.delivery.state === 'retained')
       && record.delivery.cleanup === 'blocked'
-      && record.delivery.cleanupMessage?.includes('Local index')
+      && record.delivery.cleanupMessage
+      && cleanupReasonForMessage(record.delivery.cleanupMessage) === 'identity_changed'
     ) {
       return block(record.delivery.cleanupMessage)
     }
@@ -2705,7 +2708,7 @@ export function createSessionCheckoutModule(
       if (existingQuarantine) {
         await retryTransientCleanup(() => dependencies.files.removeDirectoryTree(existingQuarantine))
       } else if (record.journal?.operation === 'cleanup' && record.journal.cleanupQuarantinePath && dependencies.files.exists(record.journal.cleanupQuarantinePath)) {
-        return block(CLEANUP_IDENTITY_CHANGED_MESSAGE)
+        return block(CLEANUP_IDENTITY_CHANGED_MESSAGE, 'identity_changed')
       } else if (dependencies.files.exists(record.managedGitRoot)) {
         const validated = dependencies.files.exists(record.managedRoot)
           ? await validateManagedCheckout(binding, record, false)
@@ -2717,25 +2720,25 @@ export function createSessionCheckoutModule(
             localPath: record.localRoot,
           })
           if (snapshot.status !== 'ready' || snapshot.isolatedFingerprint !== record.delivery.isolatedFingerprint) {
-            return block(hostMessages.cleanupNewChanges.zh)
+            return block(hostMessages.cleanupNewChanges.zh, 'modified_after_finalize')
           }
           const directoryIdentity = await dependencies.files.inspectDirectoryIdentity(validated.canonicalManagedGitRoot)
-          if (!directoryIdentity) return block(CLEANUP_IDENTITY_CHANGED_MESSAGE)
+          if (!directoryIdentity) return block(CLEANUP_IDENTITY_CHANGED_MESSAGE, 'identity_changed')
           const removing = beginRemoval(record, directoryIdentity)
-          if (!removing) return block(hostMessages.cleanupMissingBeforeRemoval.zh)
+          if (!removing) return block(hostMessages.cleanupMissingBeforeRemoval.zh, 'directory_busy')
           await retryTransientCleanup(() => dependencies.git.removeWorktree(removing.localRoot, removing.managedGitRoot))
           if (dependencies.files.exists(removing.managedGitRoot)) {
             const residue = await validateDetachedCleanupResidue(removing)
-            if (!residue) return block(CLEANUP_IDENTITY_CHANGED_MESSAGE)
+            if (!residue) return block(CLEANUP_IDENTITY_CHANGED_MESSAGE, 'identity_changed')
             await quarantineAndRemove(removing, residue)
           }
         } else {
           const residue = await validateDetachedCleanupResidue(record, options.allowLegacyResidue === true)
-          if (!residue) return block(CLEANUP_IDENTITY_CHANGED_MESSAGE)
+          if (!residue) return block(CLEANUP_IDENTITY_CHANGED_MESSAGE, 'identity_changed')
           const removing = beginRemoval(record, residue.directoryIdentity)
-          if (!removing) return block(hostMessages.cleanupMissingBeforeRemoval.zh)
+          if (!removing) return block(hostMessages.cleanupMissingBeforeRemoval.zh, 'directory_busy')
           const revalidatedResidue = await validateDetachedCleanupResidue(removing)
-          if (!revalidatedResidue) return block(CLEANUP_IDENTITY_CHANGED_MESSAGE)
+          if (!revalidatedResidue) return block(CLEANUP_IDENTITY_CHANGED_MESSAGE, 'identity_changed')
           await quarantineAndRemove(removing, revalidatedResidue)
         }
       }

@@ -641,6 +641,7 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
     }),
 
     restoreAbandoned: request => outcome(async () => {
+      await authorize(request.sessionId, request.checkoutId)
       const { branch } = await options.module.restoreAbandonedWorktreeSnapshot(request.sessionId, request.checkoutId)
       return { checkoutId: request.checkoutId, branch }
     }),

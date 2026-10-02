@@ -17,6 +17,16 @@ import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { SessionCheckoutModule } from './index.js'
 import type { WorktreeValidationStatus } from './types.js'
 
+const WORKTREE_RETENTION_VALUES = ['cleanup', 'retain_24h', 'retain_3d', 'retain_manual'] as const
+
+function parseWorktreeRetention(value: unknown): (typeof WORKTREE_RETENTION_VALUES)[number] {
+  if (value === undefined) return 'cleanup'
+  if (typeof value === 'string' && (WORKTREE_RETENTION_VALUES as readonly string[]).includes(value)) {
+    return value as (typeof WORKTREE_RETENTION_VALUES)[number]
+  }
+  throw new Error(hostMessage('worktreeDeliverInvalidRetention', { p0: String(value) }))
+}
+
 function sessionIdOf(agent: unknown): string {
   const session = (agent as { session?: { id: unknown } } | undefined)?.session
   if (!session || typeof session.id !== 'string') {
@@ -371,7 +381,7 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
           expectedRevision: current.revision,
           action: 'finish',
           commitMessage,
-          retention: (args?.retention ?? 'cleanup') as 'cleanup' | 'retain_24h' | 'retain_3d' | 'retain_manual',
+          retention: parseWorktreeRetention(args?.retention),
           ...(expectedReviewId ? { expectedReviewId } : {}),
         })
         if (result.status !== 'finished') {

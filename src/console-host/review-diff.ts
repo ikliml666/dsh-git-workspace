@@ -94,6 +94,9 @@ function parseNameStatus(output: Buffer): ChangedEntry[] {
   while (index < fields.length) {
     const code = fields[index++]
     if (!code) break
+    // ponytail: name-status reports both R and C here; the console contract has
+    // no 'copied' status, so copy semantics fold into 'renamed' (no consumer
+    // distinguishes them).
     if (code.startsWith('R') || code.startsWith('C')) {
       const previousPath = fields[index++] ?? ''
       const path = fields[index++] ?? ''
