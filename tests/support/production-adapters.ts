@@ -17,21 +17,9 @@ import type {
   SessionCheckoutRegistryPort,
 } from '../../src/ports.js'
 
-/** Domi 宿主审计事件的测试替身；插件版没有审计管线，仅测试基建保留。 */
-export interface SessionCheckoutTimingEvent {
-  phase: 'worktree_create' | 'checkout_bind'
-  sessionId: string
-  iteration: number
-  attempt: number
-  outcome: 'success' | 'error'
-  timestamp: string
-  durationMs: number
-}
-
 interface NodeSessionCheckoutOptions {
   configDir: string
   lookup: SessionCheckoutLookupPort
-  onTimingEvent?: (event: SessionCheckoutTimingEvent) => void | Promise<void>
   worktreesRoot?: string | LiveValue<string | undefined>
   autoDeliver?: boolean | LiveValue<boolean | undefined>
   autoPush?: boolean | LiveValue<boolean | undefined>
@@ -535,7 +523,6 @@ export function createNodeSessionCheckoutDependencies(
     ...(options.autoDeliver !== undefined && { autoDeliver: options.autoDeliver }),
     ...(options.autoPush !== undefined && { autoPush: options.autoPush }),
     createCheckoutId: randomUUID,
-    ...(options.onTimingEvent && { onTimingEvent: options.onTimingEvent }),
     registry: new AtomicJsonCheckoutRegistry(join(options.configDir, 'managed-checkouts.json')),
     files: {
       exists: existsSync,

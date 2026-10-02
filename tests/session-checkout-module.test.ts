@@ -133,14 +133,8 @@ function createContext(options: {
   git(projectRoot, 'add', 'tracked.txt')
   git(projectRoot, 'commit', '-m', 'base')
 
-  const timingEvents: SessionCheckoutTimingEvent[] = []
-  const recordTiming = (event: SessionCheckoutTimingEvent): void => {
-    if (options.timingFailure) throw new Error('模拟 timing writer 失败')
-    timingEvents.push(event)
-  }
   const dependencies = createNodeSessionCheckoutDependencies({
     configDir,
-    onTimingEvent: recordTiming,
     ...(worktreesRoot
       ? { worktreesRoot: options.worktreesRootLive ? { get: () => worktreesRoot } : worktreesRoot }
       : {}),

@@ -23,20 +23,6 @@ function agentVersionFromAnchor(anchor: string | undefined): string | undefined 
   return undefined
 }
 
-/**
- * The Host-resolved agent package is a version signal, not the plugin's
- * build-time dev dependency. Anchors run most-Host-like first: under a link:
- * install the plugin's own node_modules shadows the Host tree, so the running
- * entry script and its cwd win and the plugin path is only the last resort.
- */
-export function workspaceClientFlavorFromAnchors(anchors: ReadonlyArray<string | undefined>): WorkspaceClientFlavor {
-  for (const anchor of anchors) {
-    const version = agentVersionFromAnchor(anchor)
-    if (version !== undefined) return workspaceClientFlavorForAgentVersion(version)
-  }
-  return 'unsupported'
-}
-
 export interface WorkspaceFlavorAnchorDiagnostic {
   kind: 'entry' | 'cwd' | 'plugin' | 'extra'
   anchor: string
@@ -51,7 +37,13 @@ export interface WorkspaceFlavorDiagnostics {
 
 const ANCHOR_KINDS: ReadonlyArray<WorkspaceFlavorAnchorDiagnostic['kind']> = ['entry', 'cwd', 'plugin']
 
-/** Same selection rule as {@link workspaceClientFlavorFromAnchors}, but records every probe. */
+/**
+ * The Host-resolved agent package is a version signal, not the plugin's
+ * build-time dev dependency. Anchors run most-Host-like first: under a link:
+ * install the plugin's own node_modules shadows the Host tree, so the running
+ * entry script and its cwd win and the plugin path is only the last resort.
+ * The first anchor that resolves a Host agent tree wins; every probe is recorded.
+ */
 export function workspaceFlavorDiagnostics(
   anchors: ReadonlyArray<string | undefined> = [process.argv[1], process.cwd(), import.meta.url],
 ): WorkspaceFlavorDiagnostics {
