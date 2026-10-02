@@ -6,50 +6,78 @@ import type {
 } from '../../console-contract.js'
 import type { ClientTranslator } from '../i18n.js'
 
-export type LaneGlyph = 'node' | 'pass' | 'merge' | 'gap'
+/** One drawn segment: x in lane units (column), y in row fractions (0 top, 0.5 node center, 1 bottom). */
+export interface GraphEdge {
+  x1: number
+  y1: number
+  x2: number
+  y2: number
+  color: number
+}
 
 export interface GraphRowLanes {
-  columns: LaneGlyph[]
   nodeColumn: number
-  merge: boolean
+  /** Graph-wide maximum lane count, so every row renders the same svg width. */
+  laneCount: number
+  edges: GraphEdge[]
 }
 
 /**
- * Lane topology ported from @linxin666/dsh-client-ui-git-graph (computeLanes):
+ * Lane topology ported from @linxin666/dsh-client-ui-git-graph (computeLanes),
+ * emitting edge geometry instead of per-row glyphs so consecutive rows join up:
  * first parent keeps the commit's lane, other parents open lanes to the right;
  * a lane goes quiet once every child has been rendered.
  */
 export function computeGraphLanes(rows: Pick<WorktreeConsoleGitGraphCommit, 'oid' | 'parents'>[]): GraphRowLanes[] {
-  const later = new Set<string>()
-  for (const row of rows) for (const parent of row.parents) later.add(parent)
   let lanes: (string | null)[] = []
+  let laneCount = 1
   const result: GraphRowLanes[] = []
   for (const row of rows) {
-    let nodeColumn = lanes.findIndex(pending => pending === row.oid)
+    const found = lanes.findIndex(pending => pending === row.oid)
+    let nodeColumn = found
     if (nodeColumn === -1) {
       lanes.push(row.oid)
       nodeColumn = lanes.length - 1
     }
-    const columns = lanes.map((pending, column): LaneGlyph => {
-      if (pending === null) return 'gap'
-      if (column === nodeColumn) return row.parents.length > 1 ? 'merge' : 'node'
-      if (pending === row.oid) return 'gap'
-      if (later.has(pending)) return 'pass'
-      return 'gap'
-    })
-    lanes = lanes.map((pending, column) => column === nodeColumn ? pending : pending === row.oid ? null : pending)
+    const edges: GraphEdge[] = []
+    if (found !== -1) edges.push({ x1: nodeColumn, y1: 0, x2: nodeColumn, y2: 0.5, color: nodeColumn })
+    for (let column = 0; column < lanes.length; column++) {
+      if (column !== nodeColumn && lanes[column] === row.oid) {
+        edges.push({ x1: column, y1: 0, x2: nodeColumn, y2: 0.5, color: column })
+      }
+    }
+    const before = lanes.slice()
+    lanes = lanes.map((pending, column) => (column === nodeColumn || pending === row.oid ? null : pending))
     lanes[nodeColumn] = row.parents[0] ?? null
-    for (const parent of row.parents.slice(1)) {
-      if (!lanes.includes(parent)) lanes.push(parent)
+    if (row.parents.length > 0) {
+      edges.push({ x1: nodeColumn, y1: 0.5, x2: nodeColumn, y2: 1, color: nodeColumn })
+      for (const parent of row.parents.slice(1)) {
+        let target = lanes.indexOf(parent)
+        if (target === -1) {
+          lanes.push(parent)
+          target = lanes.length - 1
+        }
+        if (target !== nodeColumn) edges.push({ x1: nodeColumn, y1: 0.5, x2: target, y2: 1, color: target })
+      }
+    }
+    for (let column = 0; column < before.length; column++) {
+      const pending = before[column]
+      if (pending !== null && column !== nodeColumn && pending !== row.oid && lanes[column] === pending) {
+        edges.push({ x1: column, y1: 0, x2: column, y2: 1, color: column })
+      }
     }
     while (lanes.length > 0 && lanes[lanes.length - 1] === null) lanes.pop()
-    result.push({ columns, nodeColumn, merge: row.parents.length > 1 })
+    laneCount = Math.max(laneCount, lanes.length)
+    result.push({ nodeColumn, laneCount, edges })
   }
+  for (const row of result) row.laneCount = laneCount
   return result
 }
 
-const GLYPH_CHAR: Record<LaneGlyph, string> = { node: '●', merge: '◆', pass: '│', gap: ' ' }
 const LANE_COLORS = ['#5a8dee', '#8e6fe8', '#3aa981', '#d9913b', '#d76a8c', '#5aa9c9']
+const LANE_WIDTH = 14
+const ROW_HEIGHT = 36
+const NODE_RADIUS = 4
 const INITIAL_LIMIT = 200
 const PAGE_STEP = 100
 
@@ -73,7 +101,21 @@ export interface BranchGraphModalProps {
   currentBranch: string | null
 }
 
-/** Repo-wide commit graph (git log --topo-order) with ASCII lane rendering. */
+function laneX(column: number): number {
+  return column * LANE_WIDTH + LANE_WIDTH / 2
+}
+
+function edgePath(edge: GraphEdge): string {
+  const x1 = laneX(edge.x1)
+  const x2 = laneX(edge.x2)
+  const y1 = edge.y1 * ROW_HEIGHT
+  const y2 = edge.y2 * ROW_HEIGHT
+  if (x1 === x2) return `M ${x1} ${y1} L ${x2} ${y2}`
+  const midY = (y1 + y2) / 2
+  return `M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}`
+}
+
+/** Repo-wide commit graph (git log --topo-order) with GitHub-style svg lane rendering. */
 export function BranchGraphModal({ open, onClose, adapter, sessionId, t, currentBranch }: BranchGraphModalProps) {
   const [limit, setLimit] = useState(INITIAL_LIMIT)
   const [commits, setCommits] = useState<WorktreeConsoleGitGraphCommit[] | null>(null)
@@ -108,6 +150,7 @@ export function BranchGraphModal({ open, onClose, adapter, sessionId, t, current
   }, [open, load])
 
   const hasMore = commits !== null && commits.length >= limit
+  const graphWidth = lanes !== null && lanes.length > 0 ? lanes[0]!.laneCount * LANE_WIDTH : LANE_WIDTH
 
   return (
     <Modal
@@ -145,15 +188,29 @@ export function BranchGraphModal({ open, onClose, adapter, sessionId, t, current
             <div className="dsh-wtc-graph-row" key={commit.oid}>
               <span className="dsh-wtc-graph-oid" title={commit.oid}>{commit.oid.slice(0, 7)}</span>
               <span className="dsh-wtc-graph-lanes" aria-hidden>
-                {row.columns.map((glyph, column) => (
-                  <span
-                    key={column}
-                    data-gitgraph-glyph={glyph}
-                    style={glyph === 'node' || glyph === 'merge' ? { color: LANE_COLORS[column % LANE_COLORS.length] } : undefined}
-                  >
-                    {GLYPH_CHAR[glyph]}
-                  </span>
-                ))}
+                <svg
+                  className="dsh-wtc-graph-lane-svg"
+                  width={graphWidth}
+                  height={ROW_HEIGHT}
+                  viewBox={`0 0 ${graphWidth} ${ROW_HEIGHT}`}
+                >
+                  {row.edges.map((edge, edgeIndex) => (
+                    <path
+                      key={edgeIndex}
+                      d={edgePath(edge)}
+                      stroke={LANE_COLORS[edge.color % LANE_COLORS.length]}
+                      strokeWidth={1.5}
+                      fill="none"
+                      strokeLinecap="round"
+                    />
+                  ))}
+                  <circle
+                    cx={laneX(row.nodeColumn)}
+                    cy={ROW_HEIGHT / 2}
+                    r={NODE_RADIUS}
+                    fill={LANE_COLORS[row.nodeColumn % LANE_COLORS.length]}
+                  />
+                </svg>
               </span>
               <span className="dsh-wtc-graph-main">
                 <span className="dsh-wtc-graph-subject" title={commit.subject}>{commit.subject}</span>

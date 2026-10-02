@@ -171,16 +171,15 @@ export const TARGET_CONSOLE_STYLES = String.raw`
 .dsh-wtc-create-branch { display:grid; gap:8px; }
 .dsh-wtc-create-branch-input { min-height:32px; border:1px solid color-mix(in srgb, currentColor 22%, transparent); border-radius:8px; padding:6px 10px; background:transparent; color:inherit; font:inherit; font-size:13px; }
 .dsh-wtc-create-branch-input:focus-visible { outline:2px solid #5b8fe8; outline-offset:1px; }
-.dsh-wtc-graph { display:grid; gap:2px; max-height:min(64vh, 620px); overflow:auto; font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px; }
-.dsh-wtc-graph-row { display:flex; align-items:baseline; gap:8px; min-width:0; padding:2px 4px; border-radius:6px; }
+.dsh-wtc-graph { display:grid; gap:0; max-height:min(64vh, 620px); overflow:auto; font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px; }
+.dsh-wtc-graph-row { display:flex; align-items:center; gap:8px; min-width:0; height:36px; padding:0 4px; border-radius:6px; }
 .dsh-wtc-graph-row:hover { background:color-mix(in srgb, currentColor 5%, transparent); }
 .dsh-wtc-graph-oid { flex:0 0 auto; color:color-mix(in srgb, currentColor 55%, transparent); }
-.dsh-wtc-graph-lanes { flex:0 0 auto; display:inline-flex; align-items:center; justify-content:center; width:64px; overflow:hidden; letter-spacing:1px; white-space:pre; }
-.dsh-wtc-graph-lanes [data-gitgraph-glyph="pass"] { opacity:.45; }
-.dsh-wtc-graph-lanes [data-gitgraph-glyph="merge"] { font-size:10px; }
+.dsh-wtc-graph-lanes { flex:0 0 auto; display:inline-flex; align-items:center; }
+.dsh-wtc-graph-lane-svg { display:block; }
 .dsh-wtc-graph-main { min-width:0; display:grid; gap:2px; font-family:inherit; }
 .dsh-wtc-graph-subject { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:system-ui, sans-serif; font-weight:560; }
-.dsh-wtc-graph-meta { display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; color:color-mix(in srgb, currentColor 55%, transparent); font-family:system-ui, sans-serif; font-size:11px; }
+.dsh-wtc-graph-meta { display:flex; flex-wrap:nowrap; align-items:center; gap:4px 10px; overflow:hidden; color:color-mix(in srgb, currentColor 55%, transparent); font-family:system-ui, sans-serif; font-size:11px; }
 .dsh-wtc-graph-ref { padding:1px 6px; border-radius:999px; background:color-mix(in srgb, currentColor 9%, transparent); font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:10px; }
 .dsh-wtc-graph-ref[data-gitgraph-ref-current] { background:color-mix(in srgb, #2f6fd0 16%, transparent); color:#2f6fd0; font-weight:650; }
 .dsh-wtc-graph-empty { padding:26px 14px; color:color-mix(in srgb, currentColor 55%, transparent); text-align:center; font-family:system-ui, sans-serif; }
