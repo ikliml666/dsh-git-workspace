@@ -15,10 +15,13 @@ import { hostMessage } from '../i18n/host.js'
  */
 
 import { createHash } from 'node:crypto'
-import { realpath, lstat } from 'node:fs/promises'
+import { realpath, lstat, mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { resolve, dirname, join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type { SubprocessHandle } from '@deepseek-ai/dsh-subprocess'
+import type { ApplyConflictDetail, MergeLocalBranchResult } from '../types.js'
+import { CONFLICT_DETAIL_DIFF_LIMIT, CONFLICT_DETAIL_FILE_LIMIT } from '../types.js'
 import type { GitCheckoutSnapshot, SessionCheckoutGitPort } from '../ports.js'
 import { SessionCheckoutError } from '../index.js'
 
@@ -492,6 +495,77 @@ export function createDshGitPort(ctx: Context, options: GitPortOptions): Session
         }
         throw new SessionCheckoutError('git_operation_failed', stderr || hostMessage('gitOperationFailedGit', { p0: 'switch', p1: branch }))
       }
+    },
+    mergeLocalBranch: async (root, source, options) => {
+      const dryRun = options?.dryRun === true
+      const collectConflict = async (cwd: string): Promise<{ conflictingFiles: string[]; conflictDetails: ApplyConflictDetail[] } | null> => {
+        const unmerged = await runSessionGit(cwd, ['diff', '--name-only', '--diff-filter=U', '-z'])
+        const conflictingFiles = unmerged.stdout.split('\0').filter(Boolean).sort()
+        if (conflictingFiles.length === 0) return null
+        const conflictDetails: ApplyConflictDetail[] = []
+        for (const file of conflictingFiles.slice(0, CONFLICT_DETAIL_FILE_LIMIT)) {
+          const diff = await runSessionGit(cwd, ['diff', '--', file])
+          const text = diff.stdout.length > CONFLICT_DETAIL_DIFF_LIMIT
+            ? `${diff.stdout.slice(0, CONFLICT_DETAIL_DIFF_LIMIT)}\n… ${hostMessage('worktreeConflictDiffTruncated')}`
+            : diff.stdout
+          conflictDetails.push({ file, diff: text })
+        }
+        if (conflictingFiles.length > CONFLICT_DETAIL_FILE_LIMIT) {
+          conflictDetails.push({
+            file: hostMessage('worktreeConflictMoreFiles', { p0: String(conflictingFiles.length - CONFLICT_DETAIL_FILE_LIMIT) }),
+            diff: '',
+          })
+        }
+        return { conflictingFiles, conflictDetails }
+      }
+
+      const head = await runSessionGit(root, ['rev-parse', 'HEAD'])
+      if (head.code !== 0) {
+        return { type: 'failed', reason: (head.stderr || head.stdout).trim() || hostMessage('gitOperationFailedGit', { p0: 'rev-parse', p1: 'HEAD' }) }
+      }
+      const tip = await runSessionGit(root, ['rev-parse', '--verify', '--quiet', `${source}^{commit}`])
+      if (tip.code !== 0) {
+        return { type: 'failed', reason: hostMessage('worktreeMergeUnknownSourceBranch', { p0: source }) }
+      }
+      const headOid = head.stdout.trim()
+      const tipOid = tip.stdout.trim()
+      if (headOid === tipOid) return { type: 'up_to_date' }
+      const ancestor = await runSessionGit(root, ['merge-base', headOid, tipOid])
+      if (ancestor.code === 0 && ancestor.stdout.trim() === tipOid) return { type: 'up_to_date' }
+
+      if (dryRun) {
+        // 干跑：临时 detached worktree 指向当前 HEAD 试合并，零改动触碰 checkout。
+        const probe = await mkdtemp(join(tmpdir(), 'dsh-merge-probe-'))
+        let added = false
+        try {
+          const addedResult = await runSessionGit(root, ['worktree', 'add', '--detach', probe, headOid])
+          if (addedResult.code !== 0) {
+            return { type: 'failed', reason: (addedResult.stderr || addedResult.stdout).trim() }
+          }
+          added = true
+          const merge = await runSessionGit(probe, ['merge', '--no-commit', '--no-ff', source])
+          if (merge.code === 0) {
+            const files = await runSessionGit(probe, ['diff', '--name-only', headOid])
+            return { type: 'merged', mergedFiles: files.stdout.split('\n').map((line) => line.trim()).filter(Boolean) }
+          }
+          const conflict = await collectConflict(probe)
+          if (conflict) return { type: 'conflict', ...conflict }
+          return { type: 'failed', reason: (merge.stderr || merge.stdout).trim() }
+        } finally {
+          // 探测 worktree 必须回收；remove --force 覆盖未提交的合并状态。
+          if (added) await runSessionGit(root, ['worktree', 'remove', '--force', probe])
+        }
+      }
+
+      // 正式合并：冲突不 abort——冲突状态留在 Local，调用方拿到详情后自行解决提交。
+      const merge = await runSessionGit(root, ['merge', '--no-ff', '--no-edit', source])
+      if (merge.code === 0) {
+        const files = await runSessionGit(root, ['diff', '--name-only', 'HEAD^1', 'HEAD'])
+        return { type: 'merged', mergedFiles: files.stdout.split('\n').map((line) => line.trim()).filter(Boolean) }
+      }
+      const conflict = await collectConflict(root)
+      if (conflict) return { type: 'conflict', ...conflict }
+      return { type: 'failed', reason: (merge.stderr || merge.stdout).trim() }
     },
     captureLocalWip: async (root) => {
       // codex 对齐：`diff --binary HEAD` 同时覆盖已暂存与未暂存的 tracked

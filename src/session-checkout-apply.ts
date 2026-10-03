@@ -6,7 +6,8 @@ import { mkdtempSync, realpathSync } from 'node:fs'
 import { copyFile, mkdir, mkdtemp, open, readFile, rename, rm, unlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { delimiter, isAbsolute, join, relative, resolve } from 'node:path'
-import type { ApplyBaseStrategy } from './types.js'
+import type { ApplyBaseStrategy, ApplyConflictDetail } from './types.js'
+import { CONFLICT_DETAIL_DIFF_LIMIT, CONFLICT_DETAIL_FILE_LIMIT } from './types.js'
 
 export interface ApplyPlanInput {
   baseOid: string
@@ -52,6 +53,8 @@ export interface ApplyConflictPlanResult {
   localHeadOid: string
   isolatedHeadOid: string
   conflictingFiles: string[]
+  /** 逐文件合并冲突 diff，模型可就地解决冲突而无需离开会话。 */
+  conflictDetails?: ApplyConflictDetail[]
 }
 
 export interface ApplyPlanErrorResult {
@@ -322,6 +325,7 @@ interface MergeReadyResult {
 interface MergeConflictResult {
   status: 'conflict'
   conflictingFiles: string[]
+  conflictDetails?: ApplyConflictDetail[]
 }
 
 type MergeResult = MergeReadyResult | MergeConflictResult
@@ -631,6 +635,29 @@ async function createSnapshotCommit(
   return stdoutText(result)
 }
 
+/** 逐文件采集 combined 冲突 diff；截断上限防止 payload 撑爆模型上下文。 */
+async function collectConflictDetails(
+  mergePath: string,
+  conflictingFiles: string[],
+  mergeEnv: NodeJS.ProcessEnv,
+): Promise<ApplyConflictDetail[]> {
+  const details: ApplyConflictDetail[] = []
+  for (const file of conflictingFiles.slice(0, CONFLICT_DETAIL_FILE_LIMIT)) {
+    const diff = stdoutText(await runGit(mergePath, ['diff', '--', file], { env: mergeEnv }))
+    const text = diff.length > CONFLICT_DETAIL_DIFF_LIMIT
+      ? `${diff.slice(0, CONFLICT_DETAIL_DIFF_LIMIT)}\n… ${hostMessage('worktreeConflictDiffTruncated')}`
+      : diff
+    details.push({ file, diff: text })
+  }
+  if (conflictingFiles.length > CONFLICT_DETAIL_FILE_LIMIT) {
+    details.push({
+      file: hostMessage('worktreeConflictMoreFiles', { p0: String(conflictingFiles.length - CONFLICT_DETAIL_FILE_LIMIT) }),
+      diff: '',
+    })
+  }
+  return details
+}
+
 async function computeMerge(
   tempRoot: string,
   sourceObjects: string,
@@ -683,7 +710,7 @@ async function computeMerge(
       .map((path) => toProjectPath(path, projectPathPrefix))
       .sort()
     if (conflictingFiles.length === 0) throw new GitCommandFailure(['merge'], merge)
-    return { status: 'conflict', conflictingFiles }
+    return { status: 'conflict', conflictingFiles, conflictDetails: await collectConflictDetails(mergePath, conflictingFiles, mergeEnv) }
   }
 
   const mergedTree = stdoutText(await runGit(mergePath, ['write-tree'], { env: mergeEnv }))
@@ -1472,6 +1499,7 @@ class DefaultSessionCheckoutApplyEngine implements SessionCheckoutApplyEngine {
           localHeadOid: local.headOid,
           isolatedHeadOid: isolated.headOid,
           conflictingFiles: merge.conflictingFiles,
+          ...(merge.conflictDetails ? { conflictDetails: merge.conflictDetails } : {}),
         }
       }
 

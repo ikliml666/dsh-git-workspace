@@ -147,7 +147,7 @@ export interface WorktreeAcceptanceBlockerView {
 
 export type WorktreeApplyPreflightView =
   | ({ status: 'ready' | 'local_advanced' | 'already_in_local'; localModified: false } & WorktreeApplyPreflightFacts)
-  | ({ status: 'conflict'; localModified: false; conflictingFiles: string[] } & WorktreeApplyPreflightFacts)
+  | ({ status: 'conflict'; localModified: false; conflictingFiles: string[]; conflictDetails?: ApplyConflictDetail[] } & WorktreeApplyPreflightFacts)
   | {
       status: 'blocked'
       localModified: false
@@ -491,6 +491,34 @@ export type ApplyBaseStrategy =
   | 'isolated_contains_local_head'
   | 'local_contains_isolated_head'
 
+export interface ApplyConflictDetail {
+  file: string
+  /** Combined conflict diff for this file; truncated to keep the payload model-readable. */
+  diff: string
+}
+
+/** 冲突详情 payload 上限：最多 6 个文件、每个 diff 4KB，防止撑爆模型上下文。 */
+export const CONFLICT_DETAIL_FILE_LIMIT = 6
+export const CONFLICT_DETAIL_DIFF_LIMIT = 4096
+
+export type MergeLocalBranchOutcome = 'merged' | 'up_to_date' | 'conflict' | 'failed'
+
+export interface MergeLocalBranchResult {
+  type: MergeLocalBranchOutcome
+  mergedFiles?: string[]
+  conflictingFiles?: string[]
+  conflictDetails?: ApplyConflictDetail[]
+  /** Present for 'failed': the underlying git stderr or a gating reason. */
+  reason?: string
+}
+
+export interface MergeBranchForSessionView extends MergeLocalBranchResult {
+  dryRun: boolean
+  sourceBranch: string
+  /** Current branch of the Local checkout at merge time; null on detached HEAD. */
+  localBranch: string | null
+}
+
 export interface SessionCheckoutConflictResult {
   status: 'conflict'
   code: 'apply_conflict'
@@ -503,6 +531,8 @@ export interface SessionCheckoutConflictResult {
   isolatedHeadOid: string
   canRetryAfterRefresh: false
   conflictingFiles: string[]
+  /** Per-file combined conflict diffs so the agent can resolve without leaving the session. */
+  conflictDetails?: ApplyConflictDetail[]
 }
 
 export interface SessionCheckoutDiscardedResult {

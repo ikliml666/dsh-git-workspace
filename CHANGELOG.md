@@ -6,6 +6,8 @@
 
 ### Added
 
+- worktree 分支合并工具与冲突详情（2026-10-03）：新增 `worktree_merge`（把本会话托管 worktree 的当前分支合并进 Local 当前分支；门控=source 必须是本会话 owner/source 的某个托管 worktree 当前分支，Local 自身分支拒绝作来源；`dryRun` 先在临时 detached worktree 零改动试合并，正式合并 `--no-ff`，冲突不回滚、冲突状态留给模型就地解决提交）。配套：git port 新增可选 `mergeLocalBranch`（tests 支撑适配器同语义复刻）；模块新增 `mergeBranchForSession`（绑锁内执行）。Apply 引擎冲突结果新增 `conflictDetails`（逐文件 combined diff，≤6 文件、每文件 ≤4KB 截断），`worktree_merge`/`preflight`/`operate` 冲突结果全部透传，模型无需离开会话即可读取冲突内容。
+
 - 模型清理工具（2026-10-03）：新增 `worktree_cleanup`（封装 `manageManagedWorktreeForSession` 的 `cleanup_retained`，`checkoutId`+`expectedRevision` 必填 CAS，仅限本会话拥有且已交付/保留终态的 checkout，脏工作树拒绝，走标准隔离区删除链路）与 `worktree_prune_branches`（安全清理当前会话项目里已完全合并的本地分支：`git branch -d` 语义绝不强删，当前分支/main/master/未合并分支一律跳过并说明原因，建议先 `dryRun` 预览）。配套：git port 新增可选 `deleteLocalBranch`；模块新增 `pruneMergedBranchesForSession`（绑锁内执行）；`worktree_list` 输出每条加 `revision` 字段供 CAS 校验取值。
 
 - 空白会话 Worktree 胶囊（2026-10-01）：新会话顶行「标准模式」旁显示 Session Target 分支胶囊（复用会话头 TargetStatusAction，经 `conversation.input.dock` 挂载后 portal 进 hero 工作区行），分支切换/新建/提交图/Manager 直达；宿主缺 react-dom 时自动隐藏，不影响其余客户端功能。

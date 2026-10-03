@@ -22,6 +22,7 @@ import type {
   ManagedWorktreeSummaryView,
   BulkCleanupManagedWorktreeCandidate,
   BulkCleanupManagedWorktreesResult,
+  MergeBranchForSessionView,
   PruneMergedBranchesView,
   SessionCheckoutErrorCode,
   SessionCheckoutOperation,
@@ -78,6 +79,13 @@ export interface ListManagedWorktreesInput {
 
 export interface PruneMergedBranchesInput {
   /** Report what would be deleted without touching any ref. */
+  dryRun?: boolean
+}
+
+export interface MergeBranchForSessionInput {
+  /** Worktree branch to merge into the Local checkout HEAD; must belong to this session. */
+  sourceBranch: string
+  /** Probe the merge in a throwaway detached worktree; never touches the checkout. */
   dryRun?: boolean
 }
 
@@ -157,6 +165,8 @@ export interface SessionCheckoutModule {
   listManagedWorktreesForSession(sessionId: string, input?: Omit<ListManagedWorktreesInput, 'projectId'>): Promise<ManagedWorktreeSummaryView[]>
   /** Caller-scoped safe prune of fully merged local branches in the session project (`git branch -d` semantics, never force). */
   pruneMergedBranchesForSession(sessionId: string, input?: PruneMergedBranchesInput): Promise<PruneMergedBranchesView>
+  /** Caller-scoped merge of a session-owned worktree branch into the Local checkout HEAD; dryRun probes without touching anything. */
+  mergeBranchForSession(sessionId: string, input: MergeBranchForSessionInput): Promise<MergeBranchForSessionView>
   /** codex 对齐：当前会话项目内可恢复的放弃快照列表。 */
   listAbandonedWorktreeSnapshots(sessionId: string): Promise<AbandonedWorktreeSnapshotView[]>
   /** codex 对齐：把放弃快照恢复为 Local 仓库中的分支，并清除记录上的快照标记。 */

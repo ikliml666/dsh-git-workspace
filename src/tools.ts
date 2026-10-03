@@ -515,4 +515,62 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
     },
     presentCall: () => ({ card: 'generic', title: hostRegistrationMessage('pruneMergedLocalBranches'), kind: 'other', rawInput: {} }),
   }))
+
+  ctx.tools.register(defineTool({
+    name: 'worktree_merge',
+    description: hostRegistrationMessage('worktreeMergeDescription'),
+    parameters: {
+      sourceBranch: { type: 'string', description: hostRegistrationMessage('worktreeMergeSourceBranch') },
+      dryRun: { type: 'boolean', description: hostRegistrationMessage('worktreeMergeDryRun') },
+    },
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          kind: { type: 'string', required: true },
+          dryRun: { type: 'boolean', required: true },
+          sourceBranch: { type: 'string', required: true },
+          localBranch: { type: 'string' },
+          type: { type: 'string', required: true },
+          mergedFiles: { type: 'array', items: { type: 'string' } },
+          conflictingFiles: { type: 'array', items: { type: 'string' } },
+          conflictDetails: {
+            type: 'array',
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                file: { type: 'string', required: true },
+                diff: { type: 'string', required: true },
+              },
+            },
+          },
+          reason: { type: 'string' },
+        },
+      },
+      render: (_args, value) => renderJson(value),
+    },
+    async execute(args, exec) {
+      return withHostLanguage(languageForInvocation(exec.agent, ctx), async () => {
+        const sessionId = sessionIdOf(exec.agent)
+        const sourceBranch = typeof args?.sourceBranch === 'string' ? args.sourceBranch.trim() : ''
+        if (!sourceBranch) throw new Error(hostMessage('worktreeMergeSourceBranchRequired'))
+        const result = await module.mergeBranchForSession(sessionId, { sourceBranch, dryRun: args?.dryRun === true })
+        if (result.type === 'failed') throw new Error(result.reason || hostMessage('gitOperationFailedGit', { p0: 'merge', p1: sourceBranch }))
+        return {
+          kind: 'worktree_merge',
+          dryRun: result.dryRun,
+          sourceBranch: result.sourceBranch,
+          ...(result.localBranch ? { localBranch: result.localBranch } : {}),
+          type: result.type,
+          ...(result.mergedFiles ? { mergedFiles: result.mergedFiles } : {}),
+          ...(result.conflictingFiles ? { conflictingFiles: result.conflictingFiles } : {}),
+          ...(result.conflictDetails ? { conflictDetails: result.conflictDetails } : {}),
+          ...(result.reason ? { reason: result.reason } : {}),
+        }
+      })
+    },
+    presentCall: () => ({ card: 'generic', title: hostRegistrationMessage('mergeWorktreeBranch'), kind: 'other', rawInput: {} }),
+  }))
 }

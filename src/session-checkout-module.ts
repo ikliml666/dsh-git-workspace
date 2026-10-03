@@ -9,6 +9,7 @@ import type {
   BulkCleanupManagedWorktreesResult,
   ManagedWorktreeCleanupView,
   ManagedWorktreeSummaryView,
+  MergeBranchForSessionView,
   PruneMergedBranchEntry,
   PruneMergedBranchesView,
   SessionCheckoutErrorCode,
@@ -42,6 +43,7 @@ import type {
   ListManagedWorktreesInput,
   ManageManagedWorktreeInput,
   MarkReadyForReviewInput,
+  MergeBranchForSessionInput,
   PruneMergedBranchesInput,
   SessionCheckoutModule,
   SessionCheckoutReconcileSummary,
@@ -1892,6 +1894,7 @@ export function createSessionCheckoutModule(
         isolatedHeadOid: planResult.isolatedHeadOid,
         canRetryAfterRefresh: false,
         conflictingFiles: planResult.conflictingFiles,
+        ...(planResult.conflictDetails ? { conflictDetails: planResult.conflictDetails } : {}),
       }
     }
     if (planResult.status === 'error') {
@@ -2249,7 +2252,12 @@ export function createSessionCheckoutModule(
       changedFiles: result.status === 'ready' ? [...result.plan.changedFiles] : [...review.changedFiles],
     }
     if (result.status === 'conflict') {
-      return { ...common, status: 'conflict', conflictingFiles: [...result.conflictingFiles] }
+      return {
+        ...common,
+        status: 'conflict',
+        conflictingFiles: [...result.conflictingFiles],
+        ...(result.conflictDetails ? { conflictDetails: [...result.conflictDetails] } : {}),
+      }
     }
     const status = result.plan.changedFiles.length === 0
       ? 'already_in_local' as const
@@ -2329,6 +2337,7 @@ export function createSessionCheckoutModule(
         isolatedHeadOid: planResult.isolatedHeadOid,
         canRetryAfterRefresh: false,
         conflictingFiles: planResult.conflictingFiles,
+        ...(planResult.conflictDetails ? { conflictDetails: planResult.conflictDetails } : {}),
       }
     }
     if (planResult.status === 'error') {
@@ -3048,6 +3057,7 @@ export function createSessionCheckoutModule(
         isolatedHeadOid: planResult.isolatedHeadOid,
         canRetryAfterRefresh: false,
         conflictingFiles: planResult.conflictingFiles,
+        ...(planResult.conflictDetails ? { conflictDetails: planResult.conflictDetails } : {}),
       }
     }
     if (planResult.status === 'error') {
@@ -3803,6 +3813,43 @@ export function createSessionCheckoutModule(
       }
     }
     return { dryRun, headBranch: headBranch?.name ?? null, pruned, skipped }
+  }
+
+  async function mergeBranchForSession(sessionId: string, input: MergeBranchForSessionInput): Promise<MergeBranchForSessionView> {
+    const session = requireSession(sessionId)
+    const persisted = getPersistedBinding(sessionId)
+    const projectId = persisted?.projectId ?? session.projectId
+    if (!projectId) throw new SessionCheckoutError('project_not_found', hostMessage('theSessionIsNotAssociatedWithAProject'))
+    const project = dependencies.lookup.getProject(projectId)
+    const records = Object.values(dependencies.registry.read().managedCheckouts)
+      .filter((record) => record.projectId === projectId)
+      .filter((record) => record.ownerSessionId === sessionId || record.sourceSessionId === sessionId)
+    const localRoot = project?.root ?? records.map((record) => record.localRoot).find((root) => root.length > 0)
+    if (!localRoot) throw new SessionCheckoutError('project_not_found', hostMessage('theSessionIsNotAssociatedWithAProject'))
+    const { mergeLocalBranch, branchOverview } = dependencies.git
+    if (!mergeLocalBranch || !branchOverview) {
+      throw new SessionCheckoutError('operation_not_allowed', hostMessage('theGitPortOfThisInstallationDoesNotSupportBranchMerge'))
+    }
+    const sourceBranch = input.sourceBranch.trim()
+    if (!sourceBranch) throw new SessionCheckoutError('invalid_input', hostMessage('worktreeMergeSourceBranchRequired'))
+    // 门控：source 必须是本会话某个托管 worktree 的当前分支；Local 自身分支不可作为来源。
+    const ownedBranches = new Set<string>()
+    for (const record of records) {
+      const overview = await branchOverview(record.managedGitRoot)
+      const current = overview?.branches.find((branch) => branch.isCurrent)
+      if (current) ownedBranches.add(current.name)
+    }
+    const localOverview = await branchOverview(localRoot)
+    const localBranch = localOverview?.branches.find((branch) => branch.isCurrent)?.name ?? null
+    if (localBranch === sourceBranch) {
+      throw new SessionCheckoutError('invalid_input', hostMessage('worktreeMergeSourceIsLocalHead', { p0: sourceBranch }))
+    }
+    if (!ownedBranches.has(sourceBranch)) {
+      throw new SessionCheckoutError('not_owner', hostMessage('worktreeMergeSourceNotOwnedBySession', { p0: sourceBranch }))
+    }
+    const dryRun = input.dryRun === true
+    const result = await mergeLocalBranch(localRoot, sourceBranch, { dryRun })
+    return { dryRun, sourceBranch, localBranch, ...result }
   }
 
   async function listAbandonedWorktreeSnapshots(sessionId: string): Promise<AbandonedWorktreeSnapshotView[]> {
@@ -4639,6 +4686,9 @@ export function createSessionCheckoutModule(
     listManagedWorktreesForSession,
     pruneMergedBranchesForSession: (sessionId, input) => withBindingLock(
       () => pruneMergedBranchesForSession(sessionId, input),
+    ),
+    mergeBranchForSession: (sessionId, input) => withBindingLock(
+      () => mergeBranchForSession(sessionId, input),
     ),
     listAbandonedWorktreeSnapshots,
     restoreAbandonedWorktreeSnapshot: (sessionId, checkoutId) => withBindingLock(

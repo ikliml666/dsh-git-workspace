@@ -776,6 +776,9 @@ describe('SessionCheckoutModule', () => {
     const localBytes = readFileSync(join(context.projectRoot, 'tracked.txt'), 'utf8')
     const preflight = await context.module.preflight?.('session-1', ready.revision)
     if (!preflight || preflight.status !== 'conflict') throw new Error('expected conflict preflight')
+    expect(preflight.conflictingFiles).toEqual(['tracked.txt'])
+    expect(preflight.conflictDetails?.[0]?.file).toBe('tracked.txt')
+    expect(preflight.conflictDetails?.[0]?.diff).toContain('<<<')
 
     const resumed = await context.module.resumeRevision(
       'session-1',
@@ -1037,6 +1040,67 @@ describe('SessionCheckoutModule', () => {
     expect(remaining).toContain('unmerged-branch')
     await expect(context.module.pruneMergedBranchesForSession('ghost-session')).rejects.toMatchObject({ code: 'session_not_found' })
   })
+
+  test('Given a session-owned worktree branch When the session merges it Then dryRun probes first and the real merge lands in Local', async () => {
+    const context = createContext()
+    const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')
+    // 托管 worktree 初始为 detached HEAD：模型在 worktree 里建主题分支后再合并。
+    const branch = 'feat/wt-merge-clean'
+    git(launch.managedRoot, 'switch', '-c', branch)
+    writeFileSync(join(launch.managedRoot, 'from-worktree.txt'), 'worktree work\n', 'utf8')
+    git(launch.managedRoot, 'add', 'from-worktree.txt')
+    git(launch.managedRoot, 'commit', '-m', 'feat: worktree work')
+
+    const preview = await context.module.mergeBranchForSession('session-1', { sourceBranch: branch, dryRun: true })
+    expect(preview).toMatchObject({ dryRun: true, sourceBranch: branch, localBranch: 'main', type: 'merged' })
+    expect(preview.mergedFiles).toEqual(['from-worktree.txt'])
+    expect(existsSync(join(context.projectRoot, 'from-worktree.txt'))).toBe(false)
+
+    const result = await context.module.mergeBranchForSession('session-1', { sourceBranch: branch })
+    expect(result).toMatchObject({ dryRun: false, type: 'merged' })
+    expect(result.mergedFiles).toEqual(['from-worktree.txt'])
+    expect(readFileSync(join(context.projectRoot, 'from-worktree.txt'), 'utf8')).toBe('worktree work\n')
+
+    await expect(context.module.mergeBranchForSession('session-1', { sourceBranch: 'main' }))
+      .rejects.toMatchObject({ code: 'invalid_input' })
+    await expect(context.module.mergeBranchForSession('session-1', { sourceBranch: 'not-this-session' }))
+      .rejects.toMatchObject({ code: 'not_owner' })
+    await expect(context.module.mergeBranchForSession('ghost-session', { sourceBranch: branch }))
+      .rejects.toMatchObject({ code: 'session_not_found' })
+  }, 30_000)
+
+  test('Given conflicting edits on both sides When the session merges its worktree branch Then dryRun surfaces conflict details and the real merge leaves them for in-place resolution', async () => {
+    const context = createContext()
+    const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')
+    const branch = 'feat/wt-merge-conflict'
+    git(launch.managedRoot, 'switch', '-c', branch)
+    writeFileSync(join(launch.managedRoot, 'tracked.txt'), 'worktree version\n', 'utf8')
+    git(launch.managedRoot, 'add', 'tracked.txt')
+    git(launch.managedRoot, 'commit', '-m', 'feat: worktree version')
+    // 7 个额外冲突文件把详情推送过 CONFLICT_DETAIL_FILE_LIMIT=6 截断线。
+    for (let i = 1; i <= 7; i++) {
+      writeFileSync(join(launch.managedRoot, `extra-${i}.txt`), `worktree ${i}\n`, 'utf8')
+      writeFileSync(join(context.projectRoot, `extra-${i}.txt`), `local ${i}\n`, 'utf8')
+    }
+    git(launch.managedRoot, 'add', '.')
+    git(launch.managedRoot, 'commit', '-m', 'feat: worktree extras')
+    writeFileSync(join(context.projectRoot, 'tracked.txt'), 'local version\n', 'utf8')
+    git(context.projectRoot, 'add', '.')
+    git(context.projectRoot, 'commit', '-m', 'feat: local version')
+
+    const preview = await context.module.mergeBranchForSession('session-1', { sourceBranch: branch, dryRun: true })
+    expect(preview.type).toBe('conflict')
+    expect(preview.conflictingFiles).toHaveLength(8)
+    expect(preview.conflictDetails).toHaveLength(7)
+    expect(preview.conflictDetails?.[0]?.file).toBe('extra-1.txt')
+    expect(preview.conflictDetails?.[0]?.diff).toContain('<<<')
+    expect(preview.conflictDetails?.at(-1)?.diff).toBe('')
+    expect(readFileSync(join(context.projectRoot, 'tracked.txt'), 'utf8')).toBe('local version\n')
+
+    const result = await context.module.mergeBranchForSession('session-1', { sourceBranch: branch })
+    expect(result.type).toBe('conflict')
+    expect(readFileSync(join(context.projectRoot, 'tracked.txt'), 'utf8')).toContain('<<<<<<<')
+  }, 30_000)
 
   test('Given worktreesRoot is configured When discard removes the last checkout Then the empty project container is collected', async () => {
     const context = createContext({ worktreesRoot: true })

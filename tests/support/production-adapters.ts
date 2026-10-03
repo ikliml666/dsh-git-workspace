@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmdirSync, rmSync } from 'node:fs'
-import { lstat, readdir, realpath, rename, rm } from 'node:fs/promises'
+import { lstat, mkdtemp, readdir, realpath, rename, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { spawn, type ChildProcessByStdio } from 'node:child_process'
 import type { Readable } from 'node:stream'
@@ -16,6 +17,8 @@ import type {
   SessionCheckoutLookupPort,
   SessionCheckoutRegistryPort,
 } from '../../src/ports.js'
+import type { ApplyConflictDetail } from '../../src/types.js'
+import { CONFLICT_DETAIL_DIFF_LIMIT, CONFLICT_DETAIL_FILE_LIMIT } from '../../src/types.js'
 
 interface NodeSessionCheckoutOptions {
   configDir: string
@@ -661,6 +664,67 @@ export function createNodeSessionCheckoutDependencies(
         const result = await runSessionGit(root, ['branch', '-d', name])
         if (result.code === 0) return { deleted: true }
         return { deleted: false, reason: (result.stderr || result.stdout).trim() }
+      },
+      // 与 src/adapters/git.ts 同语义：dryRun 在临时 detached worktree 试合并；
+      // 正式合并冲突不 abort，冲突状态留给调用方就地解决。
+      mergeLocalBranch: async (root, source, options) => {
+        const dryRun = options?.dryRun === true
+        const collectConflict = async (cwd: string): Promise<{ conflictingFiles: string[]; conflictDetails: ApplyConflictDetail[] } | null> => {
+          const unmerged = await runSessionGit(cwd, ['diff', '--name-only', '--diff-filter=U', '-z'])
+          const conflictingFiles = unmerged.stdout.split('\0').filter(Boolean).sort()
+          if (conflictingFiles.length === 0) return null
+          const conflictDetails: ApplyConflictDetail[] = []
+          for (const file of conflictingFiles.slice(0, CONFLICT_DETAIL_FILE_LIMIT)) {
+            const diff = await runSessionGit(cwd, ['diff', '--', file])
+            const text = diff.stdout.length > CONFLICT_DETAIL_DIFF_LIMIT
+              ? `${diff.stdout.slice(0, CONFLICT_DETAIL_DIFF_LIMIT)}\n… truncated`
+              : diff.stdout
+            conflictDetails.push({ file, diff: text })
+          }
+          if (conflictingFiles.length > CONFLICT_DETAIL_FILE_LIMIT) {
+            conflictDetails.push({ file: `(${conflictingFiles.length - CONFLICT_DETAIL_FILE_LIMIT} more files)`, diff: '' })
+          }
+          return { conflictingFiles, conflictDetails }
+        }
+
+        const head = await runSessionGit(root, ['rev-parse', 'HEAD'])
+        if (head.code !== 0) return { type: 'failed', reason: (head.stderr || head.stdout).trim() }
+        const tip = await runSessionGit(root, ['rev-parse', '--verify', '--quiet', `${source}^{commit}`])
+        if (tip.code !== 0) return { type: 'failed', reason: `unknown branch ${source}` }
+        const headOid = head.stdout.trim()
+        const tipOid = tip.stdout.trim()
+        if (headOid === tipOid) return { type: 'up_to_date' }
+        const ancestor = await runSessionGit(root, ['merge-base', headOid, tipOid])
+        if (ancestor.code === 0 && ancestor.stdout.trim() === tipOid) return { type: 'up_to_date' }
+
+        if (dryRun) {
+          const probe = await mkdtemp(join(tmpdir(), 'dsh-merge-probe-'))
+          let added = false
+          try {
+            const addedResult = await runSessionGit(root, ['worktree', 'add', '--detach', probe, headOid])
+            if (addedResult.code !== 0) return { type: 'failed', reason: (addedResult.stderr || addedResult.stdout).trim() }
+            added = true
+            const merge = await runSessionGit(probe, ['merge', '--no-commit', '--no-ff', source])
+            if (merge.code === 0) {
+              const files = await runSessionGit(probe, ['diff', '--name-only', headOid])
+              return { type: 'merged', mergedFiles: files.stdout.split('\n').map((line) => line.trim()).filter(Boolean) }
+            }
+            const conflict = await collectConflict(probe)
+            if (conflict) return { type: 'conflict', ...conflict }
+            return { type: 'failed', reason: (merge.stderr || merge.stdout).trim() }
+          } finally {
+            if (added) await runSessionGit(root, ['worktree', 'remove', '--force', probe])
+          }
+        }
+
+        const merge = await runSessionGit(root, ['merge', '--no-ff', '--no-edit', source])
+        if (merge.code === 0) {
+          const files = await runSessionGit(root, ['diff', '--name-only', 'HEAD^1', 'HEAD'])
+          return { type: 'merged', mergedFiles: files.stdout.split('\n').map((line) => line.trim()).filter(Boolean) }
+        }
+        const conflict = await collectConflict(root)
+        if (conflict) return { type: 'conflict', ...conflict }
+        return { type: 'failed', reason: (merge.stderr || merge.stdout).trim() }
       },
     },
   }

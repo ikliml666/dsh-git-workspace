@@ -9,6 +9,7 @@
 
 import type {
   ApplyBaseStrategy,
+  MergeLocalBranchResult,
   SessionCheckoutPhase,
   SessionTargetRef,
   WorktreeValidationItem,
@@ -128,6 +129,12 @@ export interface SessionCheckoutGitPort {
   branchOverview?(root: string): Promise<{ branches: BranchOverviewEntry[]; dirtyCount: number } | null>
   /** Local adaptation: safely delete a fully merged local branch (`git branch -d`); never force. */
   deleteLocalBranch?(root: string, name: string): Promise<{ deleted: boolean; reason?: string }>
+  /**
+   * Local adaptation: merge a session-owned worktree branch into the local checkout HEAD.
+   * dryRun probes in a throwaway detached worktree and never touches the checkout;
+   * a real merge leaves conflict state in place (never aborts) so the caller can resolve.
+   */
+  mergeLocalBranch?(root: string, source: string, options?: { dryRun?: boolean }): Promise<MergeLocalBranchResult>
   /** Local adaptation: one read-only page of the commit graph (topo-order, all refs). */
   graphLog?(root: string, limit: number): Promise<GraphLogCommit[]>
   /** Local adaptation: create a local branch at HEAD after `git check-ref-format`. */

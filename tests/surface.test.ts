@@ -45,6 +45,7 @@ describe('public surfaces', () => {
       'worktree_deliver',
       'worktree_cleanup',
       'worktree_prune_branches',
+      'worktree_merge',
     ])
     const readyTool = tools.find(tool => tool.name === 'worktree_ready_for_review')
     expect(readyTool?.output?.schema?.properties?.iteration).toEqual({ type: 'number' })
