@@ -171,6 +171,7 @@ export const TARGET_CONSOLE_STYLES = String.raw`
 .dsh-wtc-create-branch { display:grid; gap:8px; }
 .dsh-wtc-create-branch-input { min-height:32px; border:1px solid color-mix(in srgb, currentColor 22%, transparent); border-radius:8px; padding:6px 10px; background:transparent; color:inherit; font:inherit; font-size:13px; }
 .dsh-wtc-create-branch-input:focus-visible { outline:2px solid #5b8fe8; outline-offset:1px; }
+.dsh-wtc-graph-modal { width:min(720px, calc(100vw - 32px)); max-width:calc(100vw - 32px); }
 .dsh-wtc-graph { display:grid; gap:0; max-height:min(64vh, 620px); overflow:auto; font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px; }
 .dsh-wtc-graph-row { display:flex; align-items:center; gap:8px; min-width:0; height:36px; padding:0 4px; border-radius:6px; }
 .dsh-wtc-graph-row:hover { background:color-mix(in srgb, currentColor 5%, transparent); }

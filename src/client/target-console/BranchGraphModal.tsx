@@ -158,6 +158,7 @@ export function BranchGraphModal({ open, onClose, adapter, sessionId, t, current
       onClose={onClose}
       title={t("commit.graph.title")}
       closeLabel={t("close")}
+      className="dsh-wtc-graph-modal"
       footer={(
         <span className="dsh-wtc-graph-footer">
           {hasMore ? (

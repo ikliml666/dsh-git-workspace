@@ -29,6 +29,8 @@
 
 ### Changed
 
+- 提交图弹窗加宽（2026-10-03）：`BranchGraphModal` 弹窗卡片从默认 380px 加宽到 `min(720px, calc(100vw - 32px))`（复用审查详情弹窗 `dsh-wt-details-modal` 的加宽模式），提交主题与 refs 徽章不再过度截断。
+
 - 合并上游 0.10.0（2026-10-02）：收入 DSH 0.2.0-rc.2 适配、Workspace Provider 生命周期非阻塞化（10s 上限+在途防重入）、strict codec `modern` flavor、`remote.directoryPicker` 注入过滤、Typert/Skill locator 等上游改进；本地适配全部保留（Workspace 接管严格 opt-in、依赖宽区间、autoDeliver/autoPush/worktreesRoot），本地版本记为 `0.10.0-local.1`。
 
 - 死代码与缓存收敛（2026-10-02）：审查报告 ponytail 清理项落地——删除 client i18n 死键 60 个（zh/en 成对，动态拼键的 `error.*` 19 个键保留）、`onTimingEvent` 测试管线、`flavorFromAnchors`（锚点解析注释迁移至仍存活的 `workspaceFlavorDiagnostics`）与 host 死键 `initialHasFiles`；preflight-cache 与 preview-recovery-cache 两个同构缓存收敛为 `createRequestCache` 工厂（新增 `src/client/review-console/request-cache.ts`：按 adapter WeakMap 分桶、identity 串共享、单飞 in-flight、generation 防旧响应回写；两文件缩为薄封装，对外导出名与签名不变，消费者零改动；实测无 TTL 语义，未引入）。i18n 引用护栏与既有缓存测试全绿守护（570 通过）。
