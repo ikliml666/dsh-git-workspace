@@ -6,6 +6,12 @@
 
 ### Added
 
+- 插件页设置卡片（2026-10-03）：把 volatile 配置（`autoDeliver`/`autoPush`/`worktreesRoot`/`gitTimeoutMs`/`worktreeAddTimeoutMs`）投影为插件详情页描述与组件列表之间的暂存表单卡——经共享配置表单服务读有效值（用户层>组合层>schema 默认，覆盖标记按存在性而非值比较），revision 栅栏原子保存，暂存编辑所见即所存。修复两处此前卡片永不显示的接线错误：slot 由 `plugins.item`（官方插件列表）改为 `plugins.bundle.config`（key=包名，组合包详情页配置区）；client 入口 `inject` 声明 `slots`/`configForms`（cordis 只解析本 fiber 声明过的服务名，未声明时 `ctx.get` 恒为 undefined、挂载静默 no-op）。
+
+- 交付推送改默认关闭由用户配置控制（2026-10-03）：本机 `cordis.patch.yml` 的 `dsh-git-worktree.autoPush` 置 `false`（交付仍落 Local 分支与快照，只是不再自动 push；可在设置卡片随时打开）。
+
+### Added
+
 - worktree 分支合并工具与冲突详情（2026-10-03）：新增 `worktree_merge`（把本会话托管 worktree 的当前分支合并进 Local 当前分支；门控=source 必须是本会话 owner/source 的某个托管 worktree 当前分支，Local 自身分支拒绝作来源；`dryRun` 先在临时 detached worktree 零改动试合并，正式合并 `--no-ff`，冲突不回滚、冲突状态留给模型就地解决提交）。配套：git port 新增可选 `mergeLocalBranch`（tests 支撑适配器同语义复刻）；模块新增 `mergeBranchForSession`（绑锁内执行）。Apply 引擎冲突结果新增 `conflictDetails`（逐文件 combined diff，≤6 文件、每文件 ≤4KB 截断），`worktree_merge`/`preflight`/`operate` 冲突结果全部透传，模型无需离开会话即可读取冲突内容。
 
 - 模型清理工具（2026-10-03）：新增 `worktree_cleanup`（封装 `manageManagedWorktreeForSession` 的 `cleanup_retained`，`checkoutId`+`expectedRevision` 必填 CAS，仅限本会话拥有且已交付/保留终态的 checkout，脏工作树拒绝，走标准隔离区删除链路）与 `worktree_prune_branches`（安全清理当前会话项目里已完全合并的本地分支：`git branch -d` 语义绝不强删，当前分支/main/master/未合并分支一律跳过并说明原因，建议先 `dryRun` 预览）。配套：git port 新增可选 `deleteLocalBranch`；模块新增 `pruneMergedBranchesForSession`（绑锁内执行）；`worktree_list` 输出每条加 `revision` 字段供 CAS 校验取值。

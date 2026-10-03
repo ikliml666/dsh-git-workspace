@@ -1,13 +1,13 @@
 /**
  * Mounts the Worktree settings page into the Host's Plugins page: the card
  * edits the `dsh-git-worktree` namespace through the shared configuration
- * forms service and registers into the `plugins.item` slot while the Host
- * serves that namespace. Every service is probed fail-soft — a Host without
- * the settings stack simply gets no page.
+ * forms service and registers into the `plugins.bundle.config` slot while the
+ * Host serves that namespace, so the form shows on the bundle's own Plugins
+ * page. Every service is probed fail-soft — a Host without the settings stack
+ * simply gets no page.
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { translatorForServices } from '../i18n.js'
 import { WorktreeSettingsCard } from './WorktreeSettingsCard.js'
 import type { SettingsFormScope } from './form-model.js'
 import { WORKTREE_SETTINGS_NS, WorktreeSettingsCardController, type WorktreeSettings } from './worktree-settings-card.js'
@@ -45,11 +45,13 @@ export function mountSettingsCard(ctx: Context): void {
     controller = new WorktreeSettingsCardController(configForms.get<WorktreeSettings>(WORKTREE_SETTINGS_NS))
     return () => { controller?.dispose(); controller = undefined }
   }, 'dsh-git-worktree: settings form subscription')
-  ctx.effect(() => configForms.whileServed([WORKTREE_SETTINGS_NS], () => slots.inject('plugins.item', () => slots.register({
-    name: 'plugins.item',
-    id: 'dsh-git-worktree',
-    order: 40,
-    label: () => translatorForServices({ locale: ctx.get('locale') })('settings.title'),
+  // The Plugins page renders `plugins.bundle.config` (keyed by the bundle's
+  // package name) on the bundle's own page, between its description and its
+  // rows; `plugins.item` is the official-plugins list slot and never shows a
+  // third-party bundle's card.
+  ctx.effect(() => configForms.whileServed([WORKTREE_SETTINGS_NS], () => slots.inject('plugins.bundle.config', () => slots.register({
+    name: 'plugins.bundle.config',
+    key: WORKTREE_SETTINGS_NS,
     inject: () => controller?.inject(),
   }, WorktreeSettingsCard))), 'dsh-git-worktree: settings page')
 }

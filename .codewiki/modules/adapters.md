@@ -13,6 +13,8 @@ source_files:
   - src/adapters/project-skills.ts
   - src/adapters/project-skill-io.ts
   - src/adapters/project-skill-provider.ts
+test_files:
+  - tests/adapters-safe-file.test.ts
 tags:
   - adapters
   - git
@@ -44,7 +46,7 @@ checkoutRefRoot 用 sha256(checkoutId) 前 24 位生成 `refs/dsh-worktree/sessi
 
 ### 超时选择（git-options.ts:21-27）
 
-`worktree add` → worktreeAddTimeoutMs、`worktree remove` → 固定 5×60_000、其余 gitTimeoutMs；两个字段均 `number | LiveValue<number | undefined>`，validateGitTimeouts 与 gitTimeoutMs 经 `liveConfigValue` 逐条命令解包（volatile 设置页改超时对下一条命令即生效，缺省回退 120s/300s）。DEFAULT_GIT_TIMEOUT_MS=120_000、DEFAULT_WORKTREE_ADD_TIMEOUT_MS=300_000、MAX_GIT_TIMEOUT_MS=3_600_000。
+`worktree add` → worktreeAddTimeoutMs、`worktree remove` → 固定 5×60_000、其余 gitTimeoutMs；两个字段均 `number | LiveValue<number | undefined>`，validateGitTimeouts 与 gitTimeoutMs 经 `liveConfigValue` 逐条命令解包（volatile 设置页改超时对下一条命令即生效，缺省回退 120s/300s）。DEFAULT_GIT_TIMEOUT_MS=120_000、DEFAULT_WORKTREE_ADD_TIMEOUT_MS=5*60_000、MAX_GIT_TIMEOUT_MS=60*60_000。
 
 ### 各方法详解
 

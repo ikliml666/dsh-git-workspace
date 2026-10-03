@@ -26,8 +26,19 @@ export { createWorktreeConsoleRemoteAdapter } from './adapter.js'
  * provide `uiWorkspace` before the picker activates, and the picker would wait
  * for `uiWorkspace` forever. The picker is therefore resolved lazily at call
  * time through the managed context proxy (see officialContextProxy).
+ *
+ * `slots` and `configForms` are declared because cordis resolves a service
+ * read only through a name this fiber declared — without the declaration
+ * `ctx.get('slots')` is permanently undefined and the Plugins-page settings
+ * card silently never mounts. Hosts older than the settings stack keep the
+ * whole client waiting on these names; that trade was accepted because every
+ * slot consumer in the host ecosystem declares them the same way.
  */
-export const inject = officialWorkspaceInject.filter(service => service !== 'remote.directoryPicker')
+export const inject = [...new Set([
+  ...officialWorkspaceInject.filter(service => service !== 'remote.directoryPicker'),
+  'slots',
+  'configForms',
+])]
 
 interface ConsoleClientContext extends Context {
   remote: ClientRemote & { gitWorktree: GitWorktreeRemote }

@@ -66,7 +66,7 @@ dsh-git-worktree 是 DeepSeek Harness 的 Git worktree 会话目标插件。宿�
 - `worktree_ready_for_review`（src/tools.ts:234）：summary ≤240、details ≤12000、validationStatus 枚举、tests[]、suggestedCommitMessage 必填 → `markReadyForReview`。
 - `worktree_deliver`（src/tools.ts:321）：仅在 `isAutoDeliverEnabled()` 开启时可用（`worktreeDeliverDisabledByAutoDeliver`）；仅 working|ready_for_review 可用（`worktreeDeliverNotAllowedInState`）；ready_for_review 时自动携带 expectedReviewId、commitMessage 缺省取 review.suggestedCommitMessage（无消息则 `worktreeDeliverRequiresCommitMessage`）；执行 `operate action finish`（retention 默认 cleanup）→ `{kind worktree_delivered, state, commitOid?, changedFiles, cleanup, push?, report?}`。
 - `worktree_cleanup`（src/tools.ts:409）：清理已交付/保留终态的托管 Worktree，需要 checkoutId + expectedRevision（CAS）→ `manageManagedWorktreeForSession(action: 'cleanup_retained')`。
-- `worktree_prune_branches`（src/tools.ts:457）：安全清理当前会话项目里已完全合并的本地分支（git branch -d 语义，绝不强删），支持 dryRun 预览。
+- `worktree_prune_branches`（src/tools.ts:456）：安全清理当前会话项目里已完全合并的本地分支（git branch -d 语义，绝不强删），支持 dryRun 预览。
 - `worktree_merge`（src/tools.ts:519）：把本会话托管 worktree 的分支合并进 Local 当前分支，先 dryRun 试合并；正式合并遇冲突时不回滚，返回逐文件冲突 diff。
 
 ## /worktree 用户命令（src/commands.ts）

@@ -30,6 +30,18 @@ function executeBundle(code: string): ClientHandoff {
   return handoff
 }
 
+/** Minimal shared configuration-forms service: the card mounts, its namespace is never served. */
+function configFormsStub() {
+  return {
+    get: () => ({
+      getSnapshot: () => ({ status: 'unavailable', value: undefined, base: undefined, user: undefined, writable: false, revision: undefined }),
+      subscribe: () => () => {},
+      mutate: async () => false,
+    }),
+    whileServed: (_names: readonly string[], callback: () => unknown) => { callback(); return () => {} },
+  }
+}
+
 describe('built Client ModuleLoader artifact', () => {
   test('inlines strict Remote codecs instead of requiring packages absent from the browser module table', () => {
     const source = readFileSync(resolve('lib/client.js'), 'utf8')
@@ -57,6 +69,7 @@ describe('built Client ModuleLoader artifact', () => {
       'remote',
       'layout',
       'shortcuts',
+      'configForms',
     ])
     expect(clientExports.inject).not.toContain('conversation')
     expect(clientExports.inject).not.toContain('connection')
@@ -99,6 +112,7 @@ describe('built Client ModuleLoader artifact', () => {
       entries: () => [],
       subscribe: () => () => {},
     } as never)
+    ctx.provide('configForms', configFormsStub() as never)
     const source = <T,>(snapshot: T) => ({
       getSnapshot: () => snapshot,
       subscribe: () => () => {},
@@ -207,6 +221,7 @@ describe('built Client ModuleLoader artifact', () => {
       entries: () => [],
       subscribe: () => () => {},
     } as never)
+    ctx.provide('configForms', configFormsStub() as never)
     const source = <T,>(snapshot: T) => ({
       getSnapshot: () => snapshot,
       subscribe: () => () => {},

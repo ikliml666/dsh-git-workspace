@@ -20,7 +20,7 @@ tags:
 ## 决定
 
 - create 的 `branch` 参数（src/console-contract.ts WorktreeConsoleCreateRequest.branch）= **基准选择**：src/session-checkout-module.ts:4418-4423 以 `snapshot.headOid` 为默认基点，当 `createOptions?.branch !== undefined` 时用 `dependencies.git.resolveLocalBranchTip?.(localGitRoot, createOptions.branch)` 取该分支当前 tip 作为 `baseOid`（:4420-4422）。若未传 `branch` 则使用 `snapshot.headOid`（:4418）。
-- `binding.sourceRef`/`sourceOid` 仍记录源会话的 HEAD（src/session-checkout-module.ts:4514 `sourceRef: snapshot.headRef`；:4513 `baseOid`）——交付目标语义完全不变。`record.sourceRef` 指向 `snapshot.headRef`（:4514），`record.baseOid` 指向 resolved 的基点提交（:4513）。
+- `binding.sourceRef`/`sourceOid` 仍记录源会话的 HEAD（src/session-checkout-module.ts:4531 `sourceRef: snapshot.headRef`；:4532 `sourceOid: snapshot.headOid`）——交付目标语义完全不变。`record.sourceRef` 指向 `snapshot.headRef`（:4514），`record.baseOid` 指向 resolved 的基点提交（:4512）。
 - `bindingForManagedRecord`（:340-353）将 `sourceOid` 映射为 `record.baseOid`（:350），而非原始的 `sourceOid`，确保绑定记录反映实际基点。
 - UI 措辞是「从分支创建」（以该分支当前指向为起点），不承诺工作会落到该分支。
 - control-plane.ts 的 `createTarget`（:504-526）接收 `branch?: string` 参数，通过 `{ branch }` 对象透传给 `module.createIsolatedTarget()`（:506）；`create` 接口方法（:75、:131）和 `WorktreeConsoleAdapter.create()`（contract.ts:631）均携带此可选参数。
