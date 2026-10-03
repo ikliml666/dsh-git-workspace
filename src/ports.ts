@@ -126,6 +126,8 @@ export interface SessionCheckoutGitPort {
    * dirty entry count. Two parallel spawns per refresh; null on git failure.
    */
   branchOverview?(root: string): Promise<{ branches: BranchOverviewEntry[]; dirtyCount: number } | null>
+  /** Local adaptation: safely delete a fully merged local branch (`git branch -d`); never force. */
+  deleteLocalBranch?(root: string, name: string): Promise<{ deleted: boolean; reason?: string }>
   /** Local adaptation: one read-only page of the commit graph (topo-order, all refs). */
   graphLog?(root: string, limit: number): Promise<GraphLogCommit[]>
   /** Local adaptation: create a local branch at HEAD after `git check-ref-format`. */

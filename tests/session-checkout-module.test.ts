@@ -1010,6 +1010,34 @@ describe('SessionCheckoutModule', () => {
     expect(context.module.runtimeContext('session-1')).toContain('No isolated target is active')
   })
 
+  test('Given merged and unmerged local branches When the session prunes Then only fully merged ones are deleted', async () => {
+    const context = createContext()
+    const projectRoot = context.projectRoot
+    git(projectRoot, 'branch', 'merged-branch')
+    git(projectRoot, 'checkout', '-b', 'unmerged-branch')
+    writeFileSync(join(projectRoot, 'unmerged.txt'), 'unmerged', 'utf8')
+    git(projectRoot, 'add', 'unmerged.txt')
+    git(projectRoot, 'commit', '-m', 'unmerged work')
+    git(projectRoot, 'checkout', 'main')
+
+    const preview = await context.module.pruneMergedBranchesForSession('session-1', { dryRun: true })
+    expect(preview.dryRun).toBe(true)
+    expect(preview.headBranch).toBe('main')
+    expect(preview.pruned.map((entry) => entry.name)).toEqual(['merged-branch'])
+    expect(preview.skipped.map((entry) => entry.name)).toEqual(['unmerged-branch'])
+    expect(git(projectRoot, 'rev-parse', '--verify', 'refs/heads/merged-branch')).toMatch(/^[0-9a-f]{40,64}$/u)
+
+    const result = await context.module.pruneMergedBranchesForSession('session-1')
+    expect(result.dryRun).toBe(false)
+    expect(result.pruned.map((entry) => entry.name)).toEqual(['merged-branch'])
+    expect(result.skipped.map((entry) => entry.name)).toEqual(['unmerged-branch'])
+    expect(result.skipped[0]?.reason).toContain('main')
+    const remaining = git(projectRoot, 'for-each-ref', '--format=%(refname:short)', 'refs/heads').split(/\r?\n/)
+    expect(remaining).not.toContain('merged-branch')
+    expect(remaining).toContain('unmerged-branch')
+    await expect(context.module.pruneMergedBranchesForSession('ghost-session')).rejects.toMatchObject({ code: 'session_not_found' })
+  })
+
   test('Given worktreesRoot is configured When discard removes the last checkout Then the empty project container is collected', async () => {
     const context = createContext({ worktreesRoot: true })
     const worktreesRoot = context.worktreesRoot

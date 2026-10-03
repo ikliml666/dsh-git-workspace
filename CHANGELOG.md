@@ -6,6 +6,8 @@
 
 ### Added
 
+- 模型清理工具（2026-10-03）：新增 `worktree_cleanup`（封装 `manageManagedWorktreeForSession` 的 `cleanup_retained`，`checkoutId`+`expectedRevision` 必填 CAS，仅限本会话拥有且已交付/保留终态的 checkout，脏工作树拒绝，走标准隔离区删除链路）与 `worktree_prune_branches`（安全清理当前会话项目里已完全合并的本地分支：`git branch -d` 语义绝不强删，当前分支/main/master/未合并分支一律跳过并说明原因，建议先 `dryRun` 预览）。配套：git port 新增可选 `deleteLocalBranch`；模块新增 `pruneMergedBranchesForSession`（绑锁内执行）；`worktree_list` 输出每条加 `revision` 字段供 CAS 校验取值。
+
 - 空白会话 Worktree 胶囊（2026-10-01）：新会话顶行「标准模式」旁显示 Session Target 分支胶囊（复用会话头 TargetStatusAction，经 `conversation.input.dock` 挂载后 portal 进 hero 工作区行），分支切换/新建/提交图/Manager 直达；宿主缺 react-dom 时自动隐藏，不影响其余客户端功能。
 
 - Worktree 面板行内保留期选择（2026-10-01）：`retain_24h`/`retain_3d`/`retain_manual` 直接在行内下拉切换（此前仅有契约、能力位与适配器方法，无 UI 入口）；恢复放弃快照后面板自动刷新列表。

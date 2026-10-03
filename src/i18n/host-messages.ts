@@ -1028,6 +1028,54 @@ export const hostMessages = {
     "zh": "worktree 未进入可验收状态: {p0}",
     "en": "Worktree did not enter a reviewable state: {p0}"
   },
+  "worktreeCleanupDescription": {
+    "zh": "清理一个已交付/保留终态的托管 Worktree：仅限当前会话拥有的 checkout，校验 expectedRevision（CAS）后走标准删除链路（含隔离区与安全快照）。脏工作树会被拒绝；拿不准时先调 worktree_list 查看可清理项。",
+    "en": "Clean up one delivered/retained managed Worktree owned by the current session: validates expectedRevision (CAS) and goes through the standard removal chain (quarantine + safety snapshot included). Dirty worktrees are refused; call worktree_list first when unsure."
+  },
+  "worktreeCleanupCheckoutId": {
+    "zh": "要清理的 checkout 标识（来自 worktree_list 的 checkoutId）。",
+    "en": "Checkout to clean up (the checkoutId from worktree_list)."
+  },
+  "worktreeCleanupExpectedRevision": {
+    "zh": "乐观并发校验：worktree_list 返回的 revision，防止清理过期目标。",
+    "en": "Optimistic-concurrency check: the revision from worktree_list, so a stale target is never cleaned up."
+  },
+  "cleanupFinishedWorktree": {
+    "zh": "清理已完成的 Worktree",
+    "en": "Clean up finished Worktree"
+  },
+  "worktreeCleanupRequiresCheckoutId": {
+    "zh": "worktree_cleanup 需要 checkoutId 参数（来自 worktree_list）。",
+    "en": "worktree_cleanup requires the checkoutId parameter (from worktree_list)."
+  },
+  "worktreeCleanupRequiresExpectedRevision": {
+    "zh": "worktree_cleanup 需要 expectedRevision 参数（来自 worktree_list 的 revision）。",
+    "en": "worktree_cleanup requires the expectedRevision parameter (the revision from worktree_list)."
+  },
+  "worktreePruneBranchesDescription": {
+    "zh": "安全清理当前会话项目里已完全合并的本地分支（git branch -d 语义，绝不强删）：当前分支、main/master 和未合并分支一律跳过并说明原因。先 dryRun 预览，再正式删除。",
+    "en": "Safely prune fully merged local branches in the current session's project (git branch -d semantics, never force): the current branch, main/master, and unmerged branches are skipped with a reason. Preview with dryRun first, then delete for real."
+  },
+  "worktreePruneBranchesDryRun": {
+    "zh": "只报告会删哪些分支，不真的删除（建议先 true 预览）。",
+    "en": "Report what would be deleted without touching any ref (preview with true first)."
+  },
+  "pruneMergedLocalBranches": {
+    "zh": "清理已合并的本地分支",
+    "en": "Prune merged local branches"
+  },
+  "theGitPortOfThisInstallationDoesNotSupportBranchPrune": {
+    "zh": "当前安装的 Git 适配器不支持分支清理操作。",
+    "en": "The Git adapter of this installation does not support branch pruning."
+  },
+  "cannotVerifyWhetherThisBranchIsFullyMerged": {
+    "zh": "无法验证该分支是否已完全合并，已跳过。",
+    "en": "Could not verify whether this branch is fully merged; skipped."
+  },
+  "thisBranchHasCommitsNotYetMergedInto": {
+    "zh": "该分支还有提交未合并进 {p0}，已跳过。",
+    "en": "This branch has commits not yet merged into {p0}; skipped."
+  },
   "readyForWorktreeReview": {
     "zh": "提交 Worktree 验收",
     "en": "Ready for Worktree review"

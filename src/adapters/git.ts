@@ -443,6 +443,11 @@ export function createDshGitPort(ctx: Context, options: GitPortOptions): Session
       }).filter((branch) => branch.name && /^[0-9a-f]{40,64}$/iu.test(branch.oid))
       return { branches, dirtyCount: status.stdout ? status.stdout.split('\0').filter(Boolean).length : 0 }
     },
+    deleteLocalBranch: async (root, name) => {
+      const result = await runSessionGit(root, ['branch', '-d', name])
+      if (result.code === 0) return { deleted: true }
+      return { deleted: false, reason: (result.stderr || result.stdout).trim() }
+    },
     graphLog: async (root, limit) => {
       const capped = Math.max(1, Math.min(1000, Math.floor(limit)))
       const result = await runSessionGit(root, [

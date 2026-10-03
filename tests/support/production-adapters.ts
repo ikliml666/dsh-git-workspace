@@ -640,6 +640,28 @@ export function createNodeSessionCheckoutDependencies(
         const ignored = new Set(all.stdout.split('\0').filter(Boolean))
         return [...new Set(matched.stdout.split('\0').filter(Boolean))].filter((path) => ignored.has(path))
       },
+      branchOverview: async (root) => {
+        const [refs, status] = await Promise.all([
+          runSessionGit(root, ['for-each-ref', '--format=%(refname)%00%(objectname)%00%(HEAD)%00%(upstream:short)', 'refs/heads']),
+          runSessionGit(root, ['status', '--porcelain=v1', '-z', '--untracked-files=all']),
+        ])
+        if (refs.code !== 0) return null
+        const branches = refs.stdout.split(/\r?\n/).filter(Boolean).map((line) => {
+          const [refname, oid, head, upstream] = line.split('\0')
+          return {
+            name: (refname ?? '').replace(/^refs\/heads\//u, ''),
+            oid: oid ?? '',
+            isCurrent: head === '*',
+            upstream: upstream ? upstream : null,
+          }
+        }).filter((branch) => branch.name && /^[0-9a-f]{40,64}$/iu.test(branch.oid))
+        return { branches, dirtyCount: status.stdout ? status.stdout.split('\0').filter(Boolean).length : 0 }
+      },
+      deleteLocalBranch: async (root, name) => {
+        const result = await runSessionGit(root, ['branch', '-d', name])
+        if (result.code === 0) return { deleted: true }
+        return { deleted: false, reason: (result.stderr || result.stdout).trim() }
+      },
     },
   }
 }

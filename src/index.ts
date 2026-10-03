@@ -22,6 +22,7 @@ import type {
   ManagedWorktreeSummaryView,
   BulkCleanupManagedWorktreeCandidate,
   BulkCleanupManagedWorktreesResult,
+  PruneMergedBranchesView,
   SessionCheckoutErrorCode,
   SessionCheckoutOperation,
   SessionCheckoutOperationResult,
@@ -73,6 +74,11 @@ export interface ListManagedWorktreesInput {
   needsAttention?: boolean
   checkoutId?: string
   includeDiagnostics?: boolean
+}
+
+export interface PruneMergedBranchesInput {
+  /** Report what would be deleted without touching any ref. */
+  dryRun?: boolean
 }
 
 export interface MarkReadyForReviewInput {
@@ -149,6 +155,8 @@ export interface SessionCheckoutModule {
   listManagedWorktrees(input?: ListManagedWorktreesInput): Promise<ManagedWorktreeSummaryView[]>
   /** Caller-scoped list for model and human session surfaces. */
   listManagedWorktreesForSession(sessionId: string, input?: Omit<ListManagedWorktreesInput, 'projectId'>): Promise<ManagedWorktreeSummaryView[]>
+  /** Caller-scoped safe prune of fully merged local branches in the session project (`git branch -d` semantics, never force). */
+  pruneMergedBranchesForSession(sessionId: string, input?: PruneMergedBranchesInput): Promise<PruneMergedBranchesView>
   /** codex 对齐：当前会话项目内可恢复的放弃快照列表。 */
   listAbandonedWorktreeSnapshots(sessionId: string): Promise<AbandonedWorktreeSnapshotView[]>
   /** codex 对齐：把放弃快照恢复为 Local 仓库中的分支，并清除记录上的快照标记。 */

@@ -463,6 +463,20 @@ export interface ManagedWorktreeSummaryView {
   activeSessionIds?: string[]
 }
 
+/** One local branch safely deleted (or skipped) by a merged-branch prune. */
+export interface PruneMergedBranchEntry {
+  name: string
+  oid: string
+  reason?: string
+}
+
+export interface PruneMergedBranchesView {
+  dryRun: boolean
+  headBranch: string | null
+  pruned: PruneMergedBranchEntry[]
+  skipped: PruneMergedBranchEntry[]
+}
+
 /** codex 对齐：带未提交内容放弃 Worktree 时留下的安全快照（可恢复为 Local 分支）。 */
 export interface AbandonedWorktreeSnapshotView {
   checkoutId: string

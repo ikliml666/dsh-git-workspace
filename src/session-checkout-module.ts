@@ -9,6 +9,8 @@ import type {
   BulkCleanupManagedWorktreesResult,
   ManagedWorktreeCleanupView,
   ManagedWorktreeSummaryView,
+  PruneMergedBranchEntry,
+  PruneMergedBranchesView,
   SessionCheckoutErrorCode,
   SessionCheckoutOperation,
   SessionCheckoutOperationErrorResult,
@@ -40,6 +42,7 @@ import type {
   ListManagedWorktreesInput,
   ManageManagedWorktreeInput,
   MarkReadyForReviewInput,
+  PruneMergedBranchesInput,
   SessionCheckoutModule,
   SessionCheckoutReconcileSummary,
 } from './index.js'
@@ -3746,6 +3749,62 @@ export function createSessionCheckoutModule(
     return summaries.filter((summary) => allowedCheckoutIds.has(summary.checkoutId))
   }
 
+  async function pruneMergedBranchesForSession(
+    sessionId: string,
+    input: PruneMergedBranchesInput = {},
+  ): Promise<PruneMergedBranchesView> {
+    const session = requireSession(sessionId)
+    const persisted = getPersistedBinding(sessionId)
+    const projectId = persisted?.projectId ?? session.projectId
+    if (!projectId) throw new SessionCheckoutError('project_not_found', hostMessage('theSessionIsNotAssociatedWithAProject'))
+    const project = dependencies.lookup.getProject(projectId)
+    const localRoot = project?.root ?? Object.values(dependencies.registry.read().managedCheckouts)
+      .filter((record) => record.projectId === projectId)
+      .filter((record) => record.ownerSessionId === sessionId || record.sourceSessionId === sessionId)
+      .map((record) => record.localRoot)
+      .find((root) => root.length > 0)
+    if (!localRoot) throw new SessionCheckoutError('project_not_found', hostMessage('theSessionIsNotAssociatedWithAProject'))
+    const { branchOverview, isAncestor, deleteLocalBranch } = dependencies.git
+    if (!branchOverview || !isAncestor || !deleteLocalBranch) {
+      throw new SessionCheckoutError('operation_not_allowed', hostMessage('theGitPortOfThisInstallationDoesNotSupportBranchPrune'))
+    }
+    const overview = await branchOverview(localRoot)
+    if (!overview) {
+      throw new SessionCheckoutError('git_operation_failed', hostMessage('gitOperationFailedGit', { p0: 'for-each-ref', p1: '' }))
+    }
+    const headBranch = overview.branches.find((branch) => branch.isCurrent) ?? null
+    // 安全删只认「已完全合并」：tip 可达当前 HEAD 才算；当前分支与主干分支永不进入候选。
+    const trunkBranches = new Set(['main', 'master'])
+    const dryRun = input.dryRun === true
+    const pruned: PruneMergedBranchEntry[] = []
+    const skipped: PruneMergedBranchEntry[] = []
+    const headOid = headBranch?.oid
+    if (headOid) {
+      for (const branch of overview.branches) {
+        if (branch.isCurrent || trunkBranches.has(branch.name)) continue
+        let merged: boolean
+        try {
+          merged = await isAncestor(localRoot, branch.oid, headOid)
+        } catch {
+          skipped.push({ name: branch.name, oid: branch.oid, reason: hostMessage('cannotVerifyWhetherThisBranchIsFullyMerged') })
+          continue
+        }
+        if (!merged) {
+          skipped.push({ name: branch.name, oid: branch.oid, reason: hostMessage('thisBranchHasCommitsNotYetMergedInto', { p0: headBranch?.name ?? 'HEAD' }) })
+          continue
+        }
+        if (dryRun) {
+          pruned.push({ name: branch.name, oid: branch.oid })
+          continue
+        }
+        const result = await deleteLocalBranch(localRoot, branch.name)
+        if (result.deleted) pruned.push({ name: branch.name, oid: branch.oid })
+        else skipped.push({ name: branch.name, oid: branch.oid, reason: result.reason || hostMessage('gitOperationFailedGit', { p0: 'branch -d', p1: '' }) })
+      }
+    }
+    return { dryRun, headBranch: headBranch?.name ?? null, pruned, skipped }
+  }
+
   async function listAbandonedWorktreeSnapshots(sessionId: string): Promise<AbandonedWorktreeSnapshotView[]> {
     const session = requireSession(sessionId)
     const persisted = getPersistedBinding(sessionId)
@@ -4578,6 +4637,9 @@ export function createSessionCheckoutModule(
     // 只读管理列表不占用全局 mutation lock；慢速目录诊断与用户操作互不阻塞。
     listManagedWorktrees,
     listManagedWorktreesForSession,
+    pruneMergedBranchesForSession: (sessionId, input) => withBindingLock(
+      () => pruneMergedBranchesForSession(sessionId, input),
+    ),
     listAbandonedWorktreeSnapshots,
     restoreAbandonedWorktreeSnapshot: (sessionId, checkoutId) => withBindingLock(
       () => restoreAbandonedWorktreeSnapshot(sessionId, checkoutId),

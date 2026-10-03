@@ -108,6 +108,7 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
                 projectName: { type: 'string', required: true },
                 ownerSessionId: { type: 'string', required: true },
                 iteration: { type: 'number', required: true },
+                revision: { type: 'number', required: true },
                 state: { type: 'string', required: true },
                 phase: { type: 'string', required: true },
                 dirty: { type: 'boolean', required: true },
@@ -130,6 +131,7 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
             projectName: summary.project.name,
             ownerSessionId: summary.ownerSessionId,
             iteration: summary.iteration,
+            revision: summary.revision,
             state: summary.state,
             phase: summary.phase,
             dirty: summary.dirty,
@@ -402,5 +404,115 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
       })
     },
     presentCall: () => ({ card: 'generic', title: hostRegistrationMessage('deliverWorktreeChangesNow'), kind: 'other', rawInput: {} }),
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'worktree_cleanup',
+    description: hostRegistrationMessage('worktreeCleanupDescription'),
+    parameters: {
+      checkoutId: { type: 'string', description: hostRegistrationMessage('worktreeCleanupCheckoutId') },
+      expectedRevision: { type: 'number', description: hostRegistrationMessage('worktreeCleanupExpectedRevision') },
+    },
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          kind: { type: 'string', required: true },
+          checkoutId: { type: 'string', required: true },
+          state: { type: 'string', required: true },
+          phase: { type: 'string', required: true },
+          revision: { type: 'number', required: true },
+          cleanupMessage: { type: 'string' },
+        },
+      },
+      render: (_args, value) => renderJson(value),
+    },
+    async execute(args, exec) {
+      return withHostLanguage(languageForInvocation(exec.agent, ctx), async () => {
+        const sessionId = sessionIdOf(exec.agent)
+        const checkoutId = typeof args?.checkoutId === 'string' ? args.checkoutId.trim() : ''
+        const expectedRevision = typeof args?.expectedRevision === 'number' ? Math.floor(args.expectedRevision) : Number.NaN
+        if (!checkoutId) throw new Error(hostMessage('worktreeCleanupRequiresCheckoutId'))
+        if (!Number.isFinite(expectedRevision)) throw new Error(hostMessage('worktreeCleanupRequiresExpectedRevision'))
+        const summary = await module.manageManagedWorktreeForSession(sessionId, {
+          checkoutId,
+          expectedRevision,
+          action: 'cleanup_retained',
+        })
+        return {
+          kind: 'worktree_cleanup',
+          checkoutId: summary.checkoutId,
+          state: summary.state,
+          phase: summary.phase,
+          revision: summary.revision,
+          ...(summary.cleanupMessage ? { cleanupMessage: summary.cleanupMessage } : {}),
+        }
+      })
+    },
+    presentCall: () => ({ card: 'generic', title: hostRegistrationMessage('cleanupFinishedWorktree'), kind: 'other', rawInput: {} }),
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'worktree_prune_branches',
+    description: hostRegistrationMessage('worktreePruneBranchesDescription'),
+    parameters: {
+      dryRun: { type: 'boolean', description: hostRegistrationMessage('worktreePruneBranchesDryRun') },
+    },
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          kind: { type: 'string', required: true },
+          dryRun: { type: 'boolean', required: true },
+          headBranch: { type: 'string' },
+          pruned: {
+            type: 'array',
+            required: true,
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                name: { type: 'string', required: true },
+                oid: { type: 'string', required: true },
+              },
+            },
+          },
+          skipped: {
+            type: 'array',
+            required: true,
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                name: { type: 'string', required: true },
+                oid: { type: 'string', required: true },
+                reason: { type: 'string' },
+              },
+            },
+          },
+        },
+      },
+      render: (_args, value) => renderJson(value),
+    },
+    async execute(args, exec) {
+      return withHostLanguage(languageForInvocation(exec.agent, ctx), async () => {
+        const sessionId = sessionIdOf(exec.agent)
+        const result = await module.pruneMergedBranchesForSession(sessionId, { dryRun: args?.dryRun === true })
+        return {
+          kind: 'worktree_prune_branches',
+          dryRun: result.dryRun,
+          ...(result.headBranch ? { headBranch: result.headBranch } : {}),
+          pruned: result.pruned.map((entry) => ({ name: entry.name, oid: entry.oid })),
+          skipped: result.skipped.map((entry) => ({
+            name: entry.name,
+            oid: entry.oid,
+            ...(entry.reason ? { reason: entry.reason } : {}),
+          })),
+        }
+      })
+    },
+    presentCall: () => ({ card: 'generic', title: hostRegistrationMessage('pruneMergedLocalBranches'), kind: 'other', rawInput: {} }),
   }))
 }
