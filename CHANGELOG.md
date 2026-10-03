@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- 插件页设置卡保存后回显旧值（2026-10-04）：保存实际成功（组合层写入 cordis.patch.yml、revision 前进、覆盖标记更新），但卡片立即弹回旧值——根因是 schemastery 版本协议分叉：插件 dependencies 锁定 `@deepseek-ai/schemastery@3.18.2`，其 `Config['~standard'].validate` 对 `meta.volatile` 字段产出普通值；而宿主运行时是 3.18.4，volatile 字段解析为 cosmokit volatile 引用。cordis Loader 的 volatile-only 热更新（`_commitVolatile`）依赖 `volatileEntries(fiber.config)` 找引用原地 `updateVolatile`——普通值收集到 0 个引用，直接返回且不 remount，`fiber.config` 永停启动时旧值，describe 投影出的 `value` 因此永远是旧值（user 层/revision/磁盘均正常，重启后才恢复一致）。升级依赖到 3.18.4 接入引用协议（全链模拟实测 refs=7、保存后 value 即时更新），插件内所有读取点本就经 `liveConfigValue` 解引用、无需改动。
+
 ### Added
 
 - 插件页设置卡片（2026-10-03）：把 volatile 配置（`autoDeliver`/`autoPush`/`worktreesRoot`/`gitTimeoutMs`/`worktreeAddTimeoutMs`）投影为插件详情页描述与组件列表之间的暂存表单卡——经共享配置表单服务读有效值（用户层>组合层>schema 默认，覆盖标记按存在性而非值比较），revision 栅栏原子保存，暂存编辑所见即所存。修复两处此前卡片永不显示的接线错误：slot 由 `plugins.item`（官方插件列表）改为 `plugins.bundle.config`（key=包名，组合包详情页配置区）；client 入口 `inject` 声明 `slots`/`configForms`（cordis 只解析本 fiber 声明过的服务名，未声明时 `ctx.get` 恒为 undefined、挂载静默 no-op）。

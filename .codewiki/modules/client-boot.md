@@ -32,7 +32,8 @@ Client 侧是插件的浏览器运行时：把 Host 暴露的 Remote 服务适�
 - src/client/index.tsx:47 `apply(ctx, adapterOverride?)` 用 Proxy 包裹 `ctx.slots.register`（src/client/index.tsx:51-57）：每个注册组件自动包一层 `ClientI18nProvider`（src/client/index.tsx:53），所有插件 UI 统一获得语言上下文。
 - src/client/index.tsx:61-62 解析适配器：`adapterOverride ?? ctx.get('worktreeConsole')`（测试/装饰分支可注入替身）。
 - src/client/index.tsx:67-75 样式注入：`ctx.effect` 创建 `<style>` 并打上 `dataset.dshGitWorktree`、`dataset.plugin='dsh-git-worktree'`、`dataset.pluginCss='dsh-git-worktree/styles'` 自标签。文本内容为 `${WORKTREE_STYLES}\n${TARGET_CONSOLE_STYLES}` 两段拼接；cleanup 按引用移除。注释说明 DSH client-module 系统会"收养" head 中没有 data-plugin 的 `<style>` 并在自身模块失效时删除——自标签即所有权凭证。
-- src/client/index.tsx:77-86 注册 `tool.call.toolview` 槽位：`'worktree_create'` → WorktreeCreateRow，`'worktree_ready_for_review'` → WorktreeReviewRow（props 携带 services 与 adapter；两个 Row 组件是 model.ts 解析器的薄展示壳）。注册描述符格式为 `{ name: 'tool.call.toolview', key: '...' }`。
+- src/client/index.tsx:77-78 创建 CreateRow / ReviewRow 闭包：分别将 services 和 adapter 透传给 `WorktreeCreateRow` / `WorktreeReviewRow`。
+- src/client/index.tsx:79-86 注册 `tool.call.toolview` 槽位：`'worktree_create'` → WorktreeCreateRow，`'worktree_ready_for_review'` → WorktreeReviewRow（props 携带 services 与 adapter；两个 Row 组件是 model.ts 解析器的薄展示壳）。注册描述符格式为 `{ name: 'tool.call.toolview', key: '...' }`。
 - src/client/index.tsx:89-95 仅当 `adapter !== undefined` 才调用 `registerTargetConsole`——无 Remote 时插件以纯 ToolView 降级运行。
 
 ## ToolView 模型层（src/client/model.ts）
@@ -47,28 +48,28 @@ Client 侧是插件的浏览器运行时：把 Host 暴露的 Remote 服务适�
 
 ## 样式与 i18n
 
-- src/client/styles.ts:3 `WORKTREE_STYLES` 用 `String.raw` 聚合侧边栏徽章/卡片样式；:132 插值 `REVIEW_CONSOLE_STYLES`；:134-135 是创建对话框按钮的晚期覆盖。包含状态色映射（working/ready_for_review/preview_active/preview_detached/recovery_required/finalized/discarded 七种 state 的 accent 变量）。
+- src/client/styles.ts:1 插值 `REVIEW_CONSOLE_STYLES`；src/client/styles.ts:3-135 用 `String.raw` 聚合侧边栏徽章/卡片样式，包含状态色映射（working/ready_for_review/preview_active/preview_detached/recovery_required/finalized/discarded 七种 state 的 accent 变量），以及 `.dsh-wt-card`/`.dsh-wt-button`/`.dsh-wt-badge` 等评审卡组件样式与暗色媒体查询。末尾 `.dsh-wt-create-dialog` 按钮晚期覆盖（:134-135）。
 - src/client/i18n.tsx:19-21 `readClientLanguage` 从 LocaleFace `snapshot.active` 归一语言（失败回退 `'zh'`）；:29-40 `ClientI18nProvider` 用 `useSyncExternalStore` 订阅语言变化；:49-51 `translatorForServices` 在调用时才解析语言（命令式路径不能吃模块加载时的快照）。
 - 词典与占位符插值基础在 src/i18n/core.ts（`createTranslator`/`normalizeLanguage`），client 文案集中在 src/i18n/client-messages.ts（~1428 行，数百条 zh/en 文案）与 src/i18n/transport-messages.ts（4 条：malformed/mountFailed/workspaceGenerationUnknown/invokeTimeout）两份目录。
 
 ## Remote 装配与 Workspace 代际分支（src/client/console-remote/index.ts）
 
-- src/client/console-remote/index.ts:30 `inject` 继承 officialWorkspaceInject 但过滤掉 `remote.directoryPicker`（避免死锁——picker provider entry 等 uiWorkspace，而此 entry 不能等 picker）。
-- 启动序列 src/client/console-remote/index.ts:43-53：`ctx.remote.$mount(contribution)` → `ctx.get('remote.gitWorktree')`（undefined 即抛 mountFailed）→ `createWorktreeConsoleRemoteAdapter(remote, getLanguage)` → `ctx.provide('worktreeConsole', adapter)`；同时 mountSettingsCard。
-- src/client/console-remote/index.ts:66-77 `reportBoot` 尽力上报 `WorktreeClientBootReport`（flavor/branch/registered/detail/elapsedMountMs/elapsedTopologyMs）；注释提醒 Remote 代理按位置校验参数个数，末尾 locale 即使 undefined 也必须传。
-- src/client/console-remote/index.ts:78-84 拉取 `sidebarTopology` 决定分支：失败则 `reportBoot('topology-failed', false, ...)` 并抛 `workspaceGenerationUnknown` 错误。
-- 分支路由（src/client/console-remote/index.ts:86-176）：
-  - `flavor === 'legacy'`（:86-95）：要求 `sessions.open` 存在后 `registerManagedWorkspaceSidebar`；
-  - `flavor === 'modern'`（:96-132）：`officialWorkspaceActive === true` 走 DECORATE（:101-115，shadow 官方 Browser 注册）；否则 MANAGED 分支 `registerManagedWorkspaceSidebar(..., applyOfficialWorkspace)`（:116-131）；
-  - `flavor === 'alpha' || 'next'`（:133-171）：同 modern 逻辑——decorate 或 managed，`applyWorkspace` 分别指向 `applyAlphaWorkspace` / `applyNextWorkspace`；
-  - unsupported（:172-176）：仅 `mountTools(ctx)`。
-- 三种官方 Browser 声明同一顶层 Slot，按 Host 解析的包版本选择而非 Client 服务时序（:63-65 注释）。
+- src/client/console-remote/index.ts:37-41 `inject` 继承 officialWorkspaceInject 但过滤掉 `remote.directoryPicker`（避免死锁——picker provider entry 等 uiWorkspace，而此 entry 不能等 picker），额外声明 `slots` 和 `configForms`（兼容旧版 Host settings stack）。
+- 启动序列 src/client/console-remote/index.ts:54-64：`ctx.remote.$mount(contribution)` → `ctx.get('remote.gitWorktree')`（undefined 即抛 mountFailed）→ `createWorktreeConsoleRemoteAdapter(remote, getLanguage)` → `ctx.provide('worktreeConsole', adapter)`；同时 mountSettingsCard。
+- src/client/console-remote/index.ts:77-88 `reportBoot` 尽力上报 `WorktreeClientBootReport`（flavor/branch/registered/detail/elapsedMountMs/elapsedTopologyMs）；注释提醒 Remote 代理按位置校验参数个数，末尾 locale 即使 undefined 也必须传。
+- src/client/console-remote/index.ts:89-95 拉取 `sidebarTopology` 决定分支：失败则 `reportBoot('topology-failed', false, ...)` 并抛 `workspaceGenerationUnknown` 错误。
+- 分支路由（src/client/console-remote/index.ts:96-187）：
+  - `flavor === 'legacy'`（:97-106）：要求 `sessions.open` 存在后 `registerManagedWorkspaceSidebar`；
+  - `flavor === 'modern'`（:107-143）：`officialWorkspaceActive === true` 走 DECORATE（:112-126，shadow 官方 Browser 注册）；否则 MANAGED 分支 `registerManagedWorkspaceSidebar(..., applyOfficialWorkspace)`（:127-142）；
+  - `flavor === 'alpha' || 'next'`（:144-182）：同 modern 逻辑——decorate 或 managed，`applyWorkspace` 分别指向 `applyAlphaWorkspace` / `applyNextWorkspace`；
+  - unsupported（:183-187）：仅 `mountTools(ctx)`。
+- 三种官方 Browser 声明同一顶层 Slot，按 Host 解析的包版本选择而非 Client 服务时序（:74-76 注释）。
 
 ## 侧边栏接管与装饰（src/client/workspace-sidebar）
 
 两种模式对应 boot 分支：MANAGED 接管（`registerManagedWorkspaceSidebar`，src/client/workspace-sidebar/index.tsx:271-277 = `applyWorkspace(officialContextProxy(ctx, adapter))`）与 DECORATE 影子注册（`registerDecoratedWorkspaceSidebar`，src/client/workspace-sidebar/index.tsx:304-354：官方 Workspace Client 存活时找到最低优先级的 `sidebar.workspaces` 条目，以 priority-10 降级 `registrant:'dsh-git-worktree'` 重注册同选项并包一层 ManagedOfficialWorkspaceBrowser；slot registry 不可用则抛 "The official Workspace is active but the slot registry is unavailable."）。
 
-- src/client/workspace-sidebar/index.tsx:14-15 `EMPTY_TOPOLOGY` 常量；:17-22 `ManagedWorktreeSessionDecoration` 接口（kind/state/label/originalTitle）；:24-30 `ManagedWorkspaceGuard` 接口（ready/sessionIds/workspaceIds/blockSession/blockWorkspace）。
+- src/client/workspace-sidebar/index.tsx:14 `EMPTY_TOPOLOGY` 常量；:17-22 `ManagedWorktreeSessionDecoration` 接口（kind/state/label/originalTitle）；:24-30 `ManagedWorkspaceGuard` 接口（ready/sessionIds/workspaceIds/blockSession/blockWorkspace）。
 - src/client/workspace-sidebar/index.tsx:42-159 `ManagedOfficialWorkspaceBrowser` 用投影 memo 重投影官方 workspace/session 状态，给 byId 条目挂 `__dshGitWorktree` `ManagedWorktreeSessionDecoration`（:115-121），守卫 startSession/forkSession/insertSessionBefore（:141-157），并在挂载与 `WORKTREE_REVIEW_REFRESH_EVENT`（src/client/review-console/status-events.ts）时刷新拓扑（:59-81）。
 - src/client/workspace-sidebar/index.tsx:175-191 `deferredRemoteDirectoryPicker`：Proxy 延迟解析 `remote.directoryPicker`，解决现代 Host 中 picker provider 等待 uiWorkspace 的死锁问题。
 - src/client/workspace-sidebar/index.tsx:193-264 `officialContextProxy(ctx, adapter)` 用 Proxy 包 `slots.register`：`sidebar.workspaces.session.menu.item` / `sidebar.workspaces.session.row.action`（除 pin）包成 GuardedAction（:210-222）；`sidebar.workspaces` 注册替换为 `ManagedOfficialWorkspaceBrowser`（:224-233）；`get` 方法暴露 `__dshGitWorktreeManagedGuard`（:255-256）和 deferred picker（:257-258）。
@@ -77,7 +78,7 @@ Client 侧是插件的浏览器运行时：把 Host 暴露的 Remote 服务适�
 
 - src/client/console-remote/adapter.ts:76 `createWorktreeConsoleRemoteAdapter(remote, getLanguage)` 把 `GitWorktreeRemote` 的每个方法映射为 `invoke('<method>', ...)`（:110-144）；`resumeRevision` 按 `conflictContinuation` 是否存在分流（:126-128）。
 - 看门狗动机（:47-50 注释）：Web RPC 载体本身无超时，卡死的 Host handler（绑定锁队列、挂起的 git）会永久挂起调用 UI；客户端按方法分级失败——服务端继续跑，变更调用可安全重试。`FAST_TIMEOUT_MS = 30_000` / `SLOW_TIMEOUT_MS = 180_000`（:52-53），`FAST_METHODS` 现含 8 个方法：sidebarTopology/current/inspect/previewRecoveryPreflight/gitOverview/gitGraph/listAbandoned（:56-61）。
-- `invoke`（:79-108）：`Promise.race([call(locale), 定时器 promise])`（:85-90）→ 超时 resolve `{timedOut:true}` → timeoutOutcome 错误码 `'timeout'`（:52-65）；异常按 `isCodecRejection`（消息含 `'rejected "'` 或 `'返回了不符合 strict contract'`，:41-44）映射 `'malformed_response'` 否则 `'transport_unavailable'`；carrier.ok 非布尔、descriptor.result.mode !== 'strict'、schema.parse 失败一律 `'malformed_response'`（:99-107）。
+- `invoke`（:79-108）：`Promise.race([call(locale), 定时器 promise])`（:85-90）→ 超时 resolve `{timedOut:true}` → timeoutOutcome 错误码 `'timeout'`（:63-74）；异常按 `isCodecRejection`（消息含 `'rejected "'` 或 `'返回了不符合 strict contract'`，:41-44）映射 `'malformed_response'` 否则 `'transport_unavailable'`；carrier.ok 非布尔、descriptor.result.mode !== 'strict'、schema.parse 失败一律 `'malformed_response'`（:99-107）。
 
 ## 相关模块
 

@@ -81,7 +81,7 @@
     "prepublishOnly": "pnpm run check:sidebar-version && pnpm run build && pnpm run check:publish:release && pnpm run test"
   },
   "dependencies": {
-    "@deepseek-ai/schemastery": "3.18.2",
+    "@deepseek-ai/schemastery": "3.18.4",
     "lucide-react": "1.43.0",
     "zod": "4.4.3"
   },
@@ -139,8 +139,8 @@
     "react-dom": "^18.3.1",
     "tsdown": "^0.17.2",
     "typescript": "^5.6.0",
-    "zustand": "~4.4.7",
-    "vitest": "^2.1.0"
+    "vitest": "^2.1.0",
+    "zustand": "~4.4.7"
   },
   "keywords": [
     "deepseek-harness",

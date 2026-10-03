@@ -36,8 +36,17 @@ it('keeps ordinary, creation and removal deadlines independent', () => {
   expect(gitTimeoutMs(['status'], config)).toBe(45_000)
   expect(gitTimeoutMs(['worktree', 'add'], config)).toBe(600_000)
   expect(gitTimeoutMs(['worktree', 'remove'], config)).toBe(300_000)
-  expect(Config({})).toMatchObject({ gitTimeoutMs: 120_000, worktreeAddTimeoutMs: 300_000 })
-  expect(Config(config)).toMatchObject(config)
+  // schemastery >=3.18.4 wraps volatile fields as live references; unwrap to assert values.
+  const resolveField = (source: Record<string, unknown>, key: string) => {
+    const value = source[key]
+    return typeof value === 'object' && value !== null && typeof (value as { get?: unknown }).get === 'function'
+      ? (value as { get: () => unknown }).get()
+      : value
+  }
+  expect(resolveField(Config({}) as Record<string, unknown>, 'gitTimeoutMs')).toBe(120_000)
+  expect(resolveField(Config({}) as Record<string, unknown>, 'worktreeAddTimeoutMs')).toBe(300_000)
+  expect(resolveField(Config(config) as Record<string, unknown>, 'gitTimeoutMs')).toBe(45_000)
+  expect(resolveField(Config(config) as Record<string, unknown>, 'worktreeAddTimeoutMs')).toBe(600_000)
 })
 
 it.each([0, -1, NaN, Infinity, 999, 1000.5, 3_600_001, '300000'])('rejects invalid timeout %s before mounting or touching state', async value => {
