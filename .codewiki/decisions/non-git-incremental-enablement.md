@@ -10,7 +10,7 @@ tags:
   - onboarding
 ---
 
-> 2026-10-01 更新：作为入口 UI 的预会话开关（src/client/pre-session/，含 PreSessionWorktreeToggle）已整体移除，创建入口收敛到会话 Header 的 Worktree Manager 与 `/worktree` 命令。init + 首次提交的能力链（src/adapters/initial-commit.ts:101 `initializeProject` → control-plane `initProject` → 客户端 adapter `initializeProject`）保留，当前暂无客户端调用方，供未来入口复用。本文其余内容为当时的决策记录。
+> 2026-10-01 更新：作为入口 UI 的预会话开关（src/client/pre-session/，含 PreSessionWorktreeToggle）已整体移除，创建入口收敛到会话 Header 的 Worktree Manager 与 `/worktree` 命令。init + 首次提交的能力链（src/adapters/initial-commit.ts:104 `initializeProject` → control-plane `initProject` → 客户端 adapter `initializeProject`）保留，当前暂无客户端调用方，供未来入口复用。本文其余内容为当时的决策记录。
 
 ## 背景
 
@@ -18,11 +18,9 @@ tags:
 
 ## 决定
 
-- 新增宿主能力 `git.initializeProject(root)`（src/adapters/initial-commit.ts）：非 Git 目录先 `git init -b main`（-b 不写 config，Git ≥ 2.28）；已有提交的仓库直接拒绝（operation_not_allowed `projectAlreadyVersioned`）；然后 `git add -A`（遵循 .gitignore）+ `git commit -m "Initial commit"`；身份缺失 → git_operation_failed `initialIdentityMissing`（复用空仓库流程的既有文案）。不做指纹 CAS 事务——动作是用户显式确认的纯增量操作，最坏情况是提交失败原样报错，不回滚任何字节。
-- 新 RPC `gitWorktree/initProject`（控制面经 `withCreation` 互斥守卫，src/console-host/control-plane.ts），与 create 串行化，杜绝初始化与创建竞态。
-- 客户端两处入口（src/client/pre-session/PreSessionWorktreeToggle.tsx）：
-  1. unsupported 态不再隐藏：开关可点 → 直接进「初始化 Git 并启用 Worktree」确认 Modal（`initConfirm` 状态 + `runInitialize(false)`，成功后 refreshCurrent 回 idle）。
-  2. kind `files` 的 Modal footer 增加同一动作（`runInitialize(true)`）：初始化后**重新预检**并回到常规创建确认——用户的原始意图（建 worktree）不被打断。
+- 新增宿主能力 `git.initializeProject(root)`（src/adapters/initial-commit.ts:104-117）：本地适配函数，在 `initialCommitActions(inspect, run)` 工厂内返回。非 Git 目录先 `git init -b main`（-b 不写 config，Git ≥ 2.28）；已有提交的仓库直接拒绝（operation_not_allowed `projectAlreadyVersioned`，L106-108）；然后检查身份 `GIT_AUTHOR_IDENT`（L113-114，缺失 → git_operation_failed `initialIdentityMissing`）；接着 `git add -A`（遵循 .gitignore，L115）+ `git commit -m "Initial commit"`（L116）。不做指纹 CAS 事务——动作是用户显式确认的纯增量操作，最坏情况是提交失败原样报错，不回滚任何字节。注释 L101-103 明确保守立场：「ignored files、symlinks、嵌套仓库都需要显式用户决策」。
+- 新 RPC `initProject(sourceSessionId)`（控制面经 `withCreation` 互斥守卫，src/console-host/control-plane.ts:753-757），接口声明 L76。与 `create`/`createWithInitialCommit` 共享 `withCreation`（L486-503：sessionKey + rootKey 双层互斥 Set），串行化执行，杜绝初始化与创建竞态。实现体仅两行核心逻辑：L754 检查 `options.git.initializeProject` 可用性（不可用 → operation_not_allowed `initializationUnsupported`），L755 调用 `await options.git.initializeProject(project.root)`，返回 `true`。
+- 客户端两处入口（src/client/pre-session/PreSessionWorktreeToggle.tsx）已整体移除，不再适用。
 - 确认文案明确列出将执行的三条命令与「只新增版本控制，不改动、不删除任何文件」。
 
 ## 否决的替代方案

@@ -23,48 +23,52 @@ dsh-git-worktree 是 DeepSeek Harness 的 Git worktree 会话目标插件。宿�
 
 ## 插件身份与错误基类
 
-- 插件名 `git-worktree`（src/index.ts:184）；命名导出 `inject = { tools:{}, commands:{}, subprocess:{}, loader:{await:false} }`（src/index.ts:188）——loader 以命名导出读取插件元数据，裸函数导出会触发 "cannot get property without inject"。
-- `export * from './console-contract.js'`（src/index.ts:182）把 RPC 契约类型并入公共入口。
-- `SessionCheckoutError`（src/index.ts:38）：携带 `readonly code: SessionCheckoutErrorCode` 的 Error，消息原文透传给工具与命令，是全插件统一的领域错误。
+- 插件名 `git-worktree`（src/index.ts:198）；命名导出 `inject = { tools:{}, commands:{}, subprocess:{}, loader:{await:false} }`（src/index.ts:202）——loader 以命名导出读取插件元数据，裸函数导出会触发 "cannot get property without inject"。
+- `export * from './console-contract.js'`（src/index.ts:196）把 RPC 契约类型并入公共入口。
+- `SessionCheckoutError`（src/index.ts:39）：携带 `readonly code: SessionCheckoutErrorCode` 的 Error，消息原文透传给工具与命令，是全插件统一的领域错误。
+- 额外接口导出：`SessionCheckoutReconcileSummary`（src/index.ts:53）、`ManageManagedWorktreeInput`（src/index.ts:61）、`ListManagedWorktreesInput`（src/index.ts:71）、`MarkReadyForReviewInput`（src/index.ts:78）、`IsolatedTargetLaunch`（src/index.ts:88）、`SessionCheckoutModule`（src/index.ts:95）。
 
-## 配置模式（src/index.ts:190-235）
+## 配置模式（src/index.ts:210-258）
 
 - `stateDir`：默认 `$DSH_HOME/plugins/dsh-git-worktree`（回退 `~/.dsh`）——registry、project-skills、诊断文件都落在这里。
-- `gitTimeoutMs`（默认 DEFAULT_GIT_TIMEOUT_MS，下限 1000，上限 MAX_GIT_TIMEOUT_MS）、`worktreeAddTimeoutMs`（默认 300_000）。
+- `gitTimeoutMs`（默认 DEFAULT_GIT_TIMEOUT_MS，下限 1_000，上限 MAX_GIT_TIMEOUT_MS）、`worktreeAddTimeoutMs`（默认 300_000）。
+- **volatile 标记**：前五个字段经 `volatile()` 助手（src/index.ts:205，通过 `meta.volatile = true` 注入 schemastery schema meta）进入设置页；值以 `{get()}` LiveRef 到达、消费方逐次解包（[[volatile-settings-live-config]]）；stateDir 与 enableWorkspaceProvider 保持非 volatile（启动期语义）。
 - `autoDeliver`（默认 true）：代理自主交付开关，把 Working 态的模型指引切到 worktree_deliver；`autoPush`（默认 true）：Finish 后尽力 `git push`，绝不 force。
 - `worktreesRoot`：受管 worktree 放到 `<worktreesRoot>/<project>/<topic>-<YYYYMMDD>`，应指向任何 git checkout 之外。
+- `inheritLocalChanges`（默认 true）：codex 对齐，创建受管 Worktree 时继承本地未提交修改（tracked 打补丁，untracked 复制），仅当 Worktree 基点与本地 HEAD 一致时生效。
+- `worktreeKeepCount`（默认 15，范围 0–500）：codex 对齐，托管 Worktree 总量上限（LRU，按最近更新时间逐出最旧的已交付记录；permanent 常驻与进行中会话豁免）。0 关闭该机制。
 - `enableWorkspaceProvider`（默认 false）：接管官方 ui-workspace 的严格 opt-in 开关（历史上 "cannot open a new conversation" 事故背后的机制）。
-- **volatile 标记**：前五个字段经 `volatile()` 助手（src/index.ts:190，设 `schema.meta.volatile = true`——schemastery 3.18.2 无 `.volatile()` 方法）进入设置页；值以 `{get()}` LiveRef 到达、消费方逐次解包（[[volatile-settings-live-config]]）；stateDir 与 enableWorkspaceProvider 保持非 volatile（启动期语义）。
 
-## apply() 装配序列（src/index.ts:258-320)
+## apply() 装配序列（src/index.ts:287-367）
 
 1. `validateGitTimeouts(config)` 校验超时配置。
 2. `mountWorkspaceProviderLifecycle(ctx, hostWorkspaceClientFlavor(), {enabled})` 挂载工作区 provider 生命周期。
 3. 创建 `stateDir` 与 disabled-git-hooks 目录。
 4. 组装端口：`createDshLookupPort(ctx)`、`new ProjectSkillStore(join(stateDir,'project-skills'))`、`createDshGitPort(ctx, {hooksPath, projectSkills, gitTimeoutMs, worktreeAddTimeoutMs})`、`createNodeFilesPort()`、`new AtomicJsonCheckoutRegistry(join(stateDir,'managed-checkouts.json'))`。
 5. `mountProjectSkillProvider(ctx, registry)`。
-6. `createSessionCheckoutModule({lookup, git, files, registry, applyEngine: createSessionCheckoutApplyEngine({projectSkills}), managedCheckoutsRoot: stateDir, createCheckoutId: randomUUID, autoDeliver, autoPush, worktreesRoot?})`（src/index.ts:283-296）——autoDeliver/autoPush 传原始 config 值（LiveRef 原样下传，消费点 `?? true` 归一）；worktreesRoot 包装为 `{ get: () => resolveWorktreesRootValue(input) }` 逐次解析。
+6. `createSessionCheckoutModule({lookup, git, files, registry, applyEngine: createSessionCheckoutApplyEngine({projectSkills}), managedCheckoutsRoot: stateDir, createCheckoutId: randomUUID, autoDeliver, autoPush, inheritLocalChanges, worktreeKeepCount, ...(worktreesRoot ? {worktreesRoot} : {})})`（src/index.ts:310-323）——autoDeliver/autoPush/inheritLocalChanges/worktreeKeepCount 传原始 config 值（LiveRef 原样下传，消费点 `?? true` 归一）；worktreesRoot 包装为 `{ get: () => resolveWorktreesRootValue(input) }` 逐次解析。
 7. `new WorktreeConsoleService(ctx, createWorktreeConsoleControlPlane({module, lookup, files, registry, git, reviewDiff: createGitWorktreeReviewDiffReader(projectSkills)}), join(stateDir,'sidebar-diag.ndjson'), providerLifecycle.officialWorkspaceActive)`。
 8. `registerTools(ctx, module)` + `registerWorktreeCommand(ctx, module)` + `registerSessionTargetContext(ctx, module)`。
-9. 启动收敛：`ctx.events.on('ready', () => void module.reconcile())`（src/index.ts:299）。
-10. 保留期维护：`setInterval(cleanupExpiredRetained, RETENTION_MAINTENANCE_INTERVAL_MS=15*60*1000)` 并 `.unref()`（src/index.ts:304-309）；`ctx.effect` 卸载时注销事件监听与定时器（src/index.ts:310-313）。
+9. 启动收敛：`ctx.events.on('ready', () => void module.reconcile())`（src/index.ts:341-355）——reconcile 完成后还调用 `module.enforceWorktreeKeepCount()` 做 LRU 逐出；stale root checkout 发出 console.warn。
+10. 保留期维护：`setInterval(cleanupExpiredRetained, RETENTION_MAINTENANCE_INTERVAL_MS=15*60*1000)` 并 `.unref()`（src/index.ts:356-363）；每次周期同时调用 `module.enforceWorktreeKeepCount()`。
+11. `ctx.effect` 卸载时注销事件监听与定时器（src/index.ts:364-367）。
 
 ## 模型工具（src/tools.ts）
 
 头部注释（src/tools.ts:3）：**破坏性交付动作刻意缺席**——Finish/Discard/Remove 是人类命令，由客户端 ToolView 呈现；模型只负责保留目标会话、检查自己的作用域 worktree、让未同步的 review 失效、安全开启同会话新迭代，并止步于 Ready for Review。
 
-`registerTools`（src/tools.ts:32）注册 6 个工具，全部经 `withHostLanguage(languageForInvocation(exec.agent, ctx))` 包裹：
+`registerTools`（src/tools.ts:44）注册 6 个工具，全部经 `withHostLanguage(languageForInvocation(exec.agent, ctx))` 包裹：
 
-- `worktree_create`（src/tools.ts:34）：`topic?` → `module.createIsolatedTarget(sourceSessionId, randomUUID(), {topic?})` → `{kind worktree_target_created, checkoutId, targetSessionId, managedRoot, phase, currentOid, sourceSessionId}`。
-- `worktree_list`（src/tools.ts:79）：`listManagedWorktreesForSession` 的会话作用域列表。
-- `worktree_resume_revision`（src/tools.ts:133）：仅 ready_for_review 可用，否则 Error `theCurrentWorktreeHasNoUnsyncedReviewToResume372`；结果必须回到 working 态。
-- `worktree_begin_next_iteration`（src/tools.ts:180）：必须进入 working，否则 `theNextWorktreeIterationDidNotEnterWorkingState`。
-- `worktree_ready_for_review`（src/tools.ts:220）：summary ≤240、details ≤12000、validationStatus 枚举、tests[]、suggestedCommitMessage 必填 → `markReadyForReview`。
-- `worktree_deliver`（src/tools.ts:307）：仅 working|ready_for_review 可用（`worktreeDeliverNotAllowedInState`）；ready_for_review 时自动携带 expectedReviewId、commitMessage 缺省取 review.suggestedCommitMessage（无消息则 `worktreeDeliverRequiresCommitMessage`）；执行 `operate action finish`（retention 默认 cleanup）→ `{kind worktree_delivered, commitOid?, changedFiles, cleanup, push?, report?}`。
+- `worktree_create`（src/tools.ts:46）：`topic?` → `module.createIsolatedTarget(sourceSessionId, targetSessionId, {topic?})` → `{kind worktree_target_created, checkoutId, targetSessionId, managedRoot, phase, currentOid, sourceSessionId}`。
+- `worktree_list`（src/tools.ts:91）：`listManagedWorktreesForSession` 的会话作用域列表，返回 `{checkoutId, projectName, ownerSessionId, iteration, state, phase, dirty, commitOid?}`。
+- `worktree_resume_revision`（src/tools.ts:144）：仅 ready_for_review 可用，否则 Error `theCurrentWorktreeHasNoUnsyncedReviewToResume372`；结果必须回到 working 态。
+- `worktree_begin_next_iteration`（src/tools.ts:191）：必须进入 working，否则 `theNextWorktreeIterationDidNotEnterWorkingState`。
+- `worktree_ready_for_review`（src/tools.ts:231）：summary ≤240、details ≤12000、validationStatus 枚举、tests[]、suggestedCommitMessage 必填 → `markReadyForReview`。
+- `worktree_deliver`（src/tools.ts:318）：仅在 `isAutoDeliverEnabled()` 开启时可用（`worktreeDeliverDisabledByAutoDeliver`）；仅 working|ready_for_review 可用（`worktreeDeliverNotAllowedInState`）；ready_for_review 时自动携带 expectedReviewId、commitMessage 缺省取 review.suggestedCommitMessage（无消息则 `worktreeDeliverRequiresCommitMessage`）；执行 `operate action finish`（retention 默认 cleanup）→ `{kind worktree_delivered, state, commitOid?, changedFiles, cleanup, push?, report?}`。
 
 ## /worktree 用户命令（src/commands.ts）
 
-`registerWorktreeCommand`（src/commands.ts:42）注册 `/worktree`，动词：`status`（inspect）/`list`（listManagedWorktreesForSession）/`continue`（resumeRevision，需 ready_for_review）/`next`（beginNextIteration）/`finalize [reviewId revision retention]`（CAS 校验 `thisReviewCardHasExpiredConfirmTheLatestReady` 后以 review.suggestedCommitMessage 执行 finish）/`finish <message>`/`discard`（confirmDirty:true，preview_active 时附带 rollbackPreview）/`remove <checkoutId>`（经 manageManagedWorktreeForSession 走 discard）。头部注释（src/commands.ts:4）：破坏性动词刻意只由用户发起；模型工具止步 Ready for Review。
+`registerWorktreeCommand`（src/commands.ts:42）注册 `/worktree`，动词：`status`（inspect）/`list`（listManagedWorktreesForSession）/`continue`（resumeRevision，需 ready_for_review）/`next`（beginNextIteration）/`finalize [reviewId revision] [retention]`（CAS 校验 `thisReviewCardHasExpiredConfirmTheLatestReady` 后以 review.suggestedCommitMessage 执行 finish）/`finish <message>`/`discard`（confirmDirty:true，preview_active 时附带 rollbackPreview）/`remove <checkoutId>`（经 manageManagedWorktreeForSession 走 discard）。头部注释（src/commands.ts:4）：破坏性动词刻意只由用户发起；模型工具止步 Ready for Review。
 
 ## 会话目标上下文注入（src/session-target-context.ts:13）
 
@@ -72,10 +76,11 @@ dsh-git-worktree 是 DeepSeek Harness 的 Git worktree 会话目标插件。宿�
 
 ## Host 兼容探测（src/host-compat.ts）
 
-- `WorkspaceClientFlavor = legacy | alpha | next | unsupported`；版本映射 `0.1.2-rc.1→legacy`、`0.1.6-alpha.2→alpha`、`0.1.7-rc.2→next`（src/host-compat.ts:7-12）。
-- `workspaceClientFlavorFromAnchors`（src/host-compat.ts:32）：锚点按最像宿主的顺序探测（entry→cwd→plugin）。link: 安装时插件自身 node_modules 会遮蔽 Host 树，因此运行入口脚本与 cwd 优先，插件路径只作兜底。
-- `workspaceFlavorDiagnostics`（src/host-compat.ts:55）记录每次探测，供 RPC 诊断上报（console-host 的 sidebarTopology 携带）。
+- `WorkspaceClientFlavor = 'legacy' | 'alpha' | 'next' | 'modern' | 'unsupported'`（src/host-compat.ts:5）；版本映射 `0.1.2-rc.1→legacy`、`0.1.6-alpha.2→alpha`、`0.1.7-rc.2→next`、`0.2.0-rc.2→modern`（src/host-compat.ts:7-12）。
+- `agentVersionFromAnchor`（src/host-compat.ts:15）：从文件锚点用 `createRequire` + `readFileSync` 读取 `@deepseek-ai/dsh-agent/package.json` 的版本号，验证 manifest.name 是否为 `@deepseek-ai/dsh-agent`。
+- `workspaceFlavorDiagnostics`（src/host-compat.ts:48）：锚点按 `[entry, cwd, plugin]` 顺序探测（src/host-compat.ts:49），每个探针记录在 probed 数组中；第一个成功解析的锚点决定 flavor，其余作为诊断信息返回。link: 安装时插件自身 node_modules 会遮蔽 Host 树，因此运行入口脚本与 cwd 优先，插件路径只作兜底。
+- `hostWorkspaceClientFlavor`（src/host-compat.ts:62）：调用 `workspaceFlavorDiagnostics().flavor` 返回当前宿主 flavor。
 
 ## i18n（src/i18n/host.ts、src/i18n/host-messages.ts）
 
-host.ts 用 `AsyncLocalStorage<Language>` 提供每次调用的不可变 locale 快照（默认 zh，src/i18n/host.ts:6），`languageFromSettings` 只读公开 settings 缝隙（src/i18n/host.ts:16）；host-messages.ts 是宿主侧全部用户可见文案的 zh 目录，`hostMessage(key, params)` 经 `createTranslator` 取词，持久化的 cleanup 消息由 hostPersistedCleanupMessage 复原。
+host.ts 用 `AsyncLocalStorage<Language>` 提供每次调用的不可变 locale 快照（默认 zh，src/i18n/host.ts:6），`languageFromSettings` 只读公开 settings 缝隙（src/i18n/host.ts:16）；host-messages.ts 是宿主侧全部用户可见文案的 zh/en 目录，`hostMessage(key, params)` 经 `createTranslator` 取词，持久化的 cleanup 消息由 `hostPersistedCleanupMessage` 复原（src/i18n/host-messages.ts:1594，allowlist 包含 cleanupIdentityChanged/cleanupResidue/cleanupIncompleteDelivery/cleanupIncompleteReceipt/cleanupMissingBeforeQuarantine/cleanupQuarantineIdentity/cleanupNewChanges/cleanupMissingBeforeRemoval/cleanupQuarantineBusy/cleanupDirectoryBusy）；`hostRegistrationMessage`（src/i18n/host-messages.ts:1583）对注册场景返回 zh + en 双语。

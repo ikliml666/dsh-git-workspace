@@ -12,7 +12,6 @@ source_files:
   - src/client/target-console/branch-overview-cache.ts
   - src/client/target-console/current-polling.ts
   - src/client/target-console/target-console.styles.ts
-  - src/client/actions.ts
 tags:
   - client
   - target-console
@@ -23,7 +22,7 @@ tags:
 
 # Target Console 目标徽章与 Worktree 控制台
 
-注册会话头的 Worktree 状态胶囊、输入坞评审状态条，以及源会话内打开的 Worktree 管理面板；数据经 [[client-boot|Client Boot]] 适配出的 `WorktreeConsoleAdapter` 读取 Host，会话跳转与身份校验复用 src/client/actions.ts 的编排层。
+注册会话头的 Worktree 状态胶囊、输入坞评审状态条，以及源会话内打开的 Worktree 管理面板；数据经 [[client-boot|Client Boot]] 适配出的 `WorktreeConsoleAdapter` 读取 Host，会话跳转与身份校验复用 `src/client/actions.ts` 的编排层。
 
 ## 槽位注册（src/client/target-console/index.ts）
 
@@ -50,44 +49,60 @@ tags:
 
 ## 会话头状态胶囊（src/client/target-console/TargetStatusAction.tsx）
 
-- src/client/target-console/TargetStatusAction.tsx:20-31 `STATE_LABELS` 覆盖契约 10 态；:33-35 `shortOid` 截 7 位（`'unversioned'` 直通）。
-- :49-54 渲染期失效：`activeSession.current !== sessionId` 时当场 bump `actionScope`，旧会话的异步回调一律作废；:66-85 effect 按 `[adapter, language, sessionId]` 重置全部状态后 `subscribeCurrent`。
-- 菜单动作全部先查 capabilities：reveal → `workspaces.openPath(managedRoot)`（:95-101）；openSource 用 openExistingSession 校验源会话 cwd（:103-109）；retryCleanup（:111-139）与 beginNextIteration（:141-163）成功后本地合并 `outcome.value.target`，`stale_target` 触发 `requestWorktreeReviewRefresh` 让各面板重读；discard（:165-197）恒传 `confirmDirty: true`，`preview_active || capabilities.rollbackPreview` 时带 `rollbackPreview: true`（:176-179），phase discarded 后把 managedRoot 置 null（:131、:189）。
-- :225-260 Menu 锚定在按钮 `.dsh-wtc-target-chip[data-target-state]`；:261-271 打开 WorktreeManagerModal；:272-287 清理确认 Modal 按 preview_active 切换"先安全回滚本地预览"与"永久丢弃"文案。
+- src/client/target-console/TargetStatusAction.tsx:30-41 `STATE_LABELS` 覆盖契约 10 态；:43-45 `shortOid` 截 7 位（`'unversioned'` 直通）。
+- :48-69 渲染期失效：`activeSession.current !== sessionId` 时当场 bump `actionScope`，旧会话的异步回调一律作废；:72-75 mounted 守卫；:81-105 effect 按 `[adapter, language, sessionId]` 重置全部状态后 `subscribeCurrent`。
+- :109-115 mount 预取分支概览（`ensureBranchOverview`），菜单打开时用 stale-while-revalidate 后台刷新。
+- 菜单动作全部先查 capabilities：reveal → `workspaces.openPath(managedRoot)`（:128-134）；openSource 用 openExistingSession 校验源会话 cwd（:136-142）；retryCleanup（:206-236）与 beginNextIteration（:238-260）成功后本地合并 `outcome.value.target`，`stale_target` 触发 `requestWorktreeReviewRefresh` 让各面板重读；discard（:262-296）恒传 `confirmDirty: true`，`preview_active || capabilities.rollbackPreview` 时带 `rollbackPreview: true`（:275-277），phase discarded 后把 managedRoot 置 null（:228、:288）。
+- :144-173 `switchBranch`：RPC 确认后乐观补丁 `patchBranchOverview`，直接读回补丁后缓存跳过一次重取；:175-204 `createBranch`：前端 `branchNameSchema` 校验 + Modal 输入 + `adapter.gitCreateBranch`，创建后 `invalidateBranchOverview` + 后台重新拉取。
+- :308-346 Menu 项：分支列表最多 12 项（当前分支与会话分支置顶，显示 upstream 与「当前会话」徽章），新建分支 / 查看提交图 / reveal / source / begin_next_iteration / manager，footer 区 retry_cleanup 或 discard（danger）。
+- :353-472 JSX：Menu 锚定在按钮 `.dsh-wtc-target-chip[data-target-state]`；:404-414 打开 WorktreeManagerModal；:415-430 清理确认 Modal 按 preview_active 切换"先安全回滚本地预览"与"永久丢弃"文案；:431-438 BranchGraphModal；:439-470 新建分支 Modal（含输入框 Enter 快捷提交）。
 
 ## 空白会话 hero 胶囊（src/client/target-console/WorktreeHeroChip.tsx）
 
 - 新会话顶行「标准模式」旁的分支胶囊：挂 `conversation.input.dock`（`{id 'worktree-hero-chip', order 20}`），把 TargetStatusAction 原样 portal 进 hero 工作区行 `'[class*="heroWorkspaceRow"]'`（`isConnected` 守卫）——与 git-graph BranchChip 的 lift 模式一致；非空白会话（`session?.blank === false`）或找不到 hero 行时渲染 null。
-- src/client/target-console/WorktreeHeroChip.tsx `resolvePortalRenderer()` 模块级缓存懒取 react-dom：`typeof require === 'function'` 判定后经 factory 注入的 `require('react-dom')` 取 `createPortal`（兼容函数与 `{createPortal}` 两种形态），try/catch 兜底——宿主缺 react-dom 时只隐藏胶囊，不拖垮整包加载。
+- src/client/target-console/WorktreeHeroChip.tsx:10-29 `resolvePortalRenderer()` 模块级缓存懒取 react-dom：`typeof require === 'function'` 判定后经 factory 注入的 `require('react-dom')` 取 `createPortal`（兼容函数与 `{createPortal}` 两种形态），try/catch 兜底——宿主缺 react-dom 时只隐藏胶囊，不拖垮整包加载。
+- :31-34 `findHeroWorkspaceRow()` DOM query + isConnected 校验；:52-72 空白会话 poll 查找 late-mounted hero 行（250ms × 40 次上限），MutationObserver 是零延迟升级路线但尚未实现。
 - 空白会话的 `adapter.current` 命中 control-plane 的 callerTarget 兜底（target_unselected → unboundLocalTarget），返回 workspace local target，故胶囊显示 workspace 当前分支，菜单的分支切换/创建/提交图作用于 workspace cwd。
 
 ## 管理面板（src/client/target-console/WorktreeConsoleView.tsx）
 
 - 源会话视角的 Worktree 管理面；src/client/target-console/WorktreeManagerModal.tsx:18-48 是薄 Modal 包装（embedded 模式复用同一视图）。
-- 错误呈现用契约 meta：`errorText`（src/client/target-console/WorktreeConsoleView.tsx:49-59）按 `worktreeConsoleErrorMeta(code).recovery` 附加下一步提示（refresh/confirm_dirty/open_recovery/retry/无权限说明）。
-- 会话切换守卫：:119-127 `useLayoutEffect` 在 sessionId 变化时 bump `sessionGeneration` 与 request 并重置；:129-131 `isActive(generation) = mounted && sessionGeneration 相等`。
-- `refresh`（:132-159）：generation+token 双守卫下 `Promise.all([adapter.current, adapter.list])`；`applyMutation`（:166-184）按 checkoutId 就地补丁 current 与 list 行；`mutationError`（:186-192）对 stale_* 错误自动 `refresh(false)`。
-- `createTarget`（:200-256）：创建后逐项校验 Host 返回身份（sourceSessionId 是自己、targetSessionId 不是自己、checkoutId 非空、ownerSessionId === targetSessionId、managedRoot 与 project 匹配、capabilities.open），再经 openIsolatedTarget 落地；列表摘要剥掉 managedRoot/sourceRoot/sourceOid/currentBranch（:239-242）。v0.9.4：创建按钮旁有基准分支 `<select>`（`.dsh-wtc-branch-select`，aria-label 从分支创建，:363-390）——`onFocus` 懒加载 `adapter.preflightCreate` 的 ready.branches（`loadBranches`，:194-202，每会话缓存），默认选项是源会话当前分支（`currentSourceBranch`），选中值随 `adapter.create({sourceSessionId, branch})` 提交；语义是基准选择而非 adopt（见 [[create-from-branch-is-base-only|Create From Branch Is Base Only]]）。
-- `discardTarget`（:252-278）/`retryCleanup`（:280-303）带代际守卫；`openListedTarget`（:305-328）经 openAuthorizedWorktreeTarget；排序 `orderedWorktrees`（:330-338）focus 优先，其次 `ATTENTION_RANK`（recovery_required 0 → local 9，:78-89），再 iteration 降序；:458-489 脏丢弃确认用 `role=alertdialog`、Escape 关闭、确认按钮 autofocus。
-- codex 对齐扩展：`setPermanentFlag`（pendingAction `permanent:<id>`，capabilities.setPermanent 门控）切换常驻标记——行操作区 pin/pinOff 按钮 + facts 里「常驻」徽标；`refresh` 第三路并发拉 `adapter.listAbandoned`（不支持/失败静默置 []，不打断主面板），底部「可恢复的放弃快照」strip 逐行 `restoreAbandonedSnapshot`（成功后移除该行 + invalidateBranchOverview + `dsh-wtc-notice` 成功条）。
+- 错误呈现用契约 meta：`errorText`（src/client/target-console/WorktreeConsoleView.tsx:51-58）按 `worktreeConsoleErrorMeta(code).recovery` 附加下一步提示（refresh/confirm_dirty/open_recovery/retry/无权限说明）。
+- :32-43 `STATE_LABELS` / :60-64 `retentionLabel` / :66-75 `TargetState` 子组件（圆点色标 + 中文态名）；:77-88 `ATTENTION_RANK` recovery_required(0) → local(9)。
+- :91-698 主组件：:121-138 `useLayoutEffect` 在 sessionId 变化时 bump `sessionGeneration` 与 request 并重置全部 state；:140-141 `isActive(generation) = mounted && sessionGeneration 相等`。
+- `refresh`（:143-174）：generation+token 双守卫下 `Promise.all([adapter.current, adapter.list, adapter.listAbandoned])`（三路并发：current、list、abandoned 恢复条）；`refreshAbandoned`（:177-188）轻量刷新仅拉恢复条；`applyMutation`（:195-213）按 checkoutId 就地补丁 current 与 list 行；`mutationError`（:215-221）对 stale_* 错误自动 `refresh(false)`。
+- `loadBranches`（:223-232）：`onFocus` 懒加载 `adapter.preflightCreate` 的 ready.branches（每会话缓存）；`createTarget`（:234-289）：创建后逐项校验 Host 返回身份（sourceSessionId 是自己、targetSessionId 不是自己、checkoutId 非空、ownerSessionId === targetSessionId、managedRoot 与 project 匹配、capabilities/open），再经 openIsolatedTarget 落地；列表摘要剥掉 managedRoot/sourceRoot/sourceOid/currentBranch（:274）。
+- `discardTarget`（:291-317）/`retryCleanup`（:319-342）带代际守卫；`setPermanentFlag`（:344-367）pendingAction `permanent:<id>`，capabilities.setPermanent 门控切换常驻标记——行操作区 pin/pinOff 按钮 + facts 里「常驻」徽标；`setRetentionMode`（:369-387）dropdown 切换 retention 策略；`restoreAbandonedSnapshot`（:389-410）恢复放弃快照后 invalidateBranchOverview + refresh。
+- `openListedTarget`（:412-435）经 openAuthorizedWorktreeTarget；排序 `orderedWorktrees`（:437-445）focus 优先，其次 `ATTENTION_RANK`，再 iteration 降序。
+- JSX 结构：:447-449 loading 态；:451-697 完整布局——console-head（标题 + 刷新钮）、error/notice、current target section（项目名 + 分支 + 状态 + 基准分支 `<select>` + 创建按钮）、linked worktrees list（filter: needsAttentionOnly/includeDelivered + 计数 + 每行 facts/actions）、abandoned snapshots strip（可恢复放弃快照）、脏丢弃确认（:664-695 `role=alertdialog`、Escape 关闭、确认按钮 autofocus）。
 
 ## 输入坞评审状态条（src/client/target-console/WorktreeReviewStatus.tsx）
 
-- src/client/target-console/WorktreeReviewStatus.tsx:50-52 挂载即 `restoreWorktreeRecovery`（恢复持久化的恢复请求，机制见 [[review-console|Review Console]]）。
-- :55-71 订阅 current 时保持 target 单调：仅当 checkoutId 相同且 revision 不回退才更新（:64）；`applyTarget`（:111-113）同规则。
-- :73-97 standaloneRecovery 卡片：恢复请求与当前 target 匹配且（state working 或无 review）时展示 queued/sending/sent/cancelled/failed 状态与重试按钮。
-- :100-108 渲染门槛：无 review 或 state 不在 `[ready_for_review, preview_active, preview_detached, cleanup_pending, recovery_required, retained]` 直接 null；:115-132 按 state 出文案（reviewSlot waiting 提示占用者、preview_detached + stale_local 提示分支快进）。
-- :134-166 把 `reviewEvidenceFromTarget`/`reviewIdentityFromTarget` 的产物交给 ReviewActions；`isActive`（:161）叠加 mounted、会话与代际三重校验；onStale → refresh，onTargetChange → applyTarget。
-- terminal 态（retained/cleanup_pending）的 dock 渲染紧凑交付证明：ReviewActions 传 `proofVariant="compact"`（ReviewActions 不再重复状态标题），dock 末尾附「收起」钮——dismiss 按 `checkoutId+reviewId` 记忆于组件 state，同轮验收不再重现，新一轮验收（新 reviewId）自动恢复；全尺寸交付证明只出现在详情弹窗，避免撑爆 dock 横向 flex。
+- src/client/target-console/WorktreeReviewStatus.tsx:53 挂载即 `restoreWorktreeRecovery`（恢复持久化的恢复请求，机制见 [[review-console|Review Console]]）。
+- :57-73 订阅 current 时保持 target 单调：仅当 checkoutId 相同且 revision 不回退才更新（:66）；`applyTarget`（:116-118）同规则。
+- :75-99 standaloneRecovery 卡片：恢复请求与当前 target 匹配且（state working 或无 review）时展示 queued/sending/sent/cancelled/failed 状态与重试按钮。
+- :102-107 渲染门槛：无 review 或 state 不在 `[ready_for_review, preview_active, preview_detached, cleanup_pending, recovery_required, retained]` 直接 null；:122-137 按 state 出文案（reviewSlot waiting 提示占用者、preview_detached + stale_local 提示分支快进）。
+- :139-181 JSX：dock 布局含 ReviewIcon + error + detail 按钮 + ReviewDetailsModal + ReviewActions（传 `proofVariant="compact"`）——terminal 态（retained/cleanup_pending）附「收起」钮，按 `checkoutId+reviewId` 记忆于 dismissed state，同轮验收不再重现，新一轮验收自动恢复。
+- :155-166 renderStatus 内联 operation 阶段文案（preparing/withdrawing/saving/processing）+ 文件数 + 校验文本。
 
 ## 分支胶囊与提交图（git-graph 融合）
 
 借鉴 `@linxin666/dsh-client-ui-git-graph`（BranchChip/BranchPopover/GraphDialog）重构会话头胶囊与分支操作：
 
-- 胶囊主标签改为**分支名优先**（`target.currentBranch`，`.dsh-wtc-target-branch` 220px 省略），无分支时回退 `Worktree · <状态>`；chevron 旋转指示展开，与图 2 参考形态一致。
-- src/client/target-console/branch-overview-cache.ts：模块级按 `(adapter, sessionId)` 缓存 `gitOverview` 结果，TTL 60s + in-flight 去重（`ensureBranchOverview`）；`refreshBranchOverviewInBackground` 是 stale-while-revalidate——过期也先返回缓存值再后台刷新；`patchBranchOverview` 供切分支后就地改写（乐观 current 标记），`invalidateBranchOverview` 在切分支/建分支后强制重读。
+- 胶囊主标签改为**分支名优先**（`target.currentBranch`，`.dsh-wtc-target-branch` 220px 省略），无分支时回退 `Worktree · <状态>`；chevron 旋转指示展开（aria-expanded 控制 transform:rotate），与图 2 参考形态一致。
+- src/client/target-console/branch-overview-cache.ts：模块级按 `(adapter, sessionId)` 缓存 `gitOverview` 结果，TTL 60s + in-flight 去重（`ensureBranchOverview`）；`refreshBranchOverviewInBackground` 是 stale-while-revalidate——过期也先返回缓存值再后台刷新；`patchBranchOverview` 供切分支后就地改写（乐观 current 标记），`invalidateBranchOverview` 在切分支/建分支后强制重读。:14-21 patchEpochs 机制：每次 patch/invalidate 自增 epoch，flight 只在纪元未变时回写，防止起飞前的解析踩掉乐观补丁。
 - TargetStatusAction 菜单新增：分支列表（最多 12 项，当前分支与会话分支置顶，显示 upstream 与「当前会话」徽章，点击即 `adapter.gitSwitchBranch`）、新建分支（`branchNameSchema` 前端校验 + Modal 输入 + `adapter.gitCreateBranch`）、查看提交图。mount 预取 + 菜单打开时后台刷新，首次展开零等待。
-- src/client/target-console/BranchGraphModal.tsx：`computeGraphLanes` 移植 git-graph 的 lane 算法（first parent 保留本道、其余 parent 开新道、无子提交后收道）；`INITIAL_LIMIT=200`/`PAGE_STEP=100` 加载更多，`requestSeq` 乱序守卫；行渲染 oid 7 位 + 着色 lane 字符（●/◆/│）+ 主题 + refs 徽章（当前分支高亮）+ 作者 + 相对时间（`formatTime`）。
+- src/client/target-console/BranchGraphModal.tsx:31-75 `computeGraphLanes` 移植 git-graph 的 lane 算法（first parent 保留本道、其余 parent 开新道、无子提交后收道）；:81-82 `INITIAL_LIMIT=200`/`PAGE_STEP=100` 加载更多，:125 `requestSeq` 乱序守卫；:84-93 `formatTime` 相对时间格式化；行渲染 oid 7 位 + SVG lane 连线（贝塞尔曲线）+ 主题着色（LANE_COLORS 6 色循环）+ refs 徽章（当前分支高亮）+ 作者 + 相对时间。
 - Host 语义：四个 git 端点全部作用于**本地仓库根**（`projectRootFor`，repo 级读取，非 managed worktree）；`gitSwitchBranch` 在 owner 会话验收中途（ready_for_review/preview_active/preview_detached/recovery_required）拒绝（`localBranchSwitchBlockedDuringDelivery`），已交付后的本地漂移由既有 stale_local 机制容错。
 
-样式见 src/client/target-console/target-console.styles.ts（`TARGET_CONSOLE_STYLES`，String.raw 胶囊/菜单样式，被 client 样式聚合注入）。
+## 样式（src/client/target-console/target-console.styles.ts）
+
+- src/client/target-console/target-console.styles.ts:1-188 `TARGET_CONSOLE_STYLES` 用 String.raw 定义全部 CSS 变量与类：
+  - .dsh-wtc-target-chip: 胶囊样式（inline-flex、圆角、状态色 via --wtc-state 自定义属性，:43-50 各态颜色映射）。
+  - .dsh-wtc-console: 面板 grid 布局（padding、gap、响应式 min-width）。
+  - .dsh-wtc-row: 列表行（flex-between、border-bottom、current-target 高亮背景）。
+  - .dsh-wtc-state: 状态圆点（--wtc-state 驱动颜色，:114-119 各态映射）。
+  - .dsh-wtc-confirm: 脏丢弃确认 overlay（absolute z-index 2、box-shadow、role=alertdialog）。
+  - .dsh-wtc-graph/*: 提交图 SVG lane 渲染（graph-row hover、oid 色、ref pill 高亮）。
+  - .dsh-wtc-create-branch-input: 新建分支输入框样式。
+  - 响应式：@media (max-width: 620px) 堆叠 current-actions/row-actions。

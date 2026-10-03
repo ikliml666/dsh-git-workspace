@@ -44,7 +44,7 @@ NS = 'dsh-git-worktree'（loader entry id，宿主按它索引配置表单）。
 
 - `SettingsFormModel<T>`（form-model.ts）：staged 编辑模型——`bind(project)` 产出 SnapshotStore，scope 或草稿变化即重投影；`shell()` 给 available/writable/dirty/invalid/saving/failed；`field(name)` 给 text/overridden/invalid；`save()` 经 `scope.mutate(ops, baselineRevision)` 原子写，landed 才清草稿，否则 failed 留草稿供修正；parse 返回 undefined 的草稿阻塞保存而不是被丢弃。
 - `WorktreeSettingsCardController`（worktree-settings-card.ts）：5 个字段的 spec 装配 + `inject()` 返回 `{ hooks: { worktreeCard: store }, edit/resetField/save/discard }`（face 直接铺成组件 props）。
-- `WorktreeSettingsCard.tsx`：React 组件，`useSyncExternalStore(props.hooks.worktreeCard.subscribe, getSnapshot)`；`view === 'summary'` 渲染一行简介，正式视图渲染两个 role="switch" 开关（autoDeliver/autoPush）+ 三个输入框（worktreesRoot/两超时）+ 覆盖徽章/还原/保存/放弃，全部 inline style、自包含（不用 dsh-ui primitives 组件）；i18n 走 `useClientTranslator()` 的 settings.* key（src/i18n/client-messages.ts）。
+- `WorktreeSettingsCard.tsx`：React 组件，通过 `useWorktreeCard` selector hook（由 slot runtime 将 `hooks.worktreeCard` 绑为 `useSyncExternalStore` 封装）读取快照；`view === 'summary'` 渲染一行简介，正式视图渲染两个 role="switch" 开关（autoDeliver/autoPush）+ 三个输入框（worktreesRoot/两超时）+ 覆盖徽章/还原/保存/放弃，全部 inline style、自包含（不用 dsh-ui primitives 组件）；i18n 走 `useClientTranslator()` 的 settings.* key（src/i18n/client-messages.ts）。
 
 ## 测试
 

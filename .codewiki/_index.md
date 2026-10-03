@@ -8,7 +8,7 @@
 - [[decisions\non-git-incremental-enablement|非 Git 目录渐进增强：显式确认下的 init + 首次提交，而非静默或死路]]
 ## Learning
 
-- [[learnings\web-rpc-transport-has-no-timeout|Web RPC 传输层全程无超时：一次『创建中…』永久卡死的根因]]
+- [[learnings\web-rpc-transport-has-no-timeout|Web RPC 传输层超时修复：从永久卡死到时中断]]
 - [[learnings\git-spawn-budget-list-latency|git spawn 预算与 list 延迟]]
 - [[learnings\host-rc-bump-breaks-exact-pin-peers|宿主 rc 升级会拒载精确钉版本的 dsh-* peer]]
 - [[learnings\platform-gated-tests-win32|平台门控测试：win32 上跳过的 4 个用例均为有意设计]]
