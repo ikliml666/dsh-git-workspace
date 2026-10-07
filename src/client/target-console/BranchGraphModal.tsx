@@ -22,23 +22,57 @@ export interface GraphRowLanes {
   edges: GraphEdge[]
 }
 
+export interface GraphRefBadge {
+  /** Short name shown in the badge (origin/ prefix stripped). */
+  label: string
+  /** Every raw ref collapsed into this badge, joined for the tooltip. */
+  full: string
+}
+
+/** Collapse local + remote refs sharing a short name (foo + origin/foo) into one badge. */
+export function mergeRefs(refs: string[]): GraphRefBadge[] {
+  const merged: GraphRefBadge[] = []
+  const indexByLabel = new Map<string, number>()
+  for (const ref of refs) {
+    const label = ref.startsWith('origin/') ? ref.slice('origin/'.length) : ref
+    const existing = indexByLabel.get(label)
+    if (existing === undefined) {
+      indexByLabel.set(label, merged.length)
+      merged.push({ label, full: ref })
+      continue
+    }
+    const entry = merged[existing]!
+    if (!entry.full.split(' · ').includes(ref)) entry.full = `${entry.full} · ${ref}`
+  }
+  return merged
+}
+
 /**
  * Lane topology ported from @linxin666/dsh-client-ui-git-graph (computeLanes),
  * emitting edge geometry instead of per-row glyphs so consecutive rows join up:
  * first parent keeps the commit's lane, other parents open lanes to the right;
- * a lane goes quiet once every child has been rendered.
+ * a lane goes quiet once every child has been rendered, and quiet lanes are
+ * reused leftmost-first so lane count tracks concurrent branches, not total.
  */
 export function computeGraphLanes(rows: Pick<WorktreeConsoleGitGraphCommit, 'oid' | 'parents'>[]): GraphRowLanes[] {
   let lanes: (string | null)[] = []
   let laneCount = 1
   const result: GraphRowLanes[] = []
+  const acquireLane = (pending: string): number => {
+    const existing = lanes.indexOf(pending)
+    if (existing !== -1) return existing
+    const hole = lanes.indexOf(null)
+    if (hole !== -1) {
+      lanes[hole] = pending
+      return hole
+    }
+    lanes.push(pending)
+    return lanes.length - 1
+  }
   for (const row of rows) {
     const found = lanes.findIndex(pending => pending === row.oid)
     let nodeColumn = found
-    if (nodeColumn === -1) {
-      lanes.push(row.oid)
-      nodeColumn = lanes.length - 1
-    }
+    if (nodeColumn === -1) nodeColumn = acquireLane(row.oid)
     const edges: GraphEdge[] = []
     if (found !== -1) edges.push({ x1: nodeColumn, y1: 0, x2: nodeColumn, y2: 0.5, color: nodeColumn })
     for (let column = 0; column < lanes.length; column++) {
@@ -52,11 +86,7 @@ export function computeGraphLanes(rows: Pick<WorktreeConsoleGitGraphCommit, 'oid
     if (row.parents.length > 0) {
       edges.push({ x1: nodeColumn, y1: 0.5, x2: nodeColumn, y2: 1, color: nodeColumn })
       for (const parent of row.parents.slice(1)) {
-        let target = lanes.indexOf(parent)
-        if (target === -1) {
-          lanes.push(parent)
-          target = lanes.length - 1
-        }
+        const target = acquireLane(parent)
         if (target !== nodeColumn) edges.push({ x1: nodeColumn, y1: 0.5, x2: target, y2: 1, color: target })
       }
     }
@@ -216,14 +246,14 @@ export function BranchGraphModal({ open, onClose, adapter, sessionId, t, current
               <span className="dsh-wtc-graph-main">
                 <span className="dsh-wtc-graph-subject" title={commit.subject}>{commit.subject}</span>
                 <span className="dsh-wtc-graph-meta">
-                  {commit.refs.map(ref => (
+                  {mergeRefs(commit.refs).map(entry => (
                     <span
-                      key={ref}
+                      key={entry.full}
                       className="dsh-wtc-graph-ref"
-                      data-gitgraph-ref-current={ref === currentBranch || ref === 'HEAD' ? '' : undefined}
-                      title={ref}
+                      data-gitgraph-ref-current={entry.label === currentBranch || (currentBranch !== null && entry.full.split(' · ').includes(currentBranch)) ? '' : undefined}
+                      title={entry.full}
                     >
-                      {ref}
+                      {entry.label}
                     </span>
                   ))}
                   <span>{commit.author}</span>

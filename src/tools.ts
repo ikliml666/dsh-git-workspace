@@ -522,6 +522,7 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
     parameters: {
       sourceBranch: { type: 'string', description: hostRegistrationMessage('worktreeMergeSourceBranch') },
       dryRun: { type: 'boolean', description: hostRegistrationMessage('worktreeMergeDryRun') },
+      direction: { type: 'string', description: hostRegistrationMessage('worktreeMergeDirection') },
     },
     output: {
       schema: {
@@ -529,9 +530,11 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
         additionalProperties: false,
         properties: {
           kind: { type: 'string', required: true },
+          direction: { type: 'string', required: true },
           dryRun: { type: 'boolean', required: true },
           sourceBranch: { type: 'string', required: true },
           localBranch: { type: 'string' },
+          targetBranch: { type: 'string' },
           type: { type: 'string', required: true },
           mergedFiles: { type: 'array', items: { type: 'string' } },
           conflictingFiles: { type: 'array', items: { type: 'string' } },
@@ -556,13 +559,16 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
         const sessionId = sessionIdOf(exec.agent)
         const sourceBranch = typeof args?.sourceBranch === 'string' ? args.sourceBranch.trim() : ''
         if (!sourceBranch) throw new Error(hostMessage('worktreeMergeSourceBranchRequired'))
-        const result = await module.mergeBranchForSession(sessionId, { sourceBranch, dryRun: args?.dryRun === true })
+        const direction = args?.direction === 'reverse' ? 'reverse' : args?.direction === 'forward' ? 'forward' : undefined
+        const result = await module.mergeBranchForSession(sessionId, { sourceBranch, dryRun: args?.dryRun === true, ...(direction ? { direction } : {}) })
         if (result.type === 'failed') throw new Error(result.reason || hostMessage('gitOperationFailedGit', { p0: 'merge', p1: sourceBranch }))
         return {
           kind: 'worktree_merge',
+          direction: result.direction,
           dryRun: result.dryRun,
           sourceBranch: result.sourceBranch,
           ...(result.localBranch ? { localBranch: result.localBranch } : {}),
+          ...(result.targetBranch ? { targetBranch: result.targetBranch } : {}),
           type: result.type,
           ...(result.mergedFiles ? { mergedFiles: result.mergedFiles } : {}),
           ...(result.conflictingFiles ? { conflictingFiles: result.conflictingFiles } : {}),

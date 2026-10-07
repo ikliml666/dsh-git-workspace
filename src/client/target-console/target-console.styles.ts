@@ -181,6 +181,8 @@ export const TARGET_CONSOLE_STYLES = String.raw`
 .dsh-wtc-graph-main { min-width:0; display:grid; gap:2px; font-family:inherit; }
 .dsh-wtc-graph-subject { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:system-ui, sans-serif; font-weight:560; }
 .dsh-wtc-graph-meta { display:flex; flex-wrap:nowrap; align-items:center; gap:4px 10px; overflow:hidden; color:color-mix(in srgb, currentColor 55%, transparent); font-family:system-ui, sans-serif; font-size:11px; }
+.dsh-wtc-graph-meta > span { flex:0 0 auto; min-width:0; }
+.dsh-wtc-graph-meta > .dsh-wtc-graph-ref { flex:0 1 auto; max-width:12em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .dsh-wtc-graph-ref { padding:1px 6px; border-radius:999px; background:color-mix(in srgb, currentColor 9%, transparent); font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:10px; }
 .dsh-wtc-graph-ref[data-gitgraph-ref-current] { background:color-mix(in srgb, #2f6fd0 16%, transparent); color:#2f6fd0; font-weight:650; }
 .dsh-wtc-graph-empty { padding:26px 14px; color:color-mix(in srgb, currentColor 55%, transparent); text-align:center; font-family:system-ui, sans-serif; }

@@ -1102,6 +1102,52 @@ describe('SessionCheckoutModule', () => {
     expect(readFileSync(join(context.projectRoot, 'tracked.txt'), 'utf8')).toContain('<<<<<<<')
   }, 30_000)
 
+  test('Given Local advanced cleanly When the session reverse-syncs Then the worktree receives the merge and Local stays untouched', async () => {
+    const context = createContext()
+    const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')
+    const branch = 'feat/wt-reverse-clean'
+    git(launch.managedRoot, 'switch', '-c', branch)
+    writeFileSync(join(launch.managedRoot, 'worktree-note.txt'), 'note\n', 'utf8')
+    git(launch.managedRoot, 'add', 'worktree-note.txt')
+    git(launch.managedRoot, 'commit', '-m', 'feat: worktree note')
+    writeFileSync(join(context.projectRoot, 'local-advance.txt'), 'from local\n', 'utf8')
+    git(context.projectRoot, 'add', 'local-advance.txt')
+    git(context.projectRoot, 'commit', '-m', 'feat: local advance')
+
+    const result = await context.module.mergeBranchForSession('session-1', { sourceBranch: branch, direction: 'reverse' })
+    expect(result).toMatchObject({ direction: 'reverse', dryRun: false, type: 'merged', sourceBranch: branch, localBranch: 'main', targetBranch: branch })
+    expect(result.mergedFiles).toEqual(['local-advance.txt'])
+    expect(readFileSync(join(launch.managedRoot, 'local-advance.txt'), 'utf8')).toBe('from local\n')
+    expect(readFileSync(join(launch.managedRoot, 'worktree-note.txt'), 'utf8')).toBe('note\n')
+    expect(existsSync(join(context.projectRoot, 'worktree-note.txt'))).toBe(false)
+  }, 30_000)
+
+  test('Given Local advanced past the worktree When the session reverse-syncs Then the conflict scene stays in the worktree', async () => {
+    const context = createContext()
+    const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')
+    const branch = 'feat/wt-reverse-conflict'
+    git(launch.managedRoot, 'switch', '-c', branch)
+    // Local 在 main 上前进；任务分支另改同一文件制造反向冲突。
+    writeFileSync(join(context.projectRoot, 'tracked.txt'), 'local newer\n', 'utf8')
+    git(context.projectRoot, 'add', 'tracked.txt')
+    git(context.projectRoot, 'commit', '-m', 'feat: local advance')
+    writeFileSync(join(launch.managedRoot, 'tracked.txt'), 'worktree version\n', 'utf8')
+    git(launch.managedRoot, 'add', 'tracked.txt')
+    git(launch.managedRoot, 'commit', '-m', 'feat: worktree version')
+
+    const preview = await context.module.mergeBranchForSession('session-1', { sourceBranch: branch, direction: 'reverse', dryRun: true })
+    expect(preview).toMatchObject({ direction: 'reverse', dryRun: true, type: 'conflict', sourceBranch: branch, localBranch: 'main', targetBranch: branch })
+    expect(readFileSync(join(launch.managedRoot, 'tracked.txt'), 'utf8')).toBe('worktree version\n')
+
+    const result = await context.module.mergeBranchForSession('session-1', { sourceBranch: branch, direction: 'reverse' })
+    expect(result.type).toBe('conflict')
+    expect(readFileSync(join(launch.managedRoot, 'tracked.txt'), 'utf8')).toContain('<<<<<<<')
+    expect(readFileSync(join(context.projectRoot, 'tracked.txt'), 'utf8')).toBe('local newer\n')
+
+    await expect(context.module.mergeBranchForSession('session-1', { sourceBranch: branch, direction: 'sideways' as never }))
+      .rejects.toMatchObject({ code: 'invalid_input' })
+  }, 30_000)
+
   test('Given worktreesRoot is configured When discard removes the last checkout Then the empty project container is collected', async () => {
     const context = createContext({ worktreesRoot: true })
     const worktreesRoot = context.worktreesRoot

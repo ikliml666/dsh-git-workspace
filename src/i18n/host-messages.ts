@@ -1077,16 +1077,20 @@ export const hostMessages = {
     "en": "This branch has commits not yet merged into {p0}; skipped."
   },
   "worktreeMergeDescription": {
-    "zh": "把本会话托管 worktree 的分支合并进 Local 当前分支。必须先 dryRun 预览（零改动试合并）；正式合并遇冲突时不回滚，返回逐文件冲突 diff，由你在 Local 就地解决后提交。只能合并本会话自己的 worktree 分支。",
-    "en": "Merge a branch from a worktree owned by this session into the Local checkout HEAD. Always dryRun first (a zero-touch trial merge); on a real merge conflict nothing is rolled back — per-file conflict diffs are returned for you to resolve and commit in place. Only branches of this session's own worktrees can be merged."
+    "zh": "把本会话托管 worktree 的分支合并进 Local 当前分支。必须先 dryRun 预览（零改动试合并）；正式合并遇冲突时不回滚，返回逐文件冲突 diff，由你在 Local 就地解决后提交。direction='reverse' 时反向同步：把 Local 当前分支合进任务 worktree 的当前分支，冲突现场留在任务 worktree。只能操作本会话自己的 worktree 分支。",
+    "en": "Merge a branch from a worktree owned by this session into the Local checkout HEAD. Always dryRun first (a zero-touch trial merge); on a real merge conflict nothing is rolled back — per-file conflict diffs are returned for you to resolve and commit in place. With direction='reverse' the Local checkout HEAD is synced back into the worktree branch, leaving any conflict scene in the worktree. Only branches of this session's own worktrees can be merged."
   },
   "worktreeMergeSourceBranch": {
-    "zh": "要合并的 worktree 分支名（必须属于本会话的托管 worktree）。",
-    "en": "The worktree branch to merge (must belong to a managed worktree of this session)."
+    "zh": "本会话 worktree 的分支名：forward 时作为合并来源，reverse 时作为反向同步的接收分支（必须属于本会话的托管 worktree）。",
+    "en": "A worktree branch of this session: the merge source on forward, or the receiving branch on reverse (must belong to a managed worktree of this session)."
   },
   "worktreeMergeDryRun": {
     "zh": "在临时 worktree 里试合并，不改动 Local（建议先 true 预览冲突）。",
     "en": "Trial-merge in a throwaway worktree without touching Local (preview with true first)."
+  },
+  "worktreeMergeDirection": {
+    "zh": "合并方向：forward（默认）把任务分支合进 Local 当前分支；'reverse' 反向同步，把 Local 当前分支合进任务 worktree 的当前分支，冲突现场留在任务 worktree。",
+    "en": "Merge direction: forward (default) merges the worktree branch into the Local checkout HEAD; 'reverse' syncs the Local checkout HEAD into the worktree branch, leaving any conflict scene in the worktree."
   },
   "mergeWorktreeBranch": {
     "zh": "合并 worktree 分支",
@@ -1107,6 +1111,14 @@ export const hostMessages = {
   "worktreeMergeUnknownSourceBranch": {
     "zh": "找不到分支「{p0}」。",
     "en": "Unknown branch \"{p0}\"."
+  },
+  "worktreeMergeDirectionInvalid": {
+    "zh": "未知的 direction「{p0}」，只支持 forward / reverse。",
+    "en": "Unknown direction \"{p0}\"; use forward or reverse."
+  },
+  "worktreeMergeLocalHeadDetached": {
+    "zh": "Local 检出当前不在任何分支上（detached HEAD），无法反向同步。",
+    "en": "The Local checkout is not on a branch (detached HEAD); reverse sync is unavailable."
   },
   "theGitPortOfThisInstallationDoesNotSupportBranchMerge": {
     "zh": "当前安装的 Git 适配器不支持分支合并操作。",

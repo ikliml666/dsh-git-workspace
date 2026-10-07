@@ -517,6 +517,10 @@ export interface MergeBranchForSessionView extends MergeLocalBranchResult {
   sourceBranch: string
   /** Current branch of the Local checkout at merge time; null on detached HEAD. */
   localBranch: string | null
+  /** The branch receiving the merge: the Local checkout HEAD (forward) or the worktree branch (reverse). */
+  targetBranch: string | null
+  /** forward (default): worktree → Local; reverse: Local HEAD → worktree, conflicts stay in the worktree. */
+  direction: 'forward' | 'reverse'
 }
 
 export interface SessionCheckoutConflictResult {

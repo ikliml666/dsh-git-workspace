@@ -6,9 +6,13 @@
 
 ### Fixed
 
+- 提交图多分支 lane 膨胀与 refs 徽章裁切（2026-10-07）：`computeGraphLanes` 开新 lane 一律尾插、仅回收尾部 null——中间静默槽位永占，lane 数随分支总数单调增长（每条分支各占一条 lane，十几条分支即十几条贯穿竖线，且顶部截断边界提交各开新 lane 加剧）。修复：新 pending 先复用最左静默槽位，lane 数只随**并发**分支数增长；refs 徽章把本地与远程同名分支（`foo` + `origin/foo`）归并为单徽章（tooltip 列全名），CSS 限宽 12em 省略号防裁切，meta 内 author/时间不收缩优先保可读。
+
 - 插件页设置卡保存后回显旧值（2026-10-04）：保存实际成功（组合层写入 cordis.patch.yml、revision 前进、覆盖标记更新），但卡片立即弹回旧值——根因是 schemastery 版本协议分叉：插件 dependencies 锁定 `@deepseek-ai/schemastery@3.18.2`，其 `Config['~standard'].validate` 对 `meta.volatile` 字段产出普通值；而宿主运行时是 3.18.4，volatile 字段解析为 cosmokit volatile 引用。cordis Loader 的 volatile-only 热更新（`_commitVolatile`）依赖 `volatileEntries(fiber.config)` 找引用原地 `updateVolatile`——普通值收集到 0 个引用，直接返回且不 remount，`fiber.config` 永停启动时旧值，describe 投影出的 `value` 因此永远是旧值（user 层/revision/磁盘均正常，重启后才恢复一致）。升级依赖到 3.18.4 接入引用协议（全链模拟实测 refs=7、保存后 value 即时更新），插件内所有读取点本就经 `liveConfigValue` 解引用、无需改动。
 
 ### Added
+
+- worktree_merge 反向同步 `direction='reverse'`（2026-10-07）：把 Local 当前分支合进任务 worktree 的当前分支，冲突现场天然留在任务 worktree、Local 不被触碰——任务分支落后 trunk 过多时先反向同步消化冲突，再正向合并。dryRun 语义不变（临时 detached worktree 零改动探测）；门控与正向共用（sourceBranch 必须 owned，reverse 时语义为接收分支）；输出新增 `direction`/`targetBranch`。
 
 - 插件页设置卡片（2026-10-03）：把 volatile 配置（`autoDeliver`/`autoPush`/`worktreesRoot`/`gitTimeoutMs`/`worktreeAddTimeoutMs`）投影为插件详情页描述与组件列表之间的暂存表单卡——经共享配置表单服务读有效值（用户层>组合层>schema 默认，覆盖标记按存在性而非值比较），revision 栅栏原子保存，暂存编辑所见即所存。修复两处此前卡片永不显示的接线错误：slot 由 `plugins.item`（官方插件列表）改为 `plugins.bundle.config`（key=包名，组合包详情页配置区）；client 入口 `inject` 声明 `slots`/`configForms`（cordis 只解析本 fiber 声明过的服务名，未声明时 `ctx.get` 恒为 undefined、挂载静默 no-op）。
 

@@ -83,10 +83,12 @@ export interface PruneMergedBranchesInput {
 }
 
 export interface MergeBranchForSessionInput {
-  /** Worktree branch to merge into the Local checkout HEAD; must belong to this session. */
+  /** Worktree branch of this session: merged into Local (forward) or receiving Local's HEAD (reverse). */
   sourceBranch: string
   /** Probe the merge in a throwaway detached worktree; never touches the checkout. */
   dryRun?: boolean
+  /** 'reverse' syncs the Local checkout HEAD into the worktree branch; any conflict scene stays in the worktree. */
+  direction?: 'forward' | 'reverse'
 }
 
 export interface MarkReadyForReviewInput {

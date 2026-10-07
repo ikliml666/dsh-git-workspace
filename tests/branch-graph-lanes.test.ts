@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { computeGraphLanes } from '../src/client/target-console/BranchGraphModal.js'
+import { computeGraphLanes, mergeRefs } from '../src/client/target-console/BranchGraphModal.js'
 
 describe('computeGraphLanes', () => {
   it('routes a linear history through a single lane', () => {
@@ -55,5 +55,37 @@ describe('computeGraphLanes', () => {
     expect(computeGraphLanes([{ oid: 'r', parents: [] }])).toEqual([
       { nodeColumn: 0, laneCount: 1, edges: [] },
     ])
+  })
+
+  it('reuses a quiet lane for a later branch instead of growing rightward', () => {
+    const rows = computeGraphLanes([
+      { oid: 'a1', parents: ['a2'] },
+      { oid: 'x1', parents: ['x2'] },
+      { oid: 'a2', parents: [] },
+      { oid: 'b1', parents: ['b2'] },
+      { oid: 'x2', parents: [] },
+      { oid: 'b2', parents: [] },
+    ])
+    expect(rows.map(row => row.laneCount)).toEqual([2, 2, 2, 2, 2, 2])
+    expect(rows[0]!.nodeColumn).toBe(0)
+    expect(rows[1]!.nodeColumn).toBe(1)
+    expect(rows[3]!.nodeColumn).toBe(0)
+  })
+})
+
+describe('mergeRefs', () => {
+  it('collapses local and remote refs with the same short name into one badge', () => {
+    expect(mergeRefs(['feat/a', 'origin/feat/a'])).toEqual([{ label: 'feat/a', full: 'feat/a · origin/feat/a' }])
+  })
+
+  it('keeps distinct branches separate', () => {
+    expect(mergeRefs(['feat/a', 'origin/feat/b'])).toEqual([
+      { label: 'feat/a', full: 'feat/a' },
+      { label: 'feat/b', full: 'origin/feat/b' },
+    ])
+  })
+
+  it('does not duplicate a repeated ref', () => {
+    expect(mergeRefs(['feat/a', 'feat/a'])).toEqual([{ label: 'feat/a', full: 'feat/a' }])
   })
 })

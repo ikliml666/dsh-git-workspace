@@ -3832,24 +3832,37 @@ export function createSessionCheckoutModule(
     }
     const sourceBranch = input.sourceBranch.trim()
     if (!sourceBranch) throw new SessionCheckoutError('invalid_input', hostMessage('worktreeMergeSourceBranchRequired'))
-    // 门控：source 必须是本会话某个托管 worktree 的当前分支；Local 自身分支不可作为来源。
-    const ownedBranches = new Set<string>()
+    if (input.direction !== undefined && input.direction !== 'forward' && input.direction !== 'reverse') {
+      throw new SessionCheckoutError('invalid_input', hostMessage('worktreeMergeDirectionInvalid', { p0: input.direction }))
+    }
+    const direction = input.direction === 'reverse' ? 'reverse' : 'forward'
+    // 门控：sourceBranch 必须是本会话某个托管 worktree 的当前分支；Local 自身分支不可作为来源。
+    const managedRootByBranch = new Map<string, string>()
     for (const record of records) {
       const overview = await branchOverview(record.managedGitRoot)
       const current = overview?.branches.find((branch) => branch.isCurrent)
-      if (current) ownedBranches.add(current.name)
+      if (current) managedRootByBranch.set(current.name, record.managedGitRoot)
     }
     const localOverview = await branchOverview(localRoot)
     const localBranch = localOverview?.branches.find((branch) => branch.isCurrent)?.name ?? null
     if (localBranch === sourceBranch) {
       throw new SessionCheckoutError('invalid_input', hostMessage('worktreeMergeSourceIsLocalHead', { p0: sourceBranch }))
     }
-    if (!ownedBranches.has(sourceBranch)) {
+    const managedRoot = managedRootByBranch.get(sourceBranch)
+    if (!managedRoot) {
       throw new SessionCheckoutError('not_owner', hostMessage('worktreeMergeSourceNotOwnedBySession', { p0: sourceBranch }))
     }
     const dryRun = input.dryRun === true
+    if (direction === 'reverse') {
+      // 反向同步：把 Local 当前分支合进任务 worktree 的当前分支；冲突现场留在任务 worktree。
+      if (!localBranch) {
+        throw new SessionCheckoutError('invalid_input', hostMessage('worktreeMergeLocalHeadDetached'))
+      }
+      const result = await mergeLocalBranch(managedRoot, localBranch, { dryRun })
+      return { direction, dryRun, sourceBranch, localBranch, targetBranch: sourceBranch, ...result }
+    }
     const result = await mergeLocalBranch(localRoot, sourceBranch, { dryRun })
-    return { dryRun, sourceBranch, localBranch, ...result }
+    return { direction, dryRun, sourceBranch, localBranch, targetBranch: localBranch, ...result }
   }
 
   async function listAbandonedWorktreeSnapshots(sessionId: string): Promise<AbandonedWorktreeSnapshotView[]> {
