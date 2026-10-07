@@ -26,7 +26,7 @@ tags:
 
 ## 槽位注册（src/client/target-console/index.ts）
 
-- src/client/target-console/index.ts:19-46 `registerTargetConsole` 注入两个槽位三条目：`conversation.session.header.actions` 注册 `{id 'worktree-target', order 30}` → TargetStatusAction；`conversation.input.dock` 注册 `{id 'worktree-review-status', order 10}` → WorktreeReviewStatus 与 `{id 'worktree-hero-chip', order 20}` → WorktreeHeroChip（空白会话，见下节）。:48-52 再导出面板组件供 Manager Modal 复用。
+- src/client/target-console/index.ts:27-39 `registerTargetConsole` 注入两个槽位三条目：`conversation.session.header.actions` 注册 `{id 'worktree-target', order 30}` → TargetStatusAction；`conversation.input.dock` 注册 `{id 'worktree-review-status', order 10}` → WorktreeReviewStatus 与 `{id 'worktree-hero-chip', order 20}` → WorktreeHeroChip（空白会话，见下节）。:41-45 再导出面板组件供 Manager Modal 复用。
 
 ## 会话导航编排（src/client/actions.ts）
 
