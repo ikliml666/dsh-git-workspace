@@ -8,7 +8,7 @@ describe('Host-pinned Workspace generation', () => {
       peerDependencies: Record<string, string>
     }
     expect(manifest.peerDependencies['@deepseek-ai/dsh-client-locale'])
-      .toBe('0.1.2-rc.1 || 0.1.7-rc.2 || 0.2.0-rc.1 || 0.2.0-rc.2')
+      .toBe('0.1.2-rc.1 || 0.1.7-rc.2 || 0.2.0-rc.1 || 0.2.0-rc.2 || 0.2.1-alpha.1')
   })
 
   test('only selects source-verified Browser generations and preserves the legacy path', () => {
