@@ -80,6 +80,8 @@ export interface ListManagedWorktreesInput {
 export interface PruneMergedBranchesInput {
   /** Report what would be deleted without touching any ref. */
   dryRun?: boolean
+  /** Only prune branches whose tip commit is older than this many days; omit for no age filter (manual callers keep the old behavior). */
+  olderThanDays?: number
 }
 
 export interface MergeBranchForSessionInput {
@@ -167,6 +169,8 @@ export interface SessionCheckoutModule {
   listManagedWorktreesForSession(sessionId: string, input?: Omit<ListManagedWorktreesInput, 'projectId'>): Promise<ManagedWorktreeSummaryView[]>
   /** Caller-scoped safe prune of fully merged local branches in the session project (`git branch -d` semantics, never force). */
   pruneMergedBranchesForSession(sessionId: string, input?: PruneMergedBranchesInput): Promise<PruneMergedBranchesView>
+  /** Maintenance sweep: safe-prune fully merged local branches older than the given age across every managed project. */
+  autoPruneStaleMergedBranches(olderThanDays: number): Promise<PruneMergedBranchesView[]>
   /** Caller-scoped merge of a session-owned worktree branch into the Local checkout HEAD; dryRun probes without touching anything. */
   mergeBranchForSession(sessionId: string, input: MergeBranchForSessionInput): Promise<MergeBranchForSessionView>
   /** codex 对齐：当前会话项目内可恢复的放弃快照列表。 */
@@ -298,6 +302,10 @@ function resolveStateDir(config: { stateDir?: string }): string {
 }
 
 const RETENTION_MAINTENANCE_INTERVAL_MS = 15 * 60 * 1000
+/** Sweep cadence for the stale-merged-branch auto-prune; the first pass runs shortly after boot so restart-heavy hosts still sweep daily. */
+const AUTO_PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000
+const AUTO_PRUNE_FIRST_RUN_DELAY_MS = 60 * 1000
+const AUTO_PRUNE_OLDER_THAN_DAYS = 7
 
 /**
  * Mount the plugin: DSH adapters, the session-checkout module, safe worktree
@@ -381,8 +389,26 @@ export async function apply(ctx: Context, config: { stateDir?: string } & GitTim
       })
   }, RETENTION_MAINTENANCE_INTERVAL_MS)
   retentionTimer.unref?.()
+  const autoPruneSweep = () => {
+    void module.autoPruneStaleMergedBranches(AUTO_PRUNE_OLDER_THAN_DAYS)
+      .then((results) => {
+        const names = results.flatMap((result) => result.pruned.map((entry) => entry.name))
+        if (names.length > 0) {
+          console.info('[dsh-git-worktree] auto-pruned merged branches older than 7d:', names.join(', '))
+        }
+      })
+      .catch((error) => {
+        console.warn('[dsh-git-worktree] auto-prune sweep failed:', error)
+      })
+  }
+  const autoPruneFirstRun = setTimeout(autoPruneSweep, AUTO_PRUNE_FIRST_RUN_DELAY_MS)
+  autoPruneFirstRun.unref?.()
+  const autoPruneTimer = setInterval(autoPruneSweep, AUTO_PRUNE_INTERVAL_MS)
+  autoPruneTimer.unref?.()
   ctx.effect(() => () => {
     reconcileOnReady()
     clearInterval(retentionTimer)
+    clearTimeout(autoPruneFirstRun)
+    clearInterval(autoPruneTimer)
   })
 }

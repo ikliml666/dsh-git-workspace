@@ -3759,22 +3759,18 @@ export function createSessionCheckoutModule(
     return summaries.filter((summary) => allowedCheckoutIds.has(summary.checkoutId))
   }
 
-  async function pruneMergedBranchesForSession(
-    sessionId: string,
-    input: PruneMergedBranchesInput = {},
+  /**
+   * Safe-prune core shared by the session tool and the maintenance sweep:
+   * fully merged tips only (`git branch -d` semantics), current and trunk
+   * branches never enter the candidate set. `olderThanDays` additionally
+   * requires the tip committer date to be older than the cutoff; omit it for
+   * no age filter (manual tool callers keep the unfiltered behavior).
+   */
+  async function pruneMergedBranchesInRepo(
+    localRoot: string,
+    input: { dryRun?: boolean; olderThanDays?: number } = {},
   ): Promise<PruneMergedBranchesView> {
-    const session = requireSession(sessionId)
-    const persisted = getPersistedBinding(sessionId)
-    const projectId = persisted?.projectId ?? session.projectId
-    if (!projectId) throw new SessionCheckoutError('project_not_found', hostMessage('theSessionIsNotAssociatedWithAProject'))
-    const project = dependencies.lookup.getProject(projectId)
-    const localRoot = project?.root ?? Object.values(dependencies.registry.read().managedCheckouts)
-      .filter((record) => record.projectId === projectId)
-      .filter((record) => record.ownerSessionId === sessionId || record.sourceSessionId === sessionId)
-      .map((record) => record.localRoot)
-      .find((root) => root.length > 0)
-    if (!localRoot) throw new SessionCheckoutError('project_not_found', hostMessage('theSessionIsNotAssociatedWithAProject'))
-    const { branchOverview, isAncestor, deleteLocalBranch } = dependencies.git
+    const { branchOverview, isAncestor, deleteLocalBranch, branchTipTimes } = dependencies.git
     if (!branchOverview || !isAncestor || !deleteLocalBranch) {
       throw new SessionCheckoutError('operation_not_allowed', hostMessage('theGitPortOfThisInstallationDoesNotSupportBranchPrune'))
     }
@@ -3786,6 +3782,15 @@ export function createSessionCheckoutModule(
     // 安全删只认「已完全合并」：tip 可达当前 HEAD 才算；当前分支与主干分支永不进入候选。
     const trunkBranches = new Set(['main', 'master'])
     const dryRun = input.dryRun === true
+    const cutoff = input.olderThanDays === undefined ? null : Date.now() - input.olderThanDays * 86_400_000
+    // 年龄过滤需要 tip 时间；port 未实现时跳过全部候选而不是放宽为不过滤。
+    let tipTimes: Record<string, number> | null = null
+    if (cutoff !== null) {
+      if (!branchTipTimes) {
+        throw new SessionCheckoutError('operation_not_allowed', hostMessage('theGitPortOfThisInstallationDoesNotSupportBranchPrune'))
+      }
+      tipTimes = await branchTipTimes(localRoot)
+    }
     const pruned: PruneMergedBranchEntry[] = []
     const skipped: PruneMergedBranchEntry[] = []
     const headOid = headBranch?.oid
@@ -3803,6 +3808,13 @@ export function createSessionCheckoutModule(
           skipped.push({ name: branch.name, oid: branch.oid, reason: hostMessage('thisBranchHasCommitsNotYetMergedInto', { p0: headBranch?.name ?? 'HEAD' }) })
           continue
         }
+        if (tipTimes && cutoff !== null) {
+          const tipTime = tipTimes[branch.name] ?? 0
+          if (tipTime >= cutoff) {
+            skipped.push({ name: branch.name, oid: branch.oid, reason: hostMessage('branchTipYoungerThanCutoffDays', { p0: String(input.olderThanDays ?? 0) }) })
+            continue
+          }
+        }
         if (dryRun) {
           pruned.push({ name: branch.name, oid: branch.oid })
           continue
@@ -3813,6 +3825,51 @@ export function createSessionCheckoutModule(
       }
     }
     return { dryRun, headBranch: headBranch?.name ?? null, pruned, skipped }
+  }
+
+  async function pruneMergedBranchesForSession(
+    sessionId: string,
+    input: PruneMergedBranchesInput = {},
+  ): Promise<PruneMergedBranchesView> {
+    const session = requireSession(sessionId)
+    const persisted = getPersistedBinding(sessionId)
+    const projectId = persisted?.projectId ?? session.projectId
+    if (!projectId) throw new SessionCheckoutError('project_not_found', hostMessage('theSessionIsNotAssociatedWithAProject'))
+    const project = dependencies.lookup.getProject(projectId)
+    const localRoot = project?.root ?? Object.values(dependencies.registry.read().managedCheckouts)
+      .filter((record) => record.projectId === projectId)
+      .filter((record) => record.ownerSessionId === sessionId || record.sourceSessionId === sessionId)
+      .map((record) => record.localRoot)
+      .find((root) => root.length > 0)
+    if (!localRoot) throw new SessionCheckoutError('project_not_found', hostMessage('theSessionIsNotAssociatedWithAProject'))
+    return pruneMergedBranchesInRepo(localRoot, input)
+  }
+
+  /**
+   * Maintenance sweep: safe-prune fully merged stale branches in every managed
+   * project's Local root. Per-project failures are reported as a skipped entry,
+   * never thrown — one broken repository must not block the others.
+   */
+  async function autoPruneStaleMergedBranches(olderThanDays: number): Promise<PruneMergedBranchesView[]> {
+    const projectRoots = new Set<string>()
+    for (const record of Object.values(dependencies.registry.read().managedCheckouts)) {
+      const root = dependencies.lookup.getProject(record.projectId)?.root ?? record.localRoot
+      if (root && dependencies.files.exists(root)) projectRoots.add(root)
+    }
+    const results: PruneMergedBranchesView[] = []
+    for (const root of projectRoots) {
+      try {
+        results.push(await pruneMergedBranchesInRepo(root, { olderThanDays }))
+      } catch (error) {
+        results.push({
+          dryRun: false,
+          headBranch: null,
+          pruned: [],
+          skipped: [{ name: root, oid: '', reason: error instanceof Error ? error.message : String(error) }],
+        })
+      }
+    }
+    return results
   }
 
   async function mergeBranchForSession(sessionId: string, input: MergeBranchForSessionInput): Promise<MergeBranchForSessionView> {
@@ -4699,6 +4756,9 @@ export function createSessionCheckoutModule(
     listManagedWorktreesForSession,
     pruneMergedBranchesForSession: (sessionId, input) => withBindingLock(
       () => pruneMergedBranchesForSession(sessionId, input),
+    ),
+    autoPruneStaleMergedBranches: (olderThanDays) => withBindingLock(
+      () => autoPruneStaleMergedBranches(olderThanDays),
     ),
     mergeBranchForSession: (sessionId, input) => withBindingLock(
       () => mergeBranchForSession(sessionId, input),

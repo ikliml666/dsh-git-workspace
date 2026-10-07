@@ -446,6 +446,20 @@ export function createDshGitPort(ctx: Context, options: GitPortOptions): Session
       }).filter((branch) => branch.name && /^[0-9a-f]{40,64}$/iu.test(branch.oid))
       return { branches, dirtyCount: status.stdout ? status.stdout.split('\0').filter(Boolean).length : 0 }
     },
+    branchTipTimes: async (root) => {
+      const refs = await runSessionGit(root, ['for-each-ref', '--format=%(refname)%00%(committerdate:unix)', 'refs/heads'])
+      if (refs.code !== 0) {
+        throw new SessionCheckoutError('git_operation_failed', refs.stderr.trim() || hostMessage('gitOperationFailedGit', { p0: 'for-each-ref', p1: '' }))
+      }
+      const times: Record<string, number> = {}
+      for (const line of refs.stdout.split(/\r?\n/).filter(Boolean)) {
+        const [refname, unix] = line.split('\0')
+        const name = (refname ?? '').replace(/^refs\/heads\//u, '')
+        const seconds = Number.parseInt(unix ?? '', 10)
+        if (name && Number.isFinite(seconds)) times[name] = seconds * 1000
+      }
+      return times
+    },
     deleteLocalBranch: async (root, name) => {
       const result = await runSessionGit(root, ['branch', '-d', name])
       if (result.code === 0) return { deleted: true }

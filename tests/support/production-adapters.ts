@@ -665,6 +665,19 @@ export function createNodeSessionCheckoutDependencies(
         if (result.code === 0) return { deleted: true }
         return { deleted: false, reason: (result.stderr || result.stdout).trim() }
       },
+      // 与 src/adapters/git.ts 同语义：tip committer 时间（ms），供分支年龄过滤。
+      branchTipTimes: async (root) => {
+        const refs = await runSessionGit(root, ['for-each-ref', '--format=%(refname)%00%(committerdate:unix)', 'refs/heads'])
+        if (refs.code !== 0) throw new Error(refs.stderr || 'git for-each-ref 失败')
+        const times: Record<string, number> = {}
+        for (const line of refs.stdout.split(/\r?\n/).filter(Boolean)) {
+          const [refname, unix] = line.split('\0')
+          const name = (refname ?? '').replace(/^refs\/heads\//u, '')
+          const seconds = Number.parseInt(unix ?? '', 10)
+          if (name && Number.isFinite(seconds)) times[name] = seconds * 1000
+        }
+        return times
+      },
       // 与 src/adapters/git.ts 同语义：dryRun 在临时 detached worktree 试合并；
       // 正式合并冲突不 abort，冲突状态留给调用方就地解决。
       mergeLocalBranch: async (root, source, options) => {

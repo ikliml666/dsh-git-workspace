@@ -1060,6 +1060,14 @@ export const hostMessages = {
     "zh": "只报告会删哪些分支，不真的删除（建议先 true 预览）。",
     "en": "Report what would be deleted without touching any ref (preview with true first)."
   },
+  "worktreePruneBranchesOlderThanDays": {
+    "zh": "只清理 tip 提交时间早于该天数的已合并分支；不传则不做时间过滤。",
+    "en": "Only prune merged branches whose tip commit is older than this many days; omit for no age filter."
+  },
+  "branchTipYoungerThanCutoffDays": {
+    "zh": "分支 tip 晚于 {p0} 天 cutoff，暂不清理。",
+    "en": "Branch tip is younger than the {p0}-day cutoff; kept for now."
+  },
   "pruneMergedLocalBranches": {
     "zh": "清理已合并的本地分支",
     "en": "Prune merged local branches"

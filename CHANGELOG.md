@@ -12,6 +12,8 @@
 
 ### Added
 
+- 托管项目超龄已合并分支自动清理（2026-10-07）：插件后台每日定时（启动 60s 后首跑，之后每 24h）扫台账托管项目的 Local 仓库，自动删除「已完全合并进 HEAD + tip 提交早于 7 天 + 非当前/主干分支」的本地分支——`git branch -d` 语义绝不强删，被 worktree 占用等删除失败逐条记因，清扫结果（删除清单）写 host 日志；单项目失败不阻塞其余项目。`worktree_prune_branches` 配套新增可选 `olderThanDays`（按 tip 提交时间过滤；手动调用不传则不做时间过滤，保持原行为）。git port 新增可选 `branchTipTimes`（一条 `for-each-ref --format=%(committerdate:unix)` 拿全部本地分支 tip 时间）。
+
 - worktree_merge 反向同步 `direction='reverse'`（2026-10-07）：把 Local 当前分支合进任务 worktree 的当前分支，冲突现场天然留在任务 worktree、Local 不被触碰——任务分支落后 trunk 过多时先反向同步消化冲突，再正向合并。dryRun 语义不变（临时 detached worktree 零改动探测）；门控与正向共用（sourceBranch 必须 owned，reverse 时语义为接收分支）；输出新增 `direction`/`targetBranch`。
 
 - 插件页设置卡片（2026-10-03）：把 volatile 配置（`autoDeliver`/`autoPush`/`worktreesRoot`/`gitTimeoutMs`/`worktreeAddTimeoutMs`）投影为插件详情页描述与组件列表之间的暂存表单卡——经共享配置表单服务读有效值（用户层>组合层>schema 默认，覆盖标记按存在性而非值比较），revision 栅栏原子保存，暂存编辑所见即所存。修复两处此前卡片永不显示的接线错误：slot 由 `plugins.item`（官方插件列表）改为 `plugins.bundle.config`（key=包名，组合包详情页配置区）；client 入口 `inject` 声明 `slots`/`configForms`（cordis 只解析本 fiber 声明过的服务名，未声明时 `ctx.get` 恒为 undefined、挂载静默 no-op）。

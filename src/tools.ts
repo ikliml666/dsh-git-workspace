@@ -458,6 +458,7 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
     description: hostRegistrationMessage('worktreePruneBranchesDescription'),
     parameters: {
       dryRun: { type: 'boolean', description: hostRegistrationMessage('worktreePruneBranchesDryRun') },
+      olderThanDays: { type: 'number', description: hostRegistrationMessage('worktreePruneBranchesOlderThanDays') },
     },
     output: {
       schema: {
@@ -499,7 +500,13 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
     async execute(args, exec) {
       return withHostLanguage(languageForInvocation(exec.agent, ctx), async () => {
         const sessionId = sessionIdOf(exec.agent)
-        const result = await module.pruneMergedBranchesForSession(sessionId, { dryRun: args?.dryRun === true })
+        const olderThanDays = args?.olderThanDays
+        const result = await module.pruneMergedBranchesForSession(sessionId, {
+          dryRun: args?.dryRun === true,
+          ...(typeof olderThanDays === 'number' && Number.isFinite(olderThanDays) && olderThanDays > 0
+            ? { olderThanDays: Math.floor(olderThanDays) }
+            : {}),
+        })
         return {
           kind: 'worktree_prune_branches',
           dryRun: result.dryRun,

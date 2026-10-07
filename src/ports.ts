@@ -127,6 +127,11 @@ export interface SessionCheckoutGitPort {
    * dirty entry count. Two parallel spawns per refresh; null on git failure.
    */
   branchOverview?(root: string): Promise<{ branches: BranchOverviewEntry[]; dirtyCount: number } | null>
+  /**
+   * Local adaptation: tip committer time (ms) per local branch name, one spawn.
+   * Powers the stale-branch age filter; ports without it disable age filtering.
+   */
+  branchTipTimes?(root: string): Promise<Record<string, number>>
   /** Local adaptation: safely delete a fully merged local branch (`git branch -d`); never force. */
   deleteLocalBranch?(root: string, name: string): Promise<{ deleted: boolean; reason?: string }>
   /**

@@ -78,6 +78,19 @@ function git(cwd: string, ...args: string[]): string {
   return result.stdout.trim()
 }
 
+/** Same as git() but pins author/committer dates so tip-age filters can be tested. */
+function gitDated(cwd: string, committerDate: string, ...args: string[]): string {
+  const result = spawnSync('git', args, {
+    cwd,
+    encoding: 'utf-8',
+    env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_AUTHOR_DATE: committerDate, GIT_COMMITTER_DATE: committerDate },
+  })
+  if (result.status !== 0) {
+    throw new Error(`git ${args.join(' ')} 失败: ${result.stderr}`)
+  }
+  return result.stdout.trim()
+}
+
 function createContext(options: {
   projectSubdirectory?: string
   applyEngine?: SessionCheckoutApplyEngine
@@ -1040,6 +1053,53 @@ describe('SessionCheckoutModule', () => {
     expect(remaining).toContain('unmerged-branch')
     await expect(context.module.pruneMergedBranchesForSession('ghost-session')).rejects.toMatchObject({ code: 'session_not_found' })
   })
+
+  test('Given an olderThanDays filter When the session prunes Then young merged branches are kept and stale ones deleted', async () => {
+    const context = createContext()
+    const projectRoot = context.projectRoot
+    // 造「已合并但 tip 旧」：旧日期提交后 ff 合并回 main，main 再前进出年轻 tip。
+    git(projectRoot, 'checkout', '-b', 'old-merged')
+    writeFileSync(join(projectRoot, 'old.txt'), 'old', 'utf8')
+    git(projectRoot, 'add', 'old.txt')
+    gitDated(projectRoot, new Date(Date.now() - 20 * 86_400_000).toISOString(), 'commit', '-m', 'old work')
+    git(projectRoot, 'checkout', 'main')
+    git(projectRoot, 'merge', '--ff-only', 'old-merged')
+    git(projectRoot, 'commit', '--allow-empty', '-m', 'advance main')
+    git(projectRoot, 'branch', 'young-merged')
+
+    const result = await context.module.pruneMergedBranchesForSession('session-1', { olderThanDays: 7 })
+    expect(result.pruned.map((entry) => entry.name)).toEqual(['old-merged'])
+    const youngSkip = result.skipped.find((entry) => entry.name === 'young-merged')
+    expect(youngSkip?.reason).toContain('7')
+    const remaining = git(projectRoot, 'for-each-ref', '--format=%(refname:short)', 'refs/heads').split(/\r?\n/)
+    expect(remaining).not.toContain('old-merged')
+    expect(remaining).toContain('young-merged')
+  }, 30_000)
+
+  test('Given a managed project with a stale merged branch When the maintenance sweep runs Then only stale merged branches are pruned', async () => {
+    const context = createContext()
+    const projectRoot = context.projectRoot
+    await context.module.createIsolatedTarget('session-1', 'target-session-1')
+    // 造「已合并但 tip 旧」：旧日期提交后 ff 合并回 main，main 再前进出年轻 tip。
+    git(projectRoot, 'checkout', '-b', 'stale-merged')
+    writeFileSync(join(projectRoot, 'stale.txt'), 'stale', 'utf8')
+    git(projectRoot, 'add', 'stale.txt')
+    gitDated(projectRoot, new Date(Date.now() - 10 * 86_400_000).toISOString(), 'commit', '-m', 'stale work')
+    git(projectRoot, 'checkout', 'main')
+    git(projectRoot, 'merge', '--ff-only', 'stale-merged')
+    git(projectRoot, 'commit', '--allow-empty', '-m', 'advance main')
+    git(projectRoot, 'branch', 'young-merged')
+
+    const results = await context.module.autoPruneStaleMergedBranches(7)
+    expect(results).toHaveLength(1)
+    const [sweep] = results
+    expect(sweep!.headBranch).toBe('main')
+    expect(sweep!.pruned.map((entry) => entry.name)).toEqual(['stale-merged'])
+    expect(sweep!.skipped.find((entry) => entry.name === 'young-merged')).toBeTruthy()
+    const remaining = git(projectRoot, 'for-each-ref', '--format=%(refname:short)', 'refs/heads').split(/\r?\n/)
+    expect(remaining).not.toContain('stale-merged')
+    expect(remaining).toContain('young-merged')
+  }, 30_000)
 
   test('Given a session-owned worktree branch When the session merges it Then dryRun probes first and the real merge lands in Local', async () => {
     const context = createContext()
