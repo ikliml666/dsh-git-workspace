@@ -71,6 +71,22 @@ describe('computeGraphLanes', () => {
     expect(rows[1]!.nodeColumn).toBe(1)
     expect(rows[3]!.nodeColumn).toBe(0)
   })
+
+  it('merges duplicate pendings when sibling branches converge on one parent', () => {
+    const rows = computeGraphLanes([
+      { oid: 's1', parents: ['p'] },
+      { oid: 's2', parents: ['p'] },
+      { oid: 's3', parents: ['p'] },
+      { oid: 'x', parents: ['p'] },
+      { oid: 'p', parents: [] },
+    ])
+    expect(rows.map(row => row.laneCount)).toEqual([2, 2, 2, 2, 2])
+    expect(rows[0]!.nodeColumn).toBe(0)
+    expect(rows[1]!.nodeColumn).toBe(1)
+    expect(rows[2]!.nodeColumn).toBe(1)
+    expect(rows[3]!.nodeColumn).toBe(1)
+    expect(rows[4]!.nodeColumn).toBe(0)
+  })
 })
 
 describe('mergeRefs', () => {

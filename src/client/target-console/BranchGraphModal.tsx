@@ -61,8 +61,21 @@ export function computeGraphLanes(rows: Pick<WorktreeConsoleGitGraphCommit, 'oid
   const acquireLane = (pending: string): number => {
     const existing = lanes.indexOf(pending)
     if (existing !== -1) return existing
-    const hole = lanes.indexOf(null)
-    if (hole !== -1) {
+    // Convergent branches leave duplicate pendings (the same oid parked in
+    // several slots): keep the leftmost copy and treat the freed slots as
+    // reusable holes, so sibling branches share one lane instead of each
+    // growing the graph rightward.
+    const seen = new Set<string>()
+    const holes: number[] = []
+    lanes.forEach((slot, column) => {
+      if (slot === null) holes.push(column)
+      else if (seen.has(slot)) {
+        lanes[column] = null
+        holes.push(column)
+      } else seen.add(slot)
+    })
+    if (holes.length > 0) {
+      const hole = holes[0]!
       lanes[hole] = pending
       return hole
     }
