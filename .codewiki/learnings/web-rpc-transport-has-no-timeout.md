@@ -2,9 +2,9 @@
 title: "Web RPC 传输层超时修复：从永久卡死到时中断"
 type: learning
 source_files:
-  - "src/client/console-remote/adapter.ts"
-  - "src/client/console-remote/index.ts"
-  - "src/i18n/transport-messages.ts"
+  - src/client/console-remote/adapter.ts
+  - src/client/console-remote/index.ts
+  - src/i18n/transport-messages.ts
 tags:
   - rpc
   - timeout

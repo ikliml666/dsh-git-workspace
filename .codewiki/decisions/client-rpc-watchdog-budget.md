@@ -22,8 +22,8 @@ Web RPC 传输层（fetch 信封 + 网关 + 宿主 handler）全程无超时，�
 
 - `FAST_TIMEOUT_MS = 30_000`，适用 `FAST_METHODS`（sidebarTopology/current/inspect/gitOverview/gitGraph/listAbandoned/previewRecoveryPreflight——只读快路径）。
 - `SLOW_TIMEOUT_MS = 180_000`，适用其余全部方法（create/discard/finalize 等真实变更，服务端含 git 操作，给足余量）。
-- `list/preflight/preflightCreate` 全量重算（多记录时 20+ 次 git spawn）可能逼近 30s，已放 SLOW 档；详见 adapter.ts:54-55 注释。
-- 超时返回结构化错误 `{ ok: false, error: { code: 'timeout', message: <i18n invokeTimeout 文案> } }`，文案来自 `src/i18n/transport-messages.ts` 的 `invokeTimeout`（提示服务端操作可能仍在进行、可稍后重试）。`code === 'timeout'` 对应的 `category: 'unavailable'` / `recovery: 'retry'` / `retryable: true` 由 `src/console-contract.ts:616` 的 `ERROR_META` 提供。
+- `list/preflight/preflightCreate` 全量重算（多记录时 20+ 次 git spawn）可能逼近 30s，已放 SLOW 档；详见 adapter.ts:46-47 注释。
+- 超时返回结构化错误 `{ ok: false, error: { code: 'timeout', message: <i18n invokeTimeout 文案> } }`，文案来自 `src/i18n/transport-messages.ts` 的 `invokeTimeout`（提示服务端操作可能仍在进行、可稍后重试）。`code === 'timeout'` 对应的 `category: 'unavailable'` / `recovery: 'retry'` / `retryable: true` 由 `src/console-contract.ts:585` 的 `ERROR_META` 提供。
 
 ## 否决的替代方案
 
@@ -37,7 +37,7 @@ create/discard 等变更方法超时后重试是安全的：服务端按 `sessio
 
 ## FAST_METHODS 清单
 
-当前 `FAST_METHODS`（adapter.ts:56-61）：
+当前 `FAST_METHODS`（adapter.ts:48-53）：
 
 ```ts
 const FAST_METHODS = new Set([
@@ -52,11 +52,11 @@ const FAST_METHODS = new Set([
 
 ## 数据流
 
-1. `createWorktreeConsoleRemoteAdapter(remote, getLanguage)` 初始化 `descriptors` Map（adapter.ts:77），从 `WORKTREE_CONSOLE_DESCRIPTORS` 构建每个 method → zod schema descriptor 的映射。
-2. 每个导出方法（adapter.ts:110-144）通过 `invoke<T>()` 封装 remote 调用：
-   - 查 `FAST_METHODS` 决定 timeoutMs（adapter.ts:81）。
-   - `Promise.race` 竞跑实际调用与 setTimeout（adapter.ts:85-90）。
-   - 捕获异常处理网络错误（adapter.ts:91-94），clearTimer 防泄漏（adapter.ts:92, 95）。
-   - timedOut 标志检测 → `timeoutOutcome()`（adapter.ts:96-98）。
-   - 结构校验 → `malformed()`（adapter.ts:99）。
-   - codec 校验 → `descriptor.result.create().parse()`（adapter.ts:101-107）。
+1. `createWorktreeConsoleRemoteAdapter(remote, getLanguage)` 初始化 `descriptors` Map（adapter.ts:58），从 `WORKTREE_CONSOLE_DESCRIPTORS` 构建每个 method → zod schema descriptor 的映射。
+2. 每个导出方法（adapter.ts:68-114）通过 `invoke<T>()` 封装 remote 调用：
+   - 查 `FAST_METHODS` 决定 timeoutMs（adapter.ts:60）。
+   - `Promise.race` 竞跑实际调用与 setTimeout（adapter.ts:64-69）。
+   - 捕获异常处理网络错误（adapter.ts:70-73），clearTimer 防泄漏（adapter.ts:71, 74）。
+   - timedOut 标志检测 → `timeoutOutcome()`（adapter.ts:75-77）。
+   - 结构校验 → `malformed()`（adapter.ts:78）。
+   - codec 校验 → `descriptor.result.create().parse()`（adapter.ts:80-86）。

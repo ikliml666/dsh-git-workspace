@@ -17,45 +17,245 @@ tags:
 
 # Settings Card 插件设置页
 
-插件的设置入口（借鉴 dsh-worktree-panel 的设置页并按 DSH 机制重做）：把 Config schema 中 volatile 字段（autoDeliver/autoPush/worktreesRoot/gitTimeoutMs/worktreeAddTimeoutMs）投影为 Plugins 页里的自定义卡片，暂存编辑、按 revision 栅栏原子保存。宿主自动生成的通用设置页依然存在（autoGenerate 默认 true，shell 亦无抑制先例）；本卡片的价值是中文标签、开关形态与说明文案。
+插件的设置入口：将 Config schema 中 `dsh-git-worktree` namespace 的 volatile 字段（autoDeliver/autoPush/worktreesRoot/gitTimeoutMs/worktreeAddTimeoutMs）投影为 Plugins 页面中的自定义卡片。该卡片支持暂存编辑、按 revision 栅栏原子保存，并提供中文标签、开关形态与说明文案。
 
-## 宿主机制（本插件自建精简版的原因）
+## Overview
 
-- 宿主 settings 服务（packages/settings）把活跃插件 Config schema 的 `meta.volatile` 字段投影为表单；本地 @deepseek-ai/schemastery 3.18.2 没有 `.volatile()` 方法，src/index.ts 用 `volatile()` 助手直接设 `schema.meta.volatile = true`。
-- 写入经 configEditor.edit 落 cordis.patch.yml（与手改同一处），revision CAS；volatile 编辑**不重挂载插件**（apply 不重跑），值以 `{get()}` LiveRef 到达 → 消费方逐次解包（见 [[volatile-settings-live-config]] 决策与 src/ports.ts 的 `liveConfigValue`）。
-- 安装的 @deepseek-ai/dsh-client-ui-primitives 0.1.2-rc.1 尚无 settings-form 模块（宿主 0.1.7-rc.2 才有），因此 src/client/settings-card/form-model.ts 按宿主源码 vendored 精简版（去掉 secret 控件），并新增 `settingsBooleanField`（'true'/'false' 草稿文本、空=clear、其余 invalid）、`settingsNumberField`（安全整数、空=clear、非有限数 invalid）与 `settingsTextField`（自由文本、空=clear）。
+由于宿主安装的 `@deepseek-ai/dsh-client-ui-primitives` 版本（0.1.7-rc.2 之前）尚未包含共享的 `SettingsForm` 模块，本插件在客户端 bundle 中自包含了精简版的表单模型（`form-model.ts`）。该模型去掉了写密（write-only secret）控件，仅处理可见字段的编辑。
 
-## 挂载（src/client/settings-card/index.ts + console-remote/index.ts:64）
+卡片通过 `ctx.get()` fail-soft 探测宿主的 `configForms` 和 `slots` 服务。如果宿主未提供这些服务，挂载过程静默跳过。卡片注册在 `plugins.bundle.config` slot 中，仅在 Host 服务对应的 namespace 时渲染。
 
-完全照抄 ui-settings-shell 先例，fail-soft（缺 configForms 或 slots 任一服务直接不挂）。**探测必须用 `ctx.get('configForms')` 软读**：cordis 对未在本插件 inject 里声明的服务做属性读取会抛 "cannot get property without inject"（client-bundle.test.ts 曾因此红）；`ctx.get()` 不走注入纪律、缺失返回 undefined（host-compat 探测可选服务的同一手法）。
+## Key Components
 
-```ts
-ctx.effect(() => { controller = new WorktreeSettingsCardController(configForms.get(NS)); return () => controller?.dispose(); controller = undefined }, 'dsh-git-worktree: settings form subscription')
-ctx.effect(() => configForms.whileServed([NS], () => slots.inject('plugins.bundle.config', () => slots.register({
-  name: 'plugins.bundle.config', key: NS,
-  inject: () => controller?.inject(),
-}, WorktreeSettingsCard))), 'dsh-git-worktree: settings page')
+### form-model.ts
+
+**类型定义：**
+
+*   **`SettingsFormScopeSnapshot<T>`** (行 24-37): 快照接口
+    *   `status`: `'loading' | 'ready' | 'unavailable'` (行 26)
+    *   `value`: `T | undefined` (行 29)
+    *   `base`: `unknown` (行 32) - Composition layer，清除字段后的还原值。
+    *   `user`: `unknown` (行 35) - Raw user layer，存在即标记为 overridden。
+    *   `writable`: `boolean` (行 38)
+    *   `revision`: `number | undefined` (行 41)
+*   **`SettingsFormPathOp`** (行 44-46): 路径操作类型
+    *   `{ op: 'set'; path: readonly string[]; value: unknown }`
+    *   `{ op: 'unset'; path: readonly string[] }`
+*   **`SettingsFormScope<T>`** (行 49-53): 作用域接口
+    *   `getSnapshot(): SettingsFormScopeSnapshot<T>`
+    *   `subscribe(listener: () => void): () => void`
+    *   `mutate(ops: readonly SettingsFormPathOp[], expectedRevision?: number): Promise<boolean>`
+*   **`SettingsFieldWrite`** (行 56-59): 字段写入类型
+    *   `{ kind: 'set'; value: unknown }`
+    *   `{ kind: 'clear' }`
+*   **`SettingsFieldSpec`** (行 62-72): 字段规格接口
+    *   `field: string` (行 63)
+    *   `format: (value: unknown) => string` (行 66)
+    *   `parse: (text: string) => SettingsFieldWrite | undefined` (行 70) - 返回 undefined 表示无效，阻塞保存。
+*   **`SettingsFieldState`** (行 75-81): 字段状态接口
+    *   `text: string` (行 76)
+    *   `overridden: boolean` (行 79)
+    *   `invalid: boolean` (行 82)
+*   **`SettingsFormShell`** (行 84-97): 表单壳状态接口
+    *   `available: boolean` (行 85)
+    *   `writable: boolean` (行 88)
+    *   `dirty: boolean` (行 91)
+    *   `invalid: boolean` (行 94)
+    *   `saving: boolean` (行 97)
+    *   `failed: boolean` (行 100)
+*   **`SettingsFormActions`** (行 103-112): 动作接口
+    *   `edit: (field: string, text: string) => void` (行 104)
+    *   `resetField: (field: string) => void` (行 107)
+    *   `save: () => void` (行 110)
+    *   `discard: () => void` (行 113)
+
+**类与方法：**
+
+*   **`SettingsFormModel<T>`** (行 130-369): 核心模型类
+    *   `constructor(scope: SettingsFormScope<T>, specs: SettingsFieldSpec[])` (行 135-140)
+        *   初始化 specs Map，订阅 scope 变化。
+    *   `bind<S>(project: () => S): SnapshotStore<S>` (行 148-153)
+        *   创建并绑定 SnapshotStore，scope 或草稿变化时重投影。
+    *   `shell(): SettingsFormShell` (行 161-171)
+        *   读取表单级状态（available/writable/dirty/invalid/saving/failed）。
+    *   `field(field: string): SettingsFieldState` (行 179-191)
+        *   读取单个控件状态（text/overridden/invalid）。
+    *   `actions(): SettingsFormActions` (行 199-215)
+        *   返回 edit/resetField/save/discard 动作绑定。
+    *   `async save(): Promise<void>` (行 223-247)
+        *   执行原子保存。检查 plan 长度、saving 状态、writable 状态及 invalid 状态。调用 `scope.mutate`，成功后清除 staged edits，失败则设置 failed 标志并保留草稿。
+    *   `dispose(): void` (行 250)
+        *   释放订阅。
+    *   `private plan(): PlannedWrite[]` (行 258-277)
+        *   构建待写入的计划列表。过滤掉未更改的字段，识别 clear 和 set 操作。
+    *   `private stage(field: string, edit: StagedEdit): void` (行 279-285)
+        *   记录草稿，触发 publish。
+    *   `private spec(field: string): SettingsFieldSpec` (行 287-293)
+        *   获取字段规格，缺失则抛错。
+    *   `private snapshotOf(): SettingsFormScopeSnapshot<T>` (行 295-297)
+    *   `private sectionValue(field: string): unknown` (行 299-301)
+    *   `private baseValue(field: string): unknown` (行 303-305)
+    *   `private userLayer(): Record<string, unknown> | undefined` (行 307-309)
+    *   `private stored(field: string): boolean` (行 311-314)
+        *   检查 user layer 中是否存在该字段。
+    *   `private publish(): void` (行 316-318)
+
+**工厂函数：**
+
+*   **`settingsBooleanField(field: string): SettingsFieldSpec`** (行 115-127)
+    *   处理布尔值。格式化为 'true'/'false'，解析时空字符串为 clear，其余为 invalid。
+*   **`settingsNumberField(field: string): SettingsFieldSpec`** (行 132-146)
+    *   处理整数。格式化为字符串，解析时要求 `Number.isSafeInteger`，否则 invalid。
+*   **`settingsTextField(field: string): SettingsFieldSpec`** (行 151-163)
+    *   处理自由文本。空字符串为 clear，非空为 set。
+
+### worktree-settings-card.ts
+
+**常量：**
+
+*   **`WORKTREE_SETTINGS_NS`** (行 6): `'dsh-git-worktree'`
+
+**接口：**
+
+*   **`WorktreeSettings`** (行 9-15): 配置接口
+    *   `autoDeliver?: boolean`
+    *   `autoPush?: boolean`
+    *   `worktreesRoot?: string`
+    *   `gitTimeoutMs?: number`
+    *   `worktreeAddTimeoutMs?: number`
+*   **`WorktreeSettingsCardState`** (行 18-24): 卡片状态接口
+    *   extends `SettingsFormShell`
+    *   `autoDeliver: SettingsFieldState`
+    *   `autoPush: SettingsFieldState`
+    *   `worktreesRoot: SettingsFieldState`
+    *   `gitTimeoutMs: SettingsFieldState`
+    *   `worktreeAddTimeoutMs: SettingsFieldState`
+*   **`WorktreeSettingsCardFace`** (行 27-29): 注入面接口
+    *   `hooks: { worktreeCard: SnapshotStore<WorktreeSettingsCardState> }`
+    *   extends `SettingsFormActions`
+
+**类：**
+
+*   **`WorktreeSettingsCardController`** (行 31-65): 控制器类
+    *   `constructor(scope: SettingsFormScope<WorktreeSettings>)` (行 33-46)
+        *   创建 `SettingsFormModel`，装配 5 个字段 spec（2 boolean, 1 text, 2 number）。
+        *   绑定 projection store。
+    *   `private projection(): WorktreeSettingsCardState` (行 48-58)
+        *   组合 shell 和 5 个 field 状态。
+    *   `inject(): WorktreeSettingsCardFace` (行 60-62)
+        *   返回 hooks 和 actions。
+    *   `dispose(): void` (行 64)
+
+### WorktreeSettingsCard.tsx
+
+**组件：**
+
+*   **`WorktreeSettingsCard`** (行 53-138): React 组件
+    *   Props: `view`, `useWorktreeCard`, `edit`, `resetField`, `save`, `discard`。
+    *   逻辑：
+        *   使用 `useWorktreeCard` hook 读取状态。
+        *   `view === 'summary'` 时返回简介。
+        *   不可用时返回 null。
+        *   渲染 5 个 `fieldRow`：
+            *   `autoDeliver`: Switch 控件。
+            *   `autoPush`: Switch 控件。
+            *   `worktreesRoot`: Text Input。
+            *   `gitTimeoutMs`: Numeric Input。
+            *   `worktreeAddTimeoutMs`: Numeric Input。
+        *   Footer: 显示状态信息（failed/saving/readonly），包含 Discard 和 Save 按钮。
+    *   样式：全部 inline style，无外部依赖。
+
+### index.ts
+
+**函数：**
+
+*   **`mountSettingsCard(ctx: Context): void`** (行 35-65): 挂载入口
+    *   Fail-soft 检查 `configForms` 和 `slots` 服务。
+    *   `ctx.effect` 创建 Controller 并管理生命周期。
+    *   `configForms.whileServed` 监听 namespace 服务状态。
+    *   `slots.inject` 将卡片注册到 `plugins.bundle.config` slot。
+
+### console-remote/index.ts
+
+**连接点：**
+
+*   **`apply` 函数** (行 43-165): 主应用逻辑
+    *   行 64: 调用 `mountSettingsCard(ctx)`。
+    *   此挂载发生在 `ctx.provide('worktreeConsole', adapter)` 之后，不依赖 flavor 分支。
+*   **`inject` 数组** (行 32-37):
+    *   包含 `'slots'` 和 `'configForms'`，确保 cordis 能正确解析这些服务。
+
+### client-messages.ts
+
+**i18n 键值对：**
+
+*   `settings.title`, `settings.description`, `settings.readonly`
+*   `settings.autoDeliver`, `settings.autoDeliver.hint`
+*   `settings.autoPush`, `settings.autoPush.hint`
+*   `settings.worktreesRoot`, `settings.worktreesRoot.hint`
+*   `settings.gitTimeoutMs`, `settings.gitTimeoutMs.hint`
+*   `settings.worktreeAddTimeoutMs`, `settings.worktreeAddTimeoutMs.hint`
+*   `settings.save`, `settings.discard`, `settings.saving`, `settings.failed`
+*   `settings.overridden`, `settings.reset`, `settings.invalid.value`
+
+## Architecture
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│                      Host Environment                        │
+│  ┌─────────────────┐   ┌──────────────────────────────────┐  │
+│  │ configForms     │   │ slots                            │  │
+│  │ (Service)       │   │ (Service)                        │  │
+│  └───────┬─────────┘   └──────────────┬───────────────────┘  │
+│          │ get()                       │ inject/register()   │
+│          ▼                             ▼                     │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │              Client Bundle (dsh-git-worktree)           │ │
+│  │                                                         │ │
+│  │  ┌─────────────────────┐                                │ │
+│  │  │ console-remote      │                                │ │
+│  │  │ apply()             │                                │ │
+│  │  │ mountSettingsCard() │                                │ │
+│  │  └─────────┬───────────┘                                │ │
+│  │            │                                             │ │
+│  │  ┌─────────▼───────────┐                                │ │
+│  │  │ index.ts            │                                │ │
+│  │  │ mountSettingsCard() │                                │ │
+│  │  └─────────┬───────────┘                                │ │
+│  │            │                                             │ │
+│  │  ┌─────────▼───────────┐                                │ │
+│  │  │ worktree-settings-  │                                │ │
+│  │  │ card.ts             │                                │ │
+│  │  │ Controller          │                                │ │
+│  │  └─────────┬───────────┘                                │ │
+│  │            │ inject()                                    │ │
+│  │  ┌─────────▼───────────┐                                │ │
+│  │  │ WorktreeSettings    │                                │ │
+│  │  │ Card.tsx            │                                │ │
+│  │  └─────────┬───────────┘                                │ │
+│  │            │ useWorktreeCard                             │ │
+│  │  ┌─────────▼───────────┐                                │ │
+│  │  │ form-model.ts       │                                │ │
+│  │  │ SettingsFormModel   │                                │ │
+│  │  └─────────────────────┘                                │ │
+│  └─────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-NS = 'dsh-git-worktree'（loader entry id，宿主按它索引配置表单）。在 `plugins.bundle.config` slot 注册（keyed by bundle package name，显示在 bundle 自身页面 description 与 rows 之间），而非 `plugins.item`（官方插件列表）。卡片在 console-remote/index.ts 的 `ctx.provide('worktreeConsole', adapter)` 之后挂载（第 64 行），不依赖 flavor 分支。
+## Data Flow
 
-## 模型与组件
+1.  **Mount**: `console-remote/index.ts` 的 `apply` 函数调用 `mountSettingsCard`。
+2.  **Probe**: `index.ts` 中的 `mountSettingsCard` 使用 `ctx.get('configForms')` 和 `ctx.get('slots')` 进行软读。若任一为 undefined，函数返回。
+3.  **Subscribe**: `configForms.whileServed([WORKTREE_SETTINGS_NS], ...)` 监听 namespace 是否就绪。
+4.  **Inject**: 当 namespace 就绪，`slots.inject` 将卡片注册到 `plugins.bundle.config`。
+5.  **Render**: 卡片组件通过 `useWorktreeCard` hook 从 `SnapshotStore` 读取状态。
+6.  **Edit**: 用户输入触发 `props.edit(field, text)`，调用 `SettingsFormModel.stage`。
+7.  **Save**: 用户点击保存，触发 `props.save()`，调用 `SettingsFormModel.save`。
+8.  **Mutate**: `save` 方法构建 `plan`，调用 `scope.mutate` 发送 `SettingsFormPathOp`。
+9.  **Re-seed**: 保存成功后，staged edits 被清除，状态重新同步。
 
-- `SettingsFormScopeSnapshot<T>`（form-model.ts:24-37）：包含 status（loading/ready/unavailable）、value、base（composition layer）、user（raw user layer，存在即 overridden）、writable、revision。
-- `SettingsFormPathOp`（form-model.ts:40-42）：`{op:'set';path;value}` 或 `{op:'unset';path}`。
-- `SettingsFormScope<T>`（form-model.ts:45-49）：getSnapshot/subscribe/mutate(ops, expectedRevision)。
-- `SettingsFieldSpec`（form-model.ts:57-67）：field/format/parse(text→write|undefined)，parse 返回 undefined 时阻塞保存。
-- `SettingsFieldState`（form-model.ts:70-77）：text/overridden/invalid。
-- `SettingsFormShell`（form-model.ts:80-93）：available/writable/dirty/invalid/saving/failed。
-- `SettingsFormActions`（form-model.ts:96-105）：edit(field,text)/resetField(field)/save()/discard()。
-- 字段转换函数（form-model.ts:129-179）：`settingsBooleanField(field)` 接受 'true'/'false'/空=clear；`settingsNumberField(field)` 接受安全整数/空=clear；`settingsTextField(field)` 接受任意非空文本/空=clear。
-- `SettingsFormModel<T>`（form-model.ts:188-369）：staged 编辑模型——`bind<S>(project)` 产出 SnapshotStore，scope 或草稿变化即重投影；`shell()` 给 available/writable/dirty/invalid/saving/failed；`field(name)` 给 text/overridden/invalid；`actions()` 返回 edit/resetField/save/discard；`save()` 经 `scope.mutate(plan.map(item=>item.op), baseline?.revision)` 原子写，landed 才清草稿，否则 failed 留草稿供修正；`plan()` 构建每字段的 PlannedWrite，无效草稿的条目无 op（阻塞保存但不丢弃）；内部 staged Map 记录每个字段的 StagedEdit（含 clear 标志），`stage()` 更新草稿并触发 publish。
-- `WorktreeSettings`（worktree-settings-card.ts:17-23）：interface autoDeliver?:boolean / autoPush?:boolean / worktreesRoot?:string / gitTimeoutMs?:number / worktreeAddTimeoutMs?:number。
-- `WorktreeSettingsCardState`（worktree-settings-card.ts:26-32）：extends SettingsFormShell，叠加 5 个 SettingsFieldState 字段。
-- `WorktreeSettingsCardFace`（worktree-settings-card.ts:35-37）：hooks:{worktreeCard} + SettingsFormActions。
-- `WorktreeSettingsCardController`（worktree-settings-card.ts:39-70）：构造函数装配 5 个字段 spec（2 boolean + 1 text + 2 number），bind projection；`inject()` 返回 `{hooks, ...actions}`（face 直接铺成 props）；`dispose()` 释放 form。
-- `WorktreeSettingsCard.tsx`（234 行）：React 组件，通过 `useWorktreeCard` selector hook 读取快照；`view==='summary'` 渲染一行简介，正式视图渲染两个 role="switch" 开关（autoDeliver/autoPush）+ 三个输入框（worktreesRoot/gitTimeoutMs/worktreeAddTimeoutMs）+ 覆盖徽章/还原/保存/放弃，全部 inline style、自包含（不用 dsh-ui primitives 组件）；i18n 走 `useClientTranslator()` 的 settings.* key（src/i18n/client-messages.ts:1408-1427）。CSS 常量 ACCENT='#2563eb'/MUTED='#6b7280'/DANGER='#dc2626'/BORDER='#e5e7eb'；switch 带 knob transition 120ms ease。
+## Connections
 
-## 测试
-
-tests/client-settings-card.test.tsx（stub SettingsFormScope：渲染 5 控件+初始禁用保存；switch 编辑→保存带 `set ['autoDeliver'] false` 与 revision 栅栏；number 无效输入阻塞保存；summary 视图）。宿主侧配套用例在 tests/git-timeouts.test.ts（LiveRef 逐次读取/校验/meta.volatile 标记）与 tests/session-checkout-module.test.ts（worktreesRoot LiveRef 容器回收、autoDeliver LiveRef 指引翻转）。
+*   [[volatile-settings-live-config]]: Volatile 配置的生命周期管理。
+*   [[console-remote-adapter]]: Console Remote Adapter 的实现。
+*   [[client-i18n]]: 客户端国际化机制。

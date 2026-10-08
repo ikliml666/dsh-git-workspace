@@ -4,12 +4,7 @@ type: module
 source_files:
   - src/console-host/control-plane.ts
   - src/console-host/service.ts
-  - src/console-host/projection.ts
   - src/console-host/errors.ts
-  - src/console-host/review-diff.ts
-  - src/console-remote/remote.ts
-  - src/console-remote/descriptors.ts
-  - src/console-remote/schemas.ts
 tags:
   - rpc
   - control-plane
@@ -19,51 +14,161 @@ tags:
 
 # Console Host Control Plane
 
-三层结构：客户端 UI（Worktree 卡片/验收界面）↔ strict Typert RPC（`gitWorktree` 服务）↔ 宿主控制面。控制面把状态机（[[session-checkout-module|Session Checkout Module]]）的领域能力投影为 UI 可用的读/写端点，并集中实现授权与并发守卫。
+三层架构：客户端 UI（Worktree 卡片/验收界面）↔ strict Typert RPC（`gitWorktree` 服务）↔ 宿主控制面。控制面将状态机（[[session-checkout-module|Session Checkout Module]]）的领域能力投影为 UI 可用的读/写端点，并集中实现授权、并发守卫与 Git 操作封装。
 
-## 控制面编排（src/console-host/control-plane.ts，1260 行）
+## Overview
 
-- Options（src/console-host/control-plane.ts:59）：{module, lookup, files, registry, git, reviewDiff, createTargetSessionId=randomUUID}；接口（src/console-host/control-plane.ts:69-101）定义 31 个业务端点，全部返回 `Promise<WorktreeConsoleOutcome<T>>`——sidebarTopology/current/list/preflightCreate/createWithInitialCommit/create/initProject/inspect/reviewDiff/preflight/previewRecoveryPreflight/preparePreviewRecoveryAnalysis/createPreviewRecoveryHandoff/preview/checkpoint/resumeRevision/prepareReviewRegeneration/rollbackPreview/discard/finalize/finalizePreview/setRetention/setPermanent/retryCleanup/beginNextIteration/gitOverview/gitGraph/gitCreateBranch/gitSwitchBranch/listAbandoned/restoreAbandoned。
-- **authorize**（src/console-host/control-plane.ts:249）：读端点传请求内观察到的 caller；mutation 一律重新 inspect。校验 owner 或 source 会话（not_owner）、projectId 匹配（project_mismatch）、verifyCallerRoot（canonicalize 后 sameLocalRoot；例外 cleanedOwnerCwd——owner 会话本身+discarded+delivered+原 project.root 已不存在）、非 discarded 记录必须出现在 listManagedWorktreesForSession。
-- **linkedReadAccess**（src/console-host/control-plane.ts:271）：非 owner 读路径——caller 须 isolated 且先 authorize 自身 anchor；sameLinkedGroup=同 projectId+同 source 会话+同 localRoot；或 exactAcceptanceHolder（caller 持 ready_for_review 验收槽且目标即验收对象），验收槽持有人需从 registry 重新校验（`theAcceptanceSlotHolderHasChangedCheckAgain`）。
-- **withCreation**（src/console-host/control-plane.ts:486）：`session:${id}`+`root:${canonical}` 双键 creating Set 守卫 → operation_not_allowed `initialRepositoryBusy`；createTarget 后回验 record.sourceSessionId/ownerSessionId/managedRoot 与 launch 一致（`hostIdentityVerificationFailedForTheNewlyCreatedWorktree`，src/console-host/control-plane.ts:509）。
-- 读端点：sidebarTopology（src/console-host/control-plane.ts:529，按 project 分组、跨 iteration 并集）/ current（src/console-host/control-plane.ts:585，local→projectLocal / isolated→details）/ list（src/console-host/control-plane.ts:649，isolated caller 先 authorize anchor 推导 sourceSessionId+localRoot；记录观察优先批量 `module.observeManagedCheckouts`——一次拿锁并行验证全部非 discarded 记录，模块缺批量方法时回退逐条 observe）/ observe（src/console-host/control-plane.ts:331，discarded→null，优先 module.observeManagedCheckout）/ details。
-- list 降级观察：批量观察整体拒绝（src/console-host/control-plane.ts:681-684）或回退路径上单条验证失败（src/console-host/control-plane.ts:699-703）时，该记录以无观察投影呈现（projectRecord 的 observed 可选——回退 fallbackOid 与模块 summary），面板其余记录照常，list 不再抛 `checkout_mismatch` 整表失败；mutation 的 CAS/authorize 仍在操作时兜底拒绝。
-- 项目级互斥投影：acceptanceHolder（src/console-host/control-plane.ts:353，另一同 localRoot 非 discarded checkout 持 preview_active 或 preview/rollback_preview/finalize_preview/finish journal）；projectReviewSlot（src/console-host/control-plane.ts:368，ready_for_review 时 reviewSlot available/waiting，waiting 时 preview/checkpoint/finalize 能力关闭）。
-- 预检与 CAS 夹心：reviewDiff（src/console-host/control-plane.ts:761）在 diff 前后各做一次 module.preflight（reviewId+isolatedHeadOid 必须匹配，否则 stale_isolated `isolatedContentChangedAfterReadyDiffBytesWereDiscarded`）；preflight（src/console-host/control-plane.ts:801）/previewRecoveryPreflight（src/console-host/control-plane.ts:812）owner+revision(+reviewId/previewId) CAS。
-- 空仓库创建：preflightCreate（src/console-host/control-plane.ts:719）→ confirmation token（Map 上限 500、300_000ms 过期）→ createWithInitialCommit（src/console-host/control-plane.ts:736，校验 token/root/projectId 后 initializeEmptyRepository）。
-- 取长补短创建入口：create 增加可选 branch 参数（src/console-host/control-plane.ts:752，createTarget(sourceSessionId, branch?) → module.createIsolatedTarget(..., {branch})）；preflightCreate 的 ready 分支附带 branches（经 git.listLocalBranches，供 UI 基准分支下拉）；initProject（src/console-host/control-plane.ts:753，withCreation 守卫 + git.initializeProject）在用户显式确认后把非 Git/未出生项目初始化为有首次提交的仓库；sidebarTopology 任务携带 sourceBranch（src/console-host/projection.ts:105，sourceBranchFromRef 导出自该文件）。
-- 恢复链：preparePreviewRecoveryAnalysis（src/console-host/control-plane.ts:832）/createPreviewRecoveryHandoff（src/console-host/control-plane.ts:862）——proof 五元组身份校验（stale_target）后调 module；handoff 回验 ownerSessionId==targetSessionId+continuation+managedRoot（`hostIdentityVerificationFailedForTheRecoveryHandoffWorktree`）。
-- resumeRevision（src/console-host/control-plane.ts:963）支持 conflictContinuation（worktree_apply_conflict kind）带冲突恢复路径；prepareReviewRegeneration（src/console-host/control-plane.ts:1026）生成 review regeneration continuation；rollbackPreview（src/console-host/control-plane.ts:1051）支持 resumeRevision/recoveryProof 选项。
-- finalize（src/console-host/control-plane.ts:1100）/finalizePreview（src/console-host/control-plane.ts:1144）CAS 夹心 + delivery proof 优先传递；setRetention（src/console-host/control-plane.ts:1189）/setPermanent（src/console-host/control-plane.ts:1200）/retryCleanup（src/console-host/control-plane.ts:1211）通过 manageManagedWorktreeForSession 下发管理动作；beginNextIteration（src/console-host/control-plane.ts:1221）要求 predecessor 为 delivered+discarded 态，回验 lineage 一致性。
-- helper：recordOf（src/console-host/control-plane.ts:103）/sidebarTaskState（src/console-host/control-plane.ts:109）/readyReview（src/console-host/control-plane.ts:123）/previewReview（src/console-host/control-plane.ts:130）/safeRecoveryRequestId（src/console-host/control-plane.ts:140）/safeConflictFile（src/console-host/control-plane.ts:144）/applyConflictContinuation（src/console-host/control-plane.ts:150）/preflightFailure（src/console-host/control-plane.ts:175）。
+该模块负责在宿主进程中暴露 Git Worktree 的控制平面。它不直接处理复杂的 Git 逻辑，而是通过 `module`（Session Checkout Module）协调底层操作，并通过 `registry` 维护工作树的生命周期状态。所有对外接口均通过 `TypertRemoteService` 暴露，支持多语言本地化（i18n）和严格的参数校验。
 
-## Typert 宿主服务（src/console-host/service.ts，315 行）
+## Key Components
 
-- `WorktreeConsoleService extends TypertRemoteService`，服务名 `gitWorktree`（src/console-host/service.ts:33-41）。
-- 网关先解析 agentId 再进业务代码（src/console-host/service.ts:32）；每个 @Remote 方法参数带 (agent, ..., locale?)，统一 `withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? hostContext))` 包裹。
-- `appendDiag`（src/console-host/service.ts:45）：ndjson 诊断 appendFileSync，best-effort——诊断失败绝不打断 RPC；`clientBootReport`（src/console-host/service.ts:68）记录 {kind:'client'} 后返回 true。
-- sidebarTopology（src/console-host/service.ts:53）额外注入 workspaceClientFlavor + officialWorkspaceActive 诊断信息。
-- 共 32 个 @Remote 方法（src/console-host/service.ts:52-314），覆盖控制面 31 个端点 + clientBootReport。
+### src/console-host/control-plane.ts (540+ 行)
 
-## 投影层（src/console-host/projection.ts，285 行）
+核心业务逻辑实现，定义 `WorktreeConsoleControlPlane` 接口及其具体实现。
 
-- `capabilities()`（src/console-host/projection.ts:61）：14 个 UI 能力位；create 恒 false；discard=(owner||sourceReservation)&&active&&!cleanup&&!previewDetached；preflight/preview/finalize=owner&&ready；checkpoint=owner&&(ready||previewActive)；resumeRevision=owner&&ready；rollbackPreview=owner&&(previewActive||previewDetached||previewRecovery)；finalizePreview=owner&&(previewActive||previewDetached)；setRetention/manageAuthorized&&retained；setPermanent=manageAuthorized&&active；retryCleanup=manageAuthorized&&cleanup；beginNextIteration=owner&&delivered。
-- `projectRecord`（src/console-host/projection.ts:109）：TargetSummary（state=consoleStateFromDomain、phase、dirty、currentOid、commitOid、sourceBranch、retention/expiresAt（当 retained）、cleanupMessage（经 hostPersistedCleanupMessage 复原）、deliveryProof（observed proof 优先，persisted proof 的 commitInLocalHistory 置 null 待验证）、review、checkpoints、checkpointGeneration CAS token、reviewSlot、previewRecovery）。
-- `projectDetails`（src/console-host/projection.ts:181）：+ managedRoot/sourceRoot/sourceOid/currentBranch + owner-only recoveryContinuation（4 种 kind：worktree_apply_conflict/worktree_review_regeneration/worktree_preview_recovery_analysis/worktree_preview_recovery_handoff）。
-- `projectLocal`（src/console-host/projection.ts:248）：checkoutId null、phase 'local'、仅 open/inspect 能力为 true；create = currentOid !== 'unversioned'。
-- `sourceBranchFromRef`（src/console-host/projection.ts:105）：提取 refs/heads/ 后的分支名。
-- 辅助函数：fallbackOid（src/console-host/projection.ts:100）、review（src/console-host/projection.ts:15）、commitOid（src/console-host/projection.ts:32）、deliveryProof（src/console-host/projection.ts:36）、iteration（src/console-host/projection.ts:57）。
+- **`createWorktreeConsoleControlPlane(options)`** (Line 193): 工厂函数，接收 `WorktreeConsoleControlPlaneOptions`（包含 module, lookup, files, registry, git, reviewDiff 等依赖），返回控制面实例。
+- **`sidebarTopology()`** (Line 529): 聚合所有受管检查点（managedCheckouts），按项目分组，计算每个会话的最新任务状态（iteration/revision），并注入成员身份信息。
+- **`current(sessionId)`** (Line 585): 获取当前会话的目标视图。如果是本地上下文，返回 `projectLocal`；否则解析为具体的 worktree 详情。
+- **`list(request)`** (Line 649): 列出会话可见的工作树。支持过滤（needsAttention/includeDelivered）。优化了批量观察（`observeManagedCheckouts`）以并行验证非 discarded 记录，失败时降级为逐条观察或无观察投影。
+- **`preflightCreate(sourceSessionId)`** (Line 719): 预检创建条件。如果仓库为空，生成带过期时间（300s）和上限（500个）的确认令牌（confirmation token）；如果就绪，返回分支列表。
+- **`createWithInitialCommit(sourceSessionId, confirmationToken)`** (Line 736): 执行空仓库初始化并提交首次提交，随后创建工作树。双重互斥守卫（`withCreation`）防止并发冲突。
+- **`create(sourceSessionId, branch?)`** (Line 752): 基于现有分支或默认分支创建工作树。
+- **`initProject(sourceSessionId)`** (Line 753): 初始化非 Git 项目目录为有首次提交的仓库。
+- **`inspect(sessionId, checkoutId)`** (Line 760): 检查特定 checkout 的详细信息，包括权限验证和状态投影。
+- **`reviewDiff(request)`** (Line 761): 读取待审查的差异。前后夹心校验（preflight），确保 isolated HEAD 和 review ID 未变更，防止脏数据读取。
+- **`preflight(request)`** (Line 801): 预检接受前状态，验证 owner、revision 和 review ID。
+- **`previewRecoveryPreflight(...)`** (Line 812): 预检预览恢复流程，验证 detached preview 身份。
+- **`preparePreviewRecoveryAnalysis(...)`** (Line 832): 准备预览恢复分析，生成 continuation 请求。
+- **`createPreviewRecoveryHandoff(...)`** (Line 862): 创建预览恢复交接，生成新的 target session 并验证 lineage。
+- **`preview(request)`** (Line 918): 应用预览更改到本地工作树。处理冲突（conflict）并返回 continuation。
+- **`checkpoint(request)`** (Line 943): 保存检查点（commit），更新 revision 和 review 信息。
+- **`resumeRevision(request)`** (Line 983): 恢复编辑，支持冲突恢复路径（conflictContinuation）。
+- **`prepareReviewRegeneration(...)`** (Line 1026): 准备重新生成审查，生成 regeneration continuation。
+- **`rollbackPreview(request)`** (Line 1051): 回滚本地预览，支持 resumeRevision 和 recoveryProof。
+- **`discard(request)`** (Line 1075): 丢弃工作树。区分 owner 和非 owner 路径，处理 dirty 确认和预览回滚。
+- **`finalize(request)`** (Line 1100): 最终提交（Acceptance）。CAS 夹心校验，应用更改到本地，生成 delivery proof。
+- **`finalizePreview(request)`** (Line 1144): 最终提交本地预览。
+- **`setRetention(request)`** (Line 1189): 设置保留策略。
+- **`setPermanent(request)`** (Line 1200): 设置为永久保留。
+- **`retryCleanup(request)`** (Line 1211): 重试清理操作。
+- **`beginNextIteration(request)`** (Line 1221): 开始下一次迭代，要求前驱状态为 delivered+discarded，并验证 lineage。
+- **`gitOverview(sessionId)`** (Line 603): 获取本地 Git 仓库的分支概览。
+- **`gitGraph(sessionId, limit?)`** (Line 615): 获取 Git 提交图日志。
+- **`gitCreateBranch(sessionId, name)`** (Line 627): 创建本地分支。
+- **`gitSwitchBranch(sessionId, branch)`** (Line 635): 切换本地分支。如果在交付过程中持有 acceptance slot，则拒绝。
+- **`listAbandoned(sessionId)`** (Line 650): 列出被放弃的工作树快照。
+- **`restoreAbandoned(request)`** (Line 657): 恢复被放弃的工作树快照。
 
-## 错误与评审 diff
+**内部辅助函数:**
+- **`authorize(sessionId, checkoutId, observedCaller?)`** (Line 249): 核心授权逻辑。验证 owner/source 会话、projectId 匹配、根目录一致性（verifyCallerRoot），以及非 discarded 记录的可见性。
+- **`linkedReadAccess(...)`** (Line 271): 处理非 owner 的只读访问。支持 linked group 读取和 exact acceptance holder 验证。
+- **`observe(record)`** (Line 331): 观察 worktree 状态。优先使用 module 的批量观察方法，失败则降级。
+- **`acceptanceHolder(record)`** (Line 353): 查找同一 localRoot 上持有验收槽的其他 record。
+- **`projectReviewSlot(record, target)`** (Line 368): 根据 acceptance holder 状态调整 reviewSlot 和能力集。
+- **`details(...)`** (Line 394): 组装详细的 TargetDetails，处理 acceptance anchor 的动态校验。
+- **`mutationResponse(...)`** (Line 426): 组装 MutationResponse，用于 mutation 操作后的状态投影。
+- **`localProject(sessionId)`** (Line 465): 获取调用者的本地项目信息。
+- **`projectRootFor(sessionId)`** (Line 476): 获取调用者项目的 Git 根目录和快照。
+- **`withCreation(sessionId, action)`** (Line 491): 双键互斥守卫（sessionKey + rootKey），防止并发创建导致的状态不一致。
+- **`createTarget(sourceSessionId, branch?)`** (Line 509): 调用 module 创建隔离目标，并验证 launch 结果的一致性。
 
-- errors.ts：`domainError`（src/console-host/errors.ts:5）构造带 code 的 Error；`consoleFailure`（src/console-host/errors.ts:13）——领域错误码（SESSION_CHECKOUT_ERROR_CODES 内）透传 code/message/continuation，未知错误归一为 git_error；`failure`（src/console-host/errors.ts:43）把异步操作包成带 code/message/details/continuation 的 Outcome；`outcome`（src/console-host/errors.ts:60）把同步 Promise 包装为 WorktreeConsoleOutcome。
-- review-diff.ts：容量上限 REVIEW_DIFF_MAX_FILES=200 / REVIEW_DIFF_MAX_PATCH_BYTES=100KB / REVIEW_DIFF_MAX_PAYLOAD_BYTES=1MB（src/console-host/review-diff.ts:9-11）；diff 在临时 object 目录计算（GIT_OBJECT_DIRECTORY+GIT_ALTERNATE_OBJECT_DIRECTORIES，src/console-host/review-diff.ts:128-142），read-tree baseOid + add -A 反映当前工作树；carried project skills 用 update-index --force-remove 批量剔除；实际 changedPathSet 必须与请求完全一致，否则 `ReviewDiffStaleError`（src/console-host/review-diff.ts:25）；payload 超限按 utf8Prefix 截 patch 并标记 truncated；批处理 REVIEWS_DIFF_BATCH_SIZE=8 并行取证。
+### src/console-host/service.ts (315 行)
 
-## strict RPC 契约（src/console-remote/）
+Typert RPC 服务层，将控制面方法暴露为远程过程调用。
 
-- remote.ts（71 行）：`GitWorktreeRemote = TypertRemoteNamespace<'gitWorktree'>`（src/console-remote/remote.ts:27），并对 `TypertRemoteMap` 做 module augmentation 声明全部 32 个方法签名（首参 agentId、尾参 locale?、返回 `RemoteResult<WorktreeConsoleOutcome<T>>`）。
-- descriptors.ts（221 行）：PACKAGE='dsh-git-worktree'、SERVICE='gitWorktree'（src/console-remote/descriptors.ts:40-41）；`strictCodec`（src/console-remote/descriptors.ts:46）同时携带 schema 与 create()——旧 Harness 读 schema、新 strict 网关经 create() 具化，两者必须引用同一 schema 以保线缆契约；agent 参数 wire=agentId、source=lookup（src/console-remote/descriptors.ts:52）；`WORKTREE_CONSOLE_DESCRIPTORS` 32 条冻结描述符（src/console-remote/descriptors.ts:88，gitOverview/gitGraph/sidebarTopology/clientBootReport/initProject 的参数面、create 带可选 branch 标量参数 acceptsUndefined）；`WORKTREE_CONSOLE_REMOTE` 冻结贡献 {package, descriptors}（src/console-remote/descriptors.ts:218）。
-- schemas.ts（418 行）：zod strict 对象覆盖所有请求/响应/错误载荷——sessionIdSchema（1-200、禁 \0\r\n，src/console-remote/schemas.ts:27）、checkoutIdSchema（禁 '..' 与路径分隔符，src/console-remote/schemas.ts:28）、oidSchema='unversioned'|'unborn'|40/64 位 hex（src/console-remote/schemas.ts:33）、generationSchema=64 hex、capabilitiesSchema 14 位（src/console-remote/schemas.ts:80）、checkpointSchema changedFiles ≤500 且带路径安全 refine（src/console-remote/schemas.ts:59）、recoveryContinuationSchema discriminated union 四种 kind、previewRecoveryProofSchema 含 rollback/finalize/blocker 子类型。
+- **`class WorktreeConsoleService extends TypertRemoteService`** (Line 33): 服务类，注册名为 `gitWorktree` 的服务。
+- **`constructor(...)`** (Line 34): 初始化 hostContext, controlPlane, diagFile, officialWorkspaceActive。
+- **`appendDiag(line)`** (Line 45): 异步追加诊断日志到文件，best-effort，不中断 RPC。
+- **`@Remote sidebarTopology(locale?)`** (Line 53): 拓扑查询，注入 workspaceClientFlavor 和 officialWorkspaceActive。
+- **`@Remote clientBootReport(report)`** (Line 68): 客户端启动报告，返回 true。
+- **`@Remote current(agent, locale?)`** (Line 73): 获取当前目标。
+- **`@Remote list(agent, needsAttention?, includeDelivered?, locale?)`** (Line 78): 列表查询。
+- **`@Remote preflightCreate(agent, locale?)`** (Line 83): 创建预检。
+- **`@Remote createWithInitialCommit(agent, confirmationToken, locale?)`** (Line 88): 初始提交创建。
+- **`@Remote create(agent, branch?, locale?)`** (Line 93): 创建工作树。
+- **`@Remote initProject(agent, locale?)`** (Line 98): 初始化项目。
+- **`@Remote inspect(agent, checkoutId, locale?)`** (Line 103): 检查详情。
+- **`@Remote reviewDiff(agent, checkoutId, expectedRevision, expectedReviewId, locale?)`** (Line 108): 审查差异。
+- **`@Remote preflight(agent, checkoutId, expectedRevision, expectedReviewId, locale?)`** (Line 113): 预检。
+- **`@Remote previewRecoveryPreflight(...)`** (Line 118): 预览恢复预检。
+- **`@Remote preparePreviewRecoveryAnalysis(...)`** (Line 132): 准备预览恢复分析。
+- **`@Remote createPreviewRecoveryHandoff(...)`** (Line 146): 创建预览恢复交接。
+- **`@Remote preview(agent, ...)`** (Line 160): 预览。
+- **`@Remote checkpoint(agent, ...)`** (Line 165): 检查点。
+- **`@Remote prepareReviewRegeneration(...)`** (Line 179): 准备审查再生。
+- **`@Remote resumeRevision(agent, ..., conflictContinuation?, locale?)`** (Line 186): 恢复修订。
+- **`@Remote rollbackPreview(agent, ..., resumeRevision?, recoveryProof?, locale?)`** (Line 196): 回滚预览。
+- **`@Remote discard(agent, ..., confirmDirty, rollbackPreview?, locale?)`** (Line 206): 丢弃。
+- **`@Remote finalize(agent, ..., retention, locale?)`** (Line 213): 最终提交。
+- **`@Remote finalizePreview(agent, ..., retention, recoveryProof?, locale?)`** (Line 223): 最终提交预览。
+- **`@Remote setRetention(agent, ..., retention, locale?)`** (Line 233): 设置保留。
+- **`@Remote setPermanent(agent, ..., permanent, locale?)`** (Line 242): 设置永久。
+- **`@Remote retryCleanup(agent, ..., locale?)`** (Line 251): 重试清理。
+- **`@Remote beginNextIteration(agent, ..., locale?)`** (Line 258): 开始下一次迭代。
+- **`@Remote gitOverview(agent, locale?)`** (Line 265): Git 概览。
+- **`@Remote gitGraph(agent, limit?, locale?)`** (Line 270): Git 图。
+- **`@Remote gitCreateBranch(agent, name, locale?)`** (Line 275): 创建分支。
+- **`@Remote gitSwitchBranch(agent, branch, locale?)`** (Line 280): 切换分支。
+- **`@Remote listAbandoned(agent, locale?)`** (Line 285): 列出放弃的。
+- **`@Remote restoreAbandoned(agent, checkoutId, locale?)`** (Line 290): 恢复放弃的。
 
-交叉链接：[[host-overview|Host Entry and Registration Surface]]、[[session-checkout-module|Session Checkout State Machine]]、[[adapters|Adapter Layer]]。
+### src/console-host/errors.ts (65 行)
+
+错误处理工具。
+
+- **`domainError(code, message, continuation?)`** (Line 5): 构造带 code 和可选 continuation 的 Error。
+- **`consoleFailure(error)`** (Line 13): 将 Error 转换为 `WorktreeConsoleOutcome<never>`。领域错误码透传，未知错误归一化为 git_error。
+- **`failure<T>(code, message, details?, continuation?)`** (Line 43): 构造失败的 Outcome。
+- **`outcome<T>(operation)`** (Line 60): 包装 Promise 操作，捕获异常并转换为 Outcome。
+
+## Architecture
+
+```text
+┌──────────────────────────────────────────────────────────────────────┐
+│                        Client UI                                     │
+│              (Worktree Cards / Acceptance View)                      │
+└──────────────────────────┬───────────────────────────────────────────┘
+                           │ Typert RPC (gitWorktree)
+                           ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                     WorktreeConsoleService                           │
+│         src/console-host/service.ts                                  │
+│   - @Remote Methods (32 endpoints)                                   │
+│   - i18n wrapping (withHostLanguage)                                 │
+│   - Diagnostics appendFileSync                                       │
+└──────────────────────────┬───────────────────────────────────────────┘
+                           │
+                           ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                  Control Plane Implementation                        │
+│         src/console-host/control-plane.ts                            │
+│   - authorize() / linkedReadAccess()                                 │
+│   - withCreation() (Mutex Guard)                                     │
+│   - CRUD & Mutation Operations                                       │
+│   - Git Operations (overview/graph/branch)                           │
+└──────────────────────────┬───────────────────────────────────────────┘
+                           │
+      ┌────────────────────┼────────────────────┐
+      ▼                    ▼                    ▼
+┌─────────────┐   ┌─────────────┐   ┌────────────────────┐
+│ Session     │   │ Registry    │   │ Git Adapter        │
+│ Checkout    │   │ (State DB)  │   │ (Inspect/Status)   │
+│ Module      │   │             │   │                    │
+└─────────────┘   └─────────────┘   └────────────────────┘
+```
+
+## Data Flow
+
+1.  **RPC 入口**: 客户端发起 RPC 调用，`WorktreeConsoleService` 接收请求，通过 `withHostLanguage` 设置本地化上下文。
+2.  **授权与验证**: 控制面的方法首先调用 `authorize` 或 `linkedReadAccess` 验证会话权限、项目匹配性和根目录一致性。
+3.  **并发守卫**: 对于创建操作，`withCreation` 使用 `creating` Set 进行双重互斥（sessionKey + rootKey），防止竞态条件。
+4.  **状态观察**: 读操作（如 `list`, `current`）调用 `observe` 获取最新 Git 状态。优先使用批量观察以提高性能，失败时降级。
+5.  **业务逻辑**: 根据操作类型（preview, checkpoint, finalize 等）调用 `module.operate` 或相关方法执行实际工作树管理。
+6.  **投影**: 结果数据通过 `projection.ts` 中的函数（`projectRecord`, `projectDetails`）转换为 UI 友好的格式，包括能力计算（`capabilities`）和状态映射。
+7.  **响应**: 最终结果通过 `outcome` 或 `failure` 包装为 `WorktreeConsoleOutcome` 返回给客户端。
+
+## Connections
+
+- [[session-checkout-module|Session Checkout State Machine]]: 核心状态机，提供 `operate`, `preflight`, `createIsolatedTarget` 等方法。
+- [[host-overview|Host Entry and Registration Surface]]: 宿主的入口和注册机制。
+- [[adapters|Adapter Layer]]: Git 适配器和文件系统适配器。
