@@ -6,6 +6,8 @@
 
 ### Fixed
 
+- boot report 被网关拒绝（2026-10-08）：每会话启动必现 `[dsh-git-worktree] boot report result: ok:false gateway/input-invalid, endpoint gitWorktree/clientBootReport, field report`——decorate 路径（official Workspace 保持活跃时）上报 `branch: 'modern'`，而 `clientBootReportSchema` 的 `z.enum` 漏列 `modern`（TS 接口 `console-contract.ts:223` 有、运行时 schema 没有，编译期查不出）。修复：schema 枚举补 `modern`，`tests/console-remote.test.ts` 增 decorate 路径上报断言防回退；顺带把 boot report 的静默吞错改为 console 输出（diag/boot-report-instrument 插桩转正，本条日志即由其暴露）。
+
 - 新宿主 0.2.1-alpha.1 上 Git Workspace 不注册（2026-10-07）：`workspaceClientFlavorForAgentVersion` 硬编码四个版本锚点，未列版本一律 `unsupported`，宿主升到 0.2.1-alpha.1 后 client 侧落到 no-register 分支（sidebar-diag.ndjson 203 次 `registered:false`），隔离会话全部失效。修复：`0.2.x` 系未列版本兜底 `modern`——modern 分支消费的宿主面（slots/sessions/workspaces/locale/remote/layout/shortcuts 服务与 `sidebar.workspaces` 及子槽契约）已逐项对照 0.2.1-alpha.1 宿主源码验证未变；`0.1.x`（三种 flavor 并存，映射不确定）与 `0.3+`（未经源码验证）的未知版本保持 `unsupported`，维持「只选源码验证世代」纪律。dev 宿主 0.1.7-rc.2（next）不受影响。
 
 - 提交图多分支 lane 膨胀与 refs 徽章裁切（2026-10-07）：`computeGraphLanes` 开新 lane 一律尾插、仅回收尾部 null——中间静默槽位永占，lane 数随分支总数单调增长（每条分支各占一条 lane，十几条分支即十几条贯穿竖线，且顶部截断边界提交各开新 lane 加剧）。修复：新 pending 先复用最左静默槽位；**收敛分支的重复 pending 合并**（多条兄弟分支尾提交共享同一父时，各链尾渲染后槽位留的是同 oid 重复 pending 而非 null，仅找 null 槽永远复用不了——保留最左副本、释放槽当 hole 复用，真实仓库拓扑验证 10 条 lane 收敛到 2 条真实并发）。refs 徽章把本地与远程同名分支（`foo` + `origin/foo`）归并为单徽章（tooltip 列全名），CSS 限宽 12em 省略号防裁切，meta 内 author/时间不收缩优先保可读。

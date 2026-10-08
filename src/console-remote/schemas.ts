@@ -254,7 +254,7 @@ export const sidebarTopologyResponseSchema: z.ZodType<WorktreeSidebarTopologyRes
 })
 export const clientBootReportSchema: z.ZodType<WorktreeClientBootReport> = strict({
   flavor: z.string(),
-  branch: z.enum(['legacy', 'alpha', 'next', 'unsupported', 'topology-failed', 'boot-failed']),
+  branch: z.enum(['legacy', 'alpha', 'next', 'modern', 'unsupported', 'topology-failed', 'boot-failed']),
   registered: z.boolean(),
   detail: z.string().max(2000).optional(),
   elapsedMountMs: z.number().int().nonnegative().optional(),

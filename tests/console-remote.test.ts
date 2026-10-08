@@ -450,6 +450,11 @@ describe('manual strict Worktree Console Remote contribution', () => {
     await expect(client.remote.gitWorktree.clientBootReport({ flavor: 'next', branch: 'next', registered: true }, undefined))
       .resolves.toEqual({ ok: true, value: true })
     expect(call).toHaveBeenLastCalledWith('/api', 'gitWorktree/clientBootReport', { args: { report: { flavor: 'next', branch: 'next', registered: true } } }, expect.any(AbortSignal))
+    // The decorate path reports branch 'modern' (official Workspace kept live);
+    // the gateway schema must accept it, not reject with gateway/input-invalid.
+    await expect(client.remote.gitWorktree.clientBootReport({ flavor: 'modern', branch: 'modern', registered: true, elapsedMountMs: 3, elapsedTopologyMs: 5 }, undefined))
+      .resolves.toEqual({ ok: true, value: true })
+    expect(call).toHaveBeenLastCalledWith('/api', 'gitWorktree/clientBootReport', { args: { report: { flavor: 'modern', branch: 'modern', registered: true, elapsedMountMs: 3, elapsedTopologyMs: 5 } } }, expect.any(AbortSignal))
 
     await dispose()
     expect((client.remote as unknown as Record<string, unknown>).gitWorktree).toBeUndefined()

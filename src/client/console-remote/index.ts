@@ -57,6 +57,7 @@ export async function apply(ctx: ConsoleClientContext): Promise<void> {
   const elapsedMountMs = Date.now() - bootStartedAt
   ctx.effect(() => disposeRemote)
   const remote = ctx.get('remote.gitWorktree') as GitWorktreeRemote | undefined
+  console.info('[dsh-git-worktree] remote proxy resolved:', typeof remote, 'proxy keys sample:', remote === undefined ? 'n/a' : ['sidebarTopology', 'clientBootReport'].map(k => `${k}=${typeof (remote as Record<string, unknown>)[k]}`).join(', '))
   const getLanguage = () => readClientLanguage(ctx.get('locale'))
   if (remote === undefined) throw new Error(createTranslator(transportMessages, getLanguage())('mountFailed'))
   const adapter = createWorktreeConsoleRemoteAdapter(remote, getLanguage)
@@ -83,8 +84,13 @@ export async function apply(ctx: ConsoleClientContext): Promise<void> {
         flavor: topology.ok ? String(topology.value.workspaceClientFlavor ?? 'missing') : 'unknown',
         branch, registered, ...(detail === undefined ? {} : { detail }),
         elapsedMountMs, elapsedTopologyMs,
-      }, undefined).catch(() => { /* best effort */ })
-    } catch { /* best effort */ }
+      }, undefined).then(
+        (result) => { console.info('[dsh-git-worktree] boot report result:', JSON.stringify(result)) },
+        (error) => { console.error('[dsh-git-worktree] boot report rejected', branch, registered, detail, error) },
+      )
+    } catch (error) {
+      console.error('[dsh-git-worktree] boot report threw', branch, registered, detail, error)
+    }
   }
   const topologyStartedAt = Date.now()
   const topology = await adapter.sidebarTopology()
@@ -94,6 +100,7 @@ export async function apply(ctx: ConsoleClientContext): Promise<void> {
     throw new Error(createTranslator(transportMessages, getLanguage())('workspaceGenerationUnknown'))
   }
   const flavor = topology.value.workspaceClientFlavor
+  console.info('[dsh-git-worktree] topology resolved', flavor, 'officialWorkspaceActive=', topology.value.officialWorkspaceActive)
   if (flavor === 'legacy') {
     const sessions = ctx.get('sessions') as { open?: unknown } | undefined
     if (typeof sessions?.open !== 'function') {
@@ -111,13 +118,16 @@ export async function apply(ctx: ConsoleClientContext): Promise<void> {
     // live (takeover disabled), decorate instead of re-providing uiWorkspace.
     if (topology.value.officialWorkspaceActive === true) {
       reportBoot('modern', false, 'decorate-pending')
+      console.info('[dsh-git-worktree] decorate branch: requesting inject')
       ctx.inject(inject, child => {
         try {
           registerDecoratedWorkspaceSidebar(
             child as unknown as Parameters<typeof registerDecoratedWorkspaceSidebar>[0],
             adapter,
           )
+          console.info('[dsh-git-worktree] decorated sidebar registered')
           mountTools(child)
+          console.info('[dsh-git-worktree] tools mounted')
           reportBoot('modern', true)
         } catch (error) {
           reportBoot('modern', false, error instanceof Error ? error.message : String(error))
