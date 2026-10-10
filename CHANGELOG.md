@@ -6,6 +6,8 @@
 
 ### Fixed
 
+- modern 宿主（0.2.x）Workspace 接管改为自动启用（2026-10-10）：`enableWorkspaceProvider` 原为全局 opt-in（默认 false），未显式开启时 0.2.x 宿主走 decorated 注册路径，而 0.2.x Workspace Browser 对声明的子槽调用 `renderSlot`，decorated 条目拿不到子槽席位即崩（`renderSlot is not a function`，会话行与新建会话工作区选择一并失效）——默认安装即坏。修复：lifecycle 门禁改为按 flavor 分代——`modern` 自动接管（flag 降级为 advisory，仅记录日志）；`legacy`（0.1.x，历史上接管曾致新会话损坏）与 `unsupported` 世代维持原 opt-in 语义。配套：`tests/workspace-provider-lifecycle.test.ts` fixture 第 6 参泛化为 flavor 并新增两测试（modern 未开 flag 即接管成功；modern 自动接管不复活用户显式禁用的插件条目）。
+
 - boot report 被网关拒绝（2026-10-08）：每会话启动必现 `[dsh-git-worktree] boot report result: ok:false gateway/input-invalid, endpoint gitWorktree/clientBootReport, field report`——decorate 路径（official Workspace 保持活跃时）上报 `branch: 'modern'`，而 `clientBootReportSchema` 的 `z.enum` 漏列 `modern`（TS 接口 `console-contract.ts:223` 有、运行时 schema 没有，编译期查不出）。修复：schema 枚举补 `modern`，`tests/console-remote.test.ts` 增 decorate 路径上报断言防回退；顺带把 boot report 的静默吞错改为 console 输出（diag/boot-report-instrument 插桩转正，本条日志即由其暴露）。
 
 - 新宿主 0.2.1-alpha.1 上 Git Workspace 不注册（2026-10-07）：`workspaceClientFlavorForAgentVersion` 硬编码四个版本锚点，未列版本一律 `unsupported`，宿主升到 0.2.1-alpha.1 后 client 侧落到 no-register 分支（sidebar-diag.ndjson 203 次 `registered:false`），隔离会话全部失效。修复：`0.2.x` 系未列版本兜底 `modern`——modern 分支消费的宿主面（slots/sessions/workspaces/locale/remote/layout/shortcuts 服务与 `sidebar.workspaces` 及子槽契约）已逐项对照 0.2.1-alpha.1 宿主源码验证未变；`0.1.x`（三种 flavor 并存，映射不确定）与 `0.3+`（未经源码验证）的未知版本保持 `unsupported`，维持「只选源码验证世代」纪律。dev 宿主 0.1.7-rc.2（next）不受影响。

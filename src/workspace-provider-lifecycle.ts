@@ -51,13 +51,20 @@ export async function mountWorkspaceProviderLifecycle(
   flavor: WorkspaceClientFlavor = hostWorkspaceClientFlavor(),
   options: WorkspaceProviderLifecycleOptions & { enabled?: boolean } = {},
 ): Promise<WorkspaceProviderLifecycleResult> {
-  // Local adaptation: taking over the official Workspace is strictly opt-in.
-  // Unless explicitly enabled, the service is never provided, so the bundled
-  // conditional patch evaluates to false and the official Workspace stays
-  // active — this avoids the historical "cannot open a new conversation" lock.
-  if (!options.enabled) {
+  // Local adaptation: taking over the official Workspace is opt-in on legacy
+  // hosts (0.1.x), where the takeover once broke new-conversation creation.
+  // On modern hosts (0.2.x) the takeover is mandatory: the decorated
+  // registration cannot obtain the official Browser's child-slot seat (the
+  // 0.2.x Browser calls renderSlot for declared child slots and crashes with
+  // "renderSlot is not a function" without them, breaking session rows and
+  // new-session workspace selection), so the flag stays advisory there.
+  const autoTakeover = flavor === 'modern'
+  if (!options.enabled && !autoTakeover) {
     ctx.logger.info('Workspace takeover disabled (enableWorkspaceProvider is not true); official ui-workspace stays active.')
     return { officialWorkspaceActive: true }
+  }
+  if (!options.enabled) {
+    ctx.logger.info('Workspace takeover auto-enabled on the modern Host generation (enableWorkspaceProvider only gates legacy hosts).')
   }
   if (flavor === 'unsupported') {
     ctx.logger.warn('No pinned Workspace Browser for this Host generation; leaving the official Workspace provider active.')
@@ -155,7 +162,8 @@ export async function mountWorkspaceProviderLifecycle(
   })
   // Local adaptation: the first pass settles before activation returns so the
   // Sidebar topology reports a truthful outcome. The opt-in gate above makes
-  // this a no-op by default, and every Loader operation is ceiling-bounded.
+  // this a no-op by default on legacy hosts (modern hosts auto-enable), and
+  // every Loader operation is ceiling-bounded.
   await reconcile()
   return { officialWorkspaceActive: false }
 }

@@ -27,7 +27,7 @@ function entries(disabled: boolean): EntryOptions[] {
   ], message => { throw new Error(message) })
 }
 
-async function boot(data: EntryOptions[], replayDisabled = false, delayedImport?: string, childEntries?: EntryOptions[], failApply = false, unsupported = false, takeover: boolean | { operationTimeoutMs?: number, wedge?: 'never' | 'deferred' } = true) {
+async function boot(data: EntryOptions[], replayDisabled = false, delayedImport?: string, childEntries?: EntryOptions[], failApply = false, flavor: 'legacy' | 'unsupported' | 'modern' = 'legacy', takeover: boolean | { operationTimeoutMs?: number, wedge?: 'never' | 'deferred' } = true) {
   const dir = mkdtempSync(join(tmpdir(), 'workspace-provider-'))
   const paths = new Map<string, string>()
   for (const [index, name] of [OFFICIAL, WORKTREE, 'group-owner', 'fixture-include'].entries()) {
@@ -65,7 +65,7 @@ async function boot(data: EntryOptions[], replayDisabled = false, delayedImport?
               Object.assign(official, { update: wedged })
             }
           }
-          await mountWorkspaceProviderLifecycle(ctx, unsupported ? 'unsupported' : 'legacy', {
+          await mountWorkspaceProviderLifecycle(ctx, flavor, {
             enabled: takeover !== false,
             ...(typeof takeover === 'object' && takeover.operationTimeoutMs !== undefined
               ? { operationTimeoutMs: takeover.operationTimeoutMs } : {}),
@@ -114,14 +114,26 @@ describe('Workspace provider lifecycle (real Cordis Loader and Web module regist
   })
 
   test('an unknown Host generation leaves the official Workspace active', async () => {
-    const { ctx, graph } = await boot(entries(false), false, undefined, undefined, false, true)
+    const { ctx, graph } = await boot(entries(false), false, undefined, undefined, false, 'unsupported')
     expect(graph()).toContain(OFFICIAL)
     expect(ctx.get('worktreeWorkspaceProvider')).toBeUndefined()
   })
 
   test('takeover is opt-in: an enabled Worktree entry without enableWorkspaceProvider keeps the official Workspace', async () => {
-    const { ctx, graph } = await boot(entries(false), false, undefined, undefined, false, false, false)
+    const { ctx, graph } = await boot(entries(false), false, undefined, undefined, false, 'legacy', false)
     expect(graph()).toContain(OFFICIAL)
+    expect(ctx.get('worktreeWorkspaceProvider')).toBeUndefined()
+  })
+
+  test('modern hosts auto-enable the takeover: enableWorkspaceProvider only gates legacy hosts', async () => {
+    const { ctx, graph } = await boot(entries(false), false, undefined, undefined, false, 'modern', false)
+    expect(graph()).toEqual([WORKTREE])
+    expect(ctx.get('worktreeWorkspaceProvider')).toBe(true)
+  })
+
+  test('the modern auto-takeover does not resurrect a user-disabled Worktree entry', async () => {
+    const { ctx, graph } = await boot(entries(true), false, undefined, undefined, false, 'modern', false)
+    expect(graph()).toEqual([OFFICIAL])
     expect(ctx.get('worktreeWorkspaceProvider')).toBeUndefined()
   })
 
@@ -230,7 +242,7 @@ describe('Workspace provider lifecycle (real Cordis Loader and Web module regist
   })
 
   test('a wedged official disable never blocks replacement activation', async () => {
-    const { ctx, applied, graph } = await boot(entries(false), false, undefined, undefined, false, false,
+    const { ctx, applied, graph } = await boot(entries(false), false, undefined, undefined, false, 'legacy',
       { operationTimeoutMs: 20, wedge: 'never' })
     expect(applied()).toBe(true)
     expect(ctx.get('worktreeWorkspaceProvider')).toBe(true)
@@ -242,7 +254,7 @@ describe('Workspace provider lifecycle (real Cordis Loader and Web module regist
   })
 
   test('a slow official disable lands after activation without a second provider', async () => {
-    const { ctx, graph } = await boot(entries(false), false, undefined, undefined, false, false,
+    const { ctx, graph } = await boot(entries(false), false, undefined, undefined, false, 'legacy',
       { wedge: 'deferred' })
     expect(graph()).toContain(WORKTREE)
     await new Promise(resolve => setTimeout(resolve, 60))

@@ -274,9 +274,10 @@ export const Config = z.object({
    */
   worktreeKeepCount: volatile(z.number().min(0).max(500).step(1).default(15)),
   /**
-   * Explicitly take over the official Workspace UI (ui-workspace). Keep false
-   * unless the replacement sidebar is wanted; taking over is the mechanism
-   * behind the historical "cannot open a new conversation" breakage.
+   * Take over the official Workspace UI (ui-workspace) on legacy hosts
+   * (0.1.x). On modern hosts (0.2.x) the takeover is automatic — the
+   * decorated path cannot obtain the official Browser's child-slot
+   * authorization and crashes session rows — so this flag is advisory there.
    */
   enableWorkspaceProvider: z.boolean().default(false),
 })
@@ -310,13 +311,16 @@ const AUTO_PRUNE_OLDER_THAN_DAYS = 7
 /**
  * Mount the plugin: DSH adapters, the session-checkout module, safe worktree
  * tools, human acceptance command, dynamic target context, startup recovery,
- * the retention-expiry timer. Local adaptation: the Workspace provider election is strictly opt-in (enableWorkspaceProvider) — by default it is a no-op and the official ui-workspace stays active, so it cannot starve the boot chain; when enabled, every Loader operation is ceiling-bounded and re-enters on the next Loader event.
+ * the retention-expiry timer. Local adaptation: the Workspace provider
+ * election is opt-in on legacy hosts (enableWorkspaceProvider) and automatic
+ * on modern 0.2.x hosts (where the decorated path structurally crashes); the
+ * flag stays advisory there. Every Loader operation is ceiling-bounded and
+ * re-enters on the next Loader event.
  */
 export async function apply(ctx: Context, config: { stateDir?: string } & GitTimeoutOptions & LocalAdaptationConfig = {}): Promise<void> {
   validateGitTimeouts(config)
-  // Local adaptation: Workspace takeover is strictly opt-in. Unless
-  // enableWorkspaceProvider === true, the service is never provided and the
-  // official ui-workspace stays active.
+  // Local adaptation: Workspace takeover is opt-in on legacy hosts and
+  // automatic on modern 0.2.x hosts (the flag is advisory there).
   const providerLifecycle = await mountWorkspaceProviderLifecycle(ctx, hostWorkspaceClientFlavor(), { enabled: config.enableWorkspaceProvider === true })
   const stateDir = resolveStateDir(config)
   mkdirSync(stateDir, { recursive: true })

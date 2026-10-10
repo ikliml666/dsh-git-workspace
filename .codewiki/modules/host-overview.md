@@ -61,7 +61,7 @@ tags:
 - **`worktreesRoot`** (`src/index.ts:254`): volatile。受管 worktree 根目录。格式 `<worktreesRoot>/<project>/<topic>-<YYYYMMDD>`。
 - **`inheritLocalChanges`** (`src/index.ts:261`): volatile。Codex 对齐，创建时继承本地未提交修改。默认 `true`。
 - **`worktreeKeepCount`** (`src/index.ts:268`): volatile。托管 worktree 总量上限 (LRU)。默认 15，范围 0–500。0 关闭。
-- **`enableWorkspaceProvider`** (`src/index.ts:275`): 接管官方 ui-workspace 的 opt-in 开关。默认 `false`。非 volatile。
+- **`enableWorkspaceProvider`** (`src/index.ts:275`): 接管官方 ui-workspace 的开关。默认 `false`；仅对 legacy 宿主（0.1.x）生效——modern 宿主（0.2.x）自动接管（decorated 路径在 0.2.x 结构性必崩），flag 在 modern 上仅 advisory。非 volatile。
 
 辅助函数：
 - **`volatile<T>`** (`src/index.ts:217`): 给 schema 注入 `meta.volatile = true`。
@@ -72,7 +72,7 @@ tags:
 
 **`apply(ctx: Context, config)`** (`src/index.ts:299`): 插件挂载入口。
 1. 校验 Git 超时 (`validateGitTimeouts`)。
-2. 挂载 Workspace Provider 生命周期 (`mountWorkspaceProviderLifecycle`)，严格 opt-in (`config.enableWorkspaceProvider === true`)。
+2. 挂载 Workspace Provider 生命周期 (`mountWorkspaceProviderLifecycle`)：legacy 宿主严格 opt-in (`config.enableWorkspaceProvider === true`)，modern 宿主自动接管（flag 仅 advisory）。
 3. 创建 `stateDir` 和 `disabled-git-hooks` 目录。
 4. 组装端口：
     - `createDshLookupPort(ctx)`
@@ -145,7 +145,7 @@ tags:
 │                         Plugin Entry (index.ts)                         │
 │                                                                         │
 │  apply(ctx, config) ───────────────────────────────────────►            │
-│  ├─ mountWorkspaceProviderLifecycle (opt-in)                           │
+│  ├─ mountWorkspaceProviderLifecycle (legacy opt-in / modern auto)      │
 │  ├─ Create Ports: lookup, git, files, registry, skills                 │
 │  ├─ createSessionCheckoutModule (core state machine)                   │
 │  ├─ WorktreeConsoleService (RPC control plane)                         │
