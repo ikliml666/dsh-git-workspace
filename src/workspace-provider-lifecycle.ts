@@ -165,5 +165,28 @@ export async function mountWorkspaceProviderLifecycle(
   // this a no-op by default on legacy hosts (modern hosts auto-enable), and
   // every Loader operation is ceiling-bounded.
   await reconcile()
-  return { officialWorkspaceActive: false }
+  // Report the real outcome: if the conditional patch never made it into the
+  // live tree (profile write-back, skipped bundle, older Loader), owned() is
+  // empty and the official Workspace is still running. Claiming a takeover
+  // then makes the Web client replay the official apply and crash with
+  // `service "uiWorkspace" has been registered` (2026-10-11 incident). The
+  // decorate branch is the safe coexistence path whenever the official
+  // provider survived, including a disable that has not settled yet.
+  let takeover = false
+  for (const entry of owned()) {
+    if (inFlight.has(entry.id)) { takeover = true; continue }
+    try {
+      if (entry.disabled) { takeover = true; continue }
+    } catch {
+      takeover = true
+      continue
+    }
+    await operate(entry, 'disable')
+    try { takeover = entry.disabled } catch { takeover = true }
+    if (!takeover) break
+  }
+  if (!takeover) {
+    ctx.logger.warn('dsh-git-worktree: no owned official Workspace entry to disable (conditional patch missing from the live tree); falling back to decorated coexistence.')
+  }
+  return { officialWorkspaceActive: !takeover }
 }
