@@ -28,7 +28,7 @@ dsh Web 端 RPC 传输链路**没有任何一层有超时**：
 
 ## 修复方案
 
-在 adapter 层引入客户端超时兜底（`src/client/console-remote/adapter.ts:46-74`）：
+在 adapter 层引入客户端超时兜底（`src/client/console-remote/adapter.ts:60-74`）：
 
 ```typescript
 /**
@@ -49,7 +49,7 @@ const FAST_METHODS = new Set([
 ])
 ```
 
-核心机制（`adapter.ts:79-108`）：
+核心机制（`adapter.ts:91-120`）：
 
 1. `invoke<T>` 泛型函数包裹所有 remote 调用，使用 `Promise.race` 竞争：
    - `call(locale)` — 实际的 RPC 调用

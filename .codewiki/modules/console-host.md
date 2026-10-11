@@ -26,51 +26,52 @@ tags:
 
 核心业务逻辑实现，定义 `WorktreeConsoleControlPlane` 接口及其具体实现。
 
-- **`createWorktreeConsoleControlPlane(options)`** (Line 193): 工厂函数，接收 `WorktreeConsoleControlPlaneOptions`（包含 module, lookup, files, registry, git, reviewDiff 等依赖），返回控制面实例。
-- **`sidebarTopology()`** (Line 529): 聚合所有受管检查点（managedCheckouts），按项目分组，计算每个会话的最新任务状态（iteration/revision），并注入成员身份信息。
-- **`current(sessionId)`** (Line 585): 获取当前会话的目标视图。如果是本地上下文，返回 `projectLocal`；否则解析为具体的 worktree 详情。
-- **`list(request)`** (Line 649): 列出会话可见的工作树。支持过滤（needsAttention/includeDelivered）。优化了批量观察（`observeManagedCheckouts`）以并行验证非 discarded 记录，失败时降级为逐条观察或无观察投影。
-- **`preflightCreate(sourceSessionId)`** (Line 719): 预检创建条件。如果仓库为空，生成带过期时间（300s）和上限（500个）的确认令牌（confirmation token）；如果就绪，返回分支列表。
-- **`createWithInitialCommit(sourceSessionId, confirmationToken)`** (Line 736): 执行空仓库初始化并提交首次提交，随后创建工作树。双重互斥守卫（`withCreation`）防止并发冲突。
-- **`create(sourceSessionId, branch?)`** (Line 752): 基于现有分支或默认分支创建工作树。
-- **`initProject(sourceSessionId)`** (Line 753): 初始化非 Git 项目目录为有首次提交的仓库。
-- **`inspect(sessionId, checkoutId)`** (Line 760): 检查特定 checkout 的详细信息，包括权限验证和状态投影。
-- **`reviewDiff(request)`** (Line 761): 读取待审查的差异。前后夹心校验（preflight），确保 isolated HEAD 和 review ID 未变更，防止脏数据读取。
-- **`preflight(request)`** (Line 801): 预检接受前状态，验证 owner、revision 和 review ID。
-- **`previewRecoveryPreflight(...)`** (Line 812): 预检预览恢复流程，验证 detached preview 身份。
-- **`preparePreviewRecoveryAnalysis(...)`** (Line 832): 准备预览恢复分析，生成 continuation 请求。
-- **`createPreviewRecoveryHandoff(...)`** (Line 862): 创建预览恢复交接，生成新的 target session 并验证 lineage。
-- **`preview(request)`** (Line 918): 应用预览更改到本地工作树。处理冲突（conflict）并返回 continuation。
-- **`checkpoint(request)`** (Line 943): 保存检查点（commit），更新 revision 和 review 信息。
-- **`resumeRevision(request)`** (Line 983): 恢复编辑，支持冲突恢复路径（conflictContinuation）。
-- **`prepareReviewRegeneration(...)`** (Line 1026): 准备重新生成审查，生成 regeneration continuation。
-- **`rollbackPreview(request)`** (Line 1051): 回滚本地预览，支持 resumeRevision 和 recoveryProof。
-- **`discard(request)`** (Line 1075): 丢弃工作树。区分 owner 和非 owner 路径，处理 dirty 确认和预览回滚。
-- **`finalize(request)`** (Line 1100): 最终提交（Acceptance）。CAS 夹心校验，应用更改到本地，生成 delivery proof。
-- **`finalizePreview(request)`** (Line 1144): 最终提交本地预览。
-- **`setRetention(request)`** (Line 1189): 设置保留策略。
-- **`setPermanent(request)`** (Line 1200): 设置为永久保留。
-- **`retryCleanup(request)`** (Line 1211): 重试清理操作。
-- **`beginNextIteration(request)`** (Line 1221): 开始下一次迭代，要求前驱状态为 delivered+discarded，并验证 lineage。
-- **`gitOverview(sessionId)`** (Line 603): 获取本地 Git 仓库的分支概览。
-- **`gitGraph(sessionId, limit?)`** (Line 615): 获取 Git 提交图日志。
-- **`gitCreateBranch(sessionId, name)`** (Line 627): 创建本地分支。
-- **`gitSwitchBranch(sessionId, branch)`** (Line 635): 切换本地分支。如果在交付过程中持有 acceptance slot，则拒绝。
-- **`listAbandoned(sessionId)`** (Line 650): 列出被放弃的工作树快照。
-- **`restoreAbandoned(request)`** (Line 657): 恢复被放弃的工作树快照。
+- **`createWorktreeConsoleControlPlane(options)`** (Line 207): 工厂函数，接收 `WorktreeConsoleControlPlaneOptions`（包含 module, lookup, files, registry, git, reviewDiff 等依赖），返回控制面实例。
+- **`sidebarTopology()`** (Line 539): 聚合所有受管检查点（managedCheckouts），按项目分组，计算每个会话的最新任务状态（iteration/revision），并注入成员身份信息。
+- **`current(sessionId)`** (Line 595): 获取当前会话的目标视图。如果是本地上下文，返回 `projectLocal`；否则解析为具体的 worktree 详情。
+- **`list(request)`** (Line 659): 列出会话可见的工作树。支持过滤（needsAttention/includeDelivered）。优化了批量观察（`observeManagedCheckouts`）以并行验证非 discarded 记录，失败时降级为逐条观察或无观察投影。
+- **`preflightCreate(sourceSessionId)`** (Line 729): 预检创建条件。如果仓库为空，生成带过期时间（300s）和上限（500个）的确认令牌（confirmation token）；如果就绪，返回分支列表。
+- **`createWithInitialCommit(sourceSessionId, confirmationToken)`** (Line 746): 执行空仓库初始化并提交首次提交，随后创建工作树。双重互斥守卫（`withCreation`）防止并发冲突。
+- **`create(sourceSessionId, branch?)`** (Line 762): 基于现有分支或默认分支创建工作树。
+- **`initProject(sourceSessionId)`** (Line 763): 初始化非 Git 项目目录为有首次提交的仓库。
+- **`inspect(sessionId, checkoutId)`** (Line 770): 检查特定 checkout 的详细信息，包括权限验证和状态投影。
+- **`reviewDiff(request)`** (Line 771): 读取待审查的差异。前后夹心校验（preflight），确保 isolated HEAD 和 review ID 未变更，防止脏数据读取。
+- **`preflight(request)`** (Line 811): 预检接受前状态，验证 owner、revision 和 review ID。
+- **`previewRecoveryPreflight(...)`** (Line 822): 预检预览恢复流程，验证 detached preview 身份。
+- **`preparePreviewRecoveryAnalysis(...)`** (Line 842): 准备预览恢复分析，生成 continuation 请求。
+- **`createPreviewRecoveryHandoff(...)`** (Line 872): 创建预览恢复交接，生成新的 target session 并验证 lineage。
+- **`preview(request)`** (Line 928): 应用预览更改到本地工作树。处理冲突（conflict）并返回 continuation。
+- **`checkpoint(request)`** (Line 953): 保存检查点（commit），更新 revision 和 review 信息。
+- **`resumeRevision(request)`** (Line 993): 恢复编辑，支持冲突恢复路径（conflictContinuation）。
+- **`prepareReviewRegeneration(...)`** (Line 1036): 准备重新生成审查，生成 regeneration continuation。
+- **`rollbackPreview(request)`** (Line 1061): 回滚本地预览，支持 resumeRevision 和 recoveryProof。
+- **`discard(request)`** (Line 1085): 丢弃工作树。区分 owner 和非 owner 路径，处理 dirty 确认和预览回滚。
+- **`finalize(request)`** (Line 1110): 最终提交（Acceptance）。CAS 夹心校验，应用更改到本地，生成 delivery proof。
+- **`finalizePreview(request)`** (Line 1154): 最终提交本地预览。
+- **`setRetention(request)`** (Line 1199): 设置保留策略。
+- **`setPermanent(request)`** (Line 1210): 设置为永久保留。
+- **`retryCleanup(request)`** (Line 1221): 重试清理操作。
+- **`beginNextIteration(request)`** (Line 1231): 开始下一次迭代，要求前驱状态为 delivered+discarded，并验证 lineage。
+- **`gitOverview(sessionId)`** (Line 613): 获取本地 Git 仓库的分支概览。
+- **`gitGraph(sessionId, limit?)`** (Line 625): 获取 Git 提交图日志。
+- **`gitCreateBranch(sessionId, name)`** (Line 637): 创建本地分支。
+- **`gitSwitchBranch(sessionId, branch)`** (Line 645): 切换本地分支。如果在交付过程中持有 acceptance slot，则拒绝。
+- **`listAbandoned(sessionId)`** (Line 660): 列出被放弃的工作树快照。
+- **`restoreAbandoned(request)`** (Line 667): 恢复被放弃的工作树快照。
+- **`gitPruneMergedBranches(sessionId, dryRun)`** (Line 649): 修剪已合并的本地分支。
 
 **内部辅助函数:**
-- **`authorize(sessionId, checkoutId, observedCaller?)`** (Line 249): 核心授权逻辑。验证 owner/source 会话、projectId 匹配、根目录一致性（verifyCallerRoot），以及非 discarded 记录的可见性。
-- **`linkedReadAccess(...)`** (Line 271): 处理非 owner 的只读访问。支持 linked group 读取和 exact acceptance holder 验证。
-- **`observe(record)`** (Line 331): 观察 worktree 状态。优先使用 module 的批量观察方法，失败则降级。
-- **`acceptanceHolder(record)`** (Line 353): 查找同一 localRoot 上持有验收槽的其他 record。
-- **`projectReviewSlot(record, target)`** (Line 368): 根据 acceptance holder 状态调整 reviewSlot 和能力集。
-- **`details(...)`** (Line 394): 组装详细的 TargetDetails，处理 acceptance anchor 的动态校验。
-- **`mutationResponse(...)`** (Line 426): 组装 MutationResponse，用于 mutation 操作后的状态投影。
-- **`localProject(sessionId)`** (Line 465): 获取调用者的本地项目信息。
-- **`projectRootFor(sessionId)`** (Line 476): 获取调用者项目的 Git 根目录和快照。
-- **`withCreation(sessionId, action)`** (Line 491): 双键互斥守卫（sessionKey + rootKey），防止并发创建导致的状态不一致。
-- **`createTarget(sourceSessionId, branch?)`** (Line 509): 调用 module 创建隔离目标，并验证 launch 结果的一致性。
+- **`authorize(sessionId, checkoutId, observedCaller?)`** (Line 259): 核心授权逻辑。验证 owner/source 会话、projectId 匹配、根目录一致性（verifyCallerRoot），以及非 discarded 记录的可见性。
+- **`linkedReadAccess(...)`** (Line 281): 处理非 owner 的只读访问。支持 linked group 读取和 exact acceptance holder 验证。
+- **`observe(record)`** (Line 341): 观察 worktree 状态。优先使用 module 的批量观察方法，失败则降级。
+- **`acceptanceHolder(record)`** (Line 363): 查找同一 localRoot 上持有验收槽的其他 record。
+- **`projectReviewSlot(record, target)`** (Line 378): 根据 acceptance holder 状态调整 reviewSlot 和能力集。
+- **`details(...)`** (Line 404): 组装详细的 TargetDetails，处理 acceptance anchor 的动态校验。
+- **`mutationResponse(...)`** (Line 436): 组装 MutationResponse，用于 mutation 操作后的状态投影。
+- **`localProject(sessionId)`** (Line 475): 获取调用者的本地项目信息。
+- **`projectRootFor(sessionId)`** (Line 486): 获取调用者项目的 Git 根目录和快照。
+- **`withCreation(sessionId, action)`** (Line 501): 双键互斥守卫（sessionKey + rootKey），防止并发创建导致的状态不一致。
+- **`createTarget(sourceSessionId, branch?)`** (Line 519): 调用 module 创建隔离目标，并验证 launch 结果的一致性。
 
 ### src/console-host/service.ts (315 行)
 
@@ -109,6 +110,7 @@ Typert RPC 服务层，将控制面方法暴露为远程过程调用。
 - **`@Remote gitGraph(agent, limit?, locale?)`** (Line 270): Git 图。
 - **`@Remote gitCreateBranch(agent, name, locale?)`** (Line 275): 创建分支。
 - **`@Remote gitSwitchBranch(agent, branch, locale?)`** (Line 280): 切换分支。
+- **`@Remote gitPruneMergedBranches(agent, dryRun, locale?)`** (Line 283): 修剪已合并分支。
 - **`@Remote listAbandoned(agent, locale?)`** (Line 285): 列出放弃的。
 - **`@Remote restoreAbandoned(agent, checkoutId, locale?)`** (Line 290): 恢复放弃的。
 
@@ -133,7 +135,7 @@ Typert RPC 服务层，将控制面方法暴露为远程过程调用。
 ┌──────────────────────────────────────────────────────────────────────┐
 │                     WorktreeConsoleService                           │
 │         src/console-host/service.ts                                  │
-│   - @Remote Methods (32 endpoints)                                   │
+│   - @Remote Methods (33 endpoints)                                   │
 │   - i18n wrapping (withHostLanguage)                                 │
 │   - Diagnostics appendFileSync                                       │
 └──────────────────────────┬───────────────────────────────────────────┘
@@ -145,7 +147,7 @@ Typert RPC 服务层，将控制面方法暴露为远程过程调用。
 │   - authorize() / linkedReadAccess()                                 │
 │   - withCreation() (Mutex Guard)                                     │
 │   - CRUD & Mutation Operations                                       │
-│   - Git Operations (overview/graph/branch)                           │
+│   - Git Operations (overview/graph/branch/prune)                     │
 └──────────────────────────┬───────────────────────────────────────────┘
                            │
       ┌────────────────────┼────────────────────┐

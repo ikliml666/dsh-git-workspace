@@ -7,7 +7,6 @@ source_files:
   - src/client/settings-card/WorktreeSettingsCard.tsx
   - src/client/settings-card/index.ts
   - src/client/console-remote/index.ts
-  - src/i18n/client-messages.ts
 tags:
   - client
   - settings
@@ -184,19 +183,6 @@ tags:
     *   此挂载发生在 `ctx.provide('worktreeConsole', adapter)` 之后，不依赖 flavor 分支。
 *   **`inject` 数组** (行 32-37):
     *   包含 `'slots'` 和 `'configForms'`，确保 cordis 能正确解析这些服务。
-
-### client-messages.ts
-
-**i18n 键值对：**
-
-*   `settings.title`, `settings.description`, `settings.readonly`
-*   `settings.autoDeliver`, `settings.autoDeliver.hint`
-*   `settings.autoPush`, `settings.autoPush.hint`
-*   `settings.worktreesRoot`, `settings.worktreesRoot.hint`
-*   `settings.gitTimeoutMs`, `settings.gitTimeoutMs.hint`
-*   `settings.worktreeAddTimeoutMs`, `settings.worktreeAddTimeoutMs.hint`
-*   `settings.save`, `settings.discard`, `settings.saving`, `settings.failed`
-*   `settings.overridden`, `settings.reset`, `settings.invalid.value`
 
 ## Architecture
 
