@@ -463,6 +463,20 @@ export interface WorktreeConsoleGitOverviewResponse {
   dirtyCount: number
 }
 
+/** Safe prune of fully merged local branches (git branch -d semantics; mirrors PruneMergedBranchesView). */
+export interface WorktreeConsoleGitPruneEntry {
+  name: string
+  oid: string
+  reason?: string
+}
+
+export interface WorktreeConsoleGitPruneResponse {
+  dryRun: boolean
+  headBranch: string | null
+  pruned: WorktreeConsoleGitPruneEntry[]
+  skipped: WorktreeConsoleGitPruneEntry[]
+}
+
 /** One `git log` row of the commit graph (lane topology is computed client-side). */
 export interface WorktreeConsoleGitGraphCommit {
   oid: string
@@ -651,6 +665,7 @@ export interface WorktreeConsoleAdapter {
   gitGraph(sessionId: string, limit?: number): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitGraphResponse>>
   gitCreateBranch(sessionId: string, name: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>
   gitSwitchBranch(sessionId: string, branch: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>
+  gitPruneMergedBranches(sessionId: string, dryRun: boolean): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitPruneResponse>>
   listAbandoned?(request: WorktreeConsoleAbandonedListRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleAbandonedListResponse>>
   restoreAbandoned?(request: WorktreeConsoleRestoreAbandonedRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleRestoreAbandonedResponse>>
 }

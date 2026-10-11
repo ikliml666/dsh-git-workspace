@@ -16,6 +16,7 @@ import type {
   WorktreeConsoleGitGraphResponse,
   WorktreeConsoleGitMutationResponse,
   WorktreeConsoleGitOverviewResponse,
+  WorktreeConsoleGitPruneResponse,
   WorktreeConsoleInspectResponse,
   WorktreeConsoleListRequest,
   WorktreeConsoleListResponse,
@@ -96,6 +97,7 @@ export interface WorktreeConsoleControlPlane {
   gitGraph(sessionId: string, limit?: number): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitGraphResponse>>
   gitCreateBranch(sessionId: string, name: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>
   gitSwitchBranch(sessionId: string, branch: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>
+  gitPruneMergedBranches(sessionId: string, dryRun: boolean): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitPruneResponse>>
   listAbandoned(sessionId: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleAbandonedListResponse>>
   restoreAbandoned(request: WorktreeConsoleRestoreAbandonedRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleRestoreAbandonedResponse>>
 }
@@ -634,6 +636,10 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
       if (options.git.switchLocalBranch === undefined) throw domainError('git_error', hostMessage('gitOperationFailedGit', { p0: 'switch', p1: branch }))
       await options.git.switchLocalBranch(root, branch)
       return { branch }
+    }),
+
+    gitPruneMergedBranches: (sessionId, dryRun) => outcome(async () => {
+      return await options.module.pruneMergedBranchesForSession(sessionId, { dryRun })
     }),
 
     listAbandoned: sessionId => outcome(async () => {

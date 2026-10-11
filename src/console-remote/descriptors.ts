@@ -14,6 +14,7 @@ import {
   gitGraphResponseSchema,
   gitMutationResponseSchema,
   gitOverviewResponseSchema,
+  gitPruneResponseSchema,
   abandonedListResponseSchema,
   restoreAbandonedResponseSchema,
   requestIdSchema,
@@ -209,6 +210,9 @@ export const WORKTREE_CONSOLE_DESCRIPTORS: readonly InvocationDescriptor[] = Obj
   descriptor('gitSwitchBranch', [
     json('branch', branchNameSchema, `${PACKAGE}/console-contract#WorktreeConsoleGitBranch.name`),
   ], outcomeSchema(gitMutationResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>'),
+  descriptor('gitPruneMergedBranches', [
+    json('dryRun', booleanSchema, 'boolean'),
+  ], outcomeSchema(gitPruneResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleGitPruneResponse>'),
   descriptor('listAbandoned', [], outcomeSchema(abandonedListResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleAbandonedListResponse>'),
   descriptor('restoreAbandoned', [
     json('checkoutId', checkoutIdSchema, `${PACKAGE}/console-contract#WorktreeConsoleRestoreAbandonedRequest.checkoutId`),
