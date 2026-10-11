@@ -6,6 +6,8 @@
 
 ### Fixed
 
+- 接管谎报致 uiWorkspace 注册冲突（2026-10-11）：宿主重装（0.2.0-rc.2 重写）后 profile cordis.yml 被 write-back 重写回 `disabled: false`，插件的 ui-workspace disabled jsExpr 未进 live tree——`owned()` 为空、无任何 disable 操作发生，但 `mountWorkspaceProviderLifecycle` 仍无条件返回 `officialWorkspaceActive: false`；Web 客户端据此走 managed 分支重放官方 apply，`new UiWorkspaceService` 再次 provide `uiWorkspace` 即抛 `service "uiWorkspace" has been registered at <mf>`，侧边栏 boot 连续失败（08:58 起 sidebar-diag.ndjson 185 次 registered:false）。修复：选举结果如实上报——owned 条目已禁用（或禁用中）→ 维持 managed 接管；owned 为空（patch 未合并）或 disable 后仍可求值为 false → 返回 `officialWorkspaceActive: true`，客户端落到 decorated 共存分支（官方 Workspace 活着时的安全路径），boot 不再崩，并留 warn 日志标明回退原因。配套：25 个 lifecycle 测试全过，全量 588 测试通过。
+
 - modern 宿主（0.2.x）Workspace 接管改为自动启用（2026-10-10）：`enableWorkspaceProvider` 原为全局 opt-in（默认 false），未显式开启时 0.2.x 宿主走 decorated 注册路径，而 0.2.x Workspace Browser 对声明的子槽调用 `renderSlot`，decorated 条目拿不到子槽席位即崩（`renderSlot is not a function`，会话行与新建会话工作区选择一并失效）——默认安装即坏。修复：lifecycle 门禁改为按 flavor 分代——`modern` 自动接管（flag 降级为 advisory，仅记录日志）；`legacy`（0.1.x，历史上接管曾致新会话损坏）与 `unsupported` 世代维持原 opt-in 语义。配套：`tests/workspace-provider-lifecycle.test.ts` fixture 第 6 参泛化为 flavor 并新增两测试（modern 未开 flag 即接管成功；modern 自动接管不复活用户显式禁用的插件条目）。
 
 - boot report 被网关拒绝（2026-10-08）：每会话启动必现 `[dsh-git-worktree] boot report result: ok:false gateway/input-invalid, endpoint gitWorktree/clientBootReport, field report`——decorate 路径（official Workspace 保持活跃时）上报 `branch: 'modern'`，而 `clientBootReportSchema` 的 `z.enum` 漏列 `modern`（TS 接口 `console-contract.ts:223` 有、运行时 schema 没有，编译期查不出）。修复：schema 枚举补 `modern`，`tests/console-remote.test.ts` 增 decorate 路径上报断言防回退；顺带把 boot report 的静默吞错改为 console 输出（diag/boot-report-instrument 插桩转正，本条日志即由其暴露）。
