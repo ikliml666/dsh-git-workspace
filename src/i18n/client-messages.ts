@@ -993,6 +993,38 @@ export const clientMessages = {
     "zh": "创建",
     "en": "Create"
   },
+  "branch.prune.title": {
+    "zh": "清理已合并分支",
+    "en": "Prune merged branches"
+  },
+  "branch.prune.description": {
+    "zh": "只删除已完全合并进当前分支的本地分支（git branch -d 语义）；当前分支与 main/master 永不删除。",
+    "en": "Deletes only local branches fully merged into the current branch (git branch -d semantics); the current branch and main/master are never touched."
+  },
+  "branch.prune.pruned": {
+    "zh": "将删除 {p0} 个分支：",
+    "en": "{p0} branches to delete:"
+  },
+  "branch.prune.skipped": {
+    "zh": "跳过 {p0} 个分支：",
+    "en": "{p0} branches skipped:"
+  },
+  "branch.prune.none": {
+    "zh": "没有可清理的已合并分支。",
+    "en": "No fully merged branches to prune."
+  },
+  "branch.prune.confirm": {
+    "zh": "清理",
+    "en": "Prune"
+  },
+  "branch.prune.processing": {
+    "zh": "清理中…",
+    "en": "Pruning…"
+  },
+  "branch.prune.loading": {
+    "zh": "正在检查可清理的分支…",
+    "en": "Checking branches to prune…"
+  },
   "commit.graph.title": {
     "zh": "查看提交图",
     "en": "View commit graph"

@@ -52,7 +52,12 @@ async function fetchOverview(adapter: WorktreeConsoleAdapter, sessionId: string)
   const flight = adapter.gitOverview(sessionId)
     .then(outcome => {
       flights.delete(sessionId)
-      if (!outcome.ok) return null
+      if (!outcome.ok) {
+        // 失败必须清槽：否则陈旧快照会带着过期 TTL 一直展示（doc 声称的行为）。
+        // 仅在纪元未变时清，避免踩掉飞行中落地的乐观补丁。
+        if ((patchEpochs.get(sessionId) ?? 0) === epoch) cache.delete(sessionId)
+        return null
+      }
       if ((patchEpochs.get(sessionId) ?? 0) === epoch) {
         cache.set(sessionId, { value: outcome.value, fetchedAt: Date.now() })
       }
@@ -60,6 +65,7 @@ async function fetchOverview(adapter: WorktreeConsoleAdapter, sessionId: string)
     })
     .catch(() => {
       flights.delete(sessionId)
+      if ((patchEpochs.get(sessionId) ?? 0) === epoch) cache.delete(sessionId)
       return null
     })
   flights.set(sessionId, flight)

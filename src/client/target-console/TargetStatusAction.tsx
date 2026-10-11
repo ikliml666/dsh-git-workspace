@@ -6,6 +6,7 @@ import { Menu, Modal, type MenuEntry } from '@deepseek-ai/dsh-client-ui-primitiv
 import type {
   WorktreeConsoleAdapter,
   WorktreeConsoleGitOverviewResponse,
+  WorktreeConsoleGitPruneResponse,
   WorktreeConsoleTargetDetails,
 } from '../../console-contract.js'
 import { branchNameSchema } from '../../console-remote/schemas.js'
@@ -61,6 +62,10 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
   const [createOpen, setCreateOpen] = useState(false)
   const [createName, setCreateName] = useState('')
   const [createBusy, setCreateBusy] = useState(false)
+  const [pruneOpen, setPruneOpen] = useState(false)
+  const [prunePreview, setPrunePreview] = useState<WorktreeConsoleGitPruneResponse | null>(null)
+  const [pruneLoading, setPruneLoading] = useState(false)
+  const [pruneBusy, setPruneBusy] = useState(false)
   const actionScope = useRef(0)
   const activeSession = useRef(sessionId)
   if (activeSession.current !== sessionId) {
@@ -91,6 +96,10 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
     setCreateOpen(false)
     setCreateName('')
     setCreateBusy(false)
+    setPruneOpen(false)
+    setPrunePreview(null)
+    setPruneLoading(false)
+    setPruneBusy(false)
     return subscribeCurrent(adapter, sessionId, language, result => {
       if ('error' in result) {
         setError(result.error instanceof Error ? result.error.message : String(result.error))
@@ -200,6 +209,58 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
       if (active()) setError(reason instanceof Error ? reason.message : String(reason))
     } finally {
       if (active()) setCreateBusy(false)
+    }
+  }
+
+  const openPrunePreview = (): void => {
+    setMenuOpen(false)
+    setError(null)
+    setPrunePreview(null)
+    setPruneLoading(true)
+    setPruneOpen(true)
+    const scope = actionScope.current
+    const active = () => mounted.current && scope === actionScope.current
+    void adapter.gitPruneMergedBranches(sessionId, true).then(outcome => {
+      if (!active()) return
+      setPruneLoading(false)
+      if (!outcome.ok) {
+        setPruneOpen(false)
+        setError(outcome.error.message)
+        return
+      }
+      setPrunePreview(outcome.value)
+    }).catch(reason => {
+      if (!active()) return
+      setPruneLoading(false)
+      setPruneOpen(false)
+      setError(reason instanceof Error ? reason.message : String(reason))
+    })
+  }
+
+  const confirmPrune = async (): Promise<void> => {
+    if (pruneBusy || pruneLoading) return
+    const scope = actionScope.current
+    const active = () => mounted.current && scope === actionScope.current
+    setPruneBusy(true)
+    setError(null)
+    try {
+      const outcome = await adapter.gitPruneMergedBranches(sessionId, false)
+      if (!active()) return
+      if (!outcome.ok) {
+        setError(outcome.error.message)
+        return
+      }
+      setPruneOpen(false)
+      setPrunePreview(null)
+      // 分支已被删除：失效缓存并立即重取，菜单随即反映新分支集。
+      invalidateBranchOverview(sessionId)
+      void ensureBranchOverview(adapter, sessionId).then(value => {
+        if (active() && value !== null) setOverview(value)
+      })
+    } catch (reason) {
+      if (active()) setError(reason instanceof Error ? reason.message : String(reason))
+    } finally {
+      if (active()) setPruneBusy(false)
     }
   }
 
@@ -336,6 +397,7 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
     ...(hiddenBranchCount > 0 ? [{ id: 'branches-more', label: <span className="dsh-wtc-branches-more">{t("branch.list.more", { p0: hiddenBranchCount })}</span>, disabled: true } satisfies MenuEntry] : []),
     ...(overviewBranches.length > 0 ? [{ type: 'separator' as const, id: 'branches-separator' }] : []),
     { id: 'create_branch', icon: <ReviewIcon name="create" />, label: t("branch.create.title"), disabled: pendingAction !== null },
+    { id: 'prune_branches', icon: <ReviewIcon name="refresh" />, label: t("branch.prune.title"), disabled: pendingAction !== null },
     { id: 'graph', icon: <ReviewIcon name="list" />, label: t("commit.graph.title"), disabled: pendingAction !== null },
     ...(target?.managedRoot && target.capabilities.open ? [{ id: 'reveal', icon: <ReviewIcon name="folder" />, label: t("open.current.working.location") } satisfies MenuEntry] : []),
     ...(target && target.sourceSessionId !== sessionId
@@ -368,6 +430,7 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
           if (id === 'retry_cleanup') void retryCleanup()
           if (id === 'discard') { setMenuOpen(false); setCleanupConfirmOpen(true) }
           if (id === 'create_branch') { setMenuOpen(false); setCreateName(''); setError(null); setCreateOpen(true) }
+          if (id === 'prune_branches') openPrunePreview()
           if (id === 'graph') { setMenuOpen(false); setGraphOpen(true) }
           if (id.startsWith('branch:')) void switchBranch(id.slice('branch:'.length))
         }}
@@ -466,6 +529,50 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
             onKeyDown={event => { if (event.key === 'Enter' && !createBusy) void createBranch() }}
           />
           {error ? <span className="dsh-wtc-menu-error">{error}</span> : null}
+        </div>
+      </Modal>
+      <Modal
+        open={pruneOpen}
+        onClose={() => { if (!pruneBusy) setPruneOpen(false) }}
+        title={t("branch.prune.title")}
+        closeLabel={t("cancel")}
+        description={t("branch.prune.description")}
+        footer={(
+          <span className="dsh-wtc-confirm-actions">
+            <button type="button" className="dsh-wtc-button" disabled={pruneBusy} onClick={() => setPruneOpen(false)}>{t("cancel")}</button>
+            <button
+              type="button"
+              className="dsh-wtc-button dsh-wtc-danger"
+              disabled={pruneBusy || pruneLoading || prunePreview === null || prunePreview.pruned.length === 0}
+              onClick={() => { void confirmPrune() }}
+            >
+              {pruneBusy ? t("branch.prune.processing") : t("branch.prune.confirm")}
+            </button>
+          </span>
+        )}
+      >
+        <div className="dsh-wtc-create-branch">
+          {pruneLoading ? <span>{t("branch.prune.loading")}</span> : prunePreview === null ? null : (
+            <div className="dsh-wtc-prune-preview">
+              {prunePreview.pruned.length === 0 && prunePreview.skipped.length === 0 ? <span>{t("branch.prune.none")}</span> : (
+                <>
+                  {prunePreview.pruned.length > 0 ? (
+                    <div>
+                      <span>{t("branch.prune.pruned", { p0: prunePreview.pruned.length })}</span>
+                      <ul>{prunePreview.pruned.map(entry => <li key={entry.oid}>{entry.name}</li>)}</ul>
+                    </div>
+                  ) : null}
+                  {prunePreview.skipped.length > 0 ? (
+                    <div>
+                      <span>{t("branch.prune.skipped", { p0: prunePreview.skipped.length })}</span>
+                      <ul>{prunePreview.skipped.map(entry => <li key={entry.oid}>{entry.reason ? `${entry.name} — ${entry.reason}` : entry.name}</li>)}</ul>
+                    </div>
+                  ) : null}
+                </>
+              )}
+              {error ? <span className="dsh-wtc-menu-error">{error}</span> : null}
+            </div>
+          )}
         </div>
       </Modal>
     </>

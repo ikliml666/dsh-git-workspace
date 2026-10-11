@@ -70,6 +70,7 @@ const METHODS = [
   'beginNextIteration',
   'gitCreateBranch',
   'gitSwitchBranch',
+  'gitPruneMergedBranches',
   'listAbandoned',
   'restoreAbandoned',
 ]

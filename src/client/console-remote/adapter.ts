@@ -11,6 +11,7 @@ import type {
   WorktreeConsoleGitGraphResponse,
   WorktreeConsoleGitMutationResponse,
   WorktreeConsoleGitOverviewResponse,
+  WorktreeConsoleGitPruneResponse,
   WorktreeConsoleInspectResponse,
   WorktreeConsoleListResponse,
   WorktreeConsoleMutationResponse,
@@ -139,6 +140,7 @@ export function createWorktreeConsoleRemoteAdapter(remote: GitWorktreeRemote, ge
     gitGraph: (sessionId, limit) => invoke<WorktreeConsoleGitGraphResponse>('gitGraph', locale => remote.gitGraph(sessionId, limit, locale)),
     gitCreateBranch: (sessionId, name) => invoke<WorktreeConsoleGitMutationResponse>('gitCreateBranch', locale => remote.gitCreateBranch(sessionId, name, locale)),
     gitSwitchBranch: (sessionId, branch) => invoke<WorktreeConsoleGitMutationResponse>('gitSwitchBranch', locale => remote.gitSwitchBranch(sessionId, branch, locale)),
+    gitPruneMergedBranches: (sessionId, dryRun) => invoke<WorktreeConsoleGitPruneResponse>('gitPruneMergedBranches', locale => remote.gitPruneMergedBranches(sessionId, dryRun, locale)),
     listAbandoned: request => invoke<WorktreeConsoleAbandonedListResponse>('listAbandoned', locale => remote.listAbandoned(request.sessionId, locale)),
     restoreAbandoned: request => invoke<WorktreeConsoleRestoreAbandonedResponse>('restoreAbandoned', locale => remote.restoreAbandoned(request.sessionId, request.checkoutId, locale)),
   }

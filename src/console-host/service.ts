@@ -14,6 +14,7 @@ import type {
   WorktreeConsoleGitGraphResponse,
   WorktreeConsoleGitMutationResponse,
   WorktreeConsoleGitOverviewResponse,
+  WorktreeConsoleGitPruneResponse,
   WorktreeConsoleInspectResponse,
   WorktreeConsoleListResponse,
   WorktreeConsoleMutationResponse,
@@ -301,6 +302,11 @@ export class WorktreeConsoleService extends TypertRemoteService {
   @Remote
   gitSwitchBranch(agent: Agent, branch: string, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>> {
     return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.gitSwitchBranch(agent.id, branch))
+  }
+
+  @Remote
+  gitPruneMergedBranches(agent: Agent, dryRun: boolean, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitPruneResponse>> {
+    return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.gitPruneMergedBranches(agent.id, dryRun))
   }
 
   @Remote

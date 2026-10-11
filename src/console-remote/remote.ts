@@ -17,6 +17,7 @@ import type {
   WorktreeConsoleGitGraphResponse,
   WorktreeConsoleGitMutationResponse,
   WorktreeConsoleGitOverviewResponse,
+  WorktreeConsoleGitPruneResponse,
   WorktreeApplyConflictContinuation,
   WorktreeClientBootReport,
   WorktreeSidebarTopologyResponse,
@@ -61,6 +62,7 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
     'gitWorktree/gitGraph': (agentId: string, limit?: number, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleGitGraphResponse>>>
     'gitWorktree/gitCreateBranch': (agentId: string, name: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>>
     'gitWorktree/gitSwitchBranch': (agentId: string, branch: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>>
+    'gitWorktree/gitPruneMergedBranches': (agentId: string, dryRun: boolean, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleGitPruneResponse>>>
     'gitWorktree/listAbandoned': (agentId: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleAbandonedListResponse>>>
     'gitWorktree/restoreAbandoned': (agentId: string, checkoutId: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleRestoreAbandonedResponse>>>
   }

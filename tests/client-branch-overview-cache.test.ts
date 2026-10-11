@@ -79,4 +79,53 @@ describe('Branch overview cache flights', () => {
     await expect(ensureBranchOverview(fixture.adapter, sessionId)).resolves.toMatchObject({ branch: 'feature/fresh' })
     expect(cachedBranchOverview(sessionId)?.branch).toBe('feature/fresh')
   })
+
+  test('a failed flight clears the cache slot so the stale snapshot is no longer served', async () => {
+    const fixture = createWorktreeConsoleAdapterFixture()
+    const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(Date.now() - 61_000)
+    fixture.adapter.gitOverview = vi.fn(async () => ({ ok: true as const, value: overview([{ name: 'main', isCurrent: true }]) }))
+    await ensureBranchOverview(fixture.adapter, sessionId)
+    nowSpy.mockRestore()
+    expect(cachedBranchOverview(sessionId)).not.toBeNull()
+
+    let rejectFlight!: (reason: unknown) => void
+    fixture.adapter.gitOverview = vi.fn(() => new Promise<never>((_resolve, reject) => { rejectFlight = reject }))
+    refreshBranchOverviewInBackground(fixture.adapter, sessionId)
+    rejectFlight(new Error('transport gone'))
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(cachedBranchOverview(sessionId)).toBeNull()
+    // 下一次 ensure 直接重取而不是返回陈旧快照。
+    fixture.adapter.gitOverview = vi.fn(async () => ({ ok: true as const, value: overview([{ name: 'feature/next', isCurrent: true }]) }))
+    await expect(ensureBranchOverview(fixture.adapter, sessionId)).resolves.toMatchObject({ branch: 'feature/next' })
+  })
+
+  test('a !ok outcome clears the cache slot as well', async () => {
+    const fixture = createWorktreeConsoleAdapterFixture()
+    const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(Date.now() - 61_000)
+    fixture.adapter.gitOverview = vi.fn(async () => ({ ok: true as const, value: overview([{ name: 'main', isCurrent: true }]) }))
+    await ensureBranchOverview(fixture.adapter, sessionId)
+    nowSpy.mockRestore()
+    expect(cachedBranchOverview(sessionId)).not.toBeNull()
+
+    fixture.adapter.gitOverview = vi.fn(async () => ({ ok: false as const, error: { code: 'transport_unavailable', message: 'down' } }))
+    refreshBranchOverviewInBackground(fixture.adapter, sessionId)
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(cachedBranchOverview(sessionId)).toBeNull()
+  })
+
+  test('a failed flight does not clobber an optimistic patch that landed mid-flight', async () => {
+    const fixture = createWorktreeConsoleAdapterFixture()
+    const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(Date.now() - 61_000)
+    fixture.adapter.gitOverview = vi.fn(async () => ({ ok: true as const, value: overview([{ name: 'main', isCurrent: true }]) }))
+    await ensureBranchOverview(fixture.adapter, sessionId)
+    nowSpy.mockRestore()
+
+    let rejectFlight!: (reason: unknown) => void
+    fixture.adapter.gitOverview = vi.fn(() => new Promise<never>((_resolve, reject) => { rejectFlight = reject }))
+    refreshBranchOverviewInBackground(fixture.adapter, sessionId)
+    patchBranchOverview(sessionId, current => ({ ...current, branch: 'feature/patched' }))
+    rejectFlight(new Error('transport gone'))
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(cachedBranchOverview(sessionId)?.branch).toBe('feature/patched')
+  })
 })

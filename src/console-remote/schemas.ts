@@ -18,6 +18,7 @@ import {
   type WorktreeConsoleGitGraphResponse,
   type WorktreeConsoleGitMutationResponse,
   type WorktreeConsoleGitOverviewResponse,
+  type WorktreeConsoleGitPruneResponse,
   type WorktreeClientBootReport,
   type WorktreeSidebarTopologyResponse,
 } from '../console-contract.js'
@@ -401,6 +402,18 @@ export const gitMutationResponseSchema: z.ZodType<WorktreeConsoleGitMutationResp
   branch: z.string().min(1).max(300),
 })
 export const gitGraphLimitSchema = z.number().int().min(1).max(1000).optional()
+
+const gitPruneEntrySchema = strict({
+  name: branchNameSchema,
+  oid: gitOidSchema,
+  reason: z.string().min(1).max(500).optional(),
+})
+export const gitPruneResponseSchema: z.ZodType<WorktreeConsoleGitPruneResponse> = strict({
+  dryRun: booleanSchema,
+  headBranch: z.string().min(1).max(300).nullable(),
+  pruned: z.array(gitPruneEntrySchema).max(2000),
+  skipped: z.array(gitPruneEntrySchema).max(2000),
+})
 
 export const abandonedSnapshotSchema: z.ZodType<WorktreeConsoleAbandonedSnapshot> = strict({
   checkoutId: checkoutIdSchema,
