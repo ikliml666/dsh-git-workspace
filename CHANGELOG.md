@@ -24,6 +24,8 @@
 
 ### Added
 
+- worktree_create in-place 绑定：不切换工作区直接创建（2026-10-11）：`worktree_create` 此前 `targetSessionId=randomUUID()` 预分配一个从未存在的隔离会话，模型被迫停工等用户切工作区（「Worktree 即一对一独立会话」的架构约束所致）。现改为 in-place——`createIsolatedTarget(sourceSessionId, sourceSessionId, options)` 允许 target===source，`bindTarget` 新增 local→isolated 升级分支（仅认「同会话 + createAttempt 0 + 带 createOptions」的 createIsolatedTarget 调用形，普通 `bind` 仍拒绝静默改绑），台账 ownerSessionId=源会话，授权校验（`sessionId===ownerSessionId`）、交付目标（localRoot HEAD）、`beginNextIteration` 循环全部零改动自然生效。runtimeContext isolated 分支对 `session-` 前缀会话（in-place 特征，UI 预分配隔离会话是裸 UUID）注入「cwd 仍在 Local、必须以 managedRoot 绝对路径落笔」强提示。配套宿主级写保护 hook `~/.dsh/hooks/worktree-write-guard.js`（PreToolUse matcher `edit|write|bash`）：in-place 会话对 localRoot 的写入（含 bash 命令中路径 token 的反斜杠/正斜杠/MSYS POSIX 三形态）exit 2 拦截并提示改写 managedRoot——写保护从物理隔离降级为「提示注入 + hook 硬拦截」双层，普通 local 会话与 UI 隔离会话行为完全不变。`tests/session-checkout-module.test.ts` 新增 6 用例（in-place 创建/升级、runtimeContext 提示、幂等复用、bind 拒绝、review-resume 闭环）。全量 44 files/598 tests 通过（typecheck + vitest）。
+
 - 托管项目超龄已合并分支自动清理（2026-10-07）：插件后台每日定时（启动 60s 后首跑，之后每 24h）扫台账托管项目的 Local 仓库，自动删除「已完全合并进 HEAD + tip 提交早于 7 天 + 非当前/主干分支」的本地分支——`git branch -d` 语义绝不强删，被 worktree 占用等删除失败逐条记因，清扫结果（删除清单）写 host 日志；单项目失败不阻塞其余项目。`worktree_prune_branches` 配套新增可选 `olderThanDays`（按 tip 提交时间过滤；手动调用不传则不做时间过滤，保持原行为）。git port 新增可选 `branchTipTimes`（一条 `for-each-ref --format=%(committerdate:unix)` 拿全部本地分支 tip 时间）。
 
 - worktree_merge 反向同步 `direction='reverse'`（2026-10-07）：把 Local 当前分支合进任务 worktree 的当前分支，冲突现场天然留在任务 worktree、Local 不被触碰——任务分支落后 trunk 过多时先反向同步消化冲突，再正向合并。dryRun 语义不变（临时 detached worktree 零改动探测）；门控与正向共用（sourceBranch 必须 owned，reverse 时语义为接收分支）；输出新增 `direction`/`targetBranch`。

@@ -11,7 +11,6 @@ import { hostRegistrationMessage } from './i18n/host-messages.js'
  * @module dsh-git-worktree/tools
  */
 
-import { randomUUID } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { SessionCheckoutModule } from './index.js'
@@ -69,10 +68,12 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
     },
     async execute(args, exec) {
       return withHostLanguage(languageForInvocation(exec.agent, ctx), async () => {
+        // in-place 创建：worktree 所有权直接绑到当前会话，模型无需切换工作区即可继续工作。
+        // 必须传 createOptions（空对象也行）以触发 bindTarget 的 local→isolated 升级分支。
         const sourceSessionId = sessionIdOf(exec.agent)
-        const targetSessionId = randomUUID()
+        const targetSessionId = sourceSessionId
         const topic = typeof args?.topic === 'string' && args.topic.trim() ? args.topic.trim() : undefined
-        const launch = await module.createIsolatedTarget(sourceSessionId, targetSessionId, topic ? { topic } : undefined)
+        const launch = await module.createIsolatedTarget(sourceSessionId, targetSessionId, topic ? { topic } : {})
         return {
           kind: 'worktree_target_created',
           checkoutId: launch.target.checkout.id,

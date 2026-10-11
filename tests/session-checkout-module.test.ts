@@ -2601,14 +2601,82 @@ describe('SessionCheckoutModule', () => {
     })
   })
 
+  test('Given a local session When createIsolatedTarget with the same session id Then the session upgrades in place', async () => {
+    const context = createContext()
 
+    const launch = await context.module.createIsolatedTarget('session-1', 'session-1', {})
 
+    expect(launch.targetSessionId).toBe('session-1')
+    expect(launch.target.checkout.kind).toBe('isolated')
+    const inspect = await context.module.inspect('session-1')
+    expect(inspect).toMatchObject({
+      checkout: { kind: 'isolated', phase: 'ready' },
+      ownership: 'owner',
+    })
+    const worktrees = await context.module.listManagedWorktreesForSession('session-1')
+    expect(worktrees).toHaveLength(1)
+    expect(worktrees[0]).toMatchObject({ ownerSessionId: 'session-1', state: 'working' })
+  })
 
+  test('Given an in-place session When runtimeContext Then it instructs absolute paths into the managed root', async () => {
+    const context = createContext()
+    await context.module.createIsolatedTarget('session-1', 'session-1', {})
 
+    const text = context.module.runtimeContext('session-1')
 
+    expect(text).toContain('In-place binding')
+    expect(text).toContain('Authoritative cwd')
+  })
 
+  test('Given a plain local session When runtimeContext Then no in-place hint appears', async () => {
+    const context = createContext()
+    await context.module.bind('session-1', { kind: 'local' })
 
+    const text = context.module.runtimeContext('session-1')
 
+    expect(text).not.toContain('In-place binding')
+  })
 
+  test('Given an in-place session already isolated When repeated in-place creation Then it reuses the same checkout', async () => {
+    const context = createContext()
+    const first = await context.module.createIsolatedTarget('session-1', 'session-1', {})
 
+    // 已 isolated + working（非终态）→ 与既有 bind 幂等语义一致：返回现有视图，不新建。
+    const second = await context.module.createIsolatedTarget('session-1', 'session-1', {})
+
+    expect(second.target.checkout.id).toBe(first.target.checkout.id)
+  })
+
+  test('Given a local session When plain bind isolated without create options Then it still refuses to switch', async () => {
+    const context = createContext()
+    await context.module.bind('session-1', { kind: 'local' })
+
+    // 升级分支只认 createIsolatedTarget 调用形（带 options）；普通 bind 仍拒绝——
+    // 与既有语义一致：local 会话不可经 bind 静默改绑 isolated。
+    await expect(context.module.bind('session-1', { kind: 'isolated' }))
+      .rejects.toMatchObject({ code: 'target_already_bound' })
+  })
+
+  test('Given a local session When pre-allocating an existing session without options Then the legacy refusal still holds', async () => {
+    const context = createContext()
+    await context.module.bind('session-1', { kind: 'local' })
+
+    await expect(context.module.createIsolatedTarget('session-1', 'child-session'))
+      .rejects.toMatchObject({ code: 'target_already_bound' })
+  })
+
+  test('Given an in-place session When ready-for-review then resume-revision Then the loop closes in the same session', async () => {
+    const context = createContext()
+    await context.module.createIsolatedTarget('session-1', 'session-1', {})
+    writeFileSync(join(context.projectRoot, 'tracked.txt'), 'changed in worktree\n')
+
+    const ready = await context.module.markReadyForReview('session-1', {
+      summary: 'in-place', validationStatus: 'passed', tests: [], suggestedCommitMessage: 'feat: in-place',
+    })
+    expect(ready.delivery?.state).toBe('ready_for_review')
+
+    const resumed = await context.module.resumeRevision('session-1', ready.revision, ready.delivery!.review.reviewId)
+    expect(resumed.delivery?.state).toBe('working')
+  })
 })
+

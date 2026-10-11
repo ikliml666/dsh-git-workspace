@@ -892,6 +892,13 @@ export function createSessionCheckoutModule(
       `Original Local boundary: ${record.localRoot}`,
       'Make task changes only in the authoritative cwd; never write directly to the Original Local boundary.',
     ]
+    if (sessionId.startsWith('session-')) {
+      // in-place 绑定：本会话 cwd 仍在 Local 仓库内，写保护只剩提示注入（worktree-write-guard
+      // hook 拦截 edit/write/bash 兜底），必须以绝对路径落笔。
+      lines.push(
+        'In-place binding: this Session cwd still points at the Original Local boundary. All task file writes MUST use absolute paths under the Authoritative cwd above; the worktree-write-guard hook will block any write that lands in the Original Local boundary.',
+      )
+    }
     if ((record.checkpoints?.length ?? 0) > 0) {
       lines.push(
         `Saved Worktree checkpoints: ${record.checkpoints!.length}. They remain unpublished to Local.`,
@@ -4413,7 +4420,18 @@ export function createSessionCheckoutModule(
         if (choice.kind === 'local' && existing.target.kind === 'local') {
           return inspectLocal(existing)
         }
-        if (choice.kind === 'isolated' && existing.target.kind === 'isolated') {
+        if (
+          choice.kind === 'isolated'
+          && existing.target.kind === 'local'
+          && sessionId === sourceSessionId
+          && createAttempt === 0
+          && createOptions !== undefined
+        ) {
+          // in-place 升级：createIsolatedTarget(sourceSessionId, sourceSessionId, options) 把本会话
+          // 从 local 直接升级为 isolated。仅该调用形（带 createOptions）走此分支；
+          // 普通 bind(sessionId, {kind:'isolated'}) 不带 options，仍走 target_already_bound。
+          // 落入下方创建流程：existing 记录被创建成功后的新 isolated binding 覆盖。
+        } else if (choice.kind === 'isolated' && existing.target.kind === 'isolated') {
           const existingView = await inspectIsolated(existing)
           const registry = dependencies.registry.read()
           const existingRecord = registry.managedCheckouts[existing.target.checkoutId]
@@ -4438,7 +4456,10 @@ export function createSessionCheckoutModule(
             return existingView
           }
         }
-        if (!(choice.kind === 'isolated' && existing.target.kind === 'isolated' && nextIteration > 1)) {
+        if (
+          !(choice.kind === 'isolated' && existing.target.kind === 'isolated' && nextIteration > 1)
+          && !(choice.kind === 'isolated' && existing.target.kind === 'local' && sessionId === sourceSessionId && createAttempt === 0 && createOptions !== undefined)
+        ) {
           throw new SessionCheckoutError('target_already_bound', hostMessage('theSessionIsAlreadyBoundToASessionTarget'))
         }
       }
@@ -4710,14 +4731,19 @@ export function createSessionCheckoutModule(
       return withBindingLock(() => bindTarget(sessionId, choice, 0, requestStartedAt))
     },
     createIsolatedTarget: (sourceSessionId, targetSessionId, createOptions) => withBindingLock(async () => {
-      if (!targetSessionId || targetSessionId === sourceSessionId) {
+      // in-place：targetSessionId === sourceSessionId 时，当前会话直接升级为 worktree 工作会话
+      //（Claude Code EnterWorktree 同构形态）。仍要求显式传入相同 ID 以与普通路径区分。
+      const inPlace = targetSessionId === sourceSessionId
+      if (!targetSessionId) {
         throw new SessionCheckoutError('invalid_input', hostMessage('anIsolatedTargetRequiresASeparatePreallocatedSessionID'))
       }
-      if (dependencies.lookup.getSession(targetSessionId) && !getPersistedBinding(targetSessionId)) {
+      if (!inPlace && dependencies.lookup.getSession(targetSessionId) && !getPersistedBinding(targetSessionId)) {
         throw new SessionCheckoutError('target_already_bound', hostMessage('theTargetSessionIDIsAlreadyUsedByAnother'))
       }
       const sourceBinding = getPersistedBinding(sourceSessionId)
-      if (!sourceBinding) {
+      if (inPlace) {
+        // in-place 升级：local（或未绑定）即可；已在 isolated 时走终态替换复用逻辑。
+      } else if (!sourceBinding) {
         await bindTarget(sourceSessionId, { kind: 'local' })
       } else if (sourceBinding.target.kind !== 'local') {
         throw new SessionCheckoutError('operation_not_allowed', hostMessage('aNewIsolatedTargetCanOnlyBeCreatedFrom'))
