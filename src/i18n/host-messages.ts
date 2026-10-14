@@ -612,6 +612,10 @@ export const hostMessages = {
     "zh": "Worktree 回退容器不是可信目录，未创建或修改任何 checkout",
     "en": "The fallback Worktree container is not a trusted directory. No checkout was created or modified."
   },
+  "theWorktreeContainerCouldNotBeCreatedOrAccessed": {
+    "zh": "无法创建或访问 Worktree 容器 {p0}（{p1}）。这通常是环境问题：目录 ACL 拒绝、沙箱/杀软拦截或路径不可写，而非内容不可信。请检查该目录的文件权限后重试；未创建或修改任何 checkout。",
+    "en": "The Worktree container {p0} could not be created or accessed ({p1}). This is usually environmental: the directory's file permissions deny access, or sandbox/antivirus software blocked the write — not untrusted content. Check the directory's file permissions and retry. No checkout was created or modified."
+  },
   "allWorktreeCheckoutIdentityPathsAlreadyExistUnknownDirectories": {
     "zh": "Worktree Checkout identity 路径均已存在，拒绝覆盖未知目录",
     "en": "All Worktree Checkout identity paths already exist. Unknown directories will not be overwritten."

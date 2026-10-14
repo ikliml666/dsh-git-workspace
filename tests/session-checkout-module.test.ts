@@ -102,6 +102,7 @@ function createContext(options: {
   transientRemoveWorktreeFailures?: number
   removeWorktreeFailureLeavesResidue?: boolean
   removeDirectoryTreeFailures?: number
+  ensureDirectoryFailures?: number
   outerRepository?: boolean
   checkoutIds?: string[]
   worktreesRoot?: boolean
@@ -223,6 +224,15 @@ function createContext(options: {
       throw new Error('模拟 quarantine 目录仍被占用')
     }
     await removeDirectoryTree(...args)
+  }
+  const ensureDirectory = dependencies.files.ensureDirectory
+  let ensureDirectoryFailures = options.ensureDirectoryFailures ?? 0
+  dependencies.files.ensureDirectory = (path) => {
+    if (ensureDirectoryFailures > 0) {
+      ensureDirectoryFailures -= 1
+      throw Object.assign(new Error(`EPERM: operation not permitted, mkdir '${path}'`), { code: 'EPERM' })
+    }
+    return ensureDirectory(path)
   }
   if (options.applyEngine) dependencies.applyEngine = options.applyEngine
   const measureDirectoryBytes = dependencies.files.measureDirectoryBytes
@@ -496,6 +506,17 @@ describe('SessionCheckoutModule', () => {
 
     expect(launch.managedRoot.startsWith(join(context.configDir, 'worktrees'))).toBe(true)
     expect(readFileSync(join(foreign, 'keep.txt'), 'utf8')).toBe('foreign\n')
+  })
+
+  test('Given the container cannot be created because permissions deny it When creating a target Then the error names the container and the OS error instead of claiming untrusted content', async () => {
+    const context = createContext({ ensureDirectoryFailures: 2 })
+
+    await expect(context.module.createIsolatedTarget('session-1', 'target-session-1')).rejects.toThrow(
+      /EPERM: operation not permitted/,
+    )
+    await expect(context.module.createIsolatedTarget('session-1', 'target-session-1')).rejects.not.toThrow(
+      /不可信目录|trusted directory/,
+    )
   })
 
   test('Given a reserved target session opens on another cwd When inspected Then identity validation fails closed', async () => {

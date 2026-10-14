@@ -4538,6 +4538,7 @@ export function createSessionCheckoutModule(
       const knownContainer = Object.values(dependencies.registry.read().managedCheckouts)
         .some(record => pathsEqual(dirname(record.managedGitRoot), managedContainer))
       const containerExisted = dependencies.files.exists(managedContainer)
+      let containerCreationError: unknown
       let containerIdentity = containerExisted
         ? await dependencies.files.inspectDirectoryIdentity(managedContainer)
         : null
@@ -4560,13 +4561,24 @@ export function createSessionCheckoutModule(
         try {
           dependencies.files.ensureDirectory(managedContainer)
           containerIdentity = await dependencies.files.inspectDirectoryIdentity(managedContainer)
-        } catch {
+        } catch (error) {
           containerIdentity = null
+          containerCreationError = error
         }
       }
       if (containerIdentity === null) {
         if (usingSibling) {
           return bindTarget(sessionId, choice, createAttempt + 1, requestStartedAt, sourceSessionId, createOptions)
+        }
+        // A failed mkdir is environmental (denied permissions, sandbox or
+        // antivirus), not untrusted content: report the container path and the
+        // OS error so the cause is actionable instead of a blanket trust error.
+        const creationCode = (containerCreationError as NodeJS.ErrnoException | undefined)?.code
+        if (creationCode === 'EPERM' || creationCode === 'EACCES') {
+          throw new SessionCheckoutError('checkout_mismatch', hostMessage(
+            'theWorktreeContainerCouldNotBeCreatedOrAccessed',
+            { p0: managedContainer, p1: `${creationCode}: ${(containerCreationError as Error).message}` },
+          ))
         }
         throw new SessionCheckoutError(
           'checkout_mismatch',
