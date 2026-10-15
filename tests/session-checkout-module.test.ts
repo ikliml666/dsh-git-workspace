@@ -511,12 +511,15 @@ describe('SessionCheckoutModule', () => {
   test('Given the container cannot be created because permissions deny it When creating a target Then the error names the container and the OS error instead of claiming untrusted content', async () => {
     const context = createContext({ ensureDirectoryFailures: 2 })
 
-    await expect(context.module.createIsolatedTarget('session-1', 'target-session-1')).rejects.toThrow(
-      /EPERM: operation not permitted/,
+    // Windows 的 recursive mkdir 失败前可能已创建部分父级目录，第二次调用会
+    // 看到已存在的 sibling 容器而走成功路径；单次调用同时断言两类错误特征。
+    const creationError: unknown = await context.module.createIsolatedTarget('session-1', 'target-session-1').then(
+      () => undefined,
+      (error: unknown) => error,
     )
-    await expect(context.module.createIsolatedTarget('session-1', 'target-session-1')).rejects.not.toThrow(
-      /不可信目录|trusted directory/,
-    )
+    expect(creationError).toBeDefined()
+    expect(String((creationError as Error).message)).toMatch(/EPERM: operation not permitted/)
+    expect(String((creationError as Error).message)).not.toMatch(/不可信目录|trusted directory/)
   })
 
   test('Given a reserved target session opens on another cwd When inspected Then identity validation fails closed', async () => {
