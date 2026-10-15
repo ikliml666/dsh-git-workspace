@@ -6,6 +6,10 @@
 
 ### Fixed
 
+- 权限拒绝测试用例在 Windows 上失真（2026-10-15）：`tests/session-checkout-module.test.ts` 的容器权限拒绝用例连续调用两次 `createIsolatedTarget`（第一次断言抛 EPERM、第二次断言不抛「不可信目录」），但 Windows 的 `mkdirSync(recursive:true)` 失败前可能已创建部分父级目录——第二次调用看到已部分存在的 sibling 容器（注入的 2 次失败也已耗尽）即走成功路径 resolve，用例在本机稳定失败。修复：合并为单次调用，捕获错误后同时断言「含 EPERM: operation not permitted」与「不含不可信目录/trusted directory」，测试意图不变且跨平台确定性。
+
+### Fixed
+
 - 「Worktree 回退容器不是可信目录」误报吞掉真实失败原因（2026-10-14）：`bindTarget` 容器信任判定把 ensureDirectory 的一切失败（含 EPERM/EACCES 等环境性权限拒绝）都归为「目录不可信」，fail-closed 静默重试 sibling 后再失败即抛该文案——真实根因（如历史 deny-ACE 沙箱 ACL 拦截 mkdir）被完全掩盖，用户无从下手。修复：区分失败形态——`!containerExisted` 分支的 ensureDirectory 抛错（EPERM/EACCES）时，最终 throw 改抛新文案 `theWorktreeContainerCouldNotBeCreatedOrAccessed`（含容器路径与 `{code}: {message}`），提示检查目录文件权限；文件/符号链接/非空外来内容等真不可信形态仍走原「不可信目录」错误，信任语义未放宽。配套 `tests/session-checkout-module.test.ts` 新增用例（createContext 注入 `ensureDirectoryFailures`）：断言错误含 EPERM 且不含「不可信目录/trusted directory」。
 
 - 分支总览失败后缓存永挂陈旧快照（2026-10-11）：`branch-overview-cache.ts` 的 doc 声称「失败时清槽」，但 fetch flight 的 `.then(!ok)` 与 `.catch` 分支从未删除 cache 槽——gitOverview 持续失败（如仓库迁移/宿主重启后 agent 失联）期间，分支菜单永远展示最后一次成功抓取的旧分支列表（用户「清理了分支却还显示」的观感放大器）。修复：失败路径在 epoch 未变（无中途乐观补丁）时 `cache.delete(sessionId)`，失败后立即改走重取，且不覆盖 patch 中的乐观状态。配套 `tests/client-branch-overview-cache.test.ts` 新增 3 用例：拒绝 flight 清槽+下次重取、`!ok` outcome 清槽、失败不清踩乐观补丁。
