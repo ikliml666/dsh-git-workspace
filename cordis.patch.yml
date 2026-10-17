@@ -1,10 +1,13 @@
-# Keep the official Workspace available when this bundle remains installed but
-# its replacement entry (or an owning group) is disabled. Provider selection is
-# evaluated by the Loader; restart DSH after changing the plugin's enabled state.
-
-- id: ui-workspace
-  name: '@deepseek-ai/dsh-client-ui-workspace'
-  disabled: !!js "!!get('worktreeWorkspaceProvider') && [...loader.entries()].some(entry => entry.options?.name === 'dsh-git-worktree' && !entry.disabled)"
+# 2026-10-17（晚）：彻底移除 ui-workspace 的条件禁用表达式块，接管选举
+# 改为 host 侧 Loader 操作（workspace-provider-lifecycle 直接写确定性布尔并还原），
+# 不再依赖任何 client 侧表达式求值。
+# 原因（两次桌面崩溃 18:11 / 20:25 的根因）：原表达式引用插件子 fiber 提供的
+# worktreeWorkspaceProvider 服务，cordis strict get 要求提供者 fiber 已 ACTIVE——
+# host 侧插件 apply 期间自己还是 LOADING（选举恒败 → decorate 回退），renderer
+# 审计时插件已 ACTIVE（表达式求 true → 官方条目被跳过不启动）——同一表达式两处
+# 求值结果相反，uiWorkspace 无人提供，17 个下游条目 pending，web boot 崩溃。
+# 接管现完全由 host 侧生命周期驱动；升级到含此修复的版本后，历史 profile patch
+# 中若仍保留旧表达式，会被生命周期识别并替换。
 
 - insert:
     - id: dsh-git-worktree

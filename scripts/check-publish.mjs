@@ -76,10 +76,19 @@ const patch = readFileSync(patchPath, 'utf8')
 if (!patch.includes('- insert:') || !patch.includes(`name: ${manifest.name}`)) {
   fail(`${patchRel} must insert one plugin row named ${manifest.name}`)
 }
-const { WORKSPACE_PROVIDER_CONDITION } = await import(pathToFileURL(resolve(root, 'lib/workspace-provider-lifecycle.js')).href)
-if (!/- id: ui-workspace\s+name: ['"]?@deepseek-ai\/dsh-client-ui-workspace['"]?\s+disabled: !!js /u.test(patch)
-  || !patch.includes(`disabled: !!js ${JSON.stringify(WORKSPACE_PROVIDER_CONDITION)}`)) {
-  fail(`${patchRel} must share the conditional Workspace selection used by the Host lifecycle`)
+// The Workspace election is decided on the Host side through Loader operations
+// (workspace-provider-lifecycle). The bundle patch must NOT carry a client-
+// evaluated `!!js` disabled expression for ui-workspace: the same expression
+// evaluated false during the plugin's Host apply (fiber still LOADING) and
+// true in the Web renderer audit (plugin already ACTIVE), which crashed the
+// 0.2.x web boot with 17 pending entries (2026-10-17 crashes).
+{
+  const { WORKSPACE_PROVIDER_CONDITION } = await import(pathToFileURL(resolve(root, 'lib/workspace-provider-lifecycle.js')).href).catch(() => ({}))
+  if (WORKSPACE_PROVIDER_CONDITION !== undefined) fail('lib/workspace-provider-lifecycle.js still exports the retired WORKSPACE_PROVIDER_CONDITION conditional patch constant')
+  if (/!!js/u.test(patch)) fail(`${patchRel} must not carry any client-evaluated !!js expression (the Workspace election is Host-side)`)
+  if (/- id: ui-workspace\s+name: ['"]?@deepseek-ai\/dsh-client-ui-workspace['"]?/u.test(patch)) {
+    fail(`${patchRel} must not patch the official ui-workspace entry (the Host lifecycle owns the election)`)
+  }
 }
 if (manifest.dsh?.client?.inject?.includes('@deepseek-ai/dsh-client-ui-workspace')) {
   fail('dsh.client.inject must not request the disabled official ui-workspace Client module')
@@ -134,7 +143,7 @@ try {
 if (hostContribution?.package !== manifest.name || hostContribution.face !== 'host') fail('./typert has invalid package/face identity')
 if (remoteContribution?.package !== manifest.name) fail('./remote has invalid package identity')
 if (hostContribution.invocations !== remoteContribution.descriptors) fail('./typert and ./remote must share one descriptor array instance')
-const expectedRemoteMethods = ['sidebarTopology', 'current', 'list', 'preflightCreate', 'createWithInitialCommit', 'create', 'inspect', 'reviewDiff', 'preflight', 'previewRecoveryPreflight', 'preparePreviewRecoveryAnalysis', 'createPreviewRecoveryHandoff', 'preview', 'checkpoint', 'resumeRevision', 'prepareReviewRegeneration', 'rollbackPreview', 'discard', 'finalize', 'finalizePreview', 'setRetention', 'retryCleanup', 'beginNextIteration']
+const expectedRemoteMethods = ['sidebarTopology', 'clientBootReport', 'current', 'list', 'gitOverview', 'gitGraph', 'preflightCreate', 'createWithInitialCommit', 'create', 'initProject', 'inspect', 'reviewDiff', 'preflight', 'previewRecoveryPreflight', 'preparePreviewRecoveryAnalysis', 'createPreviewRecoveryHandoff', 'preview', 'checkpoint', 'resumeRevision', 'prepareReviewRegeneration', 'rollbackPreview', 'discard', 'finalize', 'finalizePreview', 'setRetention', 'setPermanent', 'retryCleanup', 'beginNextIteration', 'gitCreateBranch', 'gitSwitchBranch', 'gitPruneMergedBranches', 'listAbandoned', 'restoreAbandoned']
 if (JSON.stringify(hostContribution.invocations.map(value => value.method)) !== JSON.stringify(expectedRemoteMethods)) {
   fail(`manual Remote methods differ from the required surface: ${hostContribution.invocations.map(value => value.method).join(', ')}`)
 }

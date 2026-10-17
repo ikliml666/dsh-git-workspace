@@ -2,13 +2,12 @@ import type { Context, FiberState } from '@deepseek-ai/cordis'
 import type { Entry } from '@deepseek-ai/cordis-plugin-loader'
 import { hostWorkspaceClientFlavor, type WorkspaceClientFlavor } from './host-compat.js'
 
-export const WORKSPACE_PROVIDER_CONDITION = "!!get('worktreeWorkspaceProvider') && [...loader.entries()].some(entry => entry.options?.name === 'dsh-git-worktree' && !entry.disabled)"
-
 declare module '@deepseek-ai/cordis' {
   interface Context {
     worktreeWorkspaceProvider: boolean
   }
 }
+
 const OFFICIAL_WORKSPACE = '@deepseek-ai/dsh-client-ui-workspace'
 // Cordis exposes FiberState as a declaration-only const enum, not a JS export.
 const UNLOADING: FiberState = 5
@@ -31,20 +30,30 @@ export interface WorkspaceProviderLifecycleResult {
 }
 
 /**
- * Reconcile the conditional patch with the public Loader lifecycle. A disabled
- * expression is evaluated dynamically, but the Web module registry caches rows
- * by plugin name; a change to the replacement alone does not re-elect Workspace.
- * Restarting the official entry through Loader operations publishes real module
- * events without saving any disabled flag or changing the user's profile.
+ * Elect exactly one `uiWorkspace` provider with Loader operations — never a
+ * client-evaluated `!!js` disabled expression. The previous conditional patch
+ * (`disabled: !!get('worktreeWorkspaceProvider') && ...`) evaluated the same
+ * expression at two unsynchronized moments: during this plugin's Host apply
+ * the plugin fiber was still LOADING, so Cordis' strict service read returned
+ * `undefined` and the election always failed (decorate fallback), while the
+ * Web renderer's later audit saw the plugin ACTIVE, evaluated the same
+ * expression to `true` and skipped the official entry — leaving no
+ * `uiWorkspace` provider at all and crashing the 0.2.x web boot (crashes
+ * 2026-10-17 18:11 and 20:25, 17 entries pending). The election is therefore
+ * decided once, here on the Host side: owned official entries are disabled
+ * with `entry.update({ disabled: true })` (a plain boolean, so every later
+ * read — Host audit, serialized renderer tree, module events — is
+ * deterministic) and restored when this fiber is disposed. Official entries
+ * the user disabled before this plugin activated are never owned.
  *
  * Election never blocks (or fails) plugin activation: Host boots start entries
  * concurrently, so the official entry's disable may race a fiber that is still
  * starting, and Loader versions differ in how such a dispose settles. Each
  * operation therefore races a ceiling; a wedged one is reported once and the
  * entry stays guarded until the real operation settles, while the next Loader
- * event retries the election. The disabled expression itself already keeps any
- * not-yet-started official entry out of the Web module graph, so the Web side
- * never observes two `uiWorkspace` providers from a slow reconciliation.
+ * event retries the election. With the official entry disabled before the
+ * page loads, the renderer never observes two `uiWorkspace` providers from a
+ * slow reconciliation.
  */
 export async function mountWorkspaceProviderLifecycle(
   ctx: Context,
@@ -72,12 +81,41 @@ export async function mountWorkspaceProviderLifecycle(
   }
   const operationTimeoutMs = options.operationTimeoutMs ?? DEFAULT_OPERATION_TIMEOUT_MS
   const loader = ctx.loader
-  const owned = (): Entry[] => [...loader.entries()].filter(entry => {
-    const disabled = entry.options.disabled as unknown
-    return entry.options.name === OFFICIAL_WORKSPACE
-      && typeof disabled === 'object' && disabled !== null
-      && '__jsExpr' in disabled && disabled.__jsExpr === WORKSPACE_PROVIDER_CONDITION
-  })
+  // The market replays its persisted disable list the moment a bundle entry
+  // appears — frequently while this apply is still in flight — so this entry
+  // can be externally disabled before (or while) the election runs. A disabled
+  // owner must not take anything over: the election yields to the official
+  // provider and retries if the entry is ever re-enabled.
+  const selfDisabled = (): boolean => {
+    try {
+      return Boolean(ctx.fiber.entry?.disabled)
+    } catch {
+      return true
+    }
+  }
+  // Ownership bookkeeping, by entry id:
+  // - adopted: entries THIS lifecycle disabled (`options.disabled === true`
+  //   written by us) — the only entries we may ever restore.
+  // - overridden: official entries already disabled (plain truthy value) when
+  //   first seen and not ours — a user or market decision we never touch.
+  // A stale `__jsExpr` conditional patch from an older release is owned and
+  // reconciled away (replaced by our deterministic boolean on disable).
+  const adopted = new Set<string>()
+  const overridden = new Set<string>()
+  const official = (): Entry[] => {
+    const result: Entry[] = []
+    for (const entry of [...loader.entries()]) {
+      if (entry.options.name !== OFFICIAL_WORKSPACE || overridden.has(entry.id)) continue
+      const disabled = entry.options.disabled as unknown
+      const conditional = disabled !== null && typeof disabled === 'object' && '__jsExpr' in disabled
+      if (!conditional && !adopted.has(entry.id) && Boolean(disabled)) {
+        overridden.add(entry.id)
+        continue
+      }
+      result.push(entry)
+    }
+    return result
+  }
   let released = false
   let pending = Promise.resolve()
   // Entries whose real Loader operation is still in flight (possibly past the
@@ -89,7 +127,10 @@ export async function mountWorkspaceProviderLifecycle(
     const label = kind === 'disable' ? 'official Workspace disable' : 'official Workspace restore'
     let operation: Promise<unknown>
     try {
-      operation = kind === 'disable' ? entry.update({}, false, true) : entry.refresh()
+      // `disabled: true` disposes the running fiber; `disabled: null` deletes
+      // the key (isNullable) so the entry can start again. Plain values keep
+      // every subsequent read deterministic — no expression evaluation.
+      operation = entry.update(kind === 'disable' ? { disabled: true } : { disabled: null }, false, true)
     } catch (error) {
       ctx.logger.warn(`dsh-git-worktree: ${label} threw during Loader reconciliation`, error)
       resolve()
@@ -118,20 +159,22 @@ export async function mountWorkspaceProviderLifecycle(
   })
   const reconcile = (): Promise<void> => {
     pending = pending.then(async () => {
-      if (released) return
-      for (const entry of owned()) {
+      if (released || selfDisabled()) return
+      for (const entry of official()) {
         if (inFlight.has(entry.id)) continue
         let disabled: boolean
         try {
           disabled = entry.disabled
         } catch (error) {
-          ctx.logger.warn('dsh-git-worktree: could not evaluate the official Workspace disabled expression', error)
+          ctx.logger.warn('dsh-git-worktree: could not read the official Workspace disabled state', error)
           continue
         }
-        if (disabled) {
-          if (!released) await operate(entry, 'disable')
-        } else {
-          await operate(entry, 'restore')
+        if (!disabled) {
+          await operate(entry, 'disable')
+          // `update` commits `options.disabled = true` synchronously before
+          // disposing, so only a genuinely committed disable is adopted; a
+          // wedged or failed operation stays unowned and retries later.
+          if (entry.options.disabled === true) adopted.add(entry.id)
         }
       }
     })
@@ -142,14 +185,18 @@ export async function mountWorkspaceProviderLifecycle(
     // Root/Include teardown owns these entries; do not resurrect that tree.
     if (ctx.root.fiber.uid === null || ctx.root.fiber.state === UNLOADING) return
     await pending.catch(() => {})
-    for (const entry of owned()) {
-      if (entry.parent.ctx.fiber.uid !== null && entry.parent.ctx.fiber.state !== UNLOADING && !entry.disabled) await entry.refresh()
+    for (const entry of official()) {
+      if (!adopted.has(entry.id)) continue
+      adopted.delete(entry.id)
+      if (entry.parent.ctx.fiber.uid !== null && entry.parent.ctx.fiber.state !== UNLOADING) await operate(entry, 'restore')
     }
   })
   // Registered after the fallback so LIFO teardown releases the selection
   // before restoring Workspace, including when the replacement apply fails.
   ctx.provide('worktreeWorkspaceProvider', true)
-  // Includes may add the official row after the replacement has activated.
+  // Includes may add the official row after the replacement has activated,
+  // and an external actor may re-enable a disabled official entry; both
+  // re-enter the election here.
   ctx.on('internal/status', fiber => {
     if (fiber === ctx.fiber && !released) {
       void reconcile().catch(error => ctx.logger.warn(error))
@@ -165,28 +212,26 @@ export async function mountWorkspaceProviderLifecycle(
   // this a no-op by default on legacy hosts (modern hosts auto-enable), and
   // every Loader operation is ceiling-bounded.
   await reconcile()
-  // Report the real outcome: if the conditional patch never made it into the
-  // live tree (profile write-back, skipped bundle, older Loader), owned() is
-  // empty and the official Workspace is still running. Claiming a takeover
-  // then makes the Web client replay the official apply and crash with
-  // `service "uiWorkspace" has been registered` (2026-10-11 incident). The
-  // decorate branch is the safe coexistence path whenever the official
+  // Report the real outcome: takeover is claimed only when every owned
+  // official entry is actually disabled (a committed plain boolean, so this
+  // read cannot race a service-activation state). Claiming a takeover
+  // otherwise would make the Web client replay the official apply and crash
+  // with `service "uiWorkspace" has been registered` (2026-10-11 incident).
+  // The decorate branch is the safe coexistence path whenever the official
   // provider survived, including a disable that has not settled yet.
-  let takeover = false
-  for (const entry of owned()) {
-    if (inFlight.has(entry.id)) { takeover = true; continue }
+  const owned = official()
+  let takeover = owned.length > 0 && !selfDisabled()
+  for (const entry of owned) {
+    if (inFlight.has(entry.id)) continue
     try {
-      if (entry.disabled) { takeover = true; continue }
+      if (!entry.disabled) { takeover = false; break }
     } catch {
-      takeover = true
-      continue
+      takeover = false
+      break
     }
-    await operate(entry, 'disable')
-    try { takeover = entry.disabled } catch { takeover = true }
-    if (!takeover) break
   }
   if (!takeover) {
-    ctx.logger.warn('dsh-git-worktree: no owned official Workspace entry to disable (conditional patch missing from the live tree); falling back to decorated coexistence.')
+    ctx.logger.warn('dsh-git-worktree: the official Workspace entry could not be disabled through Loader operations; falling back to decorated coexistence.')
   }
   return { officialWorkspaceActive: !takeover }
 }

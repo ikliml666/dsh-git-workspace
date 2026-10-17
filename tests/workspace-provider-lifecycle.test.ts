@@ -8,7 +8,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { Group, Loader, type EntryOptions } from '@deepseek-ai/cordis-plugin-loader'
 import Include, { applyEntryPatches, entryListSchema, type PatchOptions } from '@deepseek-ai/cordis-plugin-include'
 import { ClientModuleRegistry } from '@deepseek-ai/dsh-client-modules'
-import { mountWorkspaceProviderLifecycle, WORKSPACE_PROVIDER_CONDITION } from '../src/workspace-provider-lifecycle.js'
+import { mountWorkspaceProviderLifecycle } from '../src/workspace-provider-lifecycle.js'
 
 const require = createRequire(import.meta.url)
 const yaml = createRequire(require.resolve('@deepseek-ai/cordis-plugin-include'))('js-yaml') as {
@@ -58,8 +58,8 @@ async function boot(data: EntryOptions[], replayDisabled = false, delayedImport?
             if (official) {
               const real = official.update.bind(official)
               const wedged = takeover.wedge === 'deferred'
-                ? () => new Promise<void>(resolve => {
-                  setTimeout(() => { void real({}, false, true).then(() => resolve(), () => resolve()) }, 30)
+                ? (...args: Parameters<typeof real>) => new Promise<unknown>(resolve => {
+                  setTimeout(() => { void real(...args).then(resolve, resolve) }, 30)
                 })
                 : () => new Promise<void>(() => {})
               Object.assign(official, { update: wedged })
@@ -100,8 +100,10 @@ async function boot(data: EntryOptions[], replayDisabled = false, delayedImport?
 }
 
 describe('Workspace provider lifecycle (real Cordis Loader and Web module registry)', () => {
-  test('the published patch and lifecycle agree on ownership without replacing user overrides', () => {
-    expect(entries(false)[0]!.disabled).toEqual({ __jsExpr: WORKSPACE_PROVIDER_CONDITION })
+  test('the published patch no longer patches the official entry (the Host lifecycle owns the election)', () => {
+    const official = entries(false).find(entry => entry.name === OFFICIAL)
+    expect(official).toBeDefined()
+    expect(official!.disabled).toBeUndefined()
   })
 
   test('a disabled Worktree entry with its bundle still installed boots the official Workspace', async () => {
@@ -188,13 +190,15 @@ describe('Workspace provider lifecycle (real Cordis Loader and Web module regist
     const { ctx, graph } = await boot(entries(false))
     const replacement = [...ctx.loader.entries()].find(entry => entry.options.name === WORKTREE)!
     const official = [...ctx.loader.entries()].find(entry => entry.options.name === OFFICIAL)!
-    const original = structuredClone(official.options)
     for (const disabled of [true, false, true]) {
       await replacement.update({ disabled }, false, true)
       await ctx.loader.await()
       await new Promise(resolve => setTimeout(resolve, 0))
       expect(graph()).toEqual([disabled ? OFFICIAL : WORKTREE])
-      expect(official.options).toEqual(original)
+      // A disable adopts (writes a plain `disabled: true` on the official
+      // entry); a re-enable/restore deletes the key entirely — the lifecycle
+      // never bakes a flag into the entry options beyond ownership itself.
+      expect(official.options.disabled).toBe(disabled ? undefined : true)
     }
   })
 

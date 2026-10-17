@@ -67,14 +67,15 @@ describe('Managed Workspace profile ownership', () => {
       expect(renderToStaticMarkup(createElement(Pin, { sessionId: 'managed' }))).toContain('pin:managed')
     }
   })
-  test('disables the original loader and publishes the gated derivative attribution', () => {
+  test('leaves the official loader unpatched (Host lifecycle owns the election) and publishes the gated derivative attribution', () => {
     const patch = readFileSync(resolve('cordis.patch.yml'), 'utf8')
     const manifest = JSON.parse(readFileSync(resolve('package.json'), 'utf8')) as {
       dsh: { client: { inject: string[] } }
       files: string[]
     }
-    expect(patch).toMatch(/- id: ui-workspace\s+name: ['"]?@deepseek-ai\/dsh-client-ui-workspace['"]?\s+disabled: !!js /u)
-    expect(patch).not.toMatch(/disabled: true/u)
+    expect(patch).not.toMatch(/name: ['"]?@deepseek-ai\/dsh-client-ui-workspace['"]?/u)
+    expect(patch).not.toMatch(/!!js/u)
+    expect(patch).not.toMatch(/disabled:/u)
     expect(patch).toMatch(/- insert:\s+- id: dsh-git-worktree\s+name: dsh-git-worktree/u)
     expect(manifest.dsh.client.inject).not.toContain('@deepseek-ai/dsh-client-ui-workspace')
     expect(manifest.files).toContain('NOTICE')
