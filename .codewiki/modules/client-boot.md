@@ -39,38 +39,38 @@ Client 侧是插件的浏览器运行时：把 Host 暴露的 Remote 服务适�
 
 ### Browser Entry (`src/client/index.tsx`)
 
-- **`WORKTREE_CONSOLE_ADAPTER_SERVICE`** (Line 16): 常量 `'worktreeConsole'`，用于在服务容器中查找适配器。
-- **`inject`** (Line 34): 依赖列表 `['slots', 'workspaces', 'sessions', 'conversation', 'connection', 'locale']`。
-- **`servicesOf(ctx)`** (Lines 36-44): 从 Context 提取并类型断言必要的服务 (`locale`, `workspaces`, `sessions`, `uiWorkspace`, `conversation`)。
-- **`apply(ctx, adapterOverride?)`** (Lines 47-95):
-    - **Localized Slots Proxy** (Lines 50-57): 包装 `ctx.slots.register`，自动为注册的 React 组件包裹 `ClientI18nProvider`。
-    - **Adapter Resolution** (Lines 61-62): 优先使用 `adapterOverride`，否则从 Context 获取。
-    - **Style Injection** (Lines 67-75): 创建 `<style>` 元素，设置 `data-dsh-git-worktree`, `data-plugin='dsh-git-worktree'` 等属性，注入 `WORKTREE_STYLES` 和 `TARGET_CONSOLE_STYLES`。Cleanup 时移除该元素。
-    - **ToolView Registration** (Lines 77-86): 注册 `tool.call.toolview` 槽位，key 分别为 `'worktree_create'` 和 `'worktree_ready_for_review'`。
-    - **Target Console** (Lines 89-95): 如果 Adapter 存在，调用 `registerTargetConsole`。
+- **`WORKTREE_CONSOLE_ADAPTER_SERVICE`** (Line 23): 常量 `'worktreeConsole'`，用于在服务容器中查找适配器。
+- **`inject`** (Line 36): 依赖列表 `['slots', 'workspaces', 'sessions', 'conversation', 'connection', 'locale']`。
+- **`servicesOf(ctx)`** (Lines 39-47): 从 Context 提取并类型断言必要的服务 (`locale`, `workspaces`, `sessions`, `uiWorkspace`, `conversation`)。
+- **`apply(ctx, adapterOverride?)`** (Lines 50-93):
+    - **Localized Slots Proxy** (Lines 53-59): 包装 `ctx.slots.register`，自动为注册的 React 组件包裹 `ClientI18nProvider`。
+    - **Adapter Resolution** (Lines 64-65): 优先使用 `adapterOverride`，否则从 Context 获取。
+    - **Style Injection** (Lines 69-77): 创建 `<style>` 元素，设置 `data-dsh-git-worktree`, `data-plugin='dsh-git-worktree'` 等属性，注入 `WORKTREE_STYLES` 和 `TARGET_CONSOLE_STYLES`。Cleanup 时移除该元素。
+    - **ToolView Registration** (Lines 79-88): 注册 `tool.call.toolview` 槽位，key 分别为 `'worktree_create'` 和 `'worktree_ready_for_review'`。
+    - **Target Console** (Lines 90-93): 如果 Adapter 存在，调用 `registerTargetConsole`。
 
 ### Remote Entry (`src/client/console-remote/index.ts`)
 
-- **`inject`** (Lines 37-41): 继承官方 Workspace 的 inject 列表，但过滤掉 `remote.directoryPicker` 以避免死锁，额外声明 `slots` 和 `configForms`。
-- **`apply(ctx)`** (Lines 54-187):
-    - **Remote Mount** (Lines 56-64): 挂载 `contribution`，获取 `remote.gitWorktree`，创建 Adapter 并提供给 Context。
-    - **Topology Fetch** (Lines 89-95): 调用 `adapter.sidebarTopology()`。失败则报告 `topology-failed` 并抛出错误。
-    - **Branch Routing** (Lines 96-187):
-        - **Legacy** (Lines 97-106): 检查 `sessions.open`，调用 `registerManagedWorkspaceSidebar`。
-        - **Modern** (Lines 107-143): 根据 `officialWorkspaceActive` 决定 Decorate 还是 Managed。
-        - **Alpha/Next** (Lines 144-182): 同 Modern 逻辑，使用对应的 `applyAlphaWorkspace` / `applyNextWorkspace`。
-        - **Unsupported** (Lines 183-187): 仅挂载 Tools。
-    - **`reportBoot`** (Lines 77-88): 异步上报启动报告，包含 flavor, branch, registered, elapsed times。
+- **`inject`** (Lines 57-63): 继承官方 Workspace 的 inject 列表，但过滤掉 `remote.directoryPicker` 和 `remoteAccess` 以避免死锁，额外声明 `slots` 和 `configForms`。
+- **`apply(ctx)`** (Lines 75-200):
+    - **Remote Mount** (Lines 77-85): 挂载 `contribution`，获取 `remote.gitWorktree`，创建 Adapter 并提供给 Context。
+    - **Topology Fetch** (Lines 114-121): 调用 `adapter.sidebarTopology()`。失败则报告 `topology-failed` 并抛出错误。
+    - **Branch Routing** (Lines 122-200):
+        - **Legacy** (Lines 123-133): 检查 `sessions.open`，调用 `registerManagedWorkspaceSidebar`。
+        - **Modern** (Lines 134-163): 根据 `officialWorkspaceActive` 决定 Decorate 还是 Managed。
+        - **Alpha/Next** (Lines 164-193): 同 Modern 逻辑，使用对应的 `applyAlphaWorkspace` / `applyNextWorkspace`。
+        - **Unsupported** (Lines 194-198): 仅挂载 Tools。
+    - **`reportBoot`** (Lines 96-112): 异步上报启动报告，包含 flavor, branch, registered, elapsed times。
 
 ### Adapter Layer (`src/client/console-remote/adapter.ts`)
 
-- **`createWorktreeConsoleRemoteAdapter(remote, getLanguage)`** (Lines 76-144):
-    - **Timeout Configuration** (Lines 52-61): `FAST_TIMEOUT_MS = 30_000`, `SLOW_TIMEOUT_MS = 180_000`. `FAST_METHODS` 包含 `sidebarTopology`, `current`, `inspect`, `previewRecoveryPreflight`, `gitOverview`, `gitGraph`, `listAbandoned`。
-    - **`invoke<T>`** (Lines 79-108):
+- **`createWorktreeConsoleRemoteAdapter(remote, getLanguage)`** (Lines 83-151):
+    - **Timeout Configuration** (Lines 59-68): `FAST_TIMEOUT_MS = 30_000`, `SLOW_TIMEOUT_MS = 180_000`. `FAST_METHODS` 包含 `sidebarTopology`, `current`, `inspect`, `previewRecoveryPreflight`, `gitOverview`, `gitGraph`, `listAbandoned`。
+    - **`invoke<T>`** (Lines 86-115):
         - 使用 `Promise.race` 实现超时控制。
         - 异常处理：区分 `isCodecRejection` (映射为 `malformed_response`) 和其他错误 (`transport_unavailable`)。
         - 结果校验：检查 `carrier.ok`，校验 descriptor mode 为 `strict`，并使用 schema `.parse()` 验证 payload。
-    - **Method Mappings** (Lines 110-144): 将 Remote 方法映射为 Adapter 方法，例如 `sidebarTopology`, `createWithInitialCommit`, `reviewDiff`, `gitCreateBranch` 等。
+    - **Method Mappings** (Lines 117-151): 将 Remote 方法映射为 Adapter 方法，例如 `sidebarTopology`, `createWithInitialCommit`, `reviewDiff`, `gitCreateBranch` 等。
 
 ### Model Layer (`src/client/model.ts`)
 

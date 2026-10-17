@@ -16,7 +16,7 @@ tags:
 
 # Settings Card 插件设置页
 
-插件的设置入口：将 Config schema 中 `dsh-git-worktree` namespace 的 volatile 字段（autoDeliver/autoPush/worktreesRoot/gitTimeoutMs/worktreeAddTimeoutMs）投影为 Plugins 页面中的自定义卡片。该卡片支持暂存编辑、按 revision 栅栏原子保存，并提供中文标签、开关形态与说明文案。
+插件的设置入口：将 Config schema 中 `dsh-git-worktree` namespace 的 volatile 字段（`autoDeliver`, `autoPush`, `worktreesRoot`, `gitTimeoutMs`, `worktreeAddTimeoutMs`）投影为 Plugins 页面中的自定义卡片。该卡片支持暂存编辑、按 revision 栅栏原子保存，并提供中文标签、开关形态与说明文案。
 
 ## Overview
 
