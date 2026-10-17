@@ -79,7 +79,6 @@ describe('built Client ModuleLoader artifact', () => {
       'remote',
       'layout',
       'shortcuts',
-      'remoteAccess',
       'configForms',
     ])
     expect(clientExports.inject).not.toContain('conversation')
@@ -87,6 +86,11 @@ describe('built Client ModuleLoader artifact', () => {
     // The modern picker provider entry waits for `uiWorkspace`; requiring it at
     // entry scope would deadlock the web boot (provider cycle).
     expect(clientExports.inject).not.toContain('remote.directoryPicker')
+    // The 0.2.1-only `remoteAccess` service is likewise version-sensitive: the
+    // desktop profile loads this bundle on 0.2.0-rc.2 through a junction, and a
+    // static declaration left that host's web boot pending forever
+    // ("14 entries did not activate", 2026-10-17). The managed proxy stubs it.
+    expect(clientExports.inject).not.toContain('remoteAccess')
   })
 
   test('restores uiWorkspace before conversation, then mounts Worktree surfaces and withdraws them with the fiber', async () => {

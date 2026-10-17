@@ -256,7 +256,14 @@ function officialContextProxy(
           ? guard
           : name === 'remote.directoryPicker'
             ? deferredRemoteDirectoryPicker(ctx)
-            : (target.get as (service: string) => unknown).call(target, name)
+            // The root entry inject never declares `remoteAccess` (0.2.0-rc.2
+            // hosts lack the service and a static declaration would strand the
+            // whole web boot), so the inlined 0.2.1 official apply reads it
+            // through this proxy: hand back a harmless stub unless the host
+            // actually provides one.
+            : name === 'remoteAccess'
+              ? ((target.get as (service: string) => unknown).call(target, name) ?? { source: () => ({}) })
+              : (target.get as (service: string) => unknown).call(target, name)
       }
       return Reflect.get(target, key, receiver)
     },

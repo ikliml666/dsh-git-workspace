@@ -33,9 +33,17 @@ export { createWorktreeConsoleRemoteAdapter } from './adapter.js'
  * card silently never mounts. Hosts older than the settings stack keep the
  * whole client waiting on these names; that trade was accepted because every
  * slot consumer in the host ecosystem declares them the same way.
+ *
+ * `remoteAccess` (new in host 0.2.1) is filtered out for the same reason as
+ * the picker: the desktop profile loads this bundle through a junction that
+ * points at the freshly built artifact, so a statically declared
+ * `remoteAccess` left the 0.2.0-rc.2 host's web boot permanently pending
+ * ("waiting for service: remoteAccess" → "14 entries did not activate").
+ * The managed branch supplies a stub through officialContextProxy; see
+ * registerManagedWorkspaceSidebar.
  */
 export const inject = [...new Set([
-  ...officialWorkspaceInject.filter(service => service !== 'remote.directoryPicker'),
+  ...officialWorkspaceInject.filter(service => service !== 'remote.directoryPicker' && service !== 'remoteAccess'),
   'slots',
   'configForms',
 ])]

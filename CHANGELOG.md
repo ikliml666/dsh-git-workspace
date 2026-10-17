@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- root inject 静态继承 remoteAccess 导致 0.2.0-rc.2 桌面 web boot 全崩（2026-10-17）：0.2.1-rc.1 适配（cb03f32）构建的新 client.js 通过官方 workspace 内联把 0.2.1 新增的 `remoteAccess` 服务静态并入根 `inject`；桌面 profile 以 junction 直连插件仓库构建产物，0.2.0-rc.2 宿主 renderer 无该服务 provider，插件 entry 永久 pending(waiting for service: remoteAccess)，连带整页 `14 entries did not activate`，DSH 无法启动（logs/web-boot 10-17T10:11Z 崩溃即此）。修复：root inject 在既有 `remote.directoryPicker` 过滤上同模式追加过滤 `remoteAccess`（版本敏感服务不进根 inject 的纪律正式化，教训已记全局规则）；managed 分支的 officialContextProxy 对 `ctx.get('remoteAccess')` 返回宿主值或无害 stub `{source:()=>({})}`（内联官方 apply 仅读 `.source`），使用点声明面不变。配套 `tests/client-bundle.test.ts` inject 断言移除 remoteAccess 并新增 not.toContain 防回退断言。验证：typecheck 0 错误、build 通过、全量 44 files/599 tests passed + 4 skipped。桌面 profile 的插件挂载在崩溃后被 18:26 清理移除（非本修复范围），重启后需重新挂载。
+
 ### Changed
 
 - 适配宿主 0.2.1-rc.1（2026-10-17）：全量对照 npm 0.2.1-rc.1 与桌面 app.asar 解包验证。①peerDependencies：14 个 host 包追加 `|| ^0.2.1-rc.1`，dsh-client-locale 精确清单追加 `|| 0.2.1-rc.1`；devDependencies 全部 0.2.0-rc.2→0.2.1-rc.1（alpha/next 别名 pin 不动）；pnpm-workspace.yaml minimumReleaseAgeExclude 同步扩展。②侧栏闸门：`scripts/workspace-sidebar-upstream.mjs` ui/locale 版本→0.2.1-rc.1、client SHA-256→`52765aac…`（8 个装饰接缝逐一核验在新 client.js 唯一存活，0 改动）。③host-compat：0.2.x 兜底 modern 已覆盖，注释锚点更新为 0.2.1-rc.1；`tests/host-compat.test.ts` locale peer 期望同步。④runtimeContext isolated 分支新增一行引导：宿主实验性 `create_worktree` 工具（0.2.1 新增 OPTIONAL_BUNDLES，默认关闭，创建无台账 `.agents/worktrees` 副本）与本插件受管 checkout 无关，隔离交付/合并/清理一律走 worktree_* 工具。⑤B 组遗留处置：上会话遗留的 cordis.patch.yml 移除表达式与 lifecycle.ts `get→ctx.get` 改动经宿主机制调研后回滚——0.2.1-rc.1 的 cordis-plugin-loader 1.0.5 用 `with(ctx){eval(expr)}` 在 host 侧 Entry.ctx 求值（Loader 构造即 provide 'loader' 服务），且表达式因 `&&` 短路在 `enableWorkspaceProvider:false`（本 profile 现状）下永不触碰 `loader.entries()`，历史 web boot 崩溃根因是 Profile 损坏与 uiWorkspace 双注册（非表达式本身）。验证：typecheck 0 错误、build 通过、check:sidebar-version 闸门通过、全量 44 files/599 tests passed + 4 skipped。
