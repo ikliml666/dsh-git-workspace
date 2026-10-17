@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- 适配宿主 0.2.1-rc.1（2026-10-17）：全量对照 npm 0.2.1-rc.1 与桌面 app.asar 解包验证。①peerDependencies：14 个 host 包追加 `|| ^0.2.1-rc.1`，dsh-client-locale 精确清单追加 `|| 0.2.1-rc.1`；devDependencies 全部 0.2.0-rc.2→0.2.1-rc.1（alpha/next 别名 pin 不动）；pnpm-workspace.yaml minimumReleaseAgeExclude 同步扩展。②侧栏闸门：`scripts/workspace-sidebar-upstream.mjs` ui/locale 版本→0.2.1-rc.1、client SHA-256→`52765aac…`（8 个装饰接缝逐一核验在新 client.js 唯一存活，0 改动）。③host-compat：0.2.x 兜底 modern 已覆盖，注释锚点更新为 0.2.1-rc.1；`tests/host-compat.test.ts` locale peer 期望同步。④runtimeContext isolated 分支新增一行引导：宿主实验性 `create_worktree` 工具（0.2.1 新增 OPTIONAL_BUNDLES，默认关闭，创建无台账 `.agents/worktrees` 副本）与本插件受管 checkout 无关，隔离交付/合并/清理一律走 worktree_* 工具。⑤B 组遗留处置：上会话遗留的 cordis.patch.yml 移除表达式与 lifecycle.ts `get→ctx.get` 改动经宿主机制调研后回滚——0.2.1-rc.1 的 cordis-plugin-loader 1.0.5 用 `with(ctx){eval(expr)}` 在 host 侧 Entry.ctx 求值（Loader 构造即 provide 'loader' 服务），且表达式因 `&&` 短路在 `enableWorkspaceProvider:false`（本 profile 现状）下永不触碰 `loader.entries()`，历史 web boot 崩溃根因是 Profile 损坏与 uiWorkspace 双注册（非表达式本身）。验证：typecheck 0 错误、build 通过、check:sidebar-version 闸门通过、全量 44 files/599 tests passed + 4 skipped。
+
 ### Fixed
 
 - 权限拒绝测试用例在 Windows 上失真（2026-10-15）：`tests/session-checkout-module.test.ts` 的容器权限拒绝用例连续调用两次 `createIsolatedTarget`（第一次断言抛 EPERM、第二次断言不抛「不可信目录」），但 Windows 的 `mkdirSync(recursive:true)` 失败前可能已创建部分父级目录——第二次调用看到已部分存在的 sibling 容器（注入的 2 次失败也已耗尽）即走成功路径 resolve，用例在本机稳定失败。修复：合并为单次调用，捕获错误后同时断言「含 EPERM: operation not permitted」与「不含不可信目录/trusted directory」，测试意图不变且跨平台确定性。
