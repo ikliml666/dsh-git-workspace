@@ -11,10 +11,11 @@ export function workspaceClientFlavorForAgentVersion(version: string | undefined
   if (version === '0.2.0-rc.2') return 'modern'
   // Every service and slot the modern branch consumes (slots, sessions,
   // workspaces, locale, remote, layout, shortcuts; sidebar.workspaces and its
-  // sub-slots) is verified unchanged against the 0.2.1-alpha.1 Host sources,
-  // so unpinned 0.2.x agents resolve to the same verified generation instead
-  // of going unsupported on every Host bump. 0.1.x maps to three different
-  // flavors and 0.3+ has not been source-verified: both stay unsupported.
+  // sub-slots) is verified unchanged against the 0.2.1-rc.1 Host sources —
+  // including every seam the decorated official Browser needs — so unpinned
+  // 0.2.x agents resolve to the same verified generation instead of going
+  // unsupported on every Host bump. 0.1.x maps to three different flavors and
+  // 0.3+ has not been source-verified: both stay unsupported.
   if (version !== undefined && isModernGeneration(version)) return 'modern'
   return 'unsupported'
 }

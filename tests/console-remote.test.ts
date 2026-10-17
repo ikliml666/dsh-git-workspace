@@ -3,7 +3,7 @@
 import { createRequire } from 'node:module'
 import { randomUUID } from 'node:crypto'
 import { readFileSync, rmSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { pathToFileURL } from 'node:url'
 import { Context } from '@deepseek-ai/cordis'
@@ -24,6 +24,25 @@ interface ClientModuleHandoff {
   factory(require: (specifier: string) => unknown): { apply: (ctx: Context) => void; inject: string[] }
 }
 
+/**
+ * 0.2.1-rc.1 gateway binds every invocation to a Peer (`request.peer` with a
+ * live signal and an owner principal for in-process callers). Tests invoke the
+ * gateway directly, so hand it the same owner-peer shape the Host builds.
+ */
+const OWNER_PEER = {
+  principal: { kind: 'owner' as const },
+  signal: new AbortController().signal,
+  interactions: 'answer' as const,
+}
+
+// 0.2.1-rc.1 gateway `./client` export splits into node (pure ESM, no
+// ModuleLoader handoff) and browser (handoff bundle); the handoff contract
+// under test lives in the browser artifact, so load it by file.
+function gatewayBrowserClientPath(): string {
+  const nodeRequire = createRequire(import.meta.url)
+  return resolve(join(dirname(nodeRequire.resolve('@deepseek-ai/dsh-api-gateway/package.json')), 'lib', 'client.browser.js'))
+}
+
 async function loadRemoteClientModule(): Promise<{ apply: (ctx: Context) => void; inject: string[] }> {
   let handoff: ClientModuleHandoff | undefined
   const previousWindow = (globalThis as { window?: unknown }).window
@@ -31,7 +50,8 @@ async function loadRemoteClientModule(): Promise<{ apply: (ctx: Context) => void
     __ModuleLoader__: { load: (value: ClientModuleHandoff) => { handoff = value } },
   }
   try {
-    await import('@deepseek-ai/dsh-api-gateway/client')
+    const code = readFileSync(gatewayBrowserClientPath(), 'utf8')
+    new Function('window', code)((globalThis as { window?: unknown }).window)
   } finally {
     ;(globalThis as { window?: unknown }).window = previousWindow
   }
@@ -328,13 +348,13 @@ describe('manual strict Worktree Console Remote contribution', () => {
     new TypertGatewayService(ctx)
     ctx.typert.register(TYPERT)
 
-    await expect(ctx.typertGateway.invoke({ namespace: 'gitWorktree', method: 'sidebarTopology', args: {} }))
+    await expect(ctx.typertGateway.invoke({ peer: OWNER_PEER, namespace: 'gitWorktree', method: 'sidebarTopology', args: {} }))
       .resolves.toEqual(expectedTopology)
     expect(control.sidebarTopology).toHaveBeenCalledTimes(1)
-    await expect(ctx.typertGateway.invoke({ namespace: 'gitWorktree', method: 'sidebarTopology', args: { locale: 'en' } }))
+    await expect(ctx.typertGateway.invoke({ peer: OWNER_PEER, namespace: 'gitWorktree', method: 'sidebarTopology', args: { locale: 'en' } }))
       .resolves.toEqual(expectedTopology)
     expect(seenLanguages).toEqual(['zh', 'en'])
-    await expect(ctx.typertGateway.invoke({ namespace: 'gitWorktree', method: 'sidebarTopology', args: { locale: 'fr' } }))
+    await expect(ctx.typertGateway.invoke({ peer: OWNER_PEER, namespace: 'gitWorktree', method: 'sidebarTopology', args: { locale: 'fr' } }))
       .rejects.toThrow()
     expect(control.sidebarTopology).toHaveBeenCalledTimes(2)
   })
@@ -347,7 +367,7 @@ describe('manual strict Worktree Console Remote contribution', () => {
     new WorktreeConsoleService(ctx, control, undefined, false)
     new TypertGatewayService(ctx)
     ctx.typert.register(TYPERT)
-    await expect(ctx.typertGateway.invoke({ namespace: 'gitWorktree', method: 'sidebarTopology', args: {} }))
+    await expect(ctx.typertGateway.invoke({ peer: OWNER_PEER, namespace: 'gitWorktree', method: 'sidebarTopology', args: {} }))
       .resolves.toEqual({ ok: true, value: { projects: [], workspaceClientFlavor: 'modern', officialWorkspaceActive: false } })
   })
 
@@ -361,6 +381,7 @@ describe('manual strict Worktree Console Remote contribution', () => {
       ctx.typert.register(TYPERT)
 
       await expect(ctx.typertGateway.invoke({
+        peer: OWNER_PEER,
         namespace: 'gitWorktree', method: 'clientBootReport',
         args: { report: { flavor: 'next', branch: 'next', registered: false, detail: 'inject-pending' } },
       })).resolves.toBe(true)
@@ -394,9 +415,9 @@ describe('manual strict Worktree Console Remote contribution', () => {
     new TypertGatewayService(ctx)
     ctx.typert.register(TYPERT)
 
-    await expect(ctx.typertGateway.invoke({ namespace: 'gitWorktree', method: 'current', args: { agentId: 'agent-1' } }))
+    await expect(ctx.typertGateway.invoke({ peer: OWNER_PEER, namespace: 'gitWorktree', method: 'current', args: { agentId: 'agent-1' } }))
       .resolves.toEqual(expected)
-    await expect(ctx.typertGateway.invoke({ namespace: 'gitWorktree', method: 'current', args: { agentId: 'missing-agent' } }))
+    await expect(ctx.typertGateway.invoke({ peer: OWNER_PEER, namespace: 'gitWorktree', method: 'current', args: { agentId: 'missing-agent' } }))
       .rejects.toThrow('did not resolve the requested identity')
     expect(control.current).toHaveBeenCalledTimes(1)
   })
@@ -425,7 +446,7 @@ describe('manual strict Worktree Console Remote contribution', () => {
     const call = vi.fn(async (_channel: string, endpoint: string, payload: { args: Record<string, unknown> }) => {
       const [namespace, method] = endpoint.split('/') as [string, string]
       try {
-        return { ok: true as const, value: await host.typertGateway.invoke({ namespace, method, args: payload.args }) }
+        return { ok: true as const, value: await host.typertGateway.invoke({ peer: OWNER_PEER, namespace, method, args: payload.args }) }
       } catch (error) {
         return { ok: false as const, error: { code: 'internal', message: String(error), details: {} } }
       }

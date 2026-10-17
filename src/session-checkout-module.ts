@@ -899,6 +899,7 @@ export function createSessionCheckoutModule(
         'In-place binding: this Session cwd still points at the Original Local boundary. All task file writes MUST use absolute paths under the Authoritative cwd above; the worktree-write-guard hook will block any write that lands in the Original Local boundary.',
       )
     }
+    lines.push('Official Worktree tools: the host-experimental create_worktree tool (if enabled) creates unmanaged .agents/worktrees copies and is unrelated to this managed checkout. All isolated delivery, review, and cleanup for this Session goes through the worktree_* tools only; never deliver or merge through create_worktree output.')
     if ((record.checkpoints?.length ?? 0) > 0) {
       lines.push(
         `Saved Worktree checkpoints: ${record.checkpoints!.length}. They remain unpublished to Local.`,

@@ -2,9 +2,9 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 
-export const WORKSPACE_UI_VERSION = '0.2.0-rc.2'
-export const WORKSPACE_LOCALE_VERSION = '0.2.0-rc.2'
-export const WORKSPACE_CLIENT_SHA256 = 'e784543780fb8ac7c38c853afd26b9b1713c6907eec2b07eff37461e07bd3be9'
+export const WORKSPACE_UI_VERSION = '0.2.1-rc.1'
+export const WORKSPACE_LOCALE_VERSION = '0.2.1-rc.1'
+export const WORKSPACE_CLIENT_SHA256 = '52765aacb6c7f96327da5d8709d8cbb30dd2957d4744a42da04c18e07fe264e5'
 export const OFFICIAL_WORKSPACE_VIRTUAL_ID = 'virtual:dsh-official-workspace-client'
 export const RESOLVED_OFFICIAL_WORKSPACE_VIRTUAL_ID = `\0${OFFICIAL_WORKSPACE_VIRTUAL_ID}`
 
