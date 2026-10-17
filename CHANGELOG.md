@@ -6,6 +6,8 @@
 
 ### Fixed
 
+- 桌面宿主 0.2.1-rc.2 判定插件「与当前 dsh 不兼容」（2026-10-17）：宿主 `evaluatePluginCompatibility`（app.asar 反编译核验）对每个 `@deepseek-ai/dsh-*` peer 用**无选项** semver `satisfies(runtimeVersion, range)` 逐一判定，任一 UNMET 即整包 incompatible；`dsh-client-locale` 的精确版本清单止于 `0.2.1-rc.1`，对 rc.2 全部不命中（精确版本 range 不含 prerelease 向上匹配）。修复：locale peer 清单追加 `|| 0.2.1-rc.2`（其余 13 个 `^0.2.1-rc.1` peer 实测已命中 rc.2，无需动）。宿主另有 `dsh plugin allow-version` 豁免机制（name@version 精确键），但 peer 对齐优于每次升级手动豁免。验证：semver 逐项复测、typecheck 0 错误、host-compat 测试 3/3。
+
 - root inject 静态继承 remoteAccess 导致 0.2.0-rc.2 桌面 web boot 全崩（2026-10-17）：0.2.1-rc.1 适配（cb03f32）构建的新 client.js 通过官方 workspace 内联把 0.2.1 新增的 `remoteAccess` 服务静态并入根 `inject`；桌面 profile 以 junction 直连插件仓库构建产物，0.2.0-rc.2 宿主 renderer 无该服务 provider，插件 entry 永久 pending(waiting for service: remoteAccess)，连带整页 `14 entries did not activate`，DSH 无法启动（logs/web-boot 10-17T10:11Z 崩溃即此）。修复：root inject 在既有 `remote.directoryPicker` 过滤上同模式追加过滤 `remoteAccess`（版本敏感服务不进根 inject 的纪律正式化，教训已记全局规则）；managed 分支的 officialContextProxy 对 `ctx.get('remoteAccess')` 返回宿主值或无害 stub `{source:()=>({})}`（内联官方 apply 仅读 `.source`），使用点声明面不变。配套 `tests/client-bundle.test.ts` inject 断言移除 remoteAccess 并新增 not.toContain 防回退断言。验证：typecheck 0 错误、build 通过、全量 44 files/599 tests passed + 4 skipped。桌面 profile 的插件挂载在崩溃后被 18:26 清理移除（非本修复范围），重启后需重新挂载。
 
 ### Changed

@@ -8,7 +8,7 @@ describe('Host-pinned Workspace generation', () => {
       peerDependencies: Record<string, string>
     }
     expect(manifest.peerDependencies['@deepseek-ai/dsh-client-locale'])
-      .toBe('0.1.2-rc.1 || 0.1.7-rc.2 || 0.2.0-rc.1 || 0.2.0-rc.2 || 0.2.1-alpha.1 || 0.2.1-rc.1')
+      .toBe('0.1.2-rc.1 || 0.1.7-rc.2 || 0.2.0-rc.1 || 0.2.0-rc.2 || 0.2.1-alpha.1 || 0.2.1-rc.1 || 0.2.1-rc.2')
   })
 
   test('only selects source-verified Browser generations and preserves the legacy path', () => {
@@ -23,6 +23,7 @@ describe('Host-pinned Workspace generation', () => {
   test('falls back to modern for unpinned 0.2.x agents, not for 0.1.x or 0.3+', () => {
     expect(workspaceClientFlavorForAgentVersion('0.2.1-alpha.1')).toBe('modern')
     expect(workspaceClientFlavorForAgentVersion('0.2.1-rc.1')).toBe('modern')
+    expect(workspaceClientFlavorForAgentVersion('0.2.1-rc.2')).toBe('modern')
     expect(workspaceClientFlavorForAgentVersion('0.2.3')).toBe('modern')
     expect(workspaceClientFlavorForAgentVersion('0.3.0-alpha.1')).toBe('unsupported')
     expect(workspaceClientFlavorForAgentVersion('1.2.0')).toBe('unsupported')
