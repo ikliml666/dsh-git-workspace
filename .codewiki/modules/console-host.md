@@ -4,6 +4,7 @@ type: module
 source_files:
   - src/console-host/control-plane.ts
   - src/console-host/errors.ts
+  - src/console-host/projection.ts
 tags:
   - rpc
   - control-plane
@@ -143,6 +144,15 @@ Typert RPC 服务层，将控制面方法暴露为远程过程调用。
 - **`consoleFailure(error)`**: 将 Error 转换为 `WorktreeConsoleOutcome<never>`。领域错误码透传，未知错误归一化为 git_error。
 - **`failure<T>(code, message, details?, continuation?)`**: 构造失败的 Outcome。
 - **`outcome<T>(operation)`**: 包装 Promise 操作，捕获异常并转换为 Outcome。
+
+### src/console-host/projection.ts
+
+状态投影与转换工具。
+
+- **`projectRecord(record, sessionId, observed)`**: 将内部 Record 投影为基本的 TargetSummary。
+- **`projectDetails(record, sessionId, managedRoot, snapshot, dirty, ownerAvailable, linkedRead, deliveryProof?)`**: 组装详细的 TargetDetails，处理 acceptance anchor 的动态校验。
+- **`projectLocal(target, sessionId)`**: 将本地上下文投影为 TargetDetails。
+- **`sourceBranchFromRef(ref)`**: 从 Ref 字符串中提取分支名称。
 
 ## Architecture
 
