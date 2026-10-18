@@ -329,4 +329,29 @@ describe('public surfaces', () => {
     expect(result.cwdSelected).toBe(false)
     expect(result.cwd).toBeUndefined()
   })
+
+  test('cleanup aborts instead of deleting the checkout when the Session cwd cannot be moved out first', async () => {
+    const tools: Array<{ name: string; execute: (args: unknown, exec: unknown) => Promise<unknown> }> = []
+    const cleanup = vi.fn()
+    const set = vi.fn(async () => { throw new Error('cwd is locked by the sandbox') })
+    const module = {
+      resolveRoots: vi.fn(() => ({ managedRoot: 'C:/repo/wt/topic-20261018', localRoot: 'C:/repo' })),
+      manageManagedWorktreeForSession: cleanup,
+    } as unknown as SessionCheckoutModule
+    registerTools({
+      get: (name: string) => (name === 'workingDirectory'
+        // The Session IS standing in the checkout, but the move back fails.
+        ? { get: () => 'C:/repo/wt/topic-20261018/sub', set }
+        : undefined),
+      tools: { register: (tool: typeof tools[number]) => { tools.push(tool) } },
+    } as never, module)
+    const tool = tools.find(candidate => candidate.name === 'worktree_cleanup')
+    if (!tool) throw new Error('cleanup tool was not registered')
+
+    // The reason is surfaced (locale-independent: it is the raw service error)
+    // and, crucially, the removal never ran.
+    await expect(tool.execute({ checkoutId: 'checkout-9', expectedRevision: 3 }, { agent: { session: { id: 'session-abc' } } }))
+      .rejects.toThrow(/cwd is locked by the sandbox/)
+    expect(cleanup).not.toHaveBeenCalled()
+  })
 })

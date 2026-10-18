@@ -197,6 +197,21 @@ function resolvedPathsEqual(left: string, right: string): boolean {
     : normalizedLeft === normalizedRight
 }
 
+/**
+ * True when `candidate` is `root` itself or nested under it. Mirrors the
+ * Session working-directory port's containment rule so the injected guidance and
+ * the actual cwd switch never disagree about "inside the Worktree".
+ */
+function pathIsWithin(candidate: string, root: string): boolean {
+  const normalize = (value: string): string => {
+    const slashed = resolve(value).replace(/\\/g, '/').replace(/\/+$/, '')
+    return process.platform === 'win32' ? slashed.toLowerCase() : slashed
+  }
+  const normalizedCandidate = normalize(candidate)
+  const normalizedRoot = normalize(root)
+  return normalizedCandidate === normalizedRoot || normalizedCandidate.startsWith(`${normalizedRoot}/`)
+}
+
 export function createSessionCheckoutModule(
   dependencies: SessionCheckoutDependencies,
 ): SessionCheckoutModule {
@@ -896,6 +911,18 @@ export function createSessionCheckoutModule(
     if (record.phase === 'recovery_required') {
       return `Session Target: Isolated Checkout ${record.checkoutId} requires recovery. Do not modify Local or clean up automatically.`
     }
+    // Delivered and cleaned: the managed root is gone and the Session is back at
+    // the Local boundary. Say that plainly — claiming a deleted directory is the
+    // authoritative cwd (while the write-guard blocks Local) locks the Session
+    // out of every write until the user starts a next iteration.
+    if (record.phase === 'discarded' && record.delivery.state === 'delivered') {
+      return [
+        `Session Target: Local Checkout (the previous Worktree ${record.checkoutId} was delivered and cleaned).`,
+        `Original Local boundary (now the working boundary again): ${record.localRoot}`,
+        'Ordinary Local work is allowed again in this Session.',
+        'If the user requests new code or file changes, call worktree_begin_next_iteration first; it safely recreates this Session immutable cwd for the next iteration. Do not call worktree_create.',
+      ].join('\n')
+    }
     const lines = [
       `Session Target: Isolated Checkout ${record.checkoutId}.`,
       `Authoritative cwd: ${record.managedRoot}`,
@@ -907,7 +934,9 @@ export function createSessionCheckoutModule(
     // mirroring the official create_worktree tool). Only when the host lacks
     // that service, or the cwd was moved away afterwards, does the Session still
     // stand in the Original Local boundary and needs the absolute-path rule.
-    const insideWorktree = typeof cwd === 'string' && pathsEqual(cwd, record.managedRoot)
+    // Containment, not equality: the Session routinely `cd`s into a
+    // subdirectory, which is still working inside the Worktree.
+    const insideWorktree = typeof cwd === 'string' && pathIsWithin(cwd, record.managedRoot)
     if (!insideWorktree) {
       lines.push(
         'In-place binding: this Session cwd does not currently point at the Authoritative cwd. All task file writes MUST use absolute paths under the Authoritative cwd above; the worktree-write-guard hook will block any write that lands in the Original Local boundary.',
@@ -4180,7 +4209,16 @@ export function createSessionCheckoutModule(
     }
     if (!session.projectId) throw new SessionCheckoutError('project_not_found', hostMessage('theCurrentSessionIsNotAssociatedWithAWorkspace'))
     const ownerWorkspace = dependencies.lookup.getProject(session.projectId)
-    if (!ownerWorkspace || !resolvedPathsEqual(ownerWorkspace.root, predecessor.managedRoot)) {
+    // The Session must still be rooted at this Worktree lineage. A separate
+    // isolated Session lives at the managed root; an in-place Session lives at
+    // the Local boundary and re-enters the managed root on the next iteration,
+    // so accepting only the managed root made every in-place next iteration fail
+    // right after a successful cleanup (the managed root is gone by then).
+    const ownerRootMatches = Boolean(ownerWorkspace) && (
+      resolvedPathsEqual(ownerWorkspace!.root, predecessor.managedRoot)
+      || resolvedPathsEqual(ownerWorkspace!.root, predecessor.localRoot)
+    )
+    if (!ownerRootMatches) {
       throw new SessionCheckoutError('project_mismatch', hostMessage('theCurrentSessionSImmutableCwdDoesNotMatch'))
     }
     if (dependencies.files.exists(predecessor.managedGitRoot) || dependencies.files.exists(predecessor.managedRoot)) {

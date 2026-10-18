@@ -43,26 +43,35 @@ function renderJson(value: unknown): Array<{ type: 'text'; text: string }> {
 
 /**
  * Restore the Session cwd before an operation that may delete its checkout.
- * A failure here must never block delivery/cleanup, but it is worth a warning:
- * if the removal goes ahead while the cwd is still inside, the Session loses
- * its working directory.
+ * Returns a non-null reason when the cwd could NOT be restored; the caller must
+ * then abort the removal, otherwise the Session is left standing in a directory
+ * that is about to disappear.
  */
 async function leaveCheckoutBeforeRemoval(
   port: SessionWorkingDirectoryPort,
   module: SessionCheckoutModule,
   agent: unknown,
   checkoutId: string,
-): Promise<void> {
+): Promise<string | undefined> {
   try {
     const roots = module.resolveRoots?.(checkoutId)
-    if (!roots) return
+    if (!roots) return undefined
     await port.leave(agent, roots.managedRoot, roots.localRoot)
+    return undefined
   } catch (error) {
     console.warn('[dsh-git-worktree] could not restore the Session cwd before removal:', error)
+    return error instanceof Error ? error.message : String(error)
   }
 }
 
-/** Enter a checkout (or keep the guidance fallback) after resolving its root. */
+/**
+ * Enter a checkout (or keep the guidance fallback) after resolving its root.
+ * The root is read from the ledger first: `resolveManagedRoot` runs a full Git
+ * validation under the global lock, and a validation failure (mid-recovery
+ * checkout, transient git error) must not strand the Session outside the
+ * Worktree it is about to work in. The validation path is only a fallback for
+ * modules that cannot answer from the ledger.
+ */
 async function enterCheckout(
   port: SessionWorkingDirectoryPort,
   module: SessionCheckoutModule,
@@ -70,7 +79,10 @@ async function enterCheckout(
   checkoutId: string,
 ): Promise<string | undefined> {
   try {
-    return await port.enter(agent, await module.resolveManagedRoot(checkoutId))
+    const managedRoot = module.resolveRoots?.(checkoutId)?.managedRoot
+      ?? await module.resolveManagedRoot?.(checkoutId)
+    if (!managedRoot) return undefined
+    return await port.enter(agent, managedRoot)
   } catch (error) {
     console.warn('[dsh-git-worktree] could not move this Session into the Worktree:', error)
     return undefined
@@ -447,8 +459,12 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
           throw new Error(hostMessage('worktreeDeliverRequiresCommitMessage'))
         }
         // Delivery may remove the checkout. Move the Session out of it first so
-        // no live cwd is left pointing at a deleted directory.
-        await leaveCheckoutBeforeRemoval(workingDirectory, module, exec.agent, current.checkout.id)
+        // no live cwd is left pointing at a deleted directory; when that move
+        // fails the removal must not go ahead.
+        const leaveFailure = await leaveCheckoutBeforeRemoval(workingDirectory, module, exec.agent, current.checkout.id)
+        if (leaveFailure !== undefined) {
+          throw new Error(hostMessage('worktreeCwdCouldNotBeRestoredBeforeRemoval', { p0: leaveFailure }))
+        }
         const result = await module.operate({
           sessionId,
           expectedRevision: current.revision,
@@ -458,6 +474,10 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
           ...(expectedReviewId ? { expectedReviewId } : {}),
         })
         if (result.status !== 'finished') {
+          // The checkout survived the failed delivery, so the Session belongs
+          // back inside it: leaving it in the Local boundary would send every
+          // relative-path write into the original repository.
+          await enterCheckout(workingDirectory, module, exec.agent, current.checkout.id)
           const detail = result.status === 'error' ? result.message
             : result.status === 'conflict' ? `${result.code}: ${result.conflictingFiles.join(', ')}`
             : result.status
@@ -507,7 +527,10 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
         if (!checkoutId) throw new Error(hostMessage('worktreeCleanupRequiresCheckoutId'))
         if (!Number.isFinite(expectedRevision)) throw new Error(hostMessage('worktreeCleanupRequiresExpectedRevision'))
         // The checkout may be removed here; leave it first (session cwd safety).
-        await leaveCheckoutBeforeRemoval(workingDirectory, module, exec.agent, checkoutId)
+        const leaveFailure = await leaveCheckoutBeforeRemoval(workingDirectory, module, exec.agent, checkoutId)
+        if (leaveFailure !== undefined) {
+          throw new Error(hostMessage('worktreeCwdCouldNotBeRestoredBeforeRemoval', { p0: leaveFailure }))
+        }
         const summary = await module.manageManagedWorktreeForSession(sessionId, {
           checkoutId,
           expectedRevision,

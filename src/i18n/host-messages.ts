@@ -1060,6 +1060,10 @@ export const hostMessages = {
     "zh": "worktree_cleanup 需要 expectedRevision 参数（来自 worktree_list 的 revision）。",
     "en": "worktree_cleanup requires the expectedRevision parameter (the revision from worktree_list)."
   },
+  "worktreeCwdCouldNotBeRestoredBeforeRemoval": {
+    "zh": "无法先把本会话 cwd 移出该 Worktree（{p0}），为避免 cwd 悬空指向已删目录，本次删除已中止。请先手动 cd 出该目录后重试。",
+    "en": "The Session cwd could not be moved out of the Worktree first ({p0}); the removal was aborted so the cwd cannot be left pointing at a deleted directory. Leave the directory manually and retry."
+  },
   "worktreePruneBranchesDescription": {
     "zh": "安全清理当前会话项目里已完全合并的本地分支（git branch -d 语义，绝不强删）：当前分支、main/master 和未合并分支一律跳过并说明原因。先 dryRun 预览，再正式删除。",
     "en": "Safely prune fully merged local branches in the current session's project (git branch -d semantics, never force): the current branch, main/master, and unmerged branches are skipped with a reason. Preview with dryRun first, then delete for real."

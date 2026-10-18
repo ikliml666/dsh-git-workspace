@@ -45,18 +45,25 @@ export function registerWorktreeCommand(ctx: Context, module: SessionCheckoutMod
   // moves the Session into it (official ctx.workingDirectory.set parity), the
   // command must step back out first or the Session is left in a deleted cwd.
   const workingDirectory = createSessionWorkingDirectoryPort(ctx)
-  const leaveCheckout = async (agent: unknown, checkoutId: string): Promise<void> => {
+  // A failed leave MUST abort the removal: going ahead would leave the Session
+  // cwd pointing at a directory that no longer exists.
+  const leaveCheckout = async (agent: unknown, checkoutId: string): Promise<string | undefined> => {
     try {
       const roots = module.resolveRoots?.(checkoutId)
-      if (!roots) return
+      if (!roots) return undefined
       await workingDirectory.leave(agent, roots.managedRoot, roots.localRoot)
+      return undefined
     } catch (error) {
       console.warn('[dsh-git-worktree] could not restore the Session cwd before removal:', error)
+      return error instanceof Error ? error.message : String(error)
     }
   }
   const enterCheckout = async (agent: unknown, checkoutId: string): Promise<string | undefined> => {
     try {
-      return await workingDirectory.enter(agent, await module.resolveManagedRoot(checkoutId))
+      const managedRoot = module.resolveRoots?.(checkoutId)?.managedRoot
+        ?? await module.resolveManagedRoot?.(checkoutId)
+      if (!managedRoot) return undefined
+      return await workingDirectory.enter(agent, managedRoot)
     } catch (error) {
       console.warn('[dsh-git-worktree] could not move this Session into the Worktree:', error)
       return undefined
@@ -128,7 +135,10 @@ export function registerWorktreeCommand(ctx: Context, module: SessionCheckoutMod
             )) {
               return { kind: 'error', text: hostMessage('thisReviewCardHasExpiredConfirmTheLatestReady') }
             }
-            await leaveCheckout(invocation.agent, target.checkout.id)
+            const leaveFailure = await leaveCheckout(invocation.agent, target.checkout.id)
+            if (leaveFailure !== undefined) {
+              return { kind: 'error', text: hostMessage('worktreeCwdCouldNotBeRestoredBeforeRemoval', { p0: leaveFailure }) }
+            }
             const result = await module.operate({
               action: 'finish',
               sessionId,
@@ -138,6 +148,8 @@ export function registerWorktreeCommand(ctx: Context, module: SessionCheckoutMod
               ...(expectedReviewId ? { expectedReviewId } : {}),
             })
             if (result.status === 'finished') return { kind: 'success', text: finishedText(result) }
+            // The checkout outlived the failed finish: put the Session back in it.
+            await enterCheckout(invocation.agent, target.checkout.id)
             if (result.status === 'conflict') {
               return { kind: 'error', text: hostMessage('conflictNLocalHEADSyncAndResolveConflictsInWorktree', { p0: result.conflictingFiles.join('、'), p1: result.localHeadOid.slice(0, 7) }) }
             }
@@ -148,7 +160,10 @@ export function registerWorktreeCommand(ctx: Context, module: SessionCheckoutMod
             const commitMessage = rawInput.slice(verb.length).trim()
             if (!commitMessage) return { kind: 'error', text: usage() }
             const target = await module.inspect(sessionId)
-            await leaveCheckout(invocation.agent, target.checkout.id)
+            const leaveFailure = await leaveCheckout(invocation.agent, target.checkout.id)
+            if (leaveFailure !== undefined) {
+              return { kind: 'error', text: hostMessage('worktreeCwdCouldNotBeRestoredBeforeRemoval', { p0: leaveFailure }) }
+            }
             const result = await module.operate({
               action: 'finish',
               sessionId,
@@ -156,13 +171,17 @@ export function registerWorktreeCommand(ctx: Context, module: SessionCheckoutMod
               commitMessage,
             })
             if (result.status === 'finished') return { kind: 'success', text: finishedText(result) }
+            await enterCheckout(invocation.agent, target.checkout.id)
             if (result.status === 'conflict') return { kind: 'error', text: hostMessage('commandConflict', { files: result.conflictingFiles.join('、') }) }
             if (result.status === 'error') return { kind: 'error', text: `${result.code}: ${result.message}` }
             return { kind: 'error', text: hostMessage('finishDidNotReturnTheExpectedResult') }
           }
           case 'discard': {
             const target = await module.inspect(sessionId)
-            await leaveCheckout(invocation.agent, target.checkout.id)
+            const leaveFailure = await leaveCheckout(invocation.agent, target.checkout.id)
+            if (leaveFailure !== undefined) {
+              return { kind: 'error', text: hostMessage('worktreeCwdCouldNotBeRestoredBeforeRemoval', { p0: leaveFailure }) }
+            }
             const result = await module.operate({
               action: 'discard',
               sessionId,
@@ -170,6 +189,8 @@ export function registerWorktreeCommand(ctx: Context, module: SessionCheckoutMod
               confirmDirty: true,
               ...(target.delivery?.state === 'preview_active' ? { rollbackPreview: true } : {}),
             })
+            // A failed discard keeps the checkout; return the Session into it.
+            if (result.status !== 'discarded') await enterCheckout(invocation.agent, target.checkout.id)
             return result.status === 'discarded'
               ? { kind: 'success', text: hostMessage('worktreeDiscardedThisSessionTargetIsNoLongerAvailable') }
               : result.status === 'error'
@@ -182,7 +203,10 @@ export function registerWorktreeCommand(ctx: Context, module: SessionCheckoutMod
             const summaries = await module.listManagedWorktreesForSession(sessionId, { checkoutId })
             const summary = summaries[0]
             if (!summary) return { kind: 'error', text: hostMessage('noManagedWorktreeVisibleToThisSession', { p0: checkoutId }) }
-            await leaveCheckout(invocation.agent, checkoutId)
+            const leaveFailure = await leaveCheckout(invocation.agent, checkoutId)
+            if (leaveFailure !== undefined) {
+              return { kind: 'error', text: hostMessage('worktreeCwdCouldNotBeRestoredBeforeRemoval', { p0: leaveFailure }) }
+            }
             await module.manageManagedWorktreeForSession(sessionId, {
               checkoutId,
               expectedRevision: summary.revision,

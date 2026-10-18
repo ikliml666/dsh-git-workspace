@@ -547,6 +547,20 @@ describe('SessionCheckoutModule', () => {
     expect(runtime).not.toContain('Do not mutate project files')
   })
 
+  test('Given the Session cwd sits in a subdirectory of the Worktree When runtime context is assembled Then the absolute-path rule is not re-imposed', async () => {
+    const context = createContext()
+    // In-place creation keeps the owner's own cwd, so this is the ordinary case:
+    // the Session is inside the checkout but not exactly at its root.
+    const launch = await context.module.createIsolatedTarget('session-1', 'session-1')
+    const nested = join(launch.managedRoot, 'src', 'nested')
+
+    expect(context.module.runtimeContext('session-1', nested)).not.toContain('In-place binding')
+    expect(context.module.runtimeContext('session-1', launch.managedRoot)).not.toContain('In-place binding')
+    // Outside the Worktree (or no cwd knowledge) the rule still applies.
+    expect(context.module.runtimeContext('session-1', context.projectRoot)).toContain('In-place binding')
+    expect(context.module.runtimeContext('session-1')).toContain('In-place binding')
+  })
+
   test('Given a target is reserved and later becomes ready When runtime context is assembled Then Local and Isolated instructions remain distinct', async () => {
     const context = createContext()
     const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')
@@ -980,6 +994,54 @@ describe('SessionCheckoutModule', () => {
       .rejects.toMatchObject({ code: 'checkout_mismatch' })
     expect(readFileSync(join(launch.managedRoot, 'foreign.txt'), 'utf8')).toBe('do not overwrite\n')
     expect((await context.module.inspect('target-session-1')).delivery).toMatchObject({ state: 'delivered', iteration: 1 })
+  }, 30_000)
+
+  test('Given an in-place delivered Session still rooted at the Local boundary When it begins the next iteration Then the iteration starts instead of failing as a project mismatch', async () => {
+    const context = createContext()
+    // In-place binding: the Session owns the checkout while its workspace root
+    // stays the Local boundary (the managed root is gone after cleanup), so
+    // accepting only the managed root rejected every in-place next iteration.
+    const launch = await context.module.createIsolatedTarget('session-1', 'session-1')
+    expect(launch.targetSessionId).toBe('session-1')
+    writeFileSync(join(launch.managedRoot, 'tracked.txt'), 'first iteration\n')
+    const ready = await context.module.markReadyForReview('session-1', {
+      summary: 'first iteration', validationStatus: 'passed', tests: [], suggestedCommitMessage: 'test: first iteration',
+    })
+    if (ready.delivery?.state !== 'ready_for_review') throw new Error('expected first review')
+    const finished = await context.module.operate({
+      action: 'finish', sessionId: 'session-1', expectedRevision: ready.revision,
+      expectedReviewId: ready.delivery.review.reviewId, commitMessage: 'test: first iteration', retention: 'cleanup',
+    })
+    if (finished.status !== 'finished') throw new Error(`expected finished, got ${finished.status}`)
+    expect(existsSync(launch.managedRoot)).toBe(false)
+
+    const next = await context.module.beginNextIteration('session-1', finished.target.revision)
+
+    expect(next).toMatchObject({ checkout: { kind: 'isolated', phase: 'ready' }, delivery: { state: 'working', iteration: 2 } })
+  }, 30_000)
+
+  test('Given a delivered and cleaned Worktree When runtime context is assembled Then it stops claiming the deleted directory as the authoritative cwd', async () => {
+    const context = createContext()
+    const launch = await context.module.createIsolatedTarget('session-1', 'session-1')
+    writeFileSync(join(launch.managedRoot, 'tracked.txt'), 'first iteration\n')
+    const ready = await context.module.markReadyForReview('session-1', {
+      summary: 'first iteration', validationStatus: 'passed', tests: [], suggestedCommitMessage: 'test: first iteration',
+    })
+    if (ready.delivery?.state !== 'ready_for_review') throw new Error('expected first review')
+    const finished = await context.module.operate({
+      action: 'finish', sessionId: 'session-1', expectedRevision: ready.revision,
+      expectedReviewId: ready.delivery.review.reviewId, commitMessage: 'test: first iteration', retention: 'cleanup',
+    })
+    if (finished.status !== 'finished') throw new Error(`expected finished, got ${finished.status}`)
+    expect(existsSync(launch.managedRoot)).toBe(false)
+
+    const runtime = context.module.runtimeContext('session-1')
+
+    expect(runtime).not.toContain(`Authoritative cwd: ${launch.managedRoot}`)
+    expect(runtime).not.toContain('never write directly to the Original Local boundary')
+    expect(runtime).toContain('delivered and cleaned')
+    expect(runtime).toContain('Ordinary Local work is allowed again')
+    expect(runtime).toContain('worktree_begin_next_iteration')
   }, 30_000)
 
   test('Given the process stops before recreating a cleaned cwd When reconcile runs Then the predecessor binding is restored', async () => {
