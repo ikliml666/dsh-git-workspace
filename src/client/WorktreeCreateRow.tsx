@@ -44,7 +44,11 @@ export function WorktreeCreateRow({ block, services }: Props) {
         <span className="dsh-wt-mark" aria-hidden />
         <strong className="dsh-wt-title">{t("isolated.session.target")}</strong>
         <span className="dsh-wt-subtitle">
-          {model.lifecycle === 'running' ? t("creating.the.unique.worktree") : payload ? t("ready.to.open") : t("creation.failed")}
+          {model.lifecycle === 'running'
+            ? t("creating.the.unique.worktree")
+            : payload
+              ? (payload.cwdSelected ? t("worktree.is.active.in.this.session") : t("ready.to.open"))
+              : t("creation.failed")}
         </span>
       </header>
       {payload ? (
@@ -60,10 +64,14 @@ export function WorktreeCreateRow({ block, services }: Props) {
             </button>
           </div>
           <div className="dsh-wt-actions">
-            <button type="button" className="dsh-wt-button dsh-wt-primary" disabled={openState === 'opening'} onClick={() => void openTarget()}>
-              <ReviewIcon name="external" />{openState === 'opening' ? t("opening.2") : openState === 'error' ? t("retry.opening.isolated.session") : t("open.isolated.session")}
-            </button>
-            <span className="dsh-wt-status">{t("the.current.local.session.cwd.will.not.be")}</span>
+            {payload.cwdSelected ? null : (
+              <button type="button" className="dsh-wt-button dsh-wt-primary" disabled={openState === 'opening'} onClick={() => void openTarget()}>
+                <ReviewIcon name="external" />{openState === 'opening' ? t("opening.2") : openState === 'error' ? t("retry.opening.isolated.session") : t("open.isolated.session")}
+              </button>
+            )}
+            <span className="dsh-wt-status">
+              {payload.cwdSelected ? t("this.session.now.works.inside.the.worktree") : t("the.current.local.session.cwd.will.not.be")}
+            </span>
           </div>
           {openError ? <div className="dsh-wt-error" role="alert">{openError}</div> : null}
         </div>

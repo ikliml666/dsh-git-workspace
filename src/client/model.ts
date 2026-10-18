@@ -36,6 +36,10 @@ export interface WorktreeCreatePayload {
   phase: string
   currentOid: string
   sourceSessionId: string
+  /** Canonical cwd the Session was moved into, when the host could move it. */
+  cwd?: string
+  /** True when this Session now works inside the checkout and needs no handoff. */
+  cwdSelected?: boolean
 }
 
 export interface WorktreeReviewPayload {

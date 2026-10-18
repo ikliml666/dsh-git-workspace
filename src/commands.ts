@@ -9,6 +9,7 @@ import { hostRegistrationMessage } from './i18n/host-messages.js'
 import type { Context } from '@deepseek-ai/cordis'
 import '@deepseek-ai/dsh-commands'
 import type { SessionCheckoutModule } from './index.js'
+import { createSessionWorkingDirectoryPort } from './adapters/working-directory.js'
 import type { SessionTargetView, WorktreeRetentionMode } from './types.js'
 
 function targetText(target: SessionTargetView): string {
@@ -40,6 +41,27 @@ function finishedText(result: Extract<Awaited<ReturnType<SessionCheckoutModule['
 
 /** Register the `/worktree` command. */
 export function registerWorktreeCommand(ctx: Context, module: SessionCheckoutModule): void {
+  // Delivery and discard may remove the checkout. Now that worktree_create really
+  // moves the Session into it (official ctx.workingDirectory.set parity), the
+  // command must step back out first or the Session is left in a deleted cwd.
+  const workingDirectory = createSessionWorkingDirectoryPort(ctx)
+  const leaveCheckout = async (agent: unknown, checkoutId: string): Promise<void> => {
+    try {
+      const roots = module.resolveRoots?.(checkoutId)
+      if (!roots) return
+      await workingDirectory.leave(agent, roots.managedRoot, roots.localRoot)
+    } catch (error) {
+      console.warn('[dsh-git-worktree] could not restore the Session cwd before removal:', error)
+    }
+  }
+  const enterCheckout = async (agent: unknown, checkoutId: string): Promise<string | undefined> => {
+    try {
+      return await workingDirectory.enter(agent, await module.resolveManagedRoot(checkoutId))
+    } catch (error) {
+      console.warn('[dsh-git-worktree] could not move this Session into the Worktree:', error)
+      return undefined
+    }
+  }
   ctx.commands.register({
     name: 'worktree',
     description: hostRegistrationMessage('inspectAndExplicitlyAcceptManagedWorktreeDelivery'),
@@ -80,8 +102,13 @@ export function registerWorktreeCommand(ctx: Context, module: SessionCheckoutMod
           case 'next': {
             const current = await module.inspect(sessionId)
             const target = await module.beginNextIteration(sessionId, current.revision)
+            // The recreated checkout is the Session's cwd again (official parity).
+            const cwd = await enterCheckout(invocation.agent, target.checkout.id)
             const iteration = target.delivery?.state === 'working' ? target.delivery.iteration : 0
-            return { kind: 'success', text: hostMessage('startedWorktreeIterationInTheCurrentSession', { p0: iteration }) }
+            return {
+              kind: 'success',
+              text: `${hostMessage('startedWorktreeIterationInTheCurrentSession', { p0: iteration })}${cwd ? `\n${cwd}` : ''}`,
+            }
           }
           case 'finalize': {
             const hasReviewIdentity = tokens[1] !== undefined && !RETENTIONS.has(tokens[1] as WorktreeRetentionMode)
@@ -101,6 +128,7 @@ export function registerWorktreeCommand(ctx: Context, module: SessionCheckoutMod
             )) {
               return { kind: 'error', text: hostMessage('thisReviewCardHasExpiredConfirmTheLatestReady') }
             }
+            await leaveCheckout(invocation.agent, target.checkout.id)
             const result = await module.operate({
               action: 'finish',
               sessionId,
@@ -120,6 +148,7 @@ export function registerWorktreeCommand(ctx: Context, module: SessionCheckoutMod
             const commitMessage = rawInput.slice(verb.length).trim()
             if (!commitMessage) return { kind: 'error', text: usage() }
             const target = await module.inspect(sessionId)
+            await leaveCheckout(invocation.agent, target.checkout.id)
             const result = await module.operate({
               action: 'finish',
               sessionId,
@@ -133,6 +162,7 @@ export function registerWorktreeCommand(ctx: Context, module: SessionCheckoutMod
           }
           case 'discard': {
             const target = await module.inspect(sessionId)
+            await leaveCheckout(invocation.agent, target.checkout.id)
             const result = await module.operate({
               action: 'discard',
               sessionId,
@@ -152,6 +182,7 @@ export function registerWorktreeCommand(ctx: Context, module: SessionCheckoutMod
             const summaries = await module.listManagedWorktreesForSession(sessionId, { checkoutId })
             const summary = summaries[0]
             if (!summary) return { kind: 'error', text: hostMessage('noManagedWorktreeVisibleToThisSession', { p0: checkoutId }) }
+            await leaveCheckout(invocation.agent, checkoutId)
             await module.manageManagedWorktreeForSession(sessionId, {
               checkoutId,
               expectedRevision: summary.revision,

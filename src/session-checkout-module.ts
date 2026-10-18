@@ -833,7 +833,7 @@ export function createSessionCheckoutModule(
     return dependencies.registry.read().sessionBindings[sessionId]
   }
 
-  function runtimeContext(sessionId: string): string {
+  function runtimeContext(sessionId: string, cwd?: string): string {
     const registry = dependencies.registry.read()
     const binding = registry.sessionBindings[sessionId]
     if (!binding) return ''
@@ -874,10 +874,20 @@ export function createSessionCheckoutModule(
           'Do not modify project files or attempt automatic cleanup. The user must retry rollback; the Worktree stays preserved until rollback succeeds.',
         ].join('\n')
       }
+      // An in-place creation binds the checkout to this very Session, so a
+      // pending record owned by it is a resumable state, not a handoff: the
+      // cwd is already inside (or can be re-entered), no second Session exists.
+      if (pending.ownerSessionId !== sessionId) {
+        return [
+          'Session Target: Local Checkout (handoff pending).',
+          `Managed checkout ${pending.checkoutId} is reserved for Session ${pending.ownerSessionId}.`,
+          'Stop code modifications in this Local Session. Ask the user to open the isolated Session from the Worktree card.',
+        ].join('\n')
+      }
       return [
-        'Session Target: Local Checkout (handoff pending).',
-        `Managed checkout ${pending.checkoutId} is reserved for Session ${pending.ownerSessionId}.`,
-        'Stop code modifications in this Local Session. Ask the user to open the isolated Session from the Worktree card.',
+        'Session Target: Local Checkout (this Session owns an isolated checkout).',
+        `Managed checkout ${pending.checkoutId} belongs to this Session (delivery state: ${pending.delivery.state}, phase: ${pending.phase}).`,
+        'Do not create a second worktree. Work in that checkout: file writes MUST use absolute paths under its managed root until this Session cwd points there again.',
       ].join('\n')
     }
     if (binding.target.kind !== 'isolated') return 'Session Target is unselected. Do not mutate project files until a target is chosen.'
@@ -892,11 +902,15 @@ export function createSessionCheckoutModule(
       `Original Local boundary: ${record.localRoot}`,
       'Make task changes only in the authoritative cwd; never write directly to the Original Local boundary.',
     ]
-    if (sessionId.startsWith('session-')) {
-      // in-place 绑定：本会话 cwd 仍在 Local 仓库内，写保护只剩提示注入（worktree-write-guard
-      // hook 拦截 edit/write/bash 兜底），必须以绝对路径落笔。
+    // The authoritative cwd is normally the Session's live working directory
+    // (worktree_create enters the checkout through ctx.workingDirectory.set,
+    // mirroring the official create_worktree tool). Only when the host lacks
+    // that service, or the cwd was moved away afterwards, does the Session still
+    // stand in the Original Local boundary and needs the absolute-path rule.
+    const insideWorktree = typeof cwd === 'string' && pathsEqual(cwd, record.managedRoot)
+    if (!insideWorktree) {
       lines.push(
-        'In-place binding: this Session cwd still points at the Original Local boundary. All task file writes MUST use absolute paths under the Authoritative cwd above; the worktree-write-guard hook will block any write that lands in the Original Local boundary.',
+        'In-place binding: this Session cwd does not currently point at the Authoritative cwd. All task file writes MUST use absolute paths under the Authoritative cwd above; the worktree-write-guard hook will block any write that lands in the Original Local boundary.',
       )
     }
     lines.push('Official Worktree tools: the host-experimental create_worktree tool (if enabled) creates unmanaged .agents/worktrees copies and is unrelated to this managed checkout. All isolated delivery, review, and cleanup for this Session goes through the worktree_* tools only; never deliver or merge through create_worktree output.')
@@ -4078,6 +4092,16 @@ export function createSessionCheckoutModule(
     return (await observeManagedCheckout(checkoutId)).managedRoot
   }
 
+  /**
+   * Both boundaries of a managed checkout, read straight from the registry
+   * without touching Git. Used to restore a Session cwd that was left pointing
+   * inside a checkout the caller is about to remove.
+   */
+  function resolveRoots(checkoutId: string): { managedRoot: string; localRoot: string } | undefined {
+    const record = dependencies.registry.read().managedCheckouts[checkoutId]
+    return record ? { managedRoot: record.managedRoot, localRoot: record.localRoot } : undefined
+  }
+
   async function cleanupExpiredRetained(now = Date.now()): Promise<string[]> {
     const expired = Object.values(dependencies.registry.read().managedCheckouts).filter((record) => (
       record.phase === 'retained'
@@ -4813,6 +4837,7 @@ export function createSessionCheckoutModule(
     bulkCleanupManagedWorktrees: (candidates) => withBindingLock(() => bulkCleanupManagedWorktrees(candidates)),
     manageManagedWorktree: (input) => withBindingLock(() => manageManagedWorktree(input)),
     resolveManagedRoot: (checkoutId) => withBindingLock(() => resolveManagedRoot(checkoutId)),
+    resolveRoots,
     observeManagedCheckout: (checkoutId) => withBindingLock(() => observeManagedCheckout(checkoutId)),
     observeManagedCheckouts: (checkoutIds) => withBindingLock(() => observeManagedCheckouts(checkoutIds)),
     cleanupExpiredRetained: (now) => withBindingLock(

@@ -965,12 +965,16 @@ export const hostMessages = {
     "en": "Worktree tools can only be called in a DSH Agent Session."
   },
   "reserveAUniqueManagedGitWorktreeAndADistinct": {
-    "zh": "预留一个唯一的托管 Git Worktree 及独立 owner Session ID。此操作不会改变当前会话 cwd。工具返回后，停止在此 Local 会话中修改代码，让用户从 Worktree 卡片打开隔离会话。",
-    "en": "Reserve a unique managed Git worktree and a distinct owner Session ID. This does not change the current Session cwd. After the tool returns, stop modifying code in this Local Session and let the user open the isolated Session from the Worktree card."
+    "zh": "为当前会话创建托管 Git Worktree 并把本会话 cwd 切进去（与官方 create_worktree 一致），无需打开新会话。返回后直接在新目录继续工作，相对路径与文件工具都落在 Worktree 内。若返回 cwdSelected 为 false，说明宿主未挂载 workingDirectory 服务，此时改用 Authoritative cwd 的绝对路径继续工作。",
+    "en": "Create a managed Git worktree for this Session and move this Session cwd into it (official create_worktree parity); no separate Session is needed. Keep working in the returned directory: relative paths and file tools resolve inside the Worktree. When cwdSelected is false the host did not mount the workingDirectory service — use absolute paths under the Authoritative cwd instead."
   },
   "createIsolatedSessionTarget": {
     "zh": "创建隔离会话目标",
     "en": "Create isolated Session Target"
+  },
+  "optionalLocalBranchWhoseCurrentTipBecomesThe": {
+    "zh": "可选：以该本地分支的当前提交为起点创建 Worktree（不传则从当前 HEAD 开始）。",
+    "en": "Optional: start the worktree from this local branch's current tip instead of HEAD."
   },
   "listManagedWorktreesVisibleToTheCurrentSessionResults": {
     "zh": "列出当前会话可见的托管 Worktree。结果仅限原始项目内由此会话拥有或创建的 Worktree。",

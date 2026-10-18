@@ -250,4 +250,52 @@ describe('public surfaces', () => {
     })
     expect(result).toMatchObject({ kind: 'worktree_delivered', state: 'ready_for_review' })
   })
+
+  test('create moves this Session cwd into the checkout and reports it (official create_worktree parity)', async () => {
+    const tools: Array<{ name: string; execute: (args: unknown, exec: unknown) => Promise<unknown> }> = []
+    const set = vi.fn(async (_agent: unknown, path: string) => path)
+    const module = {
+      createIsolatedTarget: vi.fn(async () => ({
+        targetSessionId: 'session-abc',
+        managedRoot: 'C:/repo/wt/topic-20261018',
+        target: { checkout: { id: 'checkout-9', phase: 'ready' }, current: { oid: 'c'.repeat(40) } },
+      })),
+      resolveManagedRoot: vi.fn(async () => 'C:/repo/wt/topic-20261018'),
+    } as unknown as SessionCheckoutModule
+    registerTools({
+      get: (name: string) => (name === 'workingDirectory' ? { get: () => 'C:/repo', set } : undefined),
+      tools: { register: (tool: typeof tools[number]) => { tools.push(tool) } },
+    } as never, module)
+    const tool = tools.find(candidate => candidate.name === 'worktree_create')
+    if (!tool) throw new Error('create tool was not registered')
+
+    const result = await tool.execute({}, { agent: { session: { id: 'session-abc' } } }) as Record<string, unknown>
+
+    expect(set).toHaveBeenCalledWith(expect.anything(), 'C:/repo/wt/topic-20261018')
+    expect(result.cwdSelected).toBe(true)
+    expect(result.cwd).toBe('C:/repo/wt/topic-20261018')
+  })
+
+  test('create without a workingDirectory service reports cwdSelected:false instead of a fake cwd', async () => {
+    const tools: Array<{ name: string; execute: (args: unknown, exec: unknown) => Promise<unknown> }> = []
+    const module = {
+      createIsolatedTarget: vi.fn(async () => ({
+        targetSessionId: 'session-abc',
+        managedRoot: 'C:/repo/wt/topic-20261018',
+        target: { checkout: { id: 'checkout-9', phase: 'ready' }, current: { oid: 'c'.repeat(40) } },
+      })),
+      resolveManagedRoot: vi.fn(async () => 'C:/repo/wt/topic-20261018'),
+    } as unknown as SessionCheckoutModule
+    registerTools({
+      get: () => undefined,
+      tools: { register: (tool: typeof tools[number]) => { tools.push(tool) } },
+    } as never, module)
+    const tool = tools.find(candidate => candidate.name === 'worktree_create')
+    if (!tool) throw new Error('create tool was not registered')
+
+    const result = await tool.execute({}, { agent: { session: { id: 'session-abc' } } }) as Record<string, unknown>
+
+    expect(result.cwdSelected).toBe(false)
+    expect(result.cwd).toBeUndefined()
+  })
 })

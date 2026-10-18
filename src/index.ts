@@ -112,8 +112,12 @@ export interface IsolatedTargetLaunch {
 /** Complete core interface the session-checkout module exposes to business callers. */
 export interface SessionCheckoutModule {
   inspect(sessionId: string): Promise<SessionTargetView>
-  /** Synchronous registry snapshot for replay-stable model runtime context. */
-  runtimeContext(sessionId: string): string
+  /**
+   * Synchronous registry snapshot for replay-stable model runtime context.
+   * `cwd` is the Session's live working directory when the host exposes one;
+   * it decides whether the absolute-path rule still needs to be announced.
+   */
+  runtimeContext(sessionId: string, cwd?: string): string
   /** Read-only sync preflight; modifies no Local, worktree, registry, review state, or Git refs. */
   preflight?(sessionId: string, expectedRevision: number): Promise<WorktreeApplyPreflightView>
   /** Strictly read-only detached Preview recovery assessment and deterministic revalidation context. */
@@ -185,6 +189,8 @@ export interface SessionCheckoutModule {
   manageManagedWorktree(input: ManageManagedWorktreeInput): Promise<ManagedWorktreeSummaryView>
   /** Resolve a managed checkout's canonical root after identity validation (workspace registration). */
   resolveManagedRoot(checkoutId: string): Promise<string>
+  /** Both boundaries of a managed checkout from the registry, without Git I/O (cwd restoration). */
+  resolveRoots(checkoutId: string): { managedRoot: string; localRoot: string } | undefined
   /** Fresh validated observation; callers can project it without re-reading Git. */
   observeManagedCheckout?(checkoutId: string): Promise<{ managedRoot: string; snapshot: GitCheckoutSnapshot; dirty: boolean }>
   /** Batch observation under one lock; results align with the requested checkoutIds. */
@@ -223,6 +229,10 @@ const name = 'git-worktree'
 // Named export: the loader reads inject/apply named exports as plugin
 // metadata. A bare function export mounts with no injection list, and the
 // first ctx.tools access then fails with "cannot get property without inject".
+// `workingDirectory` is optional: hosts that mount it (the desktop shell does,
+// and the official experimental create_worktree bundle requires it) let a
+// worktree_create really move this Session into the checkout; older hosts keep
+// the guidance-only behaviour because the adapter resolves it dynamically.
 export const inject = { tools: {}, commands: {}, subprocess: {}, loader: { await: false } }
 
 /** Mark a config field volatile: the harness settings host (packages/settings schema.ts reads `meta.volatile`) then projects it into the settings page, edits write to cordis.patch.yml without remounting, and the value arrives as a live reference. */

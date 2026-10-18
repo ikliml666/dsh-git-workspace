@@ -15,6 +15,8 @@ import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { SessionCheckoutModule } from './index.js'
 import type { WorktreeValidationStatus } from './types.js'
+import { createSessionWorkingDirectoryPort } from './adapters/working-directory.js'
+import type { SessionWorkingDirectoryPort } from './adapters/working-directory.js'
 
 const WORKTREE_RETENTION_VALUES = ['cleanup', 'retain_24h', 'retain_3d', 'retain_manual'] as const
 
@@ -39,8 +41,49 @@ function renderJson(value: unknown): Array<{ type: 'text'; text: string }> {
   return [{ type: 'text', text: JSON.stringify(value) }]
 }
 
+/**
+ * Restore the Session cwd before an operation that may delete its checkout.
+ * A failure here must never block delivery/cleanup, but it is worth a warning:
+ * if the removal goes ahead while the cwd is still inside, the Session loses
+ * its working directory.
+ */
+async function leaveCheckoutBeforeRemoval(
+  port: SessionWorkingDirectoryPort,
+  module: SessionCheckoutModule,
+  agent: unknown,
+  checkoutId: string,
+): Promise<void> {
+  try {
+    const roots = module.resolveRoots?.(checkoutId)
+    if (!roots) return
+    await port.leave(agent, roots.managedRoot, roots.localRoot)
+  } catch (error) {
+    console.warn('[dsh-git-worktree] could not restore the Session cwd before removal:', error)
+  }
+}
+
+/** Enter a checkout (or keep the guidance fallback) after resolving its root. */
+async function enterCheckout(
+  port: SessionWorkingDirectoryPort,
+  module: SessionCheckoutModule,
+  agent: unknown,
+  checkoutId: string,
+): Promise<string | undefined> {
+  try {
+    return await port.enter(agent, await module.resolveManagedRoot(checkoutId))
+  } catch (error) {
+    console.warn('[dsh-git-worktree] could not move this Session into the Worktree:', error)
+    return undefined
+  }
+}
+
 /** Register the safe model-facing worktree tools. */
 export function registerTools(ctx: Context, module: SessionCheckoutModule): void {
+  // Official parity: the experimental create_worktree bundle ends creation with
+  // ctx.workingDirectory.set(agent, path), so the Session really works inside
+  // the new checkout. This port reproduces that for a Managed Worktree, and
+  // degrades to a no-op when the host does not mount the service.
+  const workingDirectory = createSessionWorkingDirectoryPort(ctx)
   ctx.tools.register(defineTool({
     name: 'worktree_create',
     description: hostRegistrationMessage('reserveAUniqueManagedGitWorktreeAndADistinct'),
@@ -48,6 +91,10 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
       topic: {
         type: 'string',
         description: hostRegistrationMessage('optionalTopicForHumanReadableWorktreeNaming'),
+      },
+      branch: {
+        type: 'string',
+        description: hostRegistrationMessage('optionalLocalBranchWhoseCurrentTipBecomesThe'),
       },
     },
     output: {
@@ -62,6 +109,8 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
           phase: { type: 'string', required: true },
           currentOid: { type: 'string', required: true },
           sourceSessionId: { type: 'string', required: true },
+          cwd: { type: 'string' },
+          cwdSelected: { type: 'boolean', required: true },
         },
       },
       render: (_args, value) => renderJson(value),
@@ -73,7 +122,16 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
         const sourceSessionId = sessionIdOf(exec.agent)
         const targetSessionId = sourceSessionId
         const topic = typeof args?.topic === 'string' && args.topic.trim() ? args.topic.trim() : undefined
-        const launch = await module.createIsolatedTarget(sourceSessionId, targetSessionId, topic ? { topic } : {})
+        const branch = typeof args?.branch === 'string' && args.branch.trim() ? args.branch.trim() : undefined
+        const launch = await module.createIsolatedTarget(
+          sourceSessionId,
+          targetSessionId,
+          topic || branch ? { ...(topic ? { topic } : {}), ...(branch ? { branch } : {}) } : {},
+        )
+        // Official-mechanism parity: enter the new checkout so relative paths,
+        // file tools and subprocesses all resolve inside it. Best-effort — a
+        // host without the workingDirectory service keeps the guidance path.
+        const cwd = await enterCheckout(workingDirectory, module, exec.agent, launch.target.checkout.id)
         return {
           kind: 'worktree_target_created',
           checkoutId: launch.target.checkout.id,
@@ -82,6 +140,8 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
           phase: launch.target.checkout.phase,
           currentOid: launch.target.current.oid,
           sourceSessionId,
+          cwdSelected: cwd !== undefined,
+          ...(cwd === undefined ? {} : { cwd }),
         }
       })
     },
@@ -206,6 +266,7 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
           phase: { type: 'string', required: true },
           currentOid: { type: 'string', required: true },
           sessionId: { type: 'string', required: true },
+          cwd: { type: 'string' },
         },
       },
       render: (_args, value) => renderJson(value),
@@ -218,6 +279,9 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
         if (target.delivery?.state !== 'working') {
           throw new Error(hostMessage('theNextWorktreeIterationDidNotEnterWorkingState', { p0: target.delivery?.state ?? 'unknown' }))
         }
+        // The previous iteration cleaned this cwd up, so the host restored the
+        // original project. Re-enter the recreated checkout (official parity).
+        const cwd = await enterCheckout(workingDirectory, module, exec.agent, target.checkout.id)
         return {
           kind: 'worktree_next_iteration_started',
           checkoutId: target.checkout.id,
@@ -225,6 +289,7 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
           phase: target.checkout.phase,
           currentOid: target.current.oid,
           sessionId,
+          ...(cwd === undefined ? {} : { cwd }),
         }
       })
     },
@@ -379,6 +444,9 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
         if (!commitMessage) {
           throw new Error(hostMessage('worktreeDeliverRequiresCommitMessage'))
         }
+        // Delivery may remove the checkout. Move the Session out of it first so
+        // no live cwd is left pointing at a deleted directory.
+        await leaveCheckoutBeforeRemoval(workingDirectory, module, exec.agent, current.checkout.id)
         const result = await module.operate({
           sessionId,
           expectedRevision: current.revision,
@@ -436,6 +504,8 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
         const expectedRevision = typeof args?.expectedRevision === 'number' ? Math.floor(args.expectedRevision) : Number.NaN
         if (!checkoutId) throw new Error(hostMessage('worktreeCleanupRequiresCheckoutId'))
         if (!Number.isFinite(expectedRevision)) throw new Error(hostMessage('worktreeCleanupRequiresExpectedRevision'))
+        // The checkout may be removed here; leave it first (session cwd safety).
+        await leaveCheckoutBeforeRemoval(workingDirectory, module, exec.agent, checkoutId)
         const summary = await module.manageManagedWorktreeForSession(sessionId, {
           checkoutId,
           expectedRevision,

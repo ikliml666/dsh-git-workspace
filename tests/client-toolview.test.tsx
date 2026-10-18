@@ -80,6 +80,34 @@ describe('Worktree ToolViews', () => {
     })
   })
 
+  test('Create card with a selected cwd drops the open-Session button and never creates a Session', () => {
+    const client = services()
+    const payload = {
+      kind: 'worktree_target_created',
+      checkoutId: 'checkout-1',
+      targetSessionId: 'target-session',
+      managedRoot: '/workspace/project-worktrees/task',
+      phase: 'ready',
+      currentOid: '1234567890abcdef',
+      sourceSessionId: 'source-session',
+      cwd: '/workspace/project-worktrees/task/',
+      cwdSelected: true,
+    }
+    render(<WorktreeCreateRow
+      callId="call-2"
+      toolName="worktree_create"
+      block={{ callId: 'call-2', kind: 'result', content: [{ type: 'text', text: JSON.stringify(payload) }] }}
+      services={client}
+    />)
+
+    // In-place creation: the Session already works in the checkout, so the
+    // handoff affordance (and its second-Session creation) must be gone.
+    expect(screen.queryByRole('button', { name: '打开隔离会话' })).toBeNull()
+    expect(client.workspaces.create).not.toHaveBeenCalled()
+    expect(client.sessions.create).not.toHaveBeenCalled()
+    expect(screen.getByText('本会话 cwd 已切到该 Worktree，无需另开会话。')).toBeDefined()
+  })
+
   test('Local Session target_unselected Ready errors render no Worktree card', () => {
     const client = services()
     const { container } = render(<WorktreeReviewRow

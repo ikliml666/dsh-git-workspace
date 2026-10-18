@@ -1364,6 +1364,14 @@ export const clientMessages = {
     "zh": "已就绪，等待打开",
     "en": "Ready to open"
   },
+  "worktree.is.active.in.this.session": {
+    "zh": "本会话已进入该 Worktree",
+    "en": "This Session is working inside the Worktree"
+  },
+  "this.session.now.works.inside.the.worktree": {
+    "zh": "本会话 cwd 已切到该 Worktree，无需另开会话。",
+    "en": "This Session cwd now points at the Worktree; no separate Session is needed."
+  },
   "creation.failed": {
     "zh": "创建失败",
     "en": "Creation failed"
