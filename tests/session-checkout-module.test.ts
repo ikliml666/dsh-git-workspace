@@ -1316,6 +1316,45 @@ describe('SessionCheckoutModule', () => {
     expect(existsSync(worktreesRoot)).toBe(true)
   })
 
+  test('Given a discarded checkout When the sidebar badge is cleared Then the flag is persisted without bumping the revision and stays idempotent', async () => {
+    const context = createContext()
+    const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')
+    const checkoutId = launch.target.checkout.id
+    const [summary] = await context.module.listManagedWorktreesForSession('session-1')
+    await context.module.manageManagedWorktreeForSession('session-1', {
+      checkoutId,
+      expectedRevision: summary.revision,
+      action: 'discard',
+      confirmDirty: true,
+    })
+
+    const registryPath = join(context.configDir, 'managed-checkouts.json')
+    const recordOf = () => (JSON.parse(readFileSync(registryPath, 'utf8')) as {
+      managedCheckouts: Record<string, { revision: number, sidebarBadgeClearedRevision?: number }>
+    }).managedCheckouts[checkoutId]
+    const recordBefore = recordOf()
+    expect(recordBefore.sidebarBadgeClearedRevision).toBeUndefined()
+
+    const first = await context.module.manageManagedWorktreeForSession('session-1', {
+      checkoutId,
+      expectedRevision: recordBefore.revision,
+      action: 'clear_sidebar_badge',
+    })
+    expect(first.revision).toBe(recordBefore.revision)
+    expect(recordOf()).toMatchObject({
+      revision: recordBefore.revision,
+      sidebarBadgeClearedRevision: recordBefore.revision,
+    })
+
+    const second = await context.module.manageManagedWorktreeForSession('session-1', {
+      checkoutId,
+      expectedRevision: recordBefore.revision,
+      action: 'clear_sidebar_badge',
+    })
+    expect(second.revision).toBe(recordBefore.revision)
+    expect(recordOf().sidebarBadgeClearedRevision).toBe(recordBefore.revision)
+  })
+
   test('Given the project container holds user bytes When the last checkout is discarded Then the container survives', async () => {
     const context = createContext({ worktreesRoot: true })
     const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')

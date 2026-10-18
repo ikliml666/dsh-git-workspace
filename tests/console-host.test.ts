@@ -1060,6 +1060,39 @@ describe('Worktree Console Host control plane', () => {
     })
   })
 
+  it('refuses to clear the sidebar badge of a non-terminal Worktree', async () => {
+    const { module, control } = plane()
+    await expect(control.clearSidebarBadge({ sessionId: 'source-session', checkoutId: 'checkout-1', expectedRevision: 7 }))
+      .resolves.toMatchObject({ ok: false, error: { code: 'operation_not_allowed' } })
+    expect(module.manageManagedWorktreeForSession).not.toHaveBeenCalled()
+  })
+
+  it('routes a terminal sidebar badge clear through the session-scoped mutation and stops projecting the task', async () => {
+    const discarded = readyRecord()
+    discarded.phase = 'discarded'
+    discarded.delivery = { state: 'delivered', iteration: 1, commitOid: B, deliveredAt: 10 }
+    const lookup = {
+      getProject: vi.fn((_projectId: string) => ({ id: 'project-1', name: 'Project', root: '/local' })),
+      getSession: vi.fn((sessionId: string) => ({ id: sessionId, projectId: 'project-1' })),
+    }
+    const { module, control } = plane(discarded, { lookup })
+    await expect(control.clearSidebarBadge({ sessionId: 'source-session', checkoutId: 'checkout-1', expectedRevision: 7 }))
+      .resolves.toMatchObject({ ok: true })
+    expect(module.manageManagedWorktreeForSession).toHaveBeenCalledWith('source-session', {
+      checkoutId: 'checkout-1', expectedRevision: 7, action: 'clear_sidebar_badge',
+    })
+
+    const cleared: ManagedCheckoutRecord = { ...discarded, sidebarBadgeClearedRevision: discarded.revision }
+    const suppressed = plane(discarded, {
+      lookup,
+      registry: { read: () => ({ version: 2, revision: 1, sessionBindings: {}, managedCheckouts: { [cleared.checkoutId]: cleared } }), write: vi.fn() },
+    })
+    await expect(suppressed.control.sidebarTopology()).resolves.toEqual({
+      ok: true,
+      value: { projects: [{ project: { id: 'project-1', name: 'Project' }, tasks: [] }] },
+    })
+  })
+
   it('drops all diff bytes when the reviewed snapshot becomes stale during the read', async () => {
     const { module, control } = plane()
     vi.mocked(module.preflight!).mockResolvedValueOnce({

@@ -63,7 +63,7 @@ export interface SessionCheckoutReconcileSummary {
 export interface ManageManagedWorktreeInput {
   checkoutId: string
   expectedRevision: number
-  action: 'cleanup_retained' | 'retry_cleanup' | 'set_retention' | 'set_permanent' | 'discard'
+  action: 'cleanup_retained' | 'retry_cleanup' | 'set_retention' | 'set_permanent' | 'clear_sidebar_badge' | 'discard'
   retention?: Exclude<WorktreeRetentionMode, 'cleanup'>
   permanent?: boolean
   confirmDirty?: boolean

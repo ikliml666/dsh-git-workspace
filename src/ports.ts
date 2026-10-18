@@ -444,6 +444,8 @@ export interface ManagedCheckoutRecord {
   abandonedSnapshotAt?: number
   /** codex 对齐：常驻标记；豁免保留期到期清理与 keep-count LRU 逐出（手动清理不受限）。 */
   permanent?: boolean
+  /** Sidebar 终态徽章已被用户手动清除时的 record.revision；此后任何 revision 变更使该标记自然失效。 */
+  sidebarBadgeClearedRevision?: number
   sourceRef: string
   phase: SessionCheckoutPhase
   delivery: ManagedCheckoutDelivery

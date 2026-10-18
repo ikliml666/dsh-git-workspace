@@ -167,6 +167,12 @@ tags:
    - 成功后调用 `createTarget` 创建目标工作区。
    - 清理 `confirmations` Map 中的条目。
 
+## Connections
+
+- [[session-checkout]]: 核心模块，提供 `SessionCheckoutModule` 接口，被 `control-plane.ts` 依赖。
+- [[ports]]: 定义 `GitCheckoutSnapshot`, `SessionCheckoutGitPort` 等端口类型，被上述两文件共享。
+- [[i18n/host]]: 提供 `hostMessage` 函数，用于国际化错误提示。
+
 ## Known Issues
 
 - **内存泄漏风险**: `confirmations` Map 中的条目仅在 `createWithInitialCommit` 成功时清除。如果用户取消或超时，条目可能残留。虽然代码中有定期清理逻辑（在 `preflightCreate` 中检查过期时间），但在高并发场景下可能需要更完善的清理机制。

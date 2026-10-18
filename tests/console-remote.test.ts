@@ -88,6 +88,7 @@ const METHODS = [
   'setPermanent',
   'retryCleanup',
   'beginNextIteration',
+  'clearSidebarBadge',
   'gitCreateBranch',
   'gitSwitchBranch',
   'gitPruneMergedBranches',

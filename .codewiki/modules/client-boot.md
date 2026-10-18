@@ -12,12 +12,7 @@ source_files:
   - src/client/workspace-sidebar/model.ts
   - src/i18n/core.ts
   - src/i18n/transport-messages.ts
-tags:
-  - client
-  - boot
-  - adapter
-  - toolview
-  - i18n
+tags: [client, boot, adapter, toolview, i18n]
 ---
 
 # Client Boot 客户端入口与启动

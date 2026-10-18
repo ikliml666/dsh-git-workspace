@@ -1,17 +1,40 @@
 import { ClientI18nProvider, useClientTranslator } from '../i18n.js'
-import { useEffect, useLayoutEffect, useMemo, useState, type ComponentType } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useState, useSyncExternalStore, type ComponentType } from 'react'
 import type { Context } from '@deepseek-ai/cordis'
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { WorkspaceId, WorkspaceSnapshot as WorkspaceListState } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import { IconTrashOutlineRegular, MenuItemButton } from '@deepseek-ai/dsh-client-ui-primitives'
 import { apply as applyOfficialWorkspace } from 'virtual:dsh-official-workspace-client'
 import type { WorkspaceBrowserProps } from '@deepseek-ai/dsh-client-ui-workspace/client'
-import type { WorktreeConsoleAdapter, WorktreeSidebarTopologyResponse } from '../../console-contract.js'
+import type { WorktreeConsoleAdapter, WorktreeSidebarTask, WorktreeSidebarTopologyResponse } from '../../console-contract.js'
 import { WORKTREE_REVIEW_REFRESH_EVENT } from '../review-console/status-events.js'
 import { selectedSessionId } from '../actions.js'
 import { projectManagedWorkspaceSidebar } from './model.js'
 
 const EMPTY_TOPOLOGY: WorktreeSidebarTopologyResponse = { projects: [] }
+
+/**
+ * Latest sidebar topology, shared with slot-registered menu entries that live
+ * outside the Browser React tree and cannot receive props from it.
+ */
+let sharedTopology: WorktreeSidebarTopologyResponse | undefined
+const sharedTopologyListeners = new Set<() => void>()
+
+function setSharedTopology(value: WorktreeSidebarTopologyResponse | undefined): void {
+  sharedTopology = value
+  for (const listener of [...sharedTopologyListeners]) listener()
+}
+
+function useSharedTopology(): WorktreeSidebarTopologyResponse | undefined {
+  return useSyncExternalStore(
+    listener => {
+      sharedTopologyListeners.add(listener)
+      return () => { sharedTopologyListeners.delete(listener) }
+    },
+    () => sharedTopology,
+  )
+}
 
 /** Ephemeral presentation metadata consumed only by the gated official Browser derivative. */
 export interface ManagedWorktreeSessionDecoration {
@@ -33,6 +56,8 @@ interface OfficialWorkspaceBrowserProps extends WorkspaceBrowserProps {
   adapter: WorktreeConsoleAdapter
   OfficialBrowser: ComponentType<WorkspaceBrowserProps>
   guard?: ManagedWorkspaceGuard
+  /** Raw slot registration for the clear-badge menu entry; runs on mount so the official seat declaration always exists first. */
+  registerSessionMenuEntry?: (descriptor: Record<string, unknown>, component: ComponentType<any>) => unknown
 }
 
 /**
@@ -43,6 +68,7 @@ export function ManagedOfficialWorkspaceBrowser({
   adapter,
   OfficialBrowser,
   guard,
+  registerSessionMenuEntry,
   ...officialProps
 }: OfficialWorkspaceBrowserProps) {
   const t = useClientTranslator()
@@ -56,6 +82,18 @@ export function ManagedOfficialWorkspaceBrowser({
     .join('|')
   const sessionKey = sessionState.ids.join('|')
 
+  // The badge menu entry attaches on mount: the official seat (and its inject
+  // hooks) is always declared by the time a Browser component can render, and
+  // apply-time registration would pollute the declaration ledgers in both modes.
+  useEffect(() => {
+    if (typeof registerSessionMenuEntry !== 'function') return
+    let dispose: unknown
+    registerClearSidebarBadgeEntry((descriptor, component) => { dispose = registerSessionMenuEntry(descriptor, component) }, adapter)
+    return () => {
+      if (typeof dispose === 'function') (dispose as () => void)()
+    }
+  }, [registerSessionMenuEntry, adapter])
+
   useEffect(() => {
     let active = true
     const refresh = (): void => {
@@ -64,10 +102,12 @@ export function ManagedOfficialWorkspaceBrowser({
         if (!active) return
         setTopology(outcome.ok ? outcome.value : EMPTY_TOPOLOGY)
         setTopologyVerified(outcome.ok)
+        setSharedTopology(outcome.ok ? outcome.value : undefined)
       }, () => {
         if (active) {
           setTopology(EMPTY_TOPOLOGY)
           setTopologyVerified(false)
+          setSharedTopology(undefined)
         }
       })
     }
@@ -76,6 +116,7 @@ export function ManagedOfficialWorkspaceBrowser({
     return () => {
       active = false
       if (guard) guard.ready = false
+      setSharedTopology(undefined)
       window.removeEventListener(WORKTREE_REVIEW_REFRESH_EVENT, refresh)
     }
   }, [adapter, guard, sessionKey, workspaceKey])
@@ -203,6 +244,11 @@ function officialContextProxy(
     blockSession(id) { return !this.ready || this.sessionIds.has(id) },
     blockWorkspace(id) { return !this.ready || this.workspaceIds.has(id) },
   }
+  // Raw registration for the clear-badge menu entry: the official-context
+  // proxy hides non-pin menu entries on managed owner rows, which is exactly
+  // where the entry must appear.
+  const registerRawSlotEntry = (descriptor: Record<string, unknown>, component: ComponentType<any>): unknown =>
+    ctx.slots.register(descriptor, component)
   const proxySlots = new Proxy(ctx.slots, {
     get(target, key, receiver) {
       if (key === 'register') {
@@ -228,6 +274,7 @@ function officialContextProxy(
             adapter={adapter}
             OfficialBrowser={OfficialBrowser}
             guard={guard}
+            registerSessionMenuEntry={registerRawSlotEntry}
           /></ClientI18nProvider>
           return target.register(descriptor, Browser)
         }
@@ -283,6 +330,65 @@ export function registerManagedWorkspaceSidebar(
   applyWorkspace(officialContextProxy(ctx, adapter) as unknown as Context)
 }
 
+/** Props the official row menu hands to every `session.menu.item` entry. */
+interface OfficialSessionMenuEntryProps {
+  sessionId?: string
+  useMenuOpenState?: () => readonly [boolean, (open: boolean) => void]
+}
+
+/**
+ * Menu entry on terminal-state rows (discarded/finalized): clears the sidebar
+ * status badge. The host suppresses a cleared badge from the topology, so the
+ * row loses icon/badge/menu entry on the next refresh — no reset path needed.
+ */
+function ClearSidebarBadgeMenuItem({ adapter, sessionId, useMenuOpenState }: OfficialSessionMenuEntryProps & { adapter: WorktreeConsoleAdapter }) {
+  const t = useClientTranslator()
+  const topology = useSharedTopology()
+  // The slot inject always provides useMenuOpenState (a plain pair getter,
+  // not a real React hook); the fallback only satisfies the type checker.
+  const [, setMenuOpen] = useMenuOpenState?.() ?? [false, () => {}]
+  const task = useMemo<WorktreeSidebarTask | undefined>(() => {
+    for (const project of topology?.projects ?? []) {
+      for (const candidate of project.tasks ?? []) {
+        if (candidate.ownerSessionId === sessionId) return candidate
+      }
+    }
+    return undefined
+  }, [topology, sessionId])
+  if (!sessionId || !task || (task.state !== 'discarded' && task.state !== 'finalized')) return null
+  return <MenuItemButton
+    icon={<IconTrashOutlineRegular />}
+    onSelect={() => {
+      setMenuOpen(false)
+      void adapter.clearSidebarBadge({
+        sessionId,
+        checkoutId: task.checkoutId,
+        expectedRevision: task.revision,
+      }).then(outcome => {
+        if (outcome.ok) {
+          window.dispatchEvent(new CustomEvent(WORKTREE_REVIEW_REFRESH_EVENT, { detail: { sessionId } }))
+        } else {
+          console.warn('[dsh-git-worktree] clearSidebarBadge failed:', outcome.error?.message)
+        }
+      }, error => {
+        console.warn('[dsh-git-worktree] clearSidebarBadge failed:', error)
+      })
+    }}
+  >{t('clear.sidebar.badge')}</MenuItemButton>
+}
+
+function registerClearSidebarBadgeEntry(
+  register: (descriptor: Record<string, unknown>, component: ComponentType<any>) => unknown,
+  adapter: WorktreeConsoleAdapter,
+): void {
+  const Entry = (props: OfficialSessionMenuEntryProps) => <ClearSidebarBadgeMenuItem {...props} adapter={adapter} />
+  register({
+    name: 'sidebar.workspaces.session.menu.item',
+    id: 'clear-sidebar-badge',
+    order: 500,
+  }, Entry)
+}
+
 /** Structural view of the ui-slots registry service, limited to the decorate face. */
 interface SlotRegistryEntry {
   component: unknown
@@ -330,10 +436,13 @@ export function registerDecoratedWorkspaceSidebar(
     if (!official || typeof official.component !== 'function') return
     decorated = true
     const OfficialBrowser = official.component as ComponentType<WorkspaceBrowserProps>
+    const registerRawSlotEntry = (descriptor: Record<string, unknown>, component: ComponentType<any>): unknown =>
+      slots.register(descriptor, component)
     const Decorated = (props: WorkspaceBrowserProps) => <ClientI18nProvider locale={read('locale')}><ManagedOfficialWorkspaceBrowser
       {...props}
       adapter={adapter}
       OfficialBrowser={OfficialBrowser}
+      registerSessionMenuEntry={registerRawSlotEntry}
     /></ClientI18nProvider>
     const options = official.options
     disposeEntry = slots.register({

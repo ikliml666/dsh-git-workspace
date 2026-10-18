@@ -35,6 +35,42 @@ export function Menu({ open, anchor, items, footer, onSelect, onClose }: {
   return <span>{anchor}{open ? <div role="menu">{items.map(renderEntry)}{footer?.map(renderEntry)}</div> : null}</span>
 }
 
+/** Narrow test double for the Harness platform menu-item button. */
+export function MenuItemButton({
+  children,
+  icon,
+  onSelect,
+  disabled,
+  danger,
+  separatorBefore,
+}: {
+  children?: ReactNode
+  icon?: ReactNode
+  onSelect(): void
+  disabled?: boolean
+  danger?: boolean
+  separatorBefore?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      disabled={disabled}
+      data-danger={danger === true ? 'true' : undefined}
+      data-separator-before={separatorBefore === true ? 'true' : undefined}
+      onClick={onSelect}
+    >
+      {icon}
+      {children}
+    </button>
+  )
+}
+
+/** Narrow test double for the Harness platform outline trash icon. */
+export function IconTrashOutlineRegular() {
+  return <svg data-icon="trash-outline" />
+}
+
 /** Narrow test double for the Harness platform Modal used by Client fixtures. */
 export function Modal({
   open,

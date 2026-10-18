@@ -1352,6 +1352,10 @@ export const clientMessages = {
     "zh": "已放弃",
     "en": "Discarded"
   },
+  "clear.sidebar.badge": {
+    "zh": "清除状态标签",
+    "en": "Clear status badge"
+  },
   "isolated.session.target": {
     "zh": "隔离 Session Target",
     "en": "Isolated Session Target"

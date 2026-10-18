@@ -1,5 +1,5 @@
 ---
-title: "按分支创建只选基准提交，不adopt分支——交付目标始终跟随源会话分支"
+title: "隔离工作树创建机制与交付链路设计"
 type: decision
 source_files:
   - src/adapters/worktree-creation.ts
@@ -8,6 +8,8 @@ tags:
   - design
   - create
   - delivery
+  - worktree
+  - isolation
 ---
 
 ## Overview
@@ -20,9 +22,9 @@ tags:
 
 ### `src/adapters/worktree-creation.ts`
 
-**职责**：工作树创建的核心协调器，负责从注册到检出的全流程控制。
+**职责**：工作树创建的核心协调器，负责从注册到检出的全流程控制，确保原子性和身份一致性。
 
-*   **`createWorktree(localRoot, target, baseOid, run, saveEvidence?)`**
+*   **`createWorktree(localRoot, target, baseOid, run, saveEvidence?)`** (L35)
     *   **输入**：本地仓库根、目标路径、基础 OID、运行命令执行器。
     *   **行为**：
         1.  **身份验证与预检**：使用 `samePath`（跨平台大小写敏感处理）和 `sameIdentity`（JSON 序列化比对）确保父目录、公共目录和目标目录在操作期间未被篡改。通过 `files.inspectDirectoryIdentity` 获取目录标识。
@@ -37,9 +39,9 @@ tags:
             *   **未注册阶段失败**：若仅创建了目录但未注册到 git，且满足特定静默条件（目录空、身份未变、元数据无新增），则尝试删除目录并抛出 `WorktreeCreationFailure(true)`（可安全忽略/重试）。
             *   **已注册阶段失败**：若注册后失败，进入回滚逻辑。首先验证当前状态，然后将工作树移动到隔离区（`.failed-{uuid}`），再次验证隔离后的状态，最后强制移除工作树注册。若回滚过程中出现异常，抛出 `WorktreeCreationFailure(false)`（不可忽略，需人工介入或保留现场）。
     *   **完整性校验函数**：
-        *   `verifyIdentity`：深度校验 `.git` 指针、反向链接、HEAD OID、锁原因及无残留 `.lock` 文件。
-        *   `verifyRollbackMetadata`：校验元数据指纹和索引指纹是否保持不变，检查 ORIG_HEAD 内容。
-        *   `verifyUnmodified`：最复杂的校验函数。比对 `ls-files` 输出与实际文件系统。检查子模块残留、过滤属性转换痕迹、逐个校验文件哈希（支持符号链接和普通文件）、检查索引条目是否被修改（`diff-index`, `ls-files -v`）、确认无未知文件或变更。
+        *   `verifyIdentity` (L108)：深度校验 `.git` 指针、反向链接、HEAD OID、锁原因及无残留 `.lock` 文件。
+        *   `verifyRollbackMetadata` (L138)：校验元数据指纹和索引指纹是否保持不变，检查 ORIG_HEAD 内容。
+        *   `verifyUnmodified` (L155)：最复杂的校验函数。比对 `ls-files` 输出与实际文件系统。检查子模块残留、过滤属性转换痕迹、逐个校验文件哈希（支持符号链接和普通文件）、检查索引条目是否被修改（`diff-index`, `ls-files -v`）、确认无未知文件或变更。
 
 ### `src/console-host/control-plane.ts`
 
@@ -56,3 +58,57 @@ tags:
         *   `linkedReadAccess(sessionId, anchorId)` (L213)：处理链接会话的只读访问权限。允许隔离会话通过锚点（Anchor）访问同组的工作树，需验证锚点的接受槽持有者状态。
         *   `observe(targetId)` (L266)：获取记录的运行时状态。优先使用 `module.observeManagedCheckout`，否则回退到逐条 Git 检查。
         *   `details(targetId)` (L293)：组装详细的 Target 信息，包括链接读取的特殊 CAS 校验。
+
+## Architecture
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                     Control Plane                           │
+│  src/console-host/control-plane.ts                          │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐                  │
+│  │ authorize│  │ observe  │  │ create   │                  │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘                  │
+│       │              │             │                        │
+│       ▼              ▼             ▼                        │
+│  ┌──────────────────────────────────────────┐               │
+│  │          SessionCheckoutModule           │               │
+│  │  (Adapter / Backend Implementation)      │               │
+│  └──────────────────┬───────────────────────┘               │
+│                     │                                       │
+│                     ▼                                       │
+│  ┌──────────────────────────────────────────┐               │
+│  │         Worktree Creation Adapter        │               │
+│  │  src/adapters/worktree-creation.ts       │               │
+│  │  ┌────────────────────────────────────┐  │               │
+│  │  │ createWorktree()                   │  │               │
+│  │  │ 1. Verify Identities               │  │               │
+│  │  │ 2. Register Worktree (--detach)    │  │               │
+│  │  │ 3. Read-Tree / Reset               │  │               │
+│  │  │ 4. Verify Unmodified               │  │               │
+│  │  └────────────────────────────────────┘  │               │
+│  └──────────────────────────────────────────┘               │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Data Flow
+
+1.  **请求发起**：UI 发起 `create` 请求，携带可选的 `branch` 参数。
+2.  **并发控制**：`control-plane.ts` 中的 `withCreation` 锁确保同一 Session 不会并发创建。
+3.  **目标创建**：`create` 方法调用 `options.module.createIsolatedTarget(sourceSessionId, targetSessionId, branch)`。
+    *   如果 `branch` 存在，它被传递给底层模块，用于确定初始的 `baseOid`。
+    *   底层模块创建一个新的隔离 Session (`targetSessionId`)。
+4.  **工作树初始化**：
+    *   `worktree-creation.ts` 接管实际的文件系统操作。
+    *   它使用 `baseOid`（源自源会话的指定分支 HEAD）来注册一个 Detached HEAD 的工作树。
+    *   **关键点**：工作树本身不与任何分支关联（Detached），因此不存在“Adopt 分支”的概念。
+5.  **交付链路**：
+    *   用户在隔离工作树中进行开发。
+    *   当准备交付时，系统比较隔离工作树的 HEAD 与源会话的 HEAD。
+    *   由于工作树是 Detached 的，交付操作本质上是计算差异并将变更应用到源会话的当前分支上（通常通过 `merge` 或 `cherry-pick`，具体取决于实现，但决策层确保目标是源会话的分支）。
+    *   最终，源会话的分支头被更新（`update-ref`），完成交付。
+
+## Connections
+
+*   [[session-management]]：管理源会话和目标会话的生命周期。
+*   [[git-operations]]：底层 Git 命令的执行封装。
+*   [[file-system-port]]：文件系统操作的抽象接口，用于身份验证和文件读写。

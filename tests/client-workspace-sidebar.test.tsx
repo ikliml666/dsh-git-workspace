@@ -7,6 +7,7 @@ import type { WorkspaceId, WorkspaceSnapshot as WorkspaceListState } from '@deep
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { WorkspaceBrowserProps } from '@deepseek-ai/dsh-client-ui-workspace/client'
 import type { WorktreeConsoleAdapter } from '../src/console-contract.js'
+import { WORKTREE_REVIEW_REFRESH_EVENT } from '../src/client/review-console/status-events.js'
 import {
   ManagedOfficialWorkspaceBrowser,
   registerDecoratedWorkspaceSidebar,
@@ -388,6 +389,62 @@ describe('registerDecoratedWorkspaceSidebar (Mode B: official Workspace stays li
     render(<Decorated {...browserProps()} />)
     await waitFor(() => expect(screen.getByRole('button', { name: '修复验收卡' }).getAttribute('data-worktree-label')).toBe('Ready for review'))
     expect(screen.getByText('demo')).toBeTruthy()
+  })
+
+  test('mounts the clear-badge menu entry, clears a terminal badge, and refreshes the sidebar', async () => {
+    const terminal = adapter()
+    const clearSidebarBadge = vi.fn(async () => ({ ok: true as const, value: { target: {} } as never }))
+    terminal.clearSidebarBadge = clearSidebarBadge
+    let entry!: ComponentType<{ sessionId?: string; useMenuOpenState?: () => readonly [boolean, (open: boolean) => void] }>
+    const Entry = (menuProps: { sessionId?: string }) => {
+      const EntryComponent = entry
+      return EntryComponent ? <EntryComponent {...menuProps} /> : null
+    }
+    const props = browserProps()
+    const view = render(<ManagedOfficialWorkspaceBrowser
+      {...props}
+      adapter={terminal}
+      OfficialBrowser={InspectBrowser}
+      registerSessionMenuEntry={(descriptor, component) => {
+        expect(descriptor).toMatchObject({ name: 'sidebar.workspaces.session.menu.item', id: 'clear-sidebar-badge' })
+        entry = component
+        return () => {}
+      }}
+    />)
+    await waitFor(() => expect(screen.getByRole('button', { name: '修复验收卡' })).toBeTruthy())
+    expect(entry).toBeDefined()
+
+    // Non-terminal rows render nothing.
+    const hidden = render(<Entry sessionId={ownerSession} />)
+    expect(hidden.container.textContent).toBe('')
+    hidden.unmount()
+
+    // Terminal rows offer the entry after a topology refresh; selecting it routes the RPC.
+    terminal.sidebarTopology = vi.fn(async () => ({
+      ok: true as const,
+      value: {
+        projects: [{
+          project: { id: localWorkspace, name: 'demo' },
+          tasks: [{
+            checkoutId: 'checkout-1', ownerSessionId: ownerSession, sourceSessionId: localSession,
+            iteration: 1, revision: 9, phase: 'discarded' as const, state: 'discarded' as const,
+          }],
+        }],
+      },
+    }))
+    fireEvent(window, new CustomEvent(WORKTREE_REVIEW_REFRESH_EVENT, { detail: { sessionId: ownerSession } }))
+    const entryView = render(<Entry sessionId={ownerSession} />)
+    const clearButton = await waitFor(() => {
+      const button = entryView.container.querySelector('button')
+      expect(button?.textContent).toContain('状态标签')
+      return button!
+    })
+    fireEvent.click(clearButton)
+    await waitFor(() => expect(clearSidebarBadge).toHaveBeenCalledWith({
+      sessionId: ownerSession, checkoutId: 'checkout-1', expectedRevision: 9,
+    }))
+    entryView.unmount()
+    view.unmount()
   })
 
   test('fails loudly when the slot registry is unavailable', () => {

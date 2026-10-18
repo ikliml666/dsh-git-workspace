@@ -1576,6 +1576,10 @@ export const hostMessages = {
     "zh": "已交付的 Worktree 无法设置常驻标记。",
     "en": "A delivered worktree cannot be marked as permanent."
   },
+  "onlyATerminalWorktreeBadgeCanBeCleared": {
+    "zh": "只有已放弃或已完成的 Worktree 标签可以清除。",
+    "en": "Only a discarded or completed worktree badge can be cleared."
+  },
   "invalidInternalGitArtifactName": {
     "zh": "内部 Git artifact 名称无效",
     "en": "Invalid internal Git artifact name."

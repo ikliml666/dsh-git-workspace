@@ -20,7 +20,7 @@ tags:
 
 ## 背景
 
-dsh-worktree-panel 有插件设置页；DSH 的等价机制是 settings 服务把 Config schema 的 volatile 字段投影为设置表单（写入 cordis.patch.yml，revision CAS）。volatile 编辑**不重挂载插件**：apply 不重跑，配置值以 `{get()}` LiveRef 到达。
+dsh-worktree-panel 有插件设置页；DSH 的等价机制是 settings 服务把 Config schema 的 volatile 字段投影为设置表单（写入 `cordis.patch.yml`，revision CAS）。volatile 编辑**不重挂载插件**：`apply` 不重跑，配置值以 `{get()}` LiveRef 到达。
 
 ## 决策
 

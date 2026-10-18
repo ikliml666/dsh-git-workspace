@@ -53,4 +53,16 @@ declare module '@deepseek-ai/dsh-client-ui-primitives' {
     contentClassName?: string
     headless?: boolean
   }>
+
+  export const MenuItemButton: ComponentType<{
+    children?: ReactNode
+    shortcut?: { aria?: string; label?: string }
+    icon?: ReactNode
+    disabled?: boolean
+    danger?: boolean
+    separatorBefore?: boolean
+    onSelect(): void
+  }>
+
+  export const IconTrashOutlineRegular: ComponentType<Record<string, never>>
 }

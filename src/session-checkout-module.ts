@@ -4095,6 +4095,18 @@ export function createSessionCheckoutModule(
       if (!updated) throw new SessionCheckoutError('checkout_missing', hostMessage('theWorktreeRecordDoesNotExist'))
       return summarizeManagedWorktree(updated)
     }
+    if (input.action === 'clear_sidebar_badge') {
+      // Terminal-state gating lives in the console control plane (sidebarTaskState).
+      // The flag deliberately does not bump revision: any later revision change
+      // (new iteration, retention, cleanup) invalidates it on its own.
+      if (record.sidebarBadgeClearedRevision === record.revision) return summarizeManagedWorktree(record)
+      const cleared = updateManagedCheckout(record.checkoutId, (current) => ({
+        ...current,
+        sidebarBadgeClearedRevision: current.revision,
+      }))
+      if (!cleared) throw new SessionCheckoutError('checkout_missing', hostMessage('theWorktreeRecordDoesNotExist'))
+      return summarizeManagedWorktree(cleared)
+    }
     if (record.delivery.state !== 'retained' && record.delivery.state !== 'finalized') {
       throw new SessionCheckoutError('operation_not_allowed', hostMessage('theCurrentWorktreeIsNotInACleanableState'))
     }

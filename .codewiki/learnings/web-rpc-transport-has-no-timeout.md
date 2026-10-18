@@ -99,6 +99,7 @@ tags:
 *   `setPermanent(request)`: 设置永久。
 *   `retryCleanup(request)`: 重试清理。
 *   `beginNextIteration(request)`: 开始下一次迭代。
+*   `clearSidebarBadge(request)`: 清除侧边栏徽标。
 *   `gitOverview(sessionId)`: Git 概览。
 *   `gitGraph(sessionId, limit)`: Git 图。
 *   `gitCreateBranch(sessionId, name)`: 创建 Git 分支。

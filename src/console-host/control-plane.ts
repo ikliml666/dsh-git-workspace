@@ -4,6 +4,7 @@ import { resolve } from 'node:path'
 import type {
   WorktreeConsoleAbandonedListResponse,
   WorktreeConsoleBeginNextIterationRequest,
+  WorktreeConsoleClearSidebarBadgeRequest,
   WorktreeConsoleCreatePreviewRecoveryHandoffRequest,
   WorktreeConsoleCreatePreviewRecoveryHandoffResponse,
   WorktreeConsoleCreateResponse,
@@ -93,6 +94,7 @@ export interface WorktreeConsoleControlPlane {
   setPermanent(request: WorktreeConsoleSetPermanentRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   retryCleanup(request: WorktreeConsoleRetryCleanupRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   beginNextIteration(request: WorktreeConsoleBeginNextIterationRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
+  clearSidebarBadge(request: WorktreeConsoleClearSidebarBadgeRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   gitOverview(sessionId: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitOverviewResponse>>
   gitGraph(sessionId: string, limit?: number): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitGraphResponse>>
   gitCreateBranch(sessionId: string, name: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>
@@ -550,6 +552,16 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
         const membership = membershipByRoot.get(record.managedRoot)
         for (const id of membership?.workspaceIds ?? []) project.workspaceIds.add(id)
         for (const id of membership?.sessionIds ?? []) project.sessionIds.add(id)
+        // A user-cleared terminal badge stops projecting a task: the sidebar
+        // row keeps its directory membership but loses icon/badge/menu entry.
+        const badgeState = sidebarTaskState(record)
+        if (
+          record.sidebarBadgeClearedRevision === record.revision
+          && (badgeState === 'discarded' || badgeState === 'finalized')
+        ) {
+          projects.set(record.projectId, project)
+          continue
+        }
         const task = {
           checkoutId: record.checkoutId,
           ownerSessionId: record.ownerSessionId,
@@ -559,7 +571,7 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
             : record.delivery.review.iteration,
           revision: record.revision,
           phase: record.phase,
-          state: sidebarTaskState(record),
+          state: badgeState,
           sourceBranch: sourceBranchFromRef(record.sourceRef),
         }
         const previous = project.tasksByOwner.get(record.ownerSessionId)
@@ -1220,6 +1232,20 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
         checkoutId: request.checkoutId,
         expectedRevision: request.expectedRevision,
         action: 'retry_cleanup',
+      })
+      return mutationResponse(request.sessionId, request.checkoutId)
+    }),
+
+    clearSidebarBadge: request => outcome(async () => {
+      const record = await authorize(request.sessionId, request.checkoutId)
+      const state = sidebarTaskState(record)
+      if (state !== 'discarded' && state !== 'finalized') {
+        throw domainError('operation_not_allowed', hostMessage('onlyATerminalWorktreeBadgeCanBeCleared'))
+      }
+      await options.module.manageManagedWorktreeForSession(request.sessionId, {
+        checkoutId: request.checkoutId,
+        expectedRevision: request.expectedRevision,
+        action: 'clear_sidebar_badge',
       })
       return mutationResponse(request.sessionId, request.checkoutId)
     }),

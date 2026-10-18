@@ -32,6 +32,7 @@ import type {
   WorktreeConsolePrepareRegenerationRequest,
   WorktreeConsolePreviewRequest,
   WorktreeConsoleRetryCleanupRequest,
+  WorktreeConsoleClearSidebarBadgeRequest,
   WorktreeConsoleResumeRevisionRequest,
   WorktreeConsoleRollbackPreviewRequest,
   WorktreeConsoleReviewDiffRequest,
@@ -373,6 +374,10 @@ export function createWorktreeConsoleAdapterFixture(stateful = false): WorktreeC
     },
     async retryCleanup(request: WorktreeConsoleRetryCleanupRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>> {
       record('retryCleanup', request)
+      return outcome(delivered())
+    },
+    async clearSidebarBadge(request: WorktreeConsoleClearSidebarBadgeRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>> {
+      record('clearSidebarBadge', request)
       return outcome(delivered())
     },
     async beginNextIteration(request: WorktreeConsoleBeginNextIterationRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>> {

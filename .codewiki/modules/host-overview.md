@@ -28,7 +28,7 @@ tags:
 
 - **`SessionCheckoutError`** (`src/index.ts:35`): 领域错误基类。继承 `Error`，包含 `readonly code: SessionCheckoutErrorCode` 和 `message`。构造函数设置 `name = 'SessionCheckoutError'`。
 - **`SessionCheckoutReconcileSummary`** (`src/index.ts:49`): 收敛摘要接口，包含 `recoveryRequiredCheckoutIds`, `orphanedCheckoutIds`, `dirtyOrphanedCheckoutIds`, `staleRootCheckoutIds`, `retainedCheckoutCount`。
-- **`ManageManagedWorktreeInput`** (`src/index.ts:57`): 管理输入接口，包含 `checkoutId`, `expectedRevision`, `action` ('cleanup_retained' | 'retry_cleanup' | 'set_retention' | 'set_permanent' | 'discard'), `retention?`, `permanent?`, `confirmDirty?`, `rollbackPreview?`。
+- **`ManageManagedWorktreeInput`** (`src/index.ts:57`): 管理输入接口，包含 `checkoutId`, `expectedRevision`, `action` ('cleanup_retained' | 'retry_cleanup' | 'set_retention' | 'set_permanent' | 'clear_sidebar_badge' | 'discard'), `retention?`, `permanent?`, `confirmDirty?`, `rollbackPreview?`。注意：相比旧版新增了 `clear_sidebar_badge` 动作。
 - **`ListManagedWorktreesInput`** (`src/index.ts:67`): 列表查询输入，包含 `projectId?`, `needsAttention?`, `checkoutId?`, `includeDiagnostics?`。
 - **`PruneMergedBranchesInput`** (`src/index.ts:74`): 修剪输入，包含 `dryRun?`, `olderThanDays?`。
 - **`MergeBranchForSessionInput`** (`src/index.ts:82`): 合并输入，包含 `sourceBranch`, `dryRun?`, `direction?` ('forward' | 'reverse')。

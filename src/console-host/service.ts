@@ -285,6 +285,11 @@ export class WorktreeConsoleService extends TypertRemoteService {
   }
 
   @Remote
+  clearSidebarBadge(agent: Agent, checkoutId: string, expectedRevision: number, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>> {
+    return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.clearSidebarBadge({ sessionId: agent.id, checkoutId, expectedRevision }))
+  }
+
+  @Remote
   gitOverview(agent: Agent, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitOverviewResponse>> {
     return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.gitOverview(agent.id))
   }

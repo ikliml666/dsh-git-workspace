@@ -314,6 +314,7 @@ function isManagedCheckout(value: unknown): boolean {
         === value.checkpoints.filter(checkpoint => checkpoint.requestId !== undefined).length
     ))
     && (value.recoveryContinuation === undefined || isRecoveryContinuation(value.recoveryContinuation))
+    && (value.sidebarBadgeClearedRevision === undefined || Number.isSafeInteger(value.sidebarBadgeClearedRevision))
     && typeof value.sourceRef === 'string'
     && (value.phase === 'preparing' || value.phase === 'ready' || value.phase === 'mutating' || value.phase === 'recovery_required' || value.phase === 'finalized' || value.phase === 'retained' || value.phase === 'discarded')
     && isDelivery(value.delivery)

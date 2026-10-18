@@ -380,6 +380,13 @@ export interface WorktreeConsoleBeginNextIterationRequest {
   expectedRevision: number
 }
 
+/** 清除 Sidebar 终态徽章（已放弃/已完成）：记录端不再显示该标签。 */
+export interface WorktreeConsoleClearSidebarBadgeRequest {
+  sessionId: string
+  checkoutId: string
+  expectedRevision: number
+}
+
 export interface WorktreeConsoleMutationResponse {
   target: WorktreeConsoleTargetSummary
   changedFiles?: string[]
@@ -661,6 +668,7 @@ export interface WorktreeConsoleAdapter {
   setPermanent(request: WorktreeConsoleSetPermanentRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   retryCleanup(request: WorktreeConsoleRetryCleanupRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   beginNextIteration(request: WorktreeConsoleBeginNextIterationRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
+  clearSidebarBadge(request: WorktreeConsoleClearSidebarBadgeRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   gitOverview(sessionId: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitOverviewResponse>>
   gitGraph(sessionId: string, limit?: number): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitGraphResponse>>
   gitCreateBranch(sessionId: string, name: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>
