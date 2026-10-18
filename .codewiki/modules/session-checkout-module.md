@@ -14,7 +14,7 @@ tags: [state-machine, checkout, recovery, retention]
 
 # Session Checkout State Machine
 
-`createSessionCheckoutModule`（src/session-checkout-module.ts:184，全文件约 4700 行几乎都在此工厂内）是插件核心：从 Domi 移植的 session-checkout 状态机（头注释 src/session-checkout-module.ts:59），保留 receipt-first Local Preview、回滚/finalize、项目验收槽、崩溃恢复与 fingerprint CAS，同时把所有权适配到 Harness 分离的 source Local Session 与 target owner Session。进程内全部状态持久化于 `ManagedCheckoutsRegistry`（version 2，src/ports.ts:438）。
+`createSessionCheckoutModule`（src/session-checkout-module.ts:236，全文件约 4700 行几乎都在此工厂内）是插件核心：从 Domi 移植的 session-checkout 状态机（头注释 src/session-checkout-module.ts:59），保留 receipt-first Local Preview、回滚/finalize、项目验收槽、崩溃恢复与 fingerprint CAS，同时把所有权适配到 Harness 分离的 source Local Session 与 target owner Session。进程内全部状态持久化于 `ManagedCheckoutsRegistry`（version 2，src/ports.ts:438）。
 
 ## Overview
 

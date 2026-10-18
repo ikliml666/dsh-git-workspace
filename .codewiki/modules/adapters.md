@@ -68,7 +68,8 @@ tags: [adapters, git, registry, project-skills]
 - `removeWorktree(...)` (git.ts L257):
   - 验证技能可移除性，强制移除，遗忘技能。
 - `pruneWorktrees(...)` (git.ts L267): 清理过期工作树。
-- `retain/releaseApplyBase(...)` (git.ts L270-L275): 管理应用基础 Ref。
+- `retainApplyBase(...)` (git.ts L270): 保留应用基础 Ref。
+- `releaseApplyBase(...)` (git.ts L273): 释放应用基础 Ref。
 - `retainInternalArtifact(...)`, `readInternalArtifact(...)`, `releaseInternalArtifacts(...)` (git.ts L277-L301): 管理内部工件 Ref。批量删除使用 `update-ref --stdin` 事务。
 - `isAncestor(...)` (git.ts L303): 检查祖先关系。
 - `listLocalBranches(...)` (git.ts L309): 列出本地分支并排序。
@@ -77,6 +78,7 @@ tags: [adapters, git, registry, project-skills]
 - `repairWorktreeLinks(...)` (git.ts L336): 修复移动后的工作树链接。
 - `listWorktreeincludeFiles(...)` (git.ts L342): 找出被忽略但匹配 `.worktreeinclude` 的文件，包含 `AGENTS.override.md`。
 - `branchOverview(...)` (git.ts L360): 获取分支概览（名称、OID、是否当前、上游、脏计数）。
+- `defaultBranch(...)` (git.ts L373): 获取默认分支。
 - `branchTipTimes(...)` (git.ts L377): 获取分支提交时间戳。
 - `deleteLocalBranch(...)` (git.ts L393): 删除分支，返回成功与否及原因。
 - `graphLog(...)` (git.ts L401): 获取图日志，格式化输出为对象数组。

@@ -1,5 +1,5 @@
 ---
-title: "隔离工作树创建机制与交付链路设计"
+title: "隔离工作树创建与交付链路设计"
 type: decision
 source_files:
   - src/adapters/worktree-creation.ts

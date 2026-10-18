@@ -15,8 +15,8 @@ tags:
 本文档记录了对非 Git 目录（包括完全未初始化的目录和存在未跟踪文件的“未出生”仓库）的处理决策。核心变更在于引入显式的用户确认流程，将原本可能导致静默失败或无操作的死角转化为可执行的增量操作。
 
 主要涉及两个层面：
-1. **底层适配层 (`src/adapters/initial-commit.ts`)**：实现了 `initializeProject` 方法，用于在用户确认后执行 `git init`、`git add` 和 `git commit`。该方法具备严格的预检逻辑，确保不会意外覆盖已有版本控制数据，且对身份配置缺失等错误原样抛出。
-2. **控制台控制平面 (`src/console-host/control-plane.ts`)**：新增 `initProject` RPC 接口，通过 `withCreation` 互斥守卫保证线程安全，并调用底层适配层完成初始化。同时，`preflightCreate` 逻辑更新，能够识别空仓库指纹并引导用户进行显式确认。
+1. **底层适配层 (`src/adapters/initial-commit.ts`)**：实现了 `initializeProject` 方法，用于在用户确认后执行 `git init`、`git add` 和 `git commit`。该方法具备严格的预检逻辑，确保不会意外覆盖已有版本控制数据，且对身份配置缺失等错误原样抛出。同时引入了 `initializeEmptyRepository` 以支持带指纹校验的原子化空仓库初始化。
+2. **控制台控制平面 (`src/console-host/control-plane.ts`)**：新增 `initProject` RPC 接口，通过 `withCreation` 互斥守卫保证线程安全，并调用底层适配层完成初始化。同时，`preflightCreate` 逻辑更新，能够识别空仓库指纹并引导用户进行显式确认，而 `createWithInitialCommit` 则处理基于指纹 CAS 的空仓库创建。
 
 ## Key Components
 
@@ -28,8 +28,8 @@ tags:
 - **`Run` 类型 (Line 11)**: 定义执行 git 命令的函数签名，接收根路径、参数数组和可选输入，返回包含退出码、标准输出和标准错误的对象。
 - **`initialCommitActions(inspect, run)` (Lines 14-136)**: 工厂函数。
     - **`checked(root, args, input)` (Lines 17-21)**: 包装器，执行 git 命令并在失败时抛出 `SessionCheckoutError`。
-    - **`identity(path, trackChanges)` (Lines 22-25)**: 生成文件或目录的唯一标识符，基于设备号、inode 和时间戳。
-    - **`indexBytes(gitDir)` (Lines 26-29)**: 读取 `.git/index` 文件的 base64 编码内容，用于指纹计算。
+    - **`identity(path, trackChanges)` (Lines 22-25)**: 生成文件或目录的唯一标识符，基于设备号、inode 和时间戳。若为符号链接则抛出 `stale_local` 错误。
+    - **`indexBytes(gitDir)` (Lines 26-29)**: 读取 `.git/index` 文件的 base64 编码内容，用于指纹计算。若文件不存在返回空字符串。
     - **`preflightInitialCommit(root)` (Lines 30-58)**: 预检函数，判断仓库状态。
         - 如果快照为 `null`，抛出 `not_git_repository`。
         - 如果 `headOid` 不为 `unborn`，返回 `kind: 'ready'`。

@@ -4,7 +4,7 @@
 
 - [[decisions/client-rpc-watchdog-budget|Worktree Console RPC 适配器：超时看门狗与契约校验]]
 - [[decisions/volatile-settings-live-config|volatile 设置字段与 LiveValue 运行时解包]]
-- [[decisions/create-from-branch-is-base-only|隔离工作树创建机制与交付链路设计]]
+- [[decisions/create-from-branch-is-base-only|隔离工作树创建与交付链路设计]]
 - [[decisions/non-git-incremental-enablement|非 Git 目录渐进增强：显式确认下的 init + 首次提交，而非静默或死路]]
 ## Learning
 
