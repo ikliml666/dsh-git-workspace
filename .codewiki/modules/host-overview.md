@@ -36,7 +36,7 @@ tags:
 - **`IsolatedTargetLaunch`** (`src/index.ts:102`): 隔离目标启动数据，包含 `targetSessionId`, `managedRoot`, `target` (`SessionTargetView`)。
 - **`SessionCheckoutModule`** (`src/index.ts:107`): 核心模块接口。主要方法包括：
     - `inspect(sessionId)`: 检查会话目标。
-    - `runtimeContext(sessionId)`: 同步注册表快照，用于回放稳定。
+    - `runtimeContext(sessionId, cwd?)`: 同步注册表快照，用于回放稳定。
     - `preflight?`, `preflightPreviewRecovery?`: 只读预检。
     - `runExclusiveSessionMutation<T>`: 独占锁下的跨模块突变。
     - `bind`, `createIsolatedTarget`, `beginNextIteration`, `resumeRevision`, `prepareReviewRegeneration`, `preparePreviewRecoveryAnalysis`, `createPreviewRecoveryHandoff`, `markReadyForReview`, `operate`: 核心工作流操作。
@@ -93,7 +93,7 @@ tags:
 
 **`registerTools(ctx, module)`** (`src/tools.ts:34`): 注册 9 个模型工具，均包裹在 `withHostLanguage` 中。
 
-1.  **`worktree_create`** (`src/tools.ts:48`): 创建隔离目标。参数 `topic?`。调用 `module.createIsolatedTarget`。返回 `{kind: 'worktree_target_created', checkoutId, targetSessionId, managedRoot, phase, currentOid, sourceSessionId}`。
+1.  **`worktree_create`** (`src/tools.ts:48`): 创建隔离目标。参数 `topic?`, `branch?`。调用 `module.createIsolatedTarget`。返回 `{kind: 'worktree_target_created', checkoutId, targetSessionId, managedRoot, phase, currentOid, sourceSessionId}`。
 2.  **`worktree_list`** (`src/tools.ts:106`): 列出当前会话可见的托管 worktree。调用 `module.listManagedWorktreesForSession`。返回 `{kind: 'worktree_list', worktrees: [...]}`。
 3.  **`worktree_resume_revision`** (`src/tools.ts:162`): 恢复未同步的审查。仅当 `delivery.state === 'ready_for_review'` 时可用。调用 `module.resumeRevision`。返回 `{kind: 'worktree_revision_resumed', ...}`。
 4.  **`worktree_begin_next_iteration`** (`src/tools.ts:210`): 开始新的同会话迭代。调用 `module.beginNextIteration`。返回 `{kind: 'worktree_next_iteration_started', ...}`。
@@ -124,7 +124,7 @@ tags:
 ### Host 兼容探测 (src/host-compat.ts)
 
 -   **`WorkspaceClientFlavor`** (`src/host-compat.ts:6`): 类型 `'legacy' | 'alpha' | 'next' | 'modern' | 'unsupported'`。
--   **`workspaceClientFlavorForAgentVersion`** (`src/host-compat.ts:8`): 版本映射函数。四个精确锚点（0.1.2-rc.1→legacy、0.1.6-alpha.2→alpha、0.1.7-rc.2→next、0.2.0-rc.2→modern）之外，`0.2.x` 系未列版本兜底 `modern`（modern 分支消费的宿主服务与槽位契约已对照 0.2.1-alpha.1 宿主源码验证未变）；`0.1.x`（三种 flavor 并存）与 `0.3+`（未经源码验证）的未知版本保持 `unsupported`。
+-   **`workspaceClientFlavorForAgentVersion`** (`src/host-compat.ts:8`): 版本映射函数。四个精确锚点（0.1.2-rc.1→legacy、0.1.6-alpha.2→alpha、0.1.7-rc.2→next、0.2.0-rc.2→modern）之外，`0.2.x` 系未列版本兜底 `modern`（modern 分支消费的宿主服务与槽位契约已对照 0.2.1-rc.1 宿主源码验证未变）；`0.1.x`（三种 flavor 并存）与 `0.3+`（未经源码验证）的未知版本保持 `unsupported`。
 -   **`isModernGeneration`** (`src/host-compat.ts:22`): 0.2.x 兜底判定的主次版本匹配。
 -   **`agentVersionFromAnchor`** (`src/host-compat.ts:27`): 从文件锚点读取 `@deepseek-ai/dsh-agent/package.json` 获取版本号。
 -   **`workspaceFlavorDiagnostics`** (`src/host-compat.ts:60`): 诊断函数，按 `[entry, cwd, plugin]` 顺序探测锚点，返回 flavor 和探针详情。
