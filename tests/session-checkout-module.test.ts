@@ -2908,5 +2908,124 @@ describe('SessionCheckoutModule', () => {
     const resumed = await context.module.resumeRevision('session-1', ready.revision, ready.delivery!.review.reviewId)
     expect(resumed.delivery?.state).toBe('working')
   })
+
+  test('Given a configured default branch while the session is on a feature branch When pruning Then merged-ness is decided against the trunk', async () => {
+    const context = createContext()
+    const projectRoot = context.projectRoot
+    // 仓库没有 origin：defaultBranch 退到 init.defaultBranch。
+    git(projectRoot, 'config', 'init.defaultBranch', 'main')
+    git(projectRoot, 'checkout', '-b', 'merged-on-main')
+    git(projectRoot, 'commit', '--allow-empty', '-m', 'main work')
+    git(projectRoot, 'checkout', 'main')
+    git(projectRoot, 'merge', '--ff-only', 'merged-on-main')
+    git(projectRoot, 'checkout', '-b', 'feature')
+    git(projectRoot, 'checkout', '-b', 'only-on-feature')
+    git(projectRoot, 'commit', '--allow-empty', '-m', 'feature work')
+    git(projectRoot, 'checkout', 'feature')
+    git(projectRoot, 'merge', '--ff-only', 'only-on-feature')
+
+    const preview = await context.module.pruneMergedBranchesForSession('session-1', { dryRun: true })
+
+    // 旧逻辑以当前 HEAD（feature）为基准，会把只存在于 feature 的分支也当成已合并；
+    // trunk（main）上的已合并分支才是安全删除对象。
+    expect(preview.headBranch).toBe('feature')
+    expect(preview.pruned.map((entry) => entry.name)).toEqual(['merged-on-main'])
+    expect(preview.skipped.find((entry) => entry.name === 'only-on-feature')?.reason).toContain('main')
+  }, 30_000)
+
+  test('Given the project Local is in the middle of an acceptance preview When a merge is requested Then the Local write is refused while dryRun still previews', async () => {
+    const context = createContext()
+    const target = await context.module.bind('session-1', { kind: 'isolated' })
+    const managedRoot = await context.module.resolveManagedRoot(target.checkout.id)
+    const branch = 'feat/wt-slot'
+    git(managedRoot, 'switch', '-c', branch)
+    writeFileSync(join(managedRoot, 'slot.txt'), 'slot\n', 'utf8')
+    git(managedRoot, 'add', 'slot.txt')
+    git(managedRoot, 'commit', '-m', 'feat: slot work')
+
+    const ready = await context.module.markReadyForReview('session-1', {
+      summary: 'slot review', validationStatus: 'passed', tests: [], suggestedCommitMessage: 'feat: slot work',
+    })
+    const preview = await context.module.operate({ action: 'preview', sessionId: 'session-1', expectedRevision: ready.revision })
+    expect(preview.status).toBe('previewed')
+
+    // 真实验收占着项目 Local：任何真实合并都会绕过 preview 收据直接改写 Local。
+    await expect(context.module.mergeBranchForSession('session-1', { sourceBranch: branch }))
+      .rejects.toMatchObject({ code: 'project_acceptance_busy' })
+    // dryRun 只在临时 worktree 试合，不动 Local，保持可预览。
+    await expect(context.module.mergeBranchForSession('session-1', { sourceBranch: branch, dryRun: true }))
+      .resolves.toMatchObject({ dryRun: true, type: 'merged' })
+  }, 30_000)
+
+  test('Given a delivered checkout whose directory residue survived cleanup When Recover is requested Then the terminal record is not revived', async () => {
+    const context = createContext()
+    const target = await context.module.bind('session-1', { kind: 'isolated' })
+    const managedRoot = await context.module.resolveManagedRoot(target.checkout.id)
+    const path = join(context.configDir, 'managed-checkouts.json')
+    const registry = JSON.parse(readFileSync(path, 'utf8')) as {
+      managedCheckouts: Record<string, { revision: number } & Record<string, unknown>>
+    }
+    const record = registry.managedCheckouts[target.checkout.id]!
+    record.phase = 'discarded'
+    record.delivery = { state: 'delivered', iteration: 1, commitOid: null, deliveredAt: Date.now() }
+    writeFileSync(path, JSON.stringify(registry))
+
+    const result = await context.module.operate({
+      action: 'recover',
+      sessionId: 'session-1',
+      expectedRevision: record.revision,
+    })
+
+    expect(result).toMatchObject({ status: 'error', code: 'operation_not_allowed' })
+    expect(existsSync(managedRoot)).toBe(true)
+    const after = JSON.parse(readFileSync(path, 'utf8')) as { managedCheckouts: Record<string, { phase: string }> }
+    expect(after.managedCheckouts[target.checkout.id]!.phase).toBe('discarded')
+  }, 30_000)
+
+  test('Given cleanup was blocked When only the legacy prose was persisted Then the reason falls back to the message and the structured field wins', async () => {
+    const context = createContext()
+    const target = await context.module.bind('session-1', { kind: 'isolated' })
+    const path = join(context.configDir, 'managed-checkouts.json')
+    const registry = JSON.parse(readFileSync(path, 'utf8')) as {
+      managedCheckouts: Record<string, Record<string, unknown>>
+    }
+    const record = registry.managedCheckouts[target.checkout.id]!
+    record.phase = 'retained'
+    record.delivery = {
+      state: 'retained',
+      review: {
+        reviewId: 'review-legacy',
+        iteration: 1,
+        preparedAt: Date.now(),
+        summary: 'legacy review',
+        validationStatus: 'passed',
+        tests: [],
+        changedFiles: [],
+        suggestedCommitMessage: 'feat: legacy',
+        isolatedFingerprint: 'f'.repeat(64),
+        isolatedHeadOid: 'a'.repeat(40),
+      },
+      commitOid: null,
+      isolatedFingerprint: 'f'.repeat(64),
+      retention: 'retain_24h',
+      retainedAt: Date.now(),
+      expiresAt: Date.now() + 86_400_000,
+      cleanup: 'blocked',
+      cleanupMessage: 'The Worktree quarantine identity cannot be verified.',
+    }
+    writeFileSync(path, JSON.stringify(registry))
+
+    const legacy = await context.module.inspectManagedWorktreeCleanup({ checkoutId: target.checkout.id })
+    expect(legacy[0]?.cleanupReason).toBe('quarantine_busy')
+
+    const persisted = JSON.parse(readFileSync(path, 'utf8')) as {
+      managedCheckouts: Record<string, { delivery: Record<string, unknown> }>
+    }
+    persisted.managedCheckouts[target.checkout.id]!.delivery.cleanupReason = 'directory_busy'
+    writeFileSync(path, JSON.stringify(persisted))
+
+    const structured = await context.module.inspectManagedWorktreeCleanup({ checkoutId: target.checkout.id })
+    expect(structured[0]?.cleanupReason).toBe('directory_busy')
+  }, 30_000)
 })
 

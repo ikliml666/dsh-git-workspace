@@ -44,6 +44,7 @@ import type {
   WorktreeSidebarTaskState,
   WorktreeSidebarTopologyResponse,
 } from '../console-contract.js'
+import { worktreeReachedDelivery } from '../console-contract.js'
 import type {
   GitCheckoutSnapshot,
   ManagedCheckoutRecord,
@@ -114,11 +115,7 @@ function sidebarTaskState(record: ManagedCheckoutRecord): WorktreeSidebarTaskSta
   // Delivery wins over phase: a worktree that reached Local and was then
   // cleaned up (phase 'discarded' + delivery 'delivered') completed its task
   // and must never read as abandoned. Only a discard without delivery is one.
-  if (record.delivery.state === 'delivered'
-    || record.delivery.state === 'finalized'
-    || record.delivery.state === 'retained'
-    || record.phase === 'finalized'
-    || record.phase === 'retained') return 'finalized'
+  if (worktreeReachedDelivery(record.phase, record.delivery.state)) return 'finalized'
   if (record.phase === 'discarded') return 'discarded'
   if (record.phase === 'recovery_required') return 'recovery_required'
   if (record.delivery.state === 'preview_detached') return 'preview_detached'

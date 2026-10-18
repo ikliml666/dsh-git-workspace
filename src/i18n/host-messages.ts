@@ -412,6 +412,10 @@ export const hostMessages = {
     "zh": "Isolated Checkout 缺失，只能由 owner 明确 Discard 收口",
     "en": "The Isolated Checkout is missing. Only an explicit Discard by its owner can close it."
   },
+  "thisWorktreeHasAlreadyReachedATerminalDeliveryState": {
+    "zh": "该 Worktree 已交付或已放弃，处于终态，无法 Recover。",
+    "en": "This Worktree already reached a terminal delivery state; Recover is not available."
+  },
   "theIsolatedCheckoutPathGitIdentityProjectHEADOr": {
     "zh": "Isolated Checkout 的路径、Git 身份、项目、HEAD 或状态无法完整确认",
     "en": "The Isolated Checkout path, Git identity, project, HEAD, or state cannot be fully verified."

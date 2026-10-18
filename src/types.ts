@@ -108,6 +108,8 @@ export type WorktreeDeliveryView =
       proof?: WorktreeDeliveryProofView
       cleanup: 'pending' | 'blocked'
       cleanupMessage?: string
+      /** Structured cause of the blocked cleanup; new records always persist it. */
+      cleanupReason?: WorktreeCleanupReason
     }
   | {
       state: 'retained'
@@ -119,6 +121,8 @@ export type WorktreeDeliveryView =
       expiresAt: number | null
       cleanup: 'scheduled' | 'blocked'
       cleanupMessage?: string
+      /** Structured cause of the blocked cleanup; new records always persist it. */
+      cleanupReason?: WorktreeCleanupReason
     }
   | { state: 'delivered'; iteration: number; commitOid: string | null; proof?: WorktreeDeliveryProofView; deliveredAt: number }
 

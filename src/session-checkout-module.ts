@@ -135,13 +135,24 @@ async function pushLocalBranchBestEffort(
 }
 
 function cleanupReasonForMessage(message: string): WorktreeCleanupReason {
-  // ponytail: 文本匹配只兜底历史持久化的 cleanupMessage（重建路径），在线调用
-  // 点必须向 block() 显式传结构化 reason；zh/en 关键词成对匹配。
+  // ponytail: 文本匹配只兜底历史持久化记录（新记录写 delivery.cleanupReason），
+  // 写点必须显式传结构化 reason；zh/en 关键词成对匹配。
   if (message.includes('提交后出现了新修改') || message.includes('new changes')) return 'modified_after_finalize'
   if (message.includes('解除注册') || message.includes('目录残余') || message.includes('unregistered') || message.includes('residue')) return 'detached_residue'
   if (message.includes('quarantine')) return 'quarantine_busy'
   if (message.includes('身份') || message.includes('记录') || message.includes('Local index') || message.includes('identity')) return 'identity_changed'
   return 'directory_busy'
+}
+
+/**
+ * Reason a finalized/retained record's cleanup stopped. Structured field first;
+ * legacy records persisted only the prose, so fall back to keyword matching.
+ */
+function persistedCleanupReason(delivery: {
+  cleanupReason?: WorktreeCleanupReason
+  cleanupMessage?: string
+}): WorktreeCleanupReason | undefined {
+  return delivery.cleanupReason ?? (delivery.cleanupMessage ? cleanupReasonForMessage(delivery.cleanupMessage) : undefined)
 }
 
 function isTransientCleanupError(error: unknown): boolean {
@@ -2043,11 +2054,14 @@ export function createSessionCheckoutModule(
       || record.journal?.operation === 'finish'
   }
 
-  function findProjectAcceptanceHolder(record: ManagedCheckoutRecord): ManagedCheckoutRecord | undefined {
+  function findProjectAcceptanceHolder(
+    owner: Pick<ManagedCheckoutRecord, 'checkoutId' | 'localRoot'>,
+    options: { includeSelf?: boolean } = {},
+  ): ManagedCheckoutRecord | undefined {
     return Object.values(dependencies.registry.read().managedCheckouts).find((candidate) => (
-      candidate.checkoutId !== record.checkoutId
+      (options.includeSelf === true || candidate.checkoutId !== owner.checkoutId)
       && candidate.phase !== 'discarded'
-      && pathsEqual(candidate.localRoot, record.localRoot)
+      && pathsEqual(candidate.localRoot, owner.localRoot)
       && holdsProjectAcceptanceSlot(candidate)
     ))
   }
@@ -2665,14 +2679,14 @@ export function createSessionCheckoutModule(
     record: ManagedCheckoutRecord,
     options: { allowLegacyResidue?: boolean } = {},
   ): Promise<{ cleaned: boolean; message?: string; reason?: WorktreeCleanupReason }> {
-    const block = (message: string, reason = cleanupReasonForMessage(message)): { cleaned: false; message: string; reason: WorktreeCleanupReason } => {
+    const block = (message: string, reason: WorktreeCleanupReason): { cleaned: false; message: string; reason: WorktreeCleanupReason } => {
       updateManagedCheckout(record.checkoutId, (current) => {
         const journal = current.journal?.operation === 'cleanup' ? current.journal : null
         if (current.delivery.state === 'finalized') {
           return {
             ...current,
             phase: 'finalized',
-            delivery: { ...current.delivery, cleanup: 'blocked', cleanupMessage: message },
+            delivery: { ...current.delivery, cleanup: 'blocked', cleanupMessage: message, cleanupReason: reason },
             journal,
             revision: current.revision + 1,
           }
@@ -2681,7 +2695,7 @@ export function createSessionCheckoutModule(
           return {
             ...current,
             phase: 'retained',
-            delivery: { ...current.delivery, cleanup: 'blocked', cleanupMessage: message },
+            delivery: { ...current.delivery, cleanup: 'blocked', cleanupMessage: message, cleanupReason: reason },
             journal,
             revision: current.revision + 1,
           }
@@ -2697,9 +2711,9 @@ export function createSessionCheckoutModule(
       (record.delivery.state === 'finalized' || record.delivery.state === 'retained')
       && record.delivery.cleanup === 'blocked'
       && record.delivery.cleanupMessage
-      && cleanupReasonForMessage(record.delivery.cleanupMessage) === 'identity_changed'
+      && persistedCleanupReason(record.delivery) === 'identity_changed'
     ) {
-      return block(record.delivery.cleanupMessage)
+      return block(record.delivery.cleanupMessage, 'identity_changed')
     }
     if (hasLegacyCleanupResidueEvidence(record) && !options.allowLegacyResidue && dependencies.files.exists(record.managedGitRoot)) {
       return { cleaned: false, message: CLEANUP_RESIDUE_MESSAGE, reason: 'detached_residue' }
@@ -2836,10 +2850,10 @@ export function createSessionCheckoutModule(
       updateManagedCheckout(record.checkoutId, (current) => {
         const journal = current.journal?.operation === 'cleanup' ? current.journal : null
         if (current.delivery.state === 'finalized') {
-          return { ...current, phase: 'finalized', delivery: { ...current.delivery, cleanup: 'pending', cleanupMessage: message }, journal, revision: current.revision + 1 }
+          return { ...current, phase: 'finalized', delivery: { ...current.delivery, cleanup: 'pending', cleanupMessage: message, cleanupReason: reason }, journal, revision: current.revision + 1 }
         }
         if (current.delivery.state === 'retained') {
-          return { ...current, phase: 'retained', delivery: { ...current.delivery, cleanup: 'blocked', cleanupMessage: message }, journal, revision: current.revision + 1 }
+          return { ...current, phase: 'retained', delivery: { ...current.delivery, cleanup: 'blocked', cleanupMessage: message, cleanupReason: reason }, journal, revision: current.revision + 1 }
         }
         return current
       })
@@ -3498,21 +3512,37 @@ export function createSessionCheckoutModule(
       return operationError('operation_not_allowed', hostMessage('localCheckoutDoesNotSupportRecover'))
     }
 
-    const record = dependencies.registry.read().managedCheckouts[binding.target.checkoutId]
+    let record = dependencies.registry.read().managedCheckouts[binding.target.checkoutId]
     if (!record) return operationError('checkout_missing', hostMessage('theIsolatedCheckoutRecordDoesNotExist'))
     if (record.revision !== input.expectedRevision) {
       return operationError('stale_target', hostMessage('theSessionTargetHasChangedRefreshAndRetry'), await inspectIsolated(binding))
+    }
+    // 终态记录（已交付/已放弃）即使目录还有残留也不能被 Recover 复活成 ready：
+    // 那会让已完成的任务重新出现在进行中列表里。收口交给 reconcile/cleanup。
+    if (record.delivery.state === 'delivered'
+      || record.phase === 'discarded'
+      || record.phase === 'finalized'
+      || record.phase === 'retained') {
+      return operationError('operation_not_allowed', hostMessage('thisWorktreeHasAlreadyReachedATerminalDeliveryState'))
     }
     const recoverCreate = record.journal?.operation === 'create'
     if (record.journal?.operation === 'create' && record.journal.creation) {
       return operationError('recovery_unsafe', hostMessage('theIsolatedCheckoutIdentityCannotBeVerifiedRecoveryIs'))
     }
     if ((record.journal !== null && !recoverCreate) || record.phase === 'mutating') {
-      return operationError(
-        'recovery_unsafe',
-        hostMessage('cannotSafelyDetermineWhetherApplyModifiedLocalItWill'),
-        await inspectIsolated(binding),
-      )
+      // journal 记录的是可重放的 receipt：先让 reconcile 按 receipt 前进/回退到确定态
+      // （ready 或 recovery_required），而不是一律拒绝、把用户卡在手工等待里。
+      await reconcile()
+      const refreshed = dependencies.registry.read().managedCheckouts[binding.target.checkoutId]
+      if (!refreshed) return operationError('checkout_missing', hostMessage('theIsolatedCheckoutRecordDoesNotExist'))
+      record = refreshed
+      if (record.phase !== 'ready' || record.journal !== null) {
+        return operationError(
+          'recovery_unsafe',
+          hostMessage('cannotSafelyDetermineWhetherApplyModifiedLocalItWill'),
+          await inspectIsolated(binding),
+        )
+      }
     }
     if (!dependencies.files.exists(record.managedRoot)) {
       return operationError('recovery_required', hostMessage('theIsolatedCheckoutIsMissingOnlyAnExplicitDiscard'))
@@ -3632,7 +3662,11 @@ export function createSessionCheckoutModule(
       : delivery.state === 'finalized' || delivery.state === 'retained'
         ? delivery.cleanupMessage
         : undefined
-    const cleanupReason = cleanupMessage ? cleanupReasonForMessage(cleanupMessage) : undefined
+    const cleanupReason = cleanupResidue
+      ? 'detached_residue' as const
+      : delivery.state === 'finalized' || delivery.state === 'retained'
+        ? persistedCleanupReason(delivery)
+        : undefined
     return {
       checkoutId: record.checkoutId,
       revision: record.revision,
@@ -3705,7 +3739,7 @@ export function createSessionCheckoutModule(
       }
     }
     if (record.delivery.cleanup === 'blocked' || record.delivery.cleanup === 'pending') {
-      const cleanupReason = cleanupReasonForMessage(record.delivery.cleanupMessage ?? '')
+      const cleanupReason = persistedCleanupReason(record.delivery)
       const cleanupMessage = record.delivery.cleanupMessage ? hostPersistedCleanupMessage(record.delivery.cleanupMessage, hostMessage) : hostMessage('thePreviousCleanupDidNotFinishRevalidateAndRetry')
       if (cleanupReason === 'identity_changed') return cleanupBlocked('identity_mismatch', cleanupMessage, record.revision)
       if (cleanupReason === 'modified_after_finalize') return cleanupBlocked('uncommitted_changes', cleanupMessage, record.revision)
@@ -3822,7 +3856,7 @@ export function createSessionCheckoutModule(
     localRoot: string,
     input: { dryRun?: boolean; olderThanDays?: number } = {},
   ): Promise<PruneMergedBranchesView> {
-    const { branchOverview, isAncestor, deleteLocalBranch, branchTipTimes } = dependencies.git
+    const { branchOverview, isAncestor, deleteLocalBranch, branchTipTimes, defaultBranch } = dependencies.git
     if (!branchOverview || !isAncestor || !deleteLocalBranch) {
       throw new SessionCheckoutError('operation_not_allowed', hostMessage('theGitPortOfThisInstallationDoesNotSupportBranchPrune'))
     }
@@ -3831,8 +3865,14 @@ export function createSessionCheckoutModule(
       throw new SessionCheckoutError('git_operation_failed', hostMessage('gitOperationFailedGit', { p0: 'for-each-ref', p1: '' }))
     }
     const headBranch = overview.branches.find((branch) => branch.isCurrent) ?? null
-    // 安全删只认「已完全合并」：tip 可达当前 HEAD 才算；当前分支与主干分支永不进入候选。
-    const trunkBranches = new Set(['main', 'master'])
+    // 安全删只认「已完全合并」：tip 可达主干才算；当前分支与主干分支永不进入候选。
+    // 主干名从仓库推断（origin/HEAD → init.defaultBranch），不能假设 main/master。
+    const trunkName = defaultBranch ? await defaultBranch(localRoot) : null
+    const trunkBranches = new Set(['main', 'master', ...(trunkName ? [trunkName] : [])])
+    const trunkBranch = trunkName ? overview.branches.find((branch) => branch.name === trunkName) ?? null : null
+    // 合并基准：优先主干（分支已并入主干即可删，哪怕当前 HEAD 停在其他分支上）；
+    // 主干未知或不存在时退回当前 HEAD，保持旧行为。
+    const mergeTarget = trunkBranch ?? headBranch
     const dryRun = input.dryRun === true
     const cutoff = input.olderThanDays === undefined ? null : Date.now() - input.olderThanDays * 86_400_000
     // 年龄过滤需要 tip 时间；port 未实现时跳过全部候选而不是放宽为不过滤。
@@ -3845,7 +3885,7 @@ export function createSessionCheckoutModule(
     }
     const pruned: PruneMergedBranchEntry[] = []
     const skipped: PruneMergedBranchEntry[] = []
-    const headOid = headBranch?.oid
+    const headOid = mergeTarget?.oid
     if (headOid) {
       for (const branch of overview.branches) {
         if (branch.isCurrent || trunkBranches.has(branch.name)) continue
@@ -3857,7 +3897,7 @@ export function createSessionCheckoutModule(
           continue
         }
         if (!merged) {
-          skipped.push({ name: branch.name, oid: branch.oid, reason: hostMessage('thisBranchHasCommitsNotYetMergedInto', { p0: headBranch?.name ?? 'HEAD' }) })
+          skipped.push({ name: branch.name, oid: branch.oid, reason: hostMessage('thisBranchHasCommitsNotYetMergedInto', { p0: mergeTarget?.name ?? 'HEAD' }) })
           continue
         }
         if (tipTimes && cutoff !== null) {
@@ -3962,6 +4002,15 @@ export function createSessionCheckoutModule(
       throw new SessionCheckoutError('not_owner', hostMessage('worktreeMergeSourceNotOwnedBySession', { p0: sourceBranch }))
     }
     const dryRun = input.dryRun === true
+    // 与 checkpoint/preflight 同一互斥源：项目 Local 已有 acceptance slot holder
+    // （含本会话自己）时，任何真实合并都会绕过 preview 收据直接改写 Local，必须拒绝。
+    // dryRun 只在临时 worktree 试合，不改工作树，保持可预览。
+    if (!dryRun) {
+      const holder = findProjectAcceptanceHolder({ checkoutId: '', localRoot }, { includeSelf: true })
+      if (holder) {
+        throw new SessionCheckoutError('project_acceptance_busy', hostMessage('anotherTaskIsOccupyingThisProjectSLocalAcceptance'))
+      }
+    }
     if (direction === 'reverse') {
       // 反向同步：把 Local 当前分支合进任务 worktree 的当前分支；冲突现场留在任务 worktree。
       if (!localBranch) {
@@ -4152,9 +4201,7 @@ export function createSessionCheckoutModule(
    */
   function retryableCleanupBlock(record: ManagedCheckoutRecord): boolean {
     if (record.delivery.state !== 'retained' || record.delivery.cleanup !== 'blocked') return false
-    const message = record.delivery.cleanupMessage
-    if (!message) return false
-    const reason = cleanupReasonForMessage(message)
+    const reason = persistedCleanupReason(record.delivery)
     return reason === 'directory_busy' || reason === 'quarantine_busy'
   }
 

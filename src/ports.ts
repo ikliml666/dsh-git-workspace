@@ -128,6 +128,11 @@ export interface SessionCheckoutGitPort {
    */
   branchOverview?(root: string): Promise<{ branches: BranchOverviewEntry[]; dirtyCount: number } | null>
   /**
+   * Local adaptation: the repository's trunk branch name (`origin/HEAD`, then
+   * `init.defaultBranch`); null when neither resolves. Never guesses 'main'.
+   */
+  defaultBranch?(root: string): Promise<string | null>
+  /**
    * Local adaptation: tip committer time (ms) per local branch name, one spawn.
    * Powers the stale-branch age filter; ports without it disable age filtering.
    */

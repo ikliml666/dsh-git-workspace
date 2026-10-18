@@ -455,6 +455,14 @@ export function createDshGitPort(ctx: Context, options: GitPortOptions): Session
       }).filter((branch) => branch.name && /^[0-9a-f]{40,64}$/iu.test(branch.oid))
       return { branches, dirtyCount: status.stdout ? status.stdout.split('\0').filter(Boolean).length : 0 }
     },
+    defaultBranch: async (root) => {
+      const symbolic = await runSessionGit(root, ['symbolic-ref', '--quiet', '--short', 'refs/remotes/origin/HEAD'])
+      const fromOrigin = symbolic.code === 0 ? symbolic.stdout.trim().replace(/^origin\//u, '') : ''
+      if (fromOrigin) return fromOrigin
+      const configured = await runSessionGit(root, ['config', '--get', 'init.defaultBranch'])
+      const fromConfig = configured.code === 0 ? configured.stdout.trim() : ''
+      return fromConfig || null
+    },
     branchTipTimes: async (root) => {
       const refs = await runSessionGit(root, ['for-each-ref', '--format=%(refname)%00%(committerdate:unix)', 'refs/heads'])
       if (refs.code !== 0) {

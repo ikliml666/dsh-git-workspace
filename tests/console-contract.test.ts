@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest'
 import {
   consoleStateFromDomain,
   worktreeConsoleErrorMeta,
+  worktreeReachedDelivery,
   type WorktreeConsoleFinalizeRequest,
   type WorktreeConsoleProjectionSource,
 } from '../src/console-contract.js'
@@ -34,6 +35,20 @@ describe('Worktree Console shared contract', () => {
       phase: 'recovery_required',
       deliveryState: 'ready_for_review',
     }))).toBe('recovery_required')
+  })
+
+  test('treats every post-delivery state as completed for sidebar labels', () => {
+    expect(worktreeReachedDelivery('ready', 'delivered')).toBe(true)
+    expect(worktreeReachedDelivery('ready', 'finalized')).toBe(true)
+    expect(worktreeReachedDelivery('ready', 'retained')).toBe(true)
+    expect(worktreeReachedDelivery('finalized', 'finalized')).toBe(true)
+    expect(worktreeReachedDelivery('retained', 'retained')).toBe(true)
+    // 真交付+清理完成会落成 phase discarded + delivery delivered：完成，不是「已放弃」。
+    expect(worktreeReachedDelivery('discarded', 'delivered')).toBe(true)
+    // 真放弃保留放弃前的前态，仍按「已放弃」显示。
+    expect(worktreeReachedDelivery('discarded', 'working')).toBe(false)
+    expect(worktreeReachedDelivery('ready', 'preview_active')).toBe(false)
+    expect(worktreeReachedDelivery('recovery_required', 'ready_for_review')).toBe(false)
   })
 
   test('maps stable domain and transport errors to one client recovery policy', () => {

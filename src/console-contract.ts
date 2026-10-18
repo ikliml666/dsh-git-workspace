@@ -55,6 +55,23 @@ export interface WorktreeConsoleProjectionSource {
   deliveryState?: WorktreeConsoleDeliveryState
 }
 
+/**
+ * A record whose task reached the user (delivered), or whose environment is
+ * retained/finalized after delivery. The work tree may already be gone, but the
+ * task completed and must never be projected as abandoned. Delivery wins over
+ * phase because a successful cleanup moves phase on to 'discarded'.
+ */
+export function worktreeReachedDelivery(
+  phase: SessionCheckoutPhase,
+  deliveryState?: WorktreeConsoleDeliveryState,
+): boolean {
+  return deliveryState === 'delivered'
+    || deliveryState === 'finalized'
+    || deliveryState === 'retained'
+    || phase === 'finalized'
+    || phase === 'retained'
+}
+
 /** Recovery and mutation phases take precedence over a stale delivery label. */
 export function consoleStateFromDomain(source: WorktreeConsoleProjectionSource): WorktreeConsoleTargetState {
   if (source.kind === 'local') return 'local'
