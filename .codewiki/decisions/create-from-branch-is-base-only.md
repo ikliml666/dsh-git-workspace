@@ -24,7 +24,7 @@ tags:
 
 **职责**：工作树创建的核心协调器，负责从注册到检出的全流程控制，确保原子性和身份一致性。
 
-*   **`createWorktree(localRoot, target, baseOid, run, saveEvidence?)`** (L35)
+*   **`createWorktree(localRoot, target, baseOid, run, saveEvidence?)`** (L16)
     *   **输入**：本地仓库根、目标路径、基础 OID、运行命令执行器。
     *   **行为**：
         1.  **身份验证与预检**：使用 `samePath`（跨平台大小写敏感处理）和 `sameIdentity`（JSON 序列化比对）确保父目录、公共目录和目标目录在操作期间未被篡改。通过 `files.inspectDirectoryIdentity` 获取目录标识。

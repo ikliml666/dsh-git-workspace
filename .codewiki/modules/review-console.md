@@ -10,6 +10,7 @@ source_files:
   - src/client/review-console/ReviewIcon.tsx
   - src/client/review-console/preflight-cache.ts
   - src/client/review-console/status-events.ts
+  - src/client/review-console/request-cache.ts
 tags: [client, review, preflight, recovery]
 ---
 
@@ -61,7 +62,7 @@ Review Console 模块负责管理 Git Worktree 的审查（Review）生命周期
     *   **逻辑**：
         *   若 `target` 不存在，返回 `false`（不过期）。
         *   若 `target.state` 为 `working`，视为过期。
-        *   若 `target.state` 不在白名单 (`ready_for_review`, `preview_active` 等) 中，不过期。
+        *   若 `target.state` 不在白名单 (`ready_for_review`, `preview_active`, `preview_detached`, `cleanup_pending`, `recovery_required`, `retained`) 中，不过期。
         *   比较 `target.revision` 与 `identity?.expectedRevision` (默认 fallback 到 `review.revision`) 以及 `target.review.reviewId`。
 *   **`WorktreeReviewPanel` 组件 (L55)**
     *   **状态管理**：`detailsExpanded` (控制详情展开)，受 `review.reviewId` 和 `review.revision` 重置。
