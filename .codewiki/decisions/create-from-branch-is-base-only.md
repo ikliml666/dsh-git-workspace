@@ -2,36 +2,57 @@
 title: "按分支创建只选基准提交，不adopt分支——交付目标始终跟随源会话分支"
 type: decision
 source_files:
-  - src/session-checkout-module.ts
-  - src/session-checkout-apply.ts
-  - src/console-host/control-plane.ts
-  - src/console-contract.ts
   - src/adapters/worktree-creation.ts
+  - src/console-host/control-plane.ts
 tags:
   - design
   - create
   - delivery
 ---
 
-## 背景
+## Overview
 
-借鉴 dsh-worktree-panel 的「为已有分支一键创建」时发现：该插件的 worktree 会 checkout 到分支上（adopt），删除/切换都围绕分支。而本插件的隔离 checkout 是 **detached** 设计（src/adapters/worktree-creation.ts `createWorktree` 中执行 `git worktree add --detach --no-checkout --lock`），且交付链路写的是**源会话当前检出的分支**——src/session-checkout-apply.ts `finalize` 方法中获取 `const branchRef = current.headRef`（要求 refs/heads/ 前缀），用 `update-ref <branchRef> <commitOid> <current.headOid>` 的 CAS 快进，索引替换同事务。`record.sourceRef` 只进回执与展示投影，不参与交付写。
+本决策文档详细阐述了隔离工作树（Isolated Worktree）的创建机制及其与源会话（Source Session）分支的关系。核心结论是：**创建工作树时传入的 `branch` 参数仅用于确定“基准提交”（Base OID），绝不改变工作树的 Detached HEAD 状态，也不影响最终交付的目标分支。**
 
-## 决定
+交付目标始终锁定为**源会话当前检出的分支**。这意味着，无论用户从哪个分支创建隔离工作树，最终的代码变更都必须通过 `update-ref` CAS 操作写回源会话的原始分支头。这种设计确保了交付链路的确定性，避免了因工作树 Adopt 分支而导致的预期错乱。
 
-- create 的 `branch` 参数（src/console-contract.ts WorktreeConsoleCreateRequest.branch）= **基准选择**：src/session-checkout-module.ts `bindTarget` 函数中以 `snapshot.headOid` 为默认基点，当 `createOptions?.branch !== undefined` 时用 `dependencies.git.resolveLocalBranchTip?.(localGitRoot, createOptions.branch)` 取该分支当前 tip 作为 `baseOid`。若未传 `branch` 则使用 `snapshot.headOid`。
-- `binding.sourceRef`/`sourceOid` 仍记录源会话的 HEAD（src/session-checkout-module.ts `bindTarget` 中 `sourceRef: snapshot.headRef`；`sourceOid: snapshot.headOid`）——交付目标语义完全不变。`record.sourceRef` 指向 `snapshot.headRef`，`record.baseOid` 指向 resolved 的基点提交。
-- `bindingForManagedRecord` 将 `sourceOid` 映射为 `record.baseOid`，而非原始的 `sourceOid`，确保绑定记录反映实际基点。
-- UI 措辞是「从分支创建」（以该分支当前指向为起点），不承诺工作会落到该分支。
-- control-plane.ts 的 `createTarget` 接收 `branch?: string` 参数，通过 `{ branch }` 对象透传给 `module.createIsolatedTarget()`；`create` 接口方法（contract.ts `WorktreeConsoleAdapter.create`）均携带此可选参数。
+## Key Components
 
-## 否决的替代方案
+### `src/adapters/worktree-creation.ts`
 
-- **让 worktree adopt 分支（checkout 到分支上）**：交付仍写源会话分支（apply.ts `finalize`），adopt 后 worktree HEAD 与交付目标脱节，用户预期「工作在分支 X 上落地」被静默打破；改交付目标为 record.sourceRef 则要动 CAS/回滚/索引替换事务，风险与收益不成比例。
-- **创建时新建分支 ref**：detached 设计下没有任何东西指向它，交付也不使用它；纯粹的状态残留。
-- **409「分支已被其他 worktree 检出」语义**：detached 创建不 checkout 分支，冲突在 detached 模型里不存在；不需要照搬。
+**职责**：工作树创建的核心协调器，负责从注册到检出的全流程控制。
 
-## 后果
+*   **`createWorktree(localRoot, target, baseOid, run, saveEvidence?)`**
+    *   **输入**：本地仓库根、目标路径、基础 OID、运行命令执行器。
+    *   **行为**：
+        1.  **身份验证与预检**：使用 `samePath`（跨平台大小写敏感处理）和 `sameIdentity`（JSON 序列化比对）确保父目录、公共目录和目标目录在操作期间未被篡改。通过 `files.inspectDirectoryIdentity` 获取目录标识。
+        2.  **元数据指纹**：调用 `metadataFingerprint` 函数递归遍历 `.git` 目录，对非动态文件（排除 index, gitdir, ORIG_HEAD）计算 SHA256 哈希。允许的文件列表硬编码在代码中（如 HEAD, commondir, locked 等）。
+        3.  **创建流程**：
+            *   创建目标目录并标记 `claimed = true`。
+            *   保存证据（包含锁原因 UUID）。
+            *   执行 `git worktree add --detach --no-checkout --lock` 进行注册。**注意：此处强制使用 `--detach`，不 Checkout 任何分支。**
+            *   验证 `.git` 指针文件及反向链接的一致性。
+            *   **检出策略分支**：若启用稀疏检出 (`core.sparseCheckout`)，则执行 `reset --hard`；否则执行 `read-tree` 生成索引快照，计算 `indexFingerprint`，再执行 `checkout-index --all`。
+        4.  **错误处理与清理**：
+            *   **未注册阶段失败**：若仅创建了目录但未注册到 git，且满足特定静默条件（目录空、身份未变、元数据无新增），则尝试删除目录并抛出 `WorktreeCreationFailure(true)`（可安全忽略/重试）。
+            *   **已注册阶段失败**：若注册后失败，进入回滚逻辑。首先验证当前状态，然后将工作树移动到隔离区（`.failed-{uuid}`），再次验证隔离后的状态，最后强制移除工作树注册。若回滚过程中出现异常，抛出 `WorktreeCreationFailure(false)`（不可忽略，需人工介入或保留现场）。
+    *   **完整性校验函数**：
+        *   `verifyIdentity`：深度校验 `.git` 指针、反向链接、HEAD OID、锁原因及无残留 `.lock` 文件。
+        *   `verifyRollbackMetadata`：校验元数据指纹和索引指纹是否保持不变，检查 ORIG_HEAD 内容。
+        *   `verifyUnmodified`：最复杂的校验函数。比对 `ls-files` 输出与实际文件系统。检查子模块残留、过滤属性转换痕迹、逐个校验文件哈希（支持符号链接和普通文件）、检查索引条目是否被修改（`diff-index`, `ls-files -v`）、确认无未知文件或变更。
 
-- 想把工作落到其他分支，仍须在源会话切换分支后创建/交付——这是生命周期安全性的代价，管理面板的敏捷性让位于交付确定性。
-- 分支在创建后移动了也没关系：base 是提交而非引用，apply 的 applyBase/CAS 链路按提交工作。
+### `src/console-host/control-plane.ts`
+
+**职责**：工作树控制台的控制平面核心实现。作为 Host 侧的“调度器”和“授权者”，它接收来自 UI/Client 的请求，执行严格的身份验证（Authorization）、状态一致性检查（CAS），并协调底层的 `SessionCheckoutModule`、Git 端口和注册表（Registry）。
+
+*   **`createWorktreeConsoleControlPlane(options)`** (L128)
+    *   **工厂函数**：接受 `WorktreeConsoleControlPlaneOptions`，注入 `module`, `lookup`, `files`, `registry`, `git`, `reviewDiff` 等依赖。
+    *   **并发控制**：
+        *   `creating`: `Set<string>`，防止同一 Session 同时发起多个创建操作（L334）。
+        *   `confirmations`: `Map<string, ...>`，存储空仓库初始化的确认令牌，带过期时间（5分钟，L296）和容量限制（500个，L287）。
+    *   **主要方法**：
+        *   `create(request)` / `createWithInitialCommit(request)`：使用 `withCreation` 锁机制防止并发创建。`create` 方法接收可选的 `branch` 参数，并将其透传给 `module.createIsolatedTarget()`。
+        *   `authorize(callerId, record)` (L185)：核心授权逻辑。检查调用者是否为 Owner 或 Source Session，检查 Project ID 匹配，验证 CWD，对于非 discarded 状态，额外检查 `listManagedWorktreesForSession` 以确认可见性。
+        *   `linkedReadAccess(sessionId, anchorId)` (L213)：处理链接会话的只读访问权限。允许隔离会话通过锚点（Anchor）访问同组的工作树，需验证锚点的接受槽持有者状态。
+        *   `observe(targetId)` (L266)：获取记录的运行时状态。优先使用 `module.observeManagedCheckout`，否则回退到逐条 Git 检查。
+        *   `details(targetId)` (L293)：组装详细的 Target 信息，包括链接读取的特殊 CAS 校验。
