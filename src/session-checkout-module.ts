@@ -29,6 +29,7 @@ import type {
   WorktreeCheckpointView,
   WorktreePushOutcome,
 } from './types.js'
+import { DEFAULT_WORKTREE_RETENTION } from './types.js'
 import { SessionCheckoutError } from './index.js'
 import { WorktreeCreationFailure } from './creation-failure.js'
 import type { WorktreeCreationEvidence } from './ports.js'
@@ -2897,7 +2898,7 @@ export function createSessionCheckoutModule(
         startedAt,
         previewId: preview.previewId,
         reviewId: review.reviewId,
-        retention: input.retention ?? 'cleanup',
+        retention: input.retention ?? DEFAULT_WORKTREE_RETENTION,
         ...(input.recoveryProof ? { recoveryGeneration: input.recoveryProof.generation } : {}),
       },
       revision: current.revision + 1,
@@ -2964,7 +2965,7 @@ export function createSessionCheckoutModule(
       revision: current.revision + 1,
     }))
     if (!finalized) return operationError('checkout_missing', hostMessage('theCommitWasCreatedButTheCheckoutRecordIs'))
-    const retention = input.retention ?? 'cleanup'
+    const retention = input.retention ?? DEFAULT_WORKTREE_RETENTION
     if (retention !== 'cleanup') {
       const retained = retainFinalized(finalized, retention)
       if (!retained) return operationError('checkout_missing', hostMessage('theCommitWasCreatedButSavingTheRetainedWorktree'))
@@ -3218,7 +3219,7 @@ export function createSessionCheckoutModule(
         previewId,
         reviewId: review.reviewId,
         isolatedFingerprint: receipt.isolatedFingerprint,
-        retention: input.retention ?? 'cleanup',
+        retention: input.retention ?? DEFAULT_WORKTREE_RETENTION,
         changedFiles: [...receipt.changedFiles],
       },
       revision: current.revision + 1,
@@ -3276,7 +3277,7 @@ export function createSessionCheckoutModule(
     if (!finalized) {
       return operationError('checkout_missing', hostMessage('theTaskCommitWasCreatedButTheCheckoutRecord'))
     }
-    const retention = input.retention ?? 'cleanup'
+    const retention = input.retention ?? DEFAULT_WORKTREE_RETENTION
     // Local adaptation: best-effort automatic push of the Local branch right
     // after the delivery commit. Never force-pushes; a failure is reported on
     // the result and never blocks cleanup or the finished state.

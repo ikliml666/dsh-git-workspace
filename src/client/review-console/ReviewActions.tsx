@@ -72,6 +72,12 @@ function preflightMessage(preflight: WorktreeApplyPreflightView, t: ClientTransl
   return t("sync.preflight.finished.local.is.unchanged")
 }
 
+/**
+ * Delivery keeps the frozen environment by default: an accidental delivery
+ * stays recoverable and the retention timer cleans it up afterwards.
+ */
+const DEFAULT_RETAIN_ENVIRONMENT = true
+
 export function ReviewActions({
   review,
   adapter,
@@ -98,7 +104,7 @@ export function ReviewActions({
   const [commitMessage, setCommitMessage] = useState(review.suggestedCommitMessage)
   const [checkpointMessage, setCheckpointMessage] = useState(review.suggestedCommitMessage)
   const checkpointRequestId = useRef<string | null>(null)
-  const [retainEnvironment, setRetainEnvironment] = useState(false)
+  const [retainEnvironment, setRetainEnvironment] = useState(DEFAULT_RETAIN_ENVIRONMENT)
   const [retention, setRetention] = useState<Exclude<WorktreeRetentionMode, 'cleanup'>>('retain_24h')
   const [message, setMessage] = useState<((t: ClientTranslator) => string) | null>(null)
   const [errorText, setError] = useState<((t: ClientTranslator) => WorktreeConsoleError) | null>(null)
@@ -156,7 +162,7 @@ export function ReviewActions({
     setCheckpointOpen(false)
     if (moreMenuRef.current) moreMenuRef.current.open = false
     checkpointRequestId.current = null
-    setRetainEnvironment(false)
+    setRetainEnvironment(DEFAULT_RETAIN_ENVIRONMENT)
     setRetention('retain_24h')
   }, [review.reviewId, review.suggestedCommitMessage])
 

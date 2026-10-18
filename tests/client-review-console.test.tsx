@@ -396,7 +396,8 @@ describe('Domi-style Worktree Review', () => {
     expect(screen.getByRole('dialog', { name: '跳过预览并直接保存？' })).toBeTruthy()
     const message = screen.getByRole('textbox', { name: '提交说明' }) as HTMLTextAreaElement
     fireEvent.change(message, { target: { value: 'feat(review): direct finish' } })
-    fireEvent.click(screen.getByRole('checkbox', { name: '提交后暂时保留当前运行环境' }))
+    // Retaining the environment is the default; the checkbox is already on.
+    expect((screen.getByRole('checkbox', { name: '提交后暂时保留当前运行环境' }) as HTMLInputElement).checked).toBe(true)
     fireEvent.change(screen.getByRole('combobox', { name: '保留时长' }), { target: { value: 'retain_3d' } })
     fireEvent.click(screen.getByRole('button', { name: '确认交付并保留环境' }))
 
@@ -413,10 +414,10 @@ describe('Domi-style Worktree Review', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '确认并保存' }))
     expect(screen.getByRole('dialog', { name: '确认并保存本次修改？' })).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: '确认交付并清理' }))
+    fireEvent.click(screen.getByRole('button', { name: '确认交付并保留环境' }))
 
     await waitFor(() => expect(fixture.adapter.finalizePreview).toHaveBeenCalledWith({
-      ...identity(8), commitMessage: 'feat(review): add Worktree Review UI', retention: 'cleanup',
+      ...identity(8), commitMessage: 'feat(review): add Worktree Review UI', retention: 'retain_24h',
     }))
     expect(fixture.adapter.finalize).not.toHaveBeenCalled()
   })
@@ -659,7 +660,7 @@ describe('Domi-style Worktree Review', () => {
     fireEvent.click(screen.getByRole('button', { name: '预览修改' }))
     await waitFor(() => expect(screen.getByRole('button', { name: '确认并保存' })).toBeTruthy())
     fireEvent.click(screen.getByRole('button', { name: '确认并保存' }))
-    fireEvent.click(screen.getByRole('button', { name: '确认交付并清理' }))
+    fireEvent.click(screen.getByRole('button', { name: '确认交付并保留环境' }))
     await waitFor(() => expect(fixture.adapter.finalizePreview).toHaveBeenCalledWith(expect.objectContaining({ expectedRevision: 8 })))
     expect(screen.queryByRole('button', { name: 'Show diff' })).toBeNull()
   })
@@ -691,8 +692,8 @@ describe('English review dialogs and live locale changes', () => {
     view.rerender(<ClientI18nProvider language="en"><WorktreeReviewPanel
       review={review()} adapter={fixture.adapter} identity={identity()} target={fixture.target}
     /></ClientI18nProvider>)
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm delivery and clean up' }))
-    await waitFor(() => expect(fixture.adapter.finalize).toHaveBeenCalledWith(expect.objectContaining({ commitMessage: '保留用户 commit {title}', retention: 'cleanup' })))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm delivery and retain environment' }))
+    await waitFor(() => expect(fixture.adapter.finalize).toHaveBeenCalledWith(expect.objectContaining({ commitMessage: '保留用户 commit {title}', retention: 'retain_24h' })))
   })
 
   test('translates queued action feedback on switching, without repeating the action', async () => {
@@ -723,7 +724,7 @@ test('logged result card and dock keep one live review through withdraw, refresh
   expect(screen.queryByText('验收结果已过期，请刷新')).toBeNull()
   fireEvent.click(again)
   fireEvent.click(await screen.findByRole('button', { name: '确认并保存' }))
-  fireEvent.click(screen.getByRole('button', { name: '确认交付并清理' }))
+  fireEvent.click(screen.getByRole('button', { name: '确认交付并保留环境' }))
   await waitFor(() => expect(fixture.calls).toContainEqual({ method: 'finalizePreview', request: expect.objectContaining({ expectedReviewId: 'review-1', expectedRevision: 16 }) }))
   await waitFor(() => expect(document.querySelector('.dsh-wt-review-dock')).toBeNull())
 })

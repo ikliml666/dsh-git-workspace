@@ -11,6 +11,7 @@ import '@deepseek-ai/dsh-commands'
 import type { SessionCheckoutModule } from './index.js'
 import { createSessionWorkingDirectoryPort } from './adapters/working-directory.js'
 import type { SessionTargetView, WorktreeRetentionMode } from './types.js'
+import { DEFAULT_WORKTREE_RETENTION } from './types.js'
 
 function targetText(target: SessionTargetView): string {
   const lines = [
@@ -121,7 +122,7 @@ export function registerWorktreeCommand(ctx: Context, module: SessionCheckoutMod
             const hasReviewIdentity = tokens[1] !== undefined && !RETENTIONS.has(tokens[1] as WorktreeRetentionMode)
             const expectedReviewId = hasReviewIdentity ? tokens[1] : undefined
             const parsedRevision = hasReviewIdentity ? Number(tokens[2]) : undefined
-            const retention = (hasReviewIdentity ? tokens[3] : tokens[1] ?? 'cleanup') as WorktreeRetentionMode
+            const retention = (hasReviewIdentity ? tokens[3] : tokens[1] ?? DEFAULT_WORKTREE_RETENTION) as WorktreeRetentionMode
             if (!RETENTIONS.has(retention) || (hasReviewIdentity && (!expectedReviewId || !Number.isSafeInteger(parsedRevision)))) {
               return { kind: 'error', text: usage() }
             }

@@ -276,7 +276,7 @@ describe('public surfaces', () => {
       expectedRevision: 7,
       action: 'finish',
       commitMessage: 'fix: exact reviewed message',
-      retention: 'cleanup',
+      retention: 'retain_24h',
       expectedReviewId: 'review-1',
     })
     expect(result).toMatchObject({ kind: 'worktree_delivered', state: 'ready_for_review' })

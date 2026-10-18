@@ -28,8 +28,15 @@ export type SessionCheckoutPhase =
 
 export type WorktreeValidationStatus = 'passed' | 'failed' | 'partial' | 'not_run'
 
-/** cleanup is the default immediate removal; the other values only apply when the user explicitly retains the runtime. */
+/** cleanup removes the worktree immediately; the other values keep a frozen environment for later inspection. */
 export type WorktreeRetentionMode = 'cleanup' | 'retain_24h' | 'retain_3d' | 'retain_manual'
+
+/**
+ * Retention applied when the caller does not choose one. Keeping the frozen
+ * environment for a day makes an accidental delivery recoverable; the timer
+ * removes it on its own afterwards, so nothing accumulates by hand.
+ */
+export const DEFAULT_WORKTREE_RETENTION: WorktreeRetentionMode = 'retain_24h'
 
 export type WorktreeCleanupReason =
   | 'directory_busy'

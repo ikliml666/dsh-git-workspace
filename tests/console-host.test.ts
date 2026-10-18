@@ -230,6 +230,13 @@ describe('Worktree Console Host control plane', () => {
     other.sourceSessionId = 'discarded-source'
     other.phase = 'discarded'
     other.delivery = { state: 'delivered', iteration: 1, commitOid: null, deliveredAt: 12 }
+    // A discard whose delivery never happened is the only real abandonment.
+    const abandoned = readyRecord()
+    abandoned.checkoutId = 'checkout-abandoned'
+    abandoned.ownerSessionId = 'abandoned-owner'
+    abandoned.sourceSessionId = 'abandoned-source'
+    abandoned.phase = 'discarded'
+    abandoned.delivery = { state: 'working', iteration: 1 }
 
     const sidebarRegistry: ManagedCheckoutsRegistry = {
       version: 2,
@@ -239,6 +246,7 @@ describe('Worktree Console Host control plane', () => {
         [previous.checkoutId]: previous,
         [current.checkoutId]: current,
         [other.checkoutId]: other,
+        [abandoned.checkoutId]: abandoned,
       },
     }
     const { control } = plane(current, {
@@ -260,6 +268,12 @@ describe('Worktree Console Host control plane', () => {
             expect.objectContaining({
               checkoutId: 'checkout-discarded',
               ownerSessionId: 'discarded-owner',
+              // Delivered to Local and then cleaned up: a completed task, not an abandoned one.
+              state: 'finalized',
+            }),
+            expect.objectContaining({
+              checkoutId: 'checkout-abandoned',
+              ownerSessionId: 'abandoned-owner',
               state: 'discarded',
             }),
           ],

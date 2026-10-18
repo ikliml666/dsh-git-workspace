@@ -1169,8 +1169,8 @@ export const hostMessages = {
     "en": "Commit message for the delivery (1-500 chars). In Ready for Review state it defaults to the review's suggestedCommitMessage."
   },
   "worktreeDeliverRetention": {
-    "zh": "交付后的保留策略：cleanup（默认）交付后立即删除 Worktree；retain_24h / retain_3d / retain_manual 保留冻结环境。",
-    "en": "Retention after delivery: cleanup (default) removes the Worktree immediately; retain_24h / retain_3d / retain_manual keep the frozen environment."
+    "zh": "交付后的保留策略：retain_24h（默认）保留冻结环境 24 小时后自动清理；retain_3d / retain_manual 保留更久或由人工清理；cleanup 交付后立即删除 Worktree。",
+    "en": "Retention after delivery: retain_24h (default) keeps the frozen environment for 24 hours then cleans it up; retain_3d / retain_manual keep it longer or until removed by hand; cleanup removes the Worktree immediately."
   },
   "worktreeDeliverReport": {
     "zh": "面向用户的完整交付报告（Markdown），随交付结果返回，不写入提交。",

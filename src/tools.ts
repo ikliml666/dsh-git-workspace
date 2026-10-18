@@ -15,13 +15,14 @@ import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { SessionCheckoutModule } from './index.js'
 import type { WorktreeValidationStatus } from './types.js'
+import { DEFAULT_WORKTREE_RETENTION } from './types.js'
 import { createSessionWorkingDirectoryPort } from './adapters/working-directory.js'
 import type { SessionWorkingDirectoryPort } from './adapters/working-directory.js'
 
 const WORKTREE_RETENTION_VALUES = ['cleanup', 'retain_24h', 'retain_3d', 'retain_manual'] as const
 
 function parseWorktreeRetention(value: unknown): (typeof WORKTREE_RETENTION_VALUES)[number] {
-  if (value === undefined) return 'cleanup'
+  if (value === undefined) return DEFAULT_WORKTREE_RETENTION
   if (typeof value === 'string' && (WORKTREE_RETENTION_VALUES as readonly string[]).includes(value)) {
     return value as (typeof WORKTREE_RETENTION_VALUES)[number]
   }

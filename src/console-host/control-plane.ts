@@ -111,12 +111,15 @@ function recordOf(registry: SessionCheckoutRegistryPort, checkoutId: string): Ma
 }
 
 function sidebarTaskState(record: ManagedCheckoutRecord): WorktreeSidebarTaskState {
-  if (record.phase === 'discarded') return 'discarded'
-  if (record.phase === 'finalized'
-    || record.phase === 'retained'
+  // Delivery wins over phase: a worktree that reached Local and was then
+  // cleaned up (phase 'discarded' + delivery 'delivered') completed its task
+  // and must never read as abandoned. Only a discard without delivery is one.
+  if (record.delivery.state === 'delivered'
     || record.delivery.state === 'finalized'
     || record.delivery.state === 'retained'
-    || record.delivery.state === 'delivered') return 'finalized'
+    || record.phase === 'finalized'
+    || record.phase === 'retained') return 'finalized'
+  if (record.phase === 'discarded') return 'discarded'
   if (record.phase === 'recovery_required') return 'recovery_required'
   if (record.delivery.state === 'preview_detached') return 'preview_detached'
   if (record.delivery.state === 'preview_active') return 'preview_active'
