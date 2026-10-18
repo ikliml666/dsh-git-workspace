@@ -245,6 +245,15 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
       throw domainError('project_mismatch', hostMessage('theCurrentSessionWorkspaceCannotBeProvenToBelong'))
     }
     const workspaceRoot = await options.files.canonicalize(project.root)
+    // After delivery the managed environment is gone (cleanup success writes
+    // phase discarded + delivery delivered), so an owner Session's cwd can never
+    // match managedRoot again. For that settled case the Local checkout is the
+    // authorization boundary — the task is over, its history stays readable.
+    const settledOwner = record.ownerSessionId === sessionId
+      && record.phase === 'discarded'
+      && record.delivery.state === 'delivered'
+      && sameLocalRoot(workspaceRoot, await options.files.canonicalize(record.localRoot))
+    if (settledOwner) return
     if (!sameLocalRoot(workspaceRoot, expectedRoot)) {
       throw domainError('project_mismatch', hostMessage('theCurrentSessionCwdDoesNotMatchTheWorktree'))
     }

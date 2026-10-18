@@ -108,6 +108,13 @@ function lookupDouble(): SessionCheckoutLookupPort {
   }
 }
 
+/** A live owner Session's project root is the Local checkout, never the managed root. */
+function ownerLocalLookup(): SessionCheckoutLookupPort {
+  const lookup = lookupDouble()
+  lookup.getProject = vi.fn(projectId => ({ id: projectId, name: 'Project', root: '/local' }))
+  return lookup
+}
+
 function filesDouble(): SessionCheckoutFilesPort {
   return {
     exists: () => true,
@@ -968,7 +975,7 @@ describe('Worktree Console Host control plane', () => {
         validationStatus: 'passed', validationSummary: 'full validation passed',
       },
     }
-    const { module, control } = plane(delivered)
+    const { module, control } = plane(delivered, { lookup: ownerLocalLookup() })
     vi.mocked(module.inspect).mockResolvedValue({
       project: { id: delivered.projectId, name: delivered.projectName },
       checkout: { id: delivered.checkoutId, kind: 'isolated', label: 'Task', phase: 'discarded' },
@@ -1012,6 +1019,17 @@ describe('Worktree Console Host control plane', () => {
     const result = await control.inspect('target-session', 'checkout-1')
     expect(result).toMatchObject({ ok: false, error: { code: 'project_mismatch' } })
     expect(module.resolveManagedRoot).not.toHaveBeenCalled()
+  })
+
+  it('keeps a delivered Worktree readable for its owner after cleanup removed the environment', async () => {
+    const delivered = readyRecord()
+    delivered.phase = 'discarded'
+    delivered.delivery = { state: 'delivered', iteration: 1, commitOid: B, deliveredAt: 10 }
+    // The owner Session's project root is the Local checkout; the old managedRoot
+    // no longer exists, so the authorization boundary falls back to Local.
+    const { control } = plane(delivered, { lookup: ownerLocalLookup() })
+    const result = await control.inspect('target-session', delivered.checkoutId)
+    expect(result).toMatchObject({ ok: true, value: { target: { state: 'delivered' } } })
   })
 
   it('keeps list rows path-free while authorized detail contains the validated managedRoot', async () => {
