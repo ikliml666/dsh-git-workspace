@@ -47,7 +47,8 @@ export const TARGET_CONSOLE_STYLES = String.raw`
 .dsh-wtc-target-chip[data-target-state="cleanup_pending"] { --wtc-state: #c47a1c; }
 .dsh-wtc-target-chip[data-target-state="recovery_required"],
 .dsh-wtc-target-chip[data-target-state="error"] { --wtc-state: #c94747; }
-.dsh-wtc-target-chip[data-target-state="delivered"] { opacity: .66; }
+.dsh-wtc-target-chip[data-target-state="delivered"],
+.dsh-wtc-target-chip[data-target-state="discarded"] { opacity: .66; }
 .dsh-wtc-target-expiry { color: color-mix(in srgb, currentColor 62%, transparent); font-weight: 520; }
 
 .dsh-wtc-console {
@@ -116,7 +117,8 @@ export const TARGET_CONSOLE_STYLES = String.raw`
 .dsh-wtc-state[data-target-state="ready_for_review"] { --wtc-state: #25885d; }
 .dsh-wtc-state[data-target-state="retained"] { --wtc-state: #6b5bd2; }
 .dsh-wtc-state[data-target-state="recovery_required"] { --wtc-state: #c94747; }
-.dsh-wtc-state[data-target-state="delivered"] { opacity: .66; }
+.dsh-wtc-state[data-target-state="delivered"],
+.dsh-wtc-state[data-target-state="discarded"] { opacity: .66; }
 .dsh-wtc-facts { display: flex; flex-wrap: wrap; gap: 4px 10px; color: var(--wtc-muted); font-size: 11px; }
 .dsh-wtc-recovery-message { color: var(--wtc-red); font-weight: 620; }
 .dsh-wtc-revision { color: var(--wtc-muted); font: 11px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }

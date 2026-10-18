@@ -4144,11 +4144,25 @@ export function createSessionCheckoutModule(
     return record ? { managedRoot: record.managedRoot, localRoot: record.localRoot } : undefined
   }
 
+  /**
+   * 到期清理只在数据保护判定下停下：identity_changed（目录已被别的东西替换）
+   * 与 modified_after_finalize（交付后又有改动）需要人工判断。
+   * directory_busy / quarantine_busy 是暂时性文件占用，必须留在定期重试里，
+   * 否则一次瞬时失败就会把已到期的目录永久留在磁盘上。
+   */
+  function retryableCleanupBlock(record: ManagedCheckoutRecord): boolean {
+    if (record.delivery.state !== 'retained' || record.delivery.cleanup !== 'blocked') return false
+    const message = record.delivery.cleanupMessage
+    if (!message) return false
+    const reason = cleanupReasonForMessage(message)
+    return reason === 'directory_busy' || reason === 'quarantine_busy'
+  }
+
   async function cleanupExpiredRetained(now = Date.now()): Promise<string[]> {
     const expired = Object.values(dependencies.registry.read().managedCheckouts).filter((record) => (
       record.phase === 'retained'
       && record.delivery.state === 'retained'
-      && record.delivery.cleanup === 'scheduled'
+      && (record.delivery.cleanup === 'scheduled' || retryableCleanupBlock(record))
       && record.permanent !== true
       && record.delivery.expiresAt !== null
       && record.delivery.expiresAt <= now
@@ -4186,14 +4200,11 @@ export function createSessionCheckoutModule(
     const evictable = ordered.slice(0, Math.max(0, ordered.length - limit))
     const cleaned: string[] = []
     for (const record of evictable) {
-      // 逐出走完整 discard 安全链（含放弃前快照），confirmDirty 跳过人工确认。
-      const result = await withCleanupTimeout(record.checkoutId, () => operateDiscard({
-        action: 'discard',
-        sessionId: record.ownerSessionId,
-        expectedRevision: record.revision,
-        confirmDirty: true,
-      }, bindingForManagedRecord(record)))
-      if (result?.status === 'discarded') cleaned.push(record.checkoutId)
+      // 逐出一个已交付 Worktree 就是普通清理：走 cleanupFinalized 的目录身份校验
+      // 与隔离/残留链。不能复用 operateDiscard——它只接受 ready/recovery_required，
+      // 对 finalized/retained 一律返回 operation_not_allowed，逐出会静默全失败。
+      const result = await withCleanupTimeout(record.checkoutId, () => cleanupFinalized(record))
+      if (result?.cleaned) cleaned.push(record.checkoutId)
       else console.warn(`[session-checkout] keep-count Worktree eviction skipped: ${record.checkoutId}`)
     }
     return cleaned

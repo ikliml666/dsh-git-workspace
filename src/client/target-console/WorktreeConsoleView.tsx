@@ -40,6 +40,7 @@ const STATE_LABELS = (t: ClientTranslator = defaultClientTranslator) => ({
   cleanup_pending: t("cleanup.pending"),
   recovery_required: t("recovery.required"),
   delivered: t("delivered"),
+  discarded: t("discarded"),
 })
 
 interface ConsoleSnapshot {
@@ -85,6 +86,7 @@ const ATTENTION_RANK: Record<WorktreeConsoleTargetState, number> = {
   creating: 7,
   delivered: 8,
   local: 9,
+  discarded: 10,
 }
 
 /** Source-linked Worktree management surface backed only by WorktreeConsoleAdapter. */

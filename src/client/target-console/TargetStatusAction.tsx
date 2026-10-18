@@ -39,6 +39,7 @@ const STATE_LABELS = (t: ClientTranslator = defaultClientTranslator) => ({
   cleanup_pending: t("cleanup.pending"),
   recovery_required: t("recovery.required"),
   delivered: t("delivered"),
+  discarded: t("discarded"),
 })
 
 function shortOid(value: string): string {

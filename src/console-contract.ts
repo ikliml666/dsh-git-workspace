@@ -34,6 +34,7 @@ export const WORKTREE_CONSOLE_TARGET_STATES = [
   'cleanup_pending',
   'recovery_required',
   'delivered',
+  'discarded',
 ] as const
 
 export type WorktreeConsoleTargetState = typeof WORKTREE_CONSOLE_TARGET_STATES[number]
@@ -59,9 +60,13 @@ export function consoleStateFromDomain(source: WorktreeConsoleProjectionSource):
   if (source.kind === 'local') return 'local'
   if (source.phase === 'recovery_required') return 'recovery_required'
   if (source.phase === 'preparing') return 'creating'
+  if (source.deliveryState === 'delivered') return 'delivered'
+  // Abandoned records keep whatever delivery label preceded the discard, so the
+  // discarded phase must win over `retained`/`finalized` here; only a delivered
+  // record means the changes landed in Local.
+  if (source.phase === 'discarded') return 'discarded'
   if (source.deliveryState === 'retained' || source.phase === 'retained') return 'retained'
   if (source.deliveryState === 'finalized' || source.phase === 'finalized') return 'cleanup_pending'
-  if (source.deliveryState === 'delivered' || source.phase === 'discarded') return 'delivered'
   if (source.deliveryState === 'preview_detached') return 'preview_detached'
   if (source.deliveryState === 'preview_active') return 'preview_active'
   if (source.deliveryState === 'ready_for_review') return 'ready_for_review'

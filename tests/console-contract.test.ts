@@ -25,6 +25,11 @@ describe('Worktree Console shared contract', () => {
     expect(consoleStateFromDomain(source({ deliveryState: 'retained' }))).toBe('retained')
     expect(consoleStateFromDomain(source({ deliveryState: 'finalized' }))).toBe('cleanup_pending')
     expect(consoleStateFromDomain(source({ deliveryState: 'delivered' }))).toBe('delivered')
+    // A discarded record keeps the delivery label it had before the discard, so
+    // only `delivered` may survive it; everything else is an abandoned Worktree.
+    expect(consoleStateFromDomain(source({ phase: 'discarded', deliveryState: 'working' }))).toBe('discarded')
+    expect(consoleStateFromDomain(source({ phase: 'discarded', deliveryState: 'retained' }))).toBe('discarded')
+    expect(consoleStateFromDomain(source({ phase: 'discarded', deliveryState: 'delivered' }))).toBe('delivered')
     expect(consoleStateFromDomain(source({
       phase: 'recovery_required',
       deliveryState: 'ready_for_review',

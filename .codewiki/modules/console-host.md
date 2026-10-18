@@ -20,6 +20,12 @@ tags:
 
 该模块负责在宿主进程中暴露 Git Worktree 的控制平面。它不直接处理复杂的 Git 逻辑，而是通过 `module`（Session Checkout Module）协调底层操作，并通过 `registry` 维护工作树的生命周期状态。所有对外接口均通过 `TypertRemoteService` 暴露，支持多语言本地化（i18n）和严格的参数校验。
 
+核心职责包括：
+- **RPC 适配**：通过 `service.ts` 将内部逻辑包装为 Typert Remote 调用。
+- **权限与一致性**：通过 `authorize` 和 `linkedReadAccess` 确保会话所有权、项目匹配及根目录一致性。
+- **并发安全**：通过 `withCreation` 实现基于 Session 和 Root 的双重互斥，防止并发创建冲突。
+- **状态投影**：利用 `projection.ts` 中的辅助函数将内部记录转换为 UI 友好的目标视图（Target Details）。
+
 ## Key Components
 
 ### src/console-host/control-plane.ts (540+ 行)

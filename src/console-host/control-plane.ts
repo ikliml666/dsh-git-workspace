@@ -641,7 +641,7 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
       // Switching the local root re-bases every future apply-to-local; refuse
       // while this session holds an acceptance slot mid-delivery on that repo.
       const delivering = Object.values(options.registry.read().managedCheckouts).some(record =>
-        record.ownerSessionId === sessionId
+        (record.ownerSessionId === sessionId || record.sourceSessionId === sessionId)
         && (record.phase === 'recovery_required'
           || (record.phase === 'ready'
             && (record.delivery.state === 'ready_for_review'
@@ -730,7 +730,14 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
           ownerSessionAvailable: ownerSessionAvailable(record),
           linkedRead,
         }))
-        if (request.needsAttention !== true || projected.state === 'cleanup_pending' || projected.state === 'recovery_required') {
+        // A preview that drifted from Local needs the user's attention just like a
+        // blocked cleanup or an unrecoverable record; otherwise the panel hides it.
+        if (
+          request.needsAttention !== true
+          || projected.state === 'cleanup_pending'
+          || projected.state === 'preview_detached'
+          || projected.state === 'recovery_required'
+        ) {
           worktrees.push(projected)
         }
       }
@@ -1266,7 +1273,14 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
       }
       const session = options.lookup.getSession(request.sessionId)
       const workspace = session?.projectId === undefined ? undefined : options.lookup.getProject(session.projectId)
-      if (!workspace || !sameLocalRoot(resolve(workspace.root), resolve(predecessor.managedRoot))) {
+      // A separate isolated Session lives at the managed root; an in-place
+      // Session lives back at the Local boundary after a successful cleanup,
+      // so accepting only the managed root fails every in-place next iteration.
+      const ownerRootMatches = workspace !== undefined && (
+        sameLocalRoot(resolve(workspace.root), resolve(predecessor.managedRoot))
+        || sameLocalRoot(resolve(workspace.root), resolve(predecessor.localRoot))
+      )
+      if (!ownerRootMatches) {
         throw domainError('project_mismatch', hostMessage('theCurrentSessionSImmutableCwdDoesNotMatch'))
       }
 

@@ -632,6 +632,55 @@ describe('Worktree Console Host control plane', () => {
     expect(module.beginNextIteration).toHaveBeenCalledWith('target-session', delivered.revision)
   })
 
+  it('lets an in-place owner rooted at the Local boundary through the workspace gate', async () => {
+    const delivered = readyRecord()
+    delivered.phase = 'discarded'
+    delivered.revision = 9
+    delivered.delivery = { state: 'delivered', iteration: 1, commitOid: B, deliveredAt: 10 }
+    const lookup = lookupDouble()
+    // An in-place Session keeps its Workspace at the Local boundary while the
+    // predecessor record still names the managed root that cleanup removed.
+    lookup.getProject = () => ({ id: 'workspace-target', name: 'Project', root: '/local' })
+    const { module, control } = plane(delivered, { lookup })
+    vi.mocked(module.beginNextIteration).mockRejectedValue(new Error('module reached'))
+
+    await control.beginNextIteration({
+      sessionId: 'target-session', checkoutId: delivered.checkoutId, expectedRevision: delivered.revision,
+    })
+
+    expect(module.beginNextIteration).toHaveBeenCalledWith('target-session', delivered.revision)
+  })
+
+  it('keeps a preview-detached record in the attention filter', async () => {
+    const record = readyRecord()
+    record.delivery = {
+      state: 'preview_detached',
+      review: {
+        reviewId: 'review-1', iteration: 1, preparedAt: 1, summary: 'Ready', validationStatus: 'passed',
+        tests: [], changedFiles: ['src/index.ts'], suggestedCommitMessage: 'fix: persisted review',
+        isolatedFingerprint: 'fingerprint-1', isolatedHeadOid: B,
+      },
+      preview: { previewId: 'preview-1' }, detachedAt: 2, reason: 'stale_local', attemptedAction: 'discard',
+    } as unknown as ManagedCheckoutRecord['delivery']
+    const { control } = plane(record)
+
+    const result = await control.list({ sessionId: 'source-session', needsAttention: true })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) throw new Error('expected list success')
+    expect(result.value.worktrees.map(row => row.state)).toEqual(['preview_detached'])
+  })
+
+  it('blocks a Local branch switch from the source Session while delivery is pending', async () => {
+    const git = { ...gitDouble(), switchLocalBranch: vi.fn(async () => undefined) }
+    const { control } = plane(readyRecord(), { git })
+
+    const result = await control.gitSwitchBranch('source-session', 'feature')
+
+    expect(result).toMatchObject({ ok: false, error: { code: 'operation_not_allowed' } })
+    expect(git.switchLocalBranch).not.toHaveBeenCalled()
+  })
+
   it('observes list records in one module batch when the module supports batch observation', async () => {
     const record = readyRecord()
     const { module, control } = plane(record)

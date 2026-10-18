@@ -6,15 +6,10 @@ source_files:
   - src/client/review-console/WorktreeReviewPanel.tsx
   - src/client/review-console/ReviewActions.tsx
   - src/client/review-console/PreflightStatus.tsx
-  - src/client/review-console/ReviewDetailsModal.tsx
   - src/client/review-console/DeliveryProof.tsx
   - src/client/review-console/ReviewIcon.tsx
   - src/client/review-console/preflight-cache.ts
-  - src/client/review-console/preview-recovery-cache.ts
-  - src/client/review-console/recovery-continuation.ts
   - src/client/review-console/status-events.ts
-  - src/client/review-console/review-console.styles.ts
-  - src/client/review-console/request-cache.ts
 tags: [client, review, preflight, recovery]
 ---
 
@@ -39,10 +34,10 @@ Review Console 模块负责管理 Git Worktree 的审查（Review）生命周期
 
 导出公共 API 和数据转换函数。
 
-*   **`reviewEvidenceFromTarget` (L15)**
+*   **`reviewEvidenceFromTarget` (L13)**
     *   **职责**：将 `WorktreeConsoleTargetSummary` 中的 review 数据投影为 `WorktreeReviewEvidence`。
     *   **逻辑**：若 `target.review` 为空则返回 `null`。支持注入额外的 `detailsMarkdown`。
-*   **`reviewIdentityFromTarget` (L27)**
+*   **`reviewIdentityFromTarget` (L25)**
     *   **职责**：构建 `WorktreeReviewIdentity`，用于 Finalize 和高级读取操作。
     *   **依赖**：`sessionId`, `target.checkoutId`, `target.revision`, `target.review.reviewId`。任一缺失返回 `null`。
 *   **导出类型**：
@@ -185,58 +180,14 @@ Review Console 模块负责管理 Git Worktree 的审查（Review）生命周期
 *   **导出**: `readReviewPreflight` (读), `invalidateReviewPreflight` (失效), `useReviewPreflight` (React Hook)。
 *   **特性**: 单飞行 (single-flight)，`force` 参数可绕过缓存。
 
-### 9. 预览恢复预检缓存 (`src/client/review-console/preview-recovery-cache.ts`)
-
-预览恢复预检 (`previewRecoveryPreflight`) 的缓存管理。
-
-*   **`cache`**: Key 额外包含 `expectedPreviewId`。
-*   **导出**: `readPreviewRecoveryPreflight`, `invalidatePreviewRecoveryPreflight`, `usePreviewRecoveryPreflight`。
-
-### 10. 恢复请求持久队列 (`src/client/review-console/recovery-continuation.ts`)
-
-管理 Worktree 恢复请求（Recovery Request）的持久化队列、状态机及发送流程。
-
-*   **接口**：
-    *   `WorktreeApplyConflictRecoveryRequest`: 处理应用冲突恢复，包含 `localHeadOid`, `conflictingFiles`。
-    *   `WorktreeReviewRegenerationRequest`: 处理审查再生，仅含 `revision`。
-    *   `WorktreeRecoverySnapshot`: 当前状态快照 `{ status, request, error? }`。
-    *   `RecoveryEntry`: 内部条目，持有 `snapshot`, `adapter`, `services`, `isActive`, `abort`, `unsubscribers`, `listeners`。
-*   **状态枚举**：`WorktreeRecoveryStatus = 'queued' | 'sending' | 'sent' | 'failed' | 'cancelled'`。
-*   **存储前缀**：`STORAGE_PREFIX = 'dsh-git-worktree:recovery:v1:'`。
-*   **导出函数/钩子**：
-    *   `enqueueWorktreeRecovery(input)`: 入队新请求。若存在相同 `sessionId`+`requestId` 则更新上下文；否则取消旧条目并创建新条目。执行 `validRequest` 校验。
-    *   `restoreWorktreeRecovery(input)`: 从 `localStorage` 恢复状态。若原状态为 `sending` 或 `failed`，标记为失败或重新排队。
-    *   `retryWorktreeRecovery(sessionId)`: 对 `failed` 或 `cancelled` 状态的条目重新触发 `attempt`。
-    *   `getWorktreeRecoverySnapshot(sessionId)`: 获取当前快照。
-    *   `subscribeWorktreeRecovery(sessionId, listener)`: 订阅状态变更。
-    *   `useWorktreeRecoverySnapshot(sessionId)`: React Hook，基于 `useSyncExternalStore` 订阅恢复状态。
-    *   `cancelWorktreeRecovery(sessionId, requestId?)`: 取消特定请求。
-    *   `detachWorktreeRecoveryRuntime(sessionId)`: 模拟运行时卸载，保留持久化数据。
-    *   `clearWorktreeRecovery(sessionId)`: 清除内存和存储。
-    *   `buildWorktreeRecoveryPrompt(request, t)`: 构建发送给 Host 的提示文本。
-
-**关键逻辑行号参考**：
-*   **持久化存储 (`persistSnapshot` / `readPersisted`)**: L58-L96。使用 `localStorage`，版本号为 `1`。读取时严格校验 JSON 结构、字段长度、字符集（禁止 `\0`, `\r`, `\n`），非法数据直接删除存储项。
-*   **请求校验 (`validRequest`)**: L113-L148。严格检查 `kind`, `sessionId` (<=200), `requestId` (<=500), `checkoutId`, `reviewId`, `revision`。针对 `worktree_apply_conflict` 额外校验 `localHeadOid` (40/64位hex) 和 `conflictingFiles` (<=500个, 路径安全)。
-*   **路径匹配 (`samePath`)**: L157-L161。区分 Windows (`[A-Za-z]:`) 和 POSIX 路径，统一转为 `/` 后比较（Windows 不区分大小写）。
-*   **目标匹配 (`targetMatchesRequest`)**: L163-L191。核心安全逻辑。对比 `inspected` 结果中的 `target` 与 `request`。要求 `state` 正确 (`working` 或 `ready_for_review`)，且 `recoveryContinuation` 证明中的所有字段（`kind`, `requestId`, `checkoutId`, `reviewId`, `revision`, `localHeadOid`, `conflictingFiles`）完全一致。
-*   **尝试发送 (`attempt`)**: L225-L305。
-    *   检查 `isCurrent` 和 `activeSessionState`。
-    *   调用 `adapter.inspect` 获取最新目标状态。
-    *   若会话未就绪 (`sessionReady` 返回 false)，调用 `waitForSession` 启动轮询。
-    *   就绪后，再次 `inspect` 确认。
-    *   设置 `AbortController`，调用 `binding.session.prompt` 发送恢复请求。
-    *   捕获错误并发布 `failed` 状态。
-*   **等待会话 (`waitForSession`)**: L213-L223。监听 `sessions.list` 变化，若会话失配则取消；每 250ms 轮询 `attempt`。
-
-### 11. 全局事件广播 (`src/client/review-console/status-events.ts`)
+### 9. 全局事件广播 (`src/client/review-console/status-events.ts`)
 
 定义全局事件以通知所有挂载的 Review 表面重新读取 Host 权威目标。
 
 *   **常量**: `WORKTREE_REVIEW_REFRESH_EVENT = 'dsh-git-worktree:review-refresh'`。
 *   **函数**: `requestWorktreeReviewRefresh(sessionId)`。通过 `window.dispatchEvent` 分发 CustomEvent，detail 包含 `sessionId`。
 
-### 12. CSS 样式 (`src/client/review-console/review-console.styles.ts`)
+### 10. CSS 样式 (`src/client/review-console/review-console.styles.ts`)
 
 集中管理 Review Console 相关的 CSS 样式字符串。
 
@@ -251,7 +202,7 @@ Review Console 模块负责管理 Git Worktree 的审查（Review）生命周期
     *   交付证明: `.dsh-wt-delivery-proof`.
     *   响应式: `@media (max-width: 620px)` 调整 Dock 和 Modal 布局。
 
-### 13. 请求缓存基础设施 (`src/client/review-console/request-cache.ts`)
+### 11. 请求缓存基础设施 (`src/client/review-console/request-cache.ts`)
 
 提供基于 `WeakMap` 的身份键控请求缓存，支持单飞行（single-flight）并发控制和 React `useSyncExternalStore` 集成。
 

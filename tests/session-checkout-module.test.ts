@@ -108,6 +108,7 @@ function createContext(options: {
   worktreesRoot?: boolean
   worktreesRootLive?: boolean
   autoDeliverRef?: () => boolean | undefined
+  worktreeKeepCount?: number
 } = {}): TestContext {
   // Compare physical paths consistently with the canonical roots persisted by the Host.
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'domi-checkout-测试 空格-')))
@@ -168,6 +169,9 @@ function createContext(options: {
     const generatedIds = [...options.checkoutIds]
     const defaultCreateCheckoutId = dependencies.createCheckoutId
     dependencies.createCheckoutId = () => generatedIds.shift() ?? defaultCreateCheckoutId()
+  }
+  if (options.worktreeKeepCount !== undefined) {
+    dependencies.worktreeKeepCount = { get: () => options.worktreeKeepCount }
   }
   const inspectGit = dependencies.git.inspect
   let nextInspectPause: {
@@ -1554,6 +1558,107 @@ describe('SessionCheckoutModule', () => {
     expect(git(context.projectRoot, 'show', '-s', '--format=%s', 'HEAD')).toBe('test: direct finish')
     expect(git(context.projectRoot, 'show', '--format=', '--name-only', 'HEAD')).toBe('tracked.txt')
     expect(readFileSync(join(context.projectRoot, 'local-note.txt'), 'utf8')).toBe('keep local note\n')
+  })
+
+  test('Given more delivered Worktrees than the keep-count limit When maintenance runs Then the oldest retention is cleaned', async () => {
+    const context = createContext({ worktreeKeepCount: 1 })
+    const registryPath = join(context.configDir, 'managed-checkouts.json')
+    const deliverRetained = async (sessionId: string, commitMessage: string): Promise<string> => {
+      const target = await context.module.bind(sessionId, { kind: 'isolated' })
+      const managedRoot = await context.module.resolveManagedRoot(target.checkout.id)
+      writeFileSync(join(managedRoot, 'tracked.txt'), `${commitMessage}\n`)
+      const ready = await context.module.markReadyForReview(sessionId, {
+        summary: commitMessage, validationStatus: 'passed', tests: [], suggestedCommitMessage: commitMessage,
+      })
+      if (ready.delivery?.state !== 'ready_for_review') throw new Error('expected ready review')
+      const finished = await context.module.operate({
+        action: 'finish', sessionId, expectedRevision: ready.revision,
+        expectedReviewId: ready.delivery.review.reviewId, commitMessage, retention: 'retain_24h',
+      })
+      expect(finished).toMatchObject({ status: 'finished', cleanup: 'retained' })
+      return target.checkout.id
+    }
+    const oldest = await deliverRetained('session-1', 'test: oldest delivery')
+    const newest = await deliverRetained('child-session', 'test: newest delivery')
+    // 固定 LRU 顺序：两次交付可能落在同一毫秒，retainedAt 必须能区分新旧。
+    const before = JSON.parse(readFileSync(registryPath, 'utf8')) as any
+    before.managedCheckouts[oldest].delivery.retainedAt = 1000
+    before.managedCheckouts[newest].delivery.retainedAt = 2000
+    writeFileSync(registryPath, JSON.stringify(before))
+
+    const cleaned = await context.module.enforceWorktreeKeepCount()
+
+    expect(cleaned).toEqual([oldest])
+    const after = JSON.parse(readFileSync(registryPath, 'utf8')) as any
+    expect(after.managedCheckouts[oldest]).toMatchObject({ phase: 'discarded', delivery: { state: 'delivered' } })
+    expect(after.managedCheckouts[newest]).toMatchObject({ phase: 'retained', delivery: { state: 'retained' } })
+    expect(existsSync(before.managedCheckouts[oldest].managedGitRoot)).toBe(false)
+  })
+
+  test('Given a retained Worktree whose cleanup hit a transient lock When its retention expires Then the sweep retries and still cleans it', async () => {
+    const context = createContext({ removeWorktreeFailures: 1 })
+    const registryPath = join(context.configDir, 'managed-checkouts.json')
+    const target = await context.module.bind('session-1', { kind: 'isolated' })
+    const managedRoot = await context.module.resolveManagedRoot(target.checkout.id)
+    writeFileSync(join(managedRoot, 'tracked.txt'), 'retired task\n')
+    const ready = await context.module.markReadyForReview('session-1', {
+      summary: 'retired task', validationStatus: 'passed', tests: [], suggestedCommitMessage: 'test: retired task',
+    })
+    if (ready.delivery?.state !== 'ready_for_review') throw new Error('expected ready review')
+    await context.module.operate({
+      action: 'finish', sessionId: 'session-1', expectedRevision: ready.revision,
+      expectedReviewId: ready.delivery.review.reviewId, commitMessage: 'test: retired task', retention: 'retain_24h',
+    })
+    const expired = JSON.parse(readFileSync(registryPath, 'utf8')) as any
+    expired.managedCheckouts[target.checkout.id].delivery.expiresAt = Date.now() - 1000
+    writeFileSync(registryPath, JSON.stringify(expired))
+
+    // 第一次到期清理撞上瞬时占用：记为 blocked，但必须保留重试资格。
+    expect(await context.module.cleanupExpiredRetained()).toEqual([])
+    const blocked = JSON.parse(readFileSync(registryPath, 'utf8')) as any
+    expect(blocked.managedCheckouts[target.checkout.id].delivery.cleanup).toBe('blocked')
+
+    // 占用消失后的下一次维护必须继续清理，不能永久留在磁盘上。
+    expect(await context.module.cleanupExpiredRetained()).toEqual([target.checkout.id])
+    const after = JSON.parse(readFileSync(registryPath, 'utf8')) as any
+    expect(after.managedCheckouts[target.checkout.id].phase).toBe('discarded')
+  })
+
+  test('Given a retained Worktree When its retention window is open, pinned, or expired Then the sweep honours each case', async () => {
+    const context = createContext()
+    const registryPath = join(context.configDir, 'managed-checkouts.json')
+    const target = await context.module.bind('session-1', { kind: 'isolated' })
+    const managedRoot = await context.module.resolveManagedRoot(target.checkout.id)
+    writeFileSync(join(managedRoot, 'tracked.txt'), 'retention window\n')
+    const ready = await context.module.markReadyForReview('session-1', {
+      summary: 'retention window', validationStatus: 'passed', tests: [], suggestedCommitMessage: 'test: retention window',
+    })
+    if (ready.delivery?.state !== 'ready_for_review') throw new Error('expected ready review')
+    await context.module.operate({
+      action: 'finish', sessionId: 'session-1', expectedRevision: ready.revision,
+      expectedReviewId: ready.delivery.review.reviewId, commitMessage: 'test: retention window', retention: 'retain_24h',
+    })
+
+    // 窗口仍在：到期清理不得动它。
+    const fresh = JSON.parse(readFileSync(registryPath, 'utf8')) as any
+    fresh.managedCheckouts[target.checkout.id].delivery.expiresAt = Date.now() + 60_000
+    writeFileSync(registryPath, JSON.stringify(fresh))
+    expect(await context.module.cleanupExpiredRetained()).toEqual([])
+
+    // 已过期但被标记永久保留：同样豁免。
+    const pinned = JSON.parse(readFileSync(registryPath, 'utf8')) as any
+    pinned.managedCheckouts[target.checkout.id].delivery.expiresAt = Date.now() - 1000
+    pinned.managedCheckouts[target.checkout.id].permanent = true
+    writeFileSync(registryPath, JSON.stringify(pinned))
+    expect(await context.module.cleanupExpiredRetained()).toEqual([])
+
+    // 解除永久保留：过期记录按 scheduled 正常清理。
+    const expired = JSON.parse(readFileSync(registryPath, 'utf8')) as any
+    delete expired.managedCheckouts[target.checkout.id].permanent
+    writeFileSync(registryPath, JSON.stringify(expired))
+    expect(await context.module.cleanupExpiredRetained()).toEqual([target.checkout.id])
+    const after = JSON.parse(readFileSync(registryPath, 'utf8')) as any
+    expect(after.managedCheckouts[target.checkout.id].phase).toBe('discarded')
   })
 
   test('Given a Preview When the owner explicitly continues editing Then Local is restored and the review becomes working', async () => {
