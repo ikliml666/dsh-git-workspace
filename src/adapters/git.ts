@@ -11,6 +11,15 @@ import { hostMessage } from '../i18n/host.js'
  * hard cap for worktree removal on Windows. Internal refs use the
  * `refs/dsh-worktree/session-checkouts/<key>` namespace so plugin artifacts
  * never collide with user refs.
+ *
+ * Deliberate divergence from the official experimental worktree service: that
+ * service resolves `sandboxPolicy` per call and wraps git in `sandbox.confine`
+ * (`packages/experimental/worktree/src/process.ts:52-54`). This plugin cannot
+ * copy that — a managed checkout lives OUTSIDE the session workspace
+ * (worktreesRoot is a sibling tree), so a workspace-write confinement around
+ * `git worktree add` would deny the very directory the plugin was asked to
+ * create. Session file-policy enforcement stays where it belongs: the Host's
+ * own file/shell tools. See CHANGELOG for the reasoning trail.
  * @module dsh-git-worktree/adapters/git
  */
 

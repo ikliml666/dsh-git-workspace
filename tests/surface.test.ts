@@ -51,6 +51,37 @@ describe('public surfaces', () => {
     expect(readyTool?.output?.schema?.properties?.iteration).toEqual({ type: 'number' })
   })
 
+  test('list output never carries a key whose value is undefined (the host rejects that as not lossless JSON)', async () => {
+    const tools: Array<{ name: string; execute: (args: unknown, exec: unknown) => Promise<unknown> }> = []
+    const module = {
+      listManagedWorktreesForSession: vi.fn(async () => [
+        // The uncommitted case: commitOid is null, which `?? undefined` used to
+        // turn into a present-but-empty key and kill the tool on a real host.
+        {
+          checkoutId: 'checkout-1', project: { id: 'project-1', name: 'Project' },
+          ownerSessionId: 'target-session', iteration: 1, revision: 2,
+          state: 'ready', phase: 'ready', dirty: true, commitOid: null,
+        },
+      ]),
+    } as unknown as SessionCheckoutModule
+    registerTools({ tools: { register: (tool: typeof tools[number]) => { tools.push(tool) } } } as never, module)
+    const tool = tools.find(candidate => candidate.name === 'worktree_list')
+    if (!tool) throw new Error('list tool was not registered')
+
+    const result = await tool.execute({}, { agent: { session: { id: 'target-session' } } }) as unknown as {
+      worktrees: Array<Record<string, unknown>>
+    }
+
+    expect(result.worktrees[0]).not.toHaveProperty('commitOid')
+    const undefinedKeys = (value: unknown, path = ''): string[] => {
+      if (Array.isArray(value)) return value.flatMap((item, index) => undefinedKeys(item, `${path}[${index}]`))
+      if (value === null || typeof value !== 'object') return []
+      return Object.entries(value as Record<string, unknown>).flatMap(([key, item]) =>
+        item === undefined ? [`${path}.${key}`] : undefinedKeys(item, `${path}.${key}`))
+    }
+    expect(undefinedKeys(result)).toEqual([])
+  })
+
   test('resume-revision model tool automatically invalidates the current review before more file changes', async () => {
     const tools: Array<{ name: string; execute: (args: unknown, exec: unknown) => Promise<unknown> }> = []
     const working: SessionTargetView = {

@@ -196,7 +196,9 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
             state: summary.state,
             phase: summary.phase,
             dirty: summary.dirty,
-            commitOid: summary.commitOid ?? undefined,
+            // Omit instead of emitting a present-but-empty key: the host rejects
+            // `undefined` here as "not lossless JSON", and null/'' carry no commit.
+            ...(summary.commitOid ? { commitOid: summary.commitOid } : {}),
           })),
         }
       })
