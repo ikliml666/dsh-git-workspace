@@ -58,6 +58,12 @@ function readyRecord(): ManagedCheckoutRecord {
   }
 }
 
+/** Narrow a fresh record's delivery to its review payload for mutation. */
+function readyReviewOf(record: ManagedCheckoutRecord): ManagedWorktreeReviewRecord {
+  if (record.delivery.state !== 'ready_for_review') throw new Error('fixture')
+  return record.delivery.review
+}
+
 function registry(record = readyRecord()): SessionCheckoutRegistryPort {
   const value: ManagedCheckoutsRegistry = {
     version: 2, revision: 1, sessionBindings: {}, managedCheckouts: { [record.checkoutId]: record },
@@ -296,8 +302,7 @@ describe('Worktree Console Host control plane', () => {
     old.delivery = { state: 'delivered', iteration: 1, commitOid: A, deliveredAt: 10 }
     const current = readyRecord()
     current.managedRoot = '/new-root'
-    if (current.delivery.state !== 'ready_for_review') throw new Error('fixture')
-    current.delivery.review.iteration = 2
+    readyReviewOf(current).iteration = 2
     const lookup = {
       getProject: vi.fn(), getSession: vi.fn(),
       getSidebarMemberships: vi.fn(async () => [
@@ -1036,9 +1041,8 @@ describe('Worktree Console Host control plane', () => {
     const retained = readyRecord()
     retained.phase = 'retained'
     retained.revision = 9
-    if (retained.delivery.state !== 'ready_for_review') throw new Error('fixture')
     retained.delivery = {
-      state: 'retained', review: retained.delivery.review, commitOid: B, isolatedFingerprint: 'fingerprint-1',
+      state: 'retained', review: readyReviewOf(retained), commitOid: B, isolatedFingerprint: 'fingerprint-1',
       retention: 'retain_24h', retainedAt: 10, expiresAt: 20, cleanup: 'scheduled',
     }
     const { module, control } = plane(retained, { lookup: ownerLocalLookup() })
@@ -1060,9 +1064,8 @@ describe('Worktree Console Host control plane', () => {
     const finalized = readyRecord()
     finalized.phase = 'finalized'
     finalized.revision = 9
-    if (finalized.delivery.state !== 'ready_for_review') throw new Error('fixture')
     finalized.delivery = {
-      state: 'finalized', review: finalized.delivery.review, commitOid: B, isolatedFingerprint: 'fingerprint-1',
+      state: 'finalized', review: readyReviewOf(finalized), commitOid: B, isolatedFingerprint: 'fingerprint-1',
       finalizedAt: 10, cleanup: 'pending',
     }
     const { control } = plane(finalized, { lookup: ownerLocalLookup() })

@@ -245,6 +245,11 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
     // cannot drift from the UI projection.
     const ownerDeliverySettled = record.ownerSessionId === sessionId
       && worktreeReachedDelivery(record.phase, record.delivery.state)
+      // The delivery label alone is not enough: the record itself must sit in a
+      // terminal phase, so a half-written or future-invalid combination (phase
+      // still active while delivery already retained) cannot slip through the
+      // Local-boundary bypass.
+      && (record.phase === 'discarded' || record.phase === 'finalized' || record.phase === 'retained')
     const missingOwnerCwd = ownerDeliverySettled
       && !options.files.exists(project.root)
       && sameLocalRoot(resolve(project.root), resolve(expectedRoot))
