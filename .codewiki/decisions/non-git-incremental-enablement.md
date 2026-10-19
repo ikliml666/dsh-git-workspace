@@ -84,6 +84,7 @@ tags:
         - `checkpoint`: 保存检查点。
         - `preview`: 预览更改。
         - `finalize`: 最终化提交。
+        - `finalizePreview`: 最终化预览。
         - `discard`: 丢弃更改。
         - `gitOverview`, `gitGraph`, `gitCreateBranch`, `gitSwitchBranch`, `gitPruneMergedBranches`: Git 相关操作。
         - `restoreAbandoned`, `listAbandoned`: 恢复废弃的工作区。

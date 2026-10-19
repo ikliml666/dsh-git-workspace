@@ -6,6 +6,7 @@ source_files:
   - src/console-host/errors.ts
   - src/console-host/projection.ts
   - src/console-host/review-diff.ts
+  - src/console-host/service.ts
 tags:
   - rpc
   - control-plane
