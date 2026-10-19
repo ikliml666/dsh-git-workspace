@@ -240,24 +240,25 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
     // for a whole day after delivery the record sits at (phase retained,
     // delivery retained) with the frozen environment still on disk while the
     // owner Session's cwd is already back at Local — and `cleanup pending`
-    // (finalized) is the same story before the environment is removed.
-    const deliveredToOwner = record.ownerSessionId === sessionId
-      && (record.delivery.state === 'delivered'
-        || record.delivery.state === 'finalized'
-        || record.delivery.state === 'retained')
-    const cleanedOwnerCwd = deliveredToOwner
+    // (finalized) is the same story before the environment is removed. The
+    // terminal-state predicate lives in src/console-contract.ts so this gate
+    // cannot drift from the UI projection.
+    const ownerDeliverySettled = record.ownerSessionId === sessionId
+      && worktreeReachedDelivery(record.phase, record.delivery.state)
+    const missingOwnerCwd = ownerDeliverySettled
       && !options.files.exists(project.root)
       && sameLocalRoot(resolve(project.root), resolve(expectedRoot))
-    if (cleanedOwnerCwd) return
+    if (missingOwnerCwd) return
     if (!options.files.exists(project.root)) {
       throw domainError('project_mismatch', hostMessage('theCurrentSessionWorkspaceCannotBeProvenToBelong'))
     }
     const workspaceRoot = await options.files.canonicalize(project.root)
-    // After delivery the managed environment is gone (cleanup success writes
-    // phase discarded + delivery delivered), so an owner Session's cwd can never
-    // match managedRoot again. For that settled case the Local checkout is the
-    // authorization boundary — the task is over, its history stays readable.
-    const settledOwner = deliveredToOwner
+    // After delivery the owner Session's cwd is back at Local whether the frozen
+    // environment is still on disk (retained / finalized) or already removed
+    // (cleanup success writes phase discarded + delivery delivered), so it can
+    // never match managedRoot again. For that settled case the Local checkout is
+    // the authorization boundary — the task is over, its history stays readable.
+    const settledOwner = ownerDeliverySettled
       && sameLocalRoot(workspaceRoot, await options.files.canonicalize(record.localRoot))
     if (settledOwner) return
     if (!sameLocalRoot(workspaceRoot, expectedRoot)) {
