@@ -1032,6 +1032,44 @@ describe('Worktree Console Host control plane', () => {
     expect(result).toMatchObject({ ok: true, value: { target: { state: 'delivered' } } })
   })
 
+  it('keeps a retained owner readable at the Local boundary during the default retention window', async () => {
+    const retained = readyRecord()
+    retained.phase = 'retained'
+    retained.revision = 9
+    if (retained.delivery.state !== 'ready_for_review') throw new Error('fixture')
+    retained.delivery = {
+      state: 'retained', review: retained.delivery.review, commitOid: B, isolatedFingerprint: 'fingerprint-1',
+      retention: 'retain_24h', retainedAt: 10, expiresAt: 20, cleanup: 'scheduled',
+    }
+    const { module, control } = plane(retained, { lookup: ownerLocalLookup() })
+    vi.mocked(module.inspect).mockResolvedValue({
+      project: { id: retained.projectId, name: retained.projectName },
+      checkout: { id: retained.checkoutId, kind: 'isolated', label: 'Task', phase: 'retained' },
+      source: { ref: retained.sourceRef, oid: retained.baseOid },
+      current: { branch: 'main', oid: B }, ownership: 'owner', dirty: false, revision: retained.revision,
+      delivery: { state: 'retained', iteration: 1, commitOid: B, retainedAt: 10 },
+    })
+    // retain_24h is the default delivery retention: the owner Session's cwd is
+    // back at the Local boundary while the frozen environment still exists, and
+    // the branch chip polling must not read it as an authorization failure.
+    const result = await control.current('target-session')
+    expect(result).toMatchObject({ ok: true, value: { target: { state: 'retained', managedRoot: '/managed' } } })
+  })
+
+  it('keeps a finalized owner readable at the Local boundary while cleanup is still pending', async () => {
+    const finalized = readyRecord()
+    finalized.phase = 'finalized'
+    finalized.revision = 9
+    if (finalized.delivery.state !== 'ready_for_review') throw new Error('fixture')
+    finalized.delivery = {
+      state: 'finalized', review: finalized.delivery.review, commitOid: B, isolatedFingerprint: 'fingerprint-1',
+      finalizedAt: 10, cleanup: 'pending',
+    }
+    const { control } = plane(finalized, { lookup: ownerLocalLookup() })
+    const result = await control.inspect('target-session', finalized.checkoutId)
+    expect(result).toMatchObject({ ok: true, value: { target: { state: 'cleanup_pending' } } })
+  })
+
   it('keeps list rows path-free while authorized detail contains the validated managedRoot', async () => {
     const { control } = plane()
     const listed = await control.list({ sessionId: 'source-session' })

@@ -235,9 +235,17 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
     if (project === undefined) {
       throw domainError('project_mismatch', hostMessage('theCurrentSessionWorkspaceCannotBeProvenToBelong'))
     }
-    const cleanedOwnerCwd = record.ownerSessionId === sessionId
-      && record.phase === 'discarded'
-      && record.delivery.state === 'delivered'
+    // Every delivered terminal state must read through the Local boundary, not
+    // only the cleaned-up one: `worktree_deliver` defaults to `retain_24h`, so
+    // for a whole day after delivery the record sits at (phase retained,
+    // delivery retained) with the frozen environment still on disk while the
+    // owner Session's cwd is already back at Local — and `cleanup pending`
+    // (finalized) is the same story before the environment is removed.
+    const deliveredToOwner = record.ownerSessionId === sessionId
+      && (record.delivery.state === 'delivered'
+        || record.delivery.state === 'finalized'
+        || record.delivery.state === 'retained')
+    const cleanedOwnerCwd = deliveredToOwner
       && !options.files.exists(project.root)
       && sameLocalRoot(resolve(project.root), resolve(expectedRoot))
     if (cleanedOwnerCwd) return
@@ -249,9 +257,7 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
     // phase discarded + delivery delivered), so an owner Session's cwd can never
     // match managedRoot again. For that settled case the Local checkout is the
     // authorization boundary — the task is over, its history stays readable.
-    const settledOwner = record.ownerSessionId === sessionId
-      && record.phase === 'discarded'
-      && record.delivery.state === 'delivered'
+    const settledOwner = deliveredToOwner
       && sameLocalRoot(workspaceRoot, await options.files.canonicalize(record.localRoot))
     if (settledOwner) return
     if (!sameLocalRoot(workspaceRoot, expectedRoot)) {
