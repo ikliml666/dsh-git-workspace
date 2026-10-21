@@ -127,10 +127,10 @@ describe('Workspace provider lifecycle (real Cordis Loader and Web module regist
     expect(ctx.get('worktreeWorkspaceProvider')).toBeUndefined()
   })
 
-  test('modern hosts auto-enable the takeover: enableWorkspaceProvider only gates legacy hosts', async () => {
+  test('takeover stays opt-in on modern hosts: enableWorkspaceProvider is not advisory', async () => {
     const { ctx, graph } = await boot(entries(false), false, undefined, undefined, false, 'modern', false)
-    expect(graph()).toEqual([WORKTREE])
-    expect(ctx.get('worktreeWorkspaceProvider')).toBe(true)
+    expect(graph()).toContain(OFFICIAL)
+    expect(ctx.get('worktreeWorkspaceProvider')).toBeUndefined()
   })
 
   test('the modern auto-takeover does not resurrect a user-disabled Worktree entry', async () => {
