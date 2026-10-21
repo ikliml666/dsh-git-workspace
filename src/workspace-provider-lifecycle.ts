@@ -67,13 +67,12 @@ export async function mountWorkspaceProviderLifecycle(
   // 0.2.x Browser calls renderSlot for declared child slots and crashes with
   // "renderSlot is not a function" without them, breaking session rows and
   // new-session workspace selection), so the flag stays advisory there.
-  const autoTakeover = flavor === 'modern'
-  if (!options.enabled && !autoTakeover) {
+  // A takeover disables the official ui-workspace entry, which drops its
+  // client package from the Host client graph; every package importing it
+  // then fails to load its bundle, so the takeover runs only on request.
+  if (!options.enabled) {
     ctx.logger.info('Workspace takeover disabled (enableWorkspaceProvider is not true); official ui-workspace stays active.')
     return { officialWorkspaceActive: true }
-  }
-  if (!options.enabled) {
-    ctx.logger.info('Workspace takeover auto-enabled on the modern Host generation (enableWorkspaceProvider only gates legacy hosts).')
   }
   if (flavor === 'unsupported') {
     ctx.logger.warn('No pinned Workspace Browser for this Host generation; leaving the official Workspace provider active.')

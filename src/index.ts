@@ -284,10 +284,10 @@ export const Config = z.object({
    */
   worktreeKeepCount: volatile(z.number().min(0).max(500).step(1).default(15)),
   /**
-   * Take over the official Workspace UI (ui-workspace) on legacy hosts
-   * (0.1.x). On modern hosts (0.2.x) the takeover is automatic — the
-   * decorated path cannot obtain the official Browser's child-slot
-   * authorization and crashes session rows — so this flag is advisory there.
+   * Take over the official Workspace UI (ui-workspace). Only an explicit
+   * `true` takes over: a takeover disables the official entry, which removes
+   * its client package from the Host's client graph, so every package
+   * importing it loses its bundle.
    */
   enableWorkspaceProvider: z.boolean().default(false),
 })
@@ -329,8 +329,9 @@ const AUTO_PRUNE_OLDER_THAN_DAYS = 7
  */
 export async function apply(ctx: Context, config: { stateDir?: string } & GitTimeoutOptions & LocalAdaptationConfig = {}): Promise<void> {
   validateGitTimeouts(config)
-  // Local adaptation: Workspace takeover is opt-in on legacy hosts and
-  // automatic on modern 0.2.x hosts (the flag is advisory there).
+  // Local adaptation: the Workspace takeover runs only on request; it is never
+  // automatic, because disabling the official entry removes a client package
+  // every other UI package imports.
   const providerLifecycle = await mountWorkspaceProviderLifecycle(ctx, hostWorkspaceClientFlavor(), { enabled: config.enableWorkspaceProvider === true })
   const stateDir = resolveStateDir(config)
   mkdirSync(stateDir, { recursive: true })
