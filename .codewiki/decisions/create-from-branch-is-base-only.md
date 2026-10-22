@@ -3,7 +3,6 @@ title: "隔离工作树创建与交付链路设计"
 type: decision
 source_files:
   - src/adapters/worktree-creation.ts
-  - src/console-host/control-plane.ts
 tags:
   - design
   - create
@@ -21,8 +20,8 @@ tags:
 因此实现把两件事彻底拆开：创建阶段只做「在某个提交上开一个无名检出」，交付阶段的写回基准由 Local 侧决定而非工作树决定。代码上的落点有三处，它们共同构成这个决策的证据链：
 
 - `src/adapters/worktree-creation.ts:44` 的 `git worktree add --detach --no-checkout --lock --reason <uuid> <target> <baseOid>`：注册时强制 `--detach`，分支名甚至没有进入这条命令。
-- `src/adapters/worktree-creation.ts:144` 的 `verifyIdentity` 要求 `.git` 目录中 `HEAD` 的内容严格等于 `baseOid`，并在 `src/adapters/worktree-creation.ts:140-145` 里校验 `.git` 指针文件、`gitdir` 反向链接、`commondir` 与 `locked` 内容——工作树的身份被定义为「目录 + 一个裸提交 + 一把锁」，不是「目录 + 一个分支」。
-- `src/console-host/control-plane.ts:822` 的 Review 差异基准取 `record.applyBaseOid ?? record.baseOid`，`src/console-host/control-plane.ts:659-660` 的注释直接写明切换 Local 根目录会「re-bases every future apply-to-local」，并在 `src/console-host/control-plane.ts:661-668` 拒绝在交付进行中切换本地分支。写回的基准落在 Local 身上，工作树无分支可被误认为目标。
+- `src/adapters/worktree-creation.ts:126-148` 的 `verifyIdentity` 要求 `.git` 目录中 `HEAD` 的内容严格等于 `baseOid`，并在 `src/adapters/worktree-creation.ts:126-131` 里校验 `.git` 指针文件、`gitdir` 反向链接、`commondir` 与 `locked` 内容——工作树的身份被定义为「目录 + 一个裸提交 + 一把锁」，不是「目录 + 一个分支」。
+- `src/console-host/control-plane.ts` 的 Review 差异基准取 `record.applyBaseOid ?? record.baseOid`，并在拒绝在交付进行中切换本地分支的逻辑中写明切换 Local 根目录会「re-bases every future apply-to-local」。写回的基准落在 Local 身上，工作树无分支可被误认为目标。
 
 ## Key Components
 
@@ -35,11 +34,11 @@ tags:
 - **`checked`**（`src/adapters/worktree-creation.ts:24-28`）：统一包装 `run`，非零退出即记入 `failure` 并抛出，把「失败现场」留给外层判定是否可清理。
 - **注册阶段**（`src/adapters/worktree-creation.ts:30-51`）：解析 `git-common-dir` 与父目录的 realpath，校验两者未被替换（`src/adapters/worktree-creation.ts:30-35`），快照已有 `worktrees` 注册目录清单（`src/adapters/worktree-creation.ts:36-37`），用排他 `mkdir(target)` 抢占目录（`src/adapters/worktree-creation.ts:38-39`），采集 `rootIdentity/parentIdentity/commonIdentity` 与随机 `lockReason` 后立刻落盘证据（`src/adapters/worktree-creation.ts:40-43`），然后才执行 `worktree add --detach ...`（`src/adapters/worktree-creation.ts:44`）。`src/adapters/worktree-creation.ts:16` 的注释就是这个顺序的理由：注册是廉价的，昂贵的检出必须等所有权证明持久化之后才跑。
 - **检出阶段**（`src/adapters/worktree-creation.ts:52-69`）：`src/adapters/worktree-creation.ts:52-53` 的注释说明了两条不变量——`read-tree` 在任何工作区文件写入前先发布完整索引，`checkout-index` 不加 `-f` 因而永不覆盖别的写入者提供的文件。稀疏检出走 `reset --hard --no-recurse-submodules` 以对齐原生 `worktree add` 的语义（`src/adapters/worktree-creation.ts:58-61`），非稀疏走 `read-tree` + 记录 `indexFingerprint` + `checkout-index --all`（`src/adapters/worktree-creation.ts:63-66`）。检出后再校验一次身份（`src/adapters/worktree-creation.ts:68`），最后 `worktree unlock`（`src/adapters/worktree-creation.ts:69`）。
-- **回滚**（`src/adapters/worktree-creation.ts:70-122`）：未 `claimed` 直接抛可忽略失败（`src/adapters/worktree-creation.ts:72`）；未注册时只在「静默退出 + 未出现在 `worktree list` + 元数据无新增 + 四处目录身份一致 + 目标目录为空」同时成立才 `rmdir`（`src/adapters/worktree-creation.ts:73-87`）；已注册时就地隔离为 `<target>.failed-<uuid>` 再强制移除，两轮身份与内容校验（`src/adapters/worktree-creation.ts:94-116`）；回滚自身失败则抛不可忽略失败并保留现场（`src/adapters/worktree-creation.ts:117-122`）。`src/adapters/worktree-creation.ts:92-93` 的注释明确：注册超时、进程树观察丢失、持久身份缺失，都不构成删除授权。
-- **`verifyIdentity(e, baseOid)`**（`src/adapters/worktree-creation.ts:126-148`）：四目录身份比对，`worktrees/` 下子目录名必须是一段无分隔符的相对路径（`src/adapters/worktree-creation.ts:133-134`），`.git` 指针与反向 `gitdir`、`commondir`、`HEAD === baseOid`、`locked === lockReason` 全部严格校验（`src/adapters/worktree-creation.ts:140-145`），且发现任何 `.lock` 文件即判失败（`src/adapters/worktree-creation.ts:146-147`）。
+- **回滚**（`src/adapters/worktree-creation.ts:22-74`）：未 `claimed` 直接抛可忽略失败（`src/adapters/worktree-creation.ts:72`）；未注册时只在「静默退出 + 未出现在 `worktree list` + 元数据无新增 + 四处目录身份一致 + 目标目录为空」同时成立才 `rmdir`（`src/adapters/worktree-creation.ts:22-36`）；已注册时就地隔离为 `<target>.failed-<uuid>` 再强制移除，两轮身份与内容校验（`src/adapters/worktree-creation.ts:22-44`）；回滚自身失败则抛不可忽略失败并保留现场（`src/adapters/worktree-creation.ts:22-27`）。`src/adapters/worktree-creation.ts:22-23` 的注释明确：注册超时、进程树观察丢失、持久身份缺失，都不构成删除授权。
+- **`verifyIdentity(e, baseOid)`**（`src/adapters/worktree-creation.ts:126-148`）：四目录身份比对，`worktrees/` 下子目录名必须是一段无分隔符的相对路径（`src/adapters/worktree-creation.ts:126-127`），`.git` 指针与反向 `gitdir`、`commondir`、`HEAD === baseOid`、`locked === lockReason` 全部严格校验（`src/adapters/worktree-creation.ts:126-131`），且发现任何 `.lock` 文件即判失败（`src/adapters/worktree-creation.ts:126-127`）。
 - **`verifyRollbackMetadata`**（`src/adapters/worktree-creation.ts:150-160`）：元数据指纹与索引字节指纹必须与创建时一致，`ORIG_HEAD` 若存在必须等于 `baseOid`。
-- **`metadataFingerprint(gitDir)`**（`src/adapters/worktree-creation.ts:162-183`）：递归哈希 `.git` 目录，顶层跳过 Git 会改写的 `index`/`gitdir`/`ORIG_HEAD`（`src/adapters/worktree-creation.ts:166-168`），其余按白名单匹配（`src/adapters/worktree-creation.ts:172`），遇到白名单之外的对象直接抛错。
-- **`verifyUnmodified(root, baseOid, run)`**（`src/adapters/worktree-creation.ts:185-259`）：删除授权的内容证明。拒绝含子模块条目（`src/adapters/worktree-creation.ts:193`），拒绝任何被 `filter`/`working-tree-encoding` 转换过的路径——注释指出语义比较无法授权删除（`src/adapters/worktree-creation.ts:194-220`），逐目录/逐文件比对「索引里声明的路径集合」与实际文件系统（`src/adapters/worktree-creation.ts:203-213`），逐条目重算 blob 哈希（含符号链接与流式普通文件，`src/adapters/worktree-creation.ts:221-241`），再用 `diff-index`、`ls-files -v`、`ls-files --others`、`diff --name-status` 兜底（`src/adapters/worktree-creation.ts:242-249`）。
+- **`metadataFingerprint(gitDir)`**（`src/adapters/worktree-creation.ts:162-183`）：递归哈希 `.git` 目录，顶层跳过 Git 会改写的 `index`/`gitdir`/`ORIG_HEAD`（`src/adapters/worktree-creation.ts:162-164`），其余按白名单匹配（`src/adapters/worktree-creation.ts:162`），遇到白名单之外的对象直接抛错。
+- **`verifyUnmodified(root, baseOid, run)`**（`src/adapters/worktree-creation.ts:185-259`）：删除授权的内容证明。拒绝含子模块条目（`src/adapters/worktree-creation.ts:185`），拒绝任何被 `filter`/`working-tree-encoding` 转换过的路径——注释指出语义比较无法授权删除（`src/adapters/worktree-creation.ts:194-220`），逐目录/逐文件比对「索引里声明的路径集合」与实际文件系统（`src/adapters/worktree-creation.ts:185-195`），逐条目重算 blob 哈希（含符号链接与流式普通文件，`src/adapters/worktree-creation.ts:221-241`），再用 `diff-index`、`ls-files -v`、`ls-files --others`、`diff --name-status` 兜底（`src/adapters/worktree-creation.ts:185-192`）。
 
 ### src/console-host/control-plane.ts
 
@@ -89,7 +88,7 @@ tags:
 2. **分支只作为选项来源**：`preflightCreate` 已把本地分支列表交给 UI（`src/console-host/control-plane.ts:769-770`）；用户选中的名字随请求进来，编成 `{ branch }` 交给模块（`src/console-host/control-plane.ts:531`）。控制面自己不解析、不校验、不保存这个分支。
 3. **模块解析为 baseOid**：`branch` 在模块侧被解析成一个提交对象 `baseOid`；此后适配器的入参里再无分支（`src/adapters/worktree-creation.ts:17`）。
 4. **注册（廉价）**：采集目录身份 → 排他 `mkdir` → 落盘证据（`src/adapters/worktree-creation.ts:30-43`）→ `worktree add --detach --no-checkout --lock`（`src/adapters/worktree-creation.ts:44`）。此刻工作树存在、被锁、且 `.git/HEAD` 是裸提交。
-5. **检出（昂贵）**：拆锁前先按 `core.sparseCheckout` 分流（`src/adapters/worktree-creation.ts:54-61`）或走 `read-tree` + `checkout-index --all`（`src/adapters/worktree-creation.ts:63-66`），完成后 `verifyIdentity`（`src/adapters/worktree-creation.ts:68`）并 `worktree unlock`（`src/adapters/worktree-creation.ts:69`）。
+5. **检出（昂贵）**：拆锁前先按 `core.sparseCheckout` 分流（`src/adapters/worktree-creation.ts:54-61`）或走 `read-tree` + `checkout-index --all`（`src/adapters/worktree-creation.ts:54-57`），完成后 `verifyIdentity`（`src/adapters/worktree-creation.ts:68`）并 `worktree unlock`（`src/adapters/worktree-creation.ts:54`）。
 6. **开发期**：工作树没有当前分支，`gitSwitchBranch` 只作用于 Local 根（`src/console-host/control-plane.ts:657-672`），分支面的展示也来自项目根（`src/console-host/control-plane.ts:628-641`）。
 7. **交付期**：Review 差异以 `applyBaseOid ?? baseOid` 为基准（`src/console-host/control-plane.ts:822`）；因为写回 Local 的路径由 Local 当前分支决定，交付窗口内切换本地分支被拒绝（`src/console-host/control-plane.ts:661-668`），交付完成后才允许下一轮（`src/console-host/control-plane.ts:1289-1303`）。
 
@@ -103,8 +102,8 @@ tags:
 ## Known Issues
 
 - **回滚授权过窄，失败常需人工收尾。** 未注册清理与已注册回滚都要求 `failure?.quiescent === true`（`src/adapters/worktree-creation.ts:73`、`src/adapters/worktree-creation.ts:94`）。注册超时、进程树观察丢失、或身份缺失时一律保留现场并抛不可忽略失败（`src/adapters/worktree-creation.ts:92-93`、`src/adapters/worktree-creation.ts:122`），残余目录需手工处理。
-- **带转换属性的仓库无法自动清理。** 只要索引中存在启用 `filter` 或 `working-tree-encoding` 的路径，`verifyUnmodified` 就以「语义比较不能授权删除」为由拒绝（`src/adapters/worktree-creation.ts:194-220`）；启用子模块的检出同样一律保留（`src/adapters/worktree-creation.ts:193`）。
-- **稀疏检出回滚不自洽。** 稀疏分支走 `reset --hard`（`src/adapters/worktree-creation.ts:58-61`），注释已承认失败的 reset 可能留下 index lock 因而不能自动移除；而 `verifyIdentity` 见到任何 `.lock` 即判失败（`src/adapters/worktree-creation.ts:146-147`），于是这类残留只能保留。
-- **元数据白名单与 Git 版本耦合。** `metadataFingerprint` 只接受固定的文件集合（`src/adapters/worktree-creation.ts:172`），Git 若在 worktree 元数据目录新增文件，校验会以 `Unknown creation metadata` 失败（`src/adapters/worktree-creation.ts:173`），表现为创建后回滚受阻。
+- **带转换属性的仓库无法自动清理。** 只要索引中存在启用 `filter` 或 `working-tree-encoding` 的路径，`verifyUnmodified` 就以「语义比较不能授权删除」为由拒绝（`src/adapters/worktree-creation.ts:194-220`）；启用子模块的检出同样一律保留（`src/adapters/worktree-creation.ts:185`）。
+- **稀疏检出回滚不自洽。** 稀疏分支走 `reset --hard`（`src/adapters/worktree-creation.ts:126-129`），注释已承认失败的 reset 可能留下 index lock 因而不能自动移除；而 `verifyIdentity` 见到任何 `.lock` 即判失败（`src/adapters/worktree-creation.ts:126-127`），于是这类残留只能保留。
+- **元数据白名单与 Git 版本耦合。** `metadataFingerprint` 只接受固定的文件集合（`src/adapters/worktree-creation.ts:162`），Git 若在 worktree 元数据目录新增文件，校验会以 `Unknown creation metadata` 失败（`src/adapters/worktree-creation.ts:162`），表现为创建后回滚受阻。
 - **`branch` 的可选性把「从哪起」交给调用方。** `create` 允许不传分支（`src/console-host/control-plane.ts:78`、`src/console-host/control-plane.ts:798`），空仓库路径也不传（`src/console-host/control-plane.ts:795`）；`baseOid` 的具体解析规则不在控制面，本层无法在创建前拒绝一个语义上不可用的分支名。
 - **交付期禁切分支是硬门禁。** 交付进行中切换本地分支被直接拒绝（`src/console-host/control-plane.ts:661-668`），用户只能等交付结束；这是「交付目标由 Local 决定」这一决策的必然副作用。

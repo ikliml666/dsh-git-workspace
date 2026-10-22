@@ -3,7 +3,6 @@ title: "非 Git 目录渐进增强：显式确认下的 init + 首次提交，�
 type: decision
 source_files:
   - src/adapters/initial-commit.ts
-  - src/console-host/control-plane.ts
 tags:
   - design
   - non-git
@@ -34,8 +33,8 @@ tags:
 
 这两类「未出生」被**故意分成两条不同的 RPC**，是本决策最实质的取舍：
 
-- 空仓库 → `createWithInitialCommit`（`src/console-host/control-plane.ts:782-797`）：不需要 `git add -A`，用一个 `mktree` 空树 + `commit-tree` 直接造出提交，**一个用户文件都不碰**，因此可以用指纹 CAS 把并发与偷跑挡死。
-- 有文件 → `initProject`（`src/console-host/control-plane.ts:799-803`）：必须执行 `git add -A`，这是对用户全部文件的写入，因此**不做指纹 CAS**，安全性完全由「用户看过预检结论并显式点击」承担（`src/adapters/initial-commit.ts:101-103` 的注释明确写下了这个交换：提交失败原样报错，不回滚任何字节）。
+- 空仓库 → `createWithInitialCommit`（需调用 `initializeEmptyRepository`）：不需要 `git add -A`，用一个 `mktree` 空树 + `commit-tree` 直接造出提交，**一个用户文件都不碰**，因此可以用指纹 CAS 把并发与偷跑挡死。
+- 有文件 → `initProject`：必须执行 `git add -A`，这是对用户全部文件的写入，因此**不做指纹 CAS**，安全性完全由「用户看过预检结论并显式点击」承担（`src/adapters/initial-commit.ts:101-103` 的注释明确写下了这个交换：提交失败原样报错，不回滚任何字节）。
 
 ### 为什么 `initializeEmptyRepository` 反而是最重的那个
 
@@ -49,14 +48,14 @@ tags:
 
 ### 确认令牌的绑定关系
 
-`src/console-host/control-plane.ts:779` 一次写入五项：`token`、`root`、`projectId`、`fingerprint`、`expires`（`Date.now() + 300_000`，即 5 分钟）。校验在 `src/console-host/control-plane.ts:778-783`，任何一项不匹配都退回 `stale_local` / `initialStateChanged`：
+确认令牌一次写入五项：`token`、`root`、`projectId`、`fingerprint`、`expires`（`Date.now() + 300_000`，即 5 分钟）。校验在控制平面进行，任何一项不匹配都退回 `stale_local` / `initialStateChanged`：
 
 - `token` 不匹配 → 令牌被别的预检覆盖；
 - `expires` 已过 → 用户看的是 5 分钟前的旧结论；
 - `root` / `projectId` 不匹配 → 会话已漂移到另一个项目；
 - `fingerprint` 由适配器在真正加锁后再比对（`src/adapters/initial-commit.ts:50`、`60`、`70`、`81`）。
 
-绑定 `root` 与 `projectId` 而不只绑 session，是因为一个会话的项目归属在执行期间可能变化（`src/console-host/control-plane.ts:790-793` 的 `assertAuthorized` 回调又复核了一遍）。
+绑定 `root` 与 `projectId` 而不只绑 session，是因为一个会话的项目归属在执行期间可能变化（控制平面的 `assertAuthorized` 回调又复核了一遍）。
 
 ## Key Components
 
@@ -77,18 +76,18 @@ tags:
 
 ### src/console-host/control-plane.ts
 
-- **`WorktreeConsoleControlPlaneOptions`**（`src/console-host/control-plane.ts:62-70`）：`module`、`lookup`、`files`、`registry`、`git`、`reviewDiff`、可选 `createTargetSessionId`。
-- **`WorktreeConsoleControlPlane`**（`src/console-host/control-plane.ts:72-106`）：控制平面接口。与本决策直接相关的三条签名——`preflightCreate(sourceSessionId)`（`74`）、`createWithInitialCommit(sourceSessionId, confirmationToken)`（`77`）、`initProject(sourceSessionId)`（`79`）。
-- **`confirmations`**（`src/console-host/control-plane.ts:483`）：`Map<string, { token; root; projectId; fingerprint; expires }>`，**以 `sourceSessionId` 为键**，即「每个会话最多一个待确认的空仓库初始化」。
-- **`creating`**（`src/console-host/control-plane.ts:484`）：`Set<string>`，与 `confirmations` 相邻声明，两个互斥键（`session:` / `root:`）共用它。
-- **`localProject(sessionId)`**（`src/console-host/control-plane.ts:485-493`）：要求目标 checkout 为 `local`、项目存在、且 `project.id` 与会话目标一致、根目录仍在磁盘上，任一不满足抛 `operation_not_allowed` / `initialStateChanged`。这是所有写路径的入口闸门。
-- **`projectRootFor(sessionId)`**（`src/console-host/control-plane.ts:500-514`）：分支 chip 的 Git 面板用，要求 `options.git.inspect(project.root)` 非 `null`，否则抛 `not_git_repository`（`507-508`）。**它与 `initProject` 形成有意的不对称**：git 面板是只读观察面，非 Git 目录在那里就是不可用；而创建流程有 `initProject` 这条写路径可以把它变成可用。
-- **`withCreation(sessionId, action)`**（`src/console-host/control-plane.ts:511-528`）：两把锁。先占 `session:${sessionId}`（`512-514`），再 `localProject` + `canonicalize`，用 `root:${canonical}` 占第二把（`519-522`），Windows 上 `canonical.toLowerCase()`（`519`）。冲突一律 `operation_not_allowed` / `initialRepositoryBusy`（`513`、`520`）。`finally` 双删（`524-527`）。**必须先解析项目再加根锁**，否则拿不到 canonical 路径——这也是它没法在 `localProject` 之前做根级判重的原因。
-- **`createTarget(sourceSessionId, branch?)`**（`src/console-host/control-plane.ts:529-551`）：调 `module.createIsolatedTarget`，随后对 registry 记录做三项身份核对（`534-538`），不一致抛 `checkout_mismatch`。
-- **`preflightCreate`**（`src/console-host/control-plane.ts:765-781`）：`preflightInitialCommit?.()` 可选调用；**`!check` 与 `kind === 'ready'` 合并处理**（`768-771`），即适配器未实现预检时按「已就绪」返回并附带 `listLocalBranches?.()`；`files` 分支删掉本会话旧令牌后返回 `{ kind: 'files' }`（`772-774`）；`empty` 分支先惰性清理过期项（`776`）、超 500 条时 FIFO 驱逐（`777`）、再发新令牌（`778-779`）。
-- **`createWithInitialCommit`**（`src/console-host/control-plane.ts:782-797`）：`withCreation` 内先取值**并立即删除**令牌（`783-784`），再逐项校验（`785-788`，含 `!options.git.initializeEmptyRepository` 的存在性检查），然后以 `assertAuthorized` 回调复核会话归属（`789-794`），最后 `createTarget`；`createTarget` 的任何异常被改写成 `git_operation_failed` / `initialCreatedWorktreeFailed`（`795-796`）。
-- **`create`**（`src/console-host/control-plane.ts:798`）：纯常规路径，`withCreation` 包 `createTarget`。
-- **`initProject`**（`src/console-host/control-plane.ts:799-803`）：`withCreation` 内检查 `options.git.initializeProject` 存在性（不存在抛 `operation_not_allowed` / `initializationUnsupported`，`800`），调用 `initializeProject(project.root)`（`801`），返回 `true`（`802`）。**不消费确认令牌**。
+- **`WorktreeConsoleControlPlaneOptions`**：包含 `module`、`lookup`、`files`、`registry`、`git`、`reviewDiff`、可选 `createTargetSessionId`。
+- **`WorktreeConsoleControlPlane`**：控制平面接口。与本决策直接相关的三条签名——`preflightCreate(sourceSessionId)`、`createWithInitialCommit(sourceSessionId, confirmationToken)`、`initProject(sourceSessionId)`。
+- **`confirmations`**：`Map<string, { token; root; projectId; fingerprint; expires }>`，**以 `sourceSessionId` 为键**，即「每个会话最多一个待确认的空仓库初始化」。
+- **`creating`**：`Set<string>`，与 `confirmations` 相邻声明，两个互斥键（`session:` / `root:`）共用它。
+- **`localProject(sessionId)`**：要求目标 checkout 为 `local`、项目存在、且 `project.id` 与会话目标一致、根目录仍在磁盘上，任一不满足抛 `operation_not_allowed` / `initialStateChanged`。这是所有写路径的入口闸门。
+- **`projectRootFor(sessionId)`**：分支 chip 的 Git 面板用，要求 `options.git.inspect(project.root)` 非 `null`，否则抛 `not_git_repository`。**它与 `initProject` 形成有意的不对称**：git 面板是只读观察面，非 Git 目录在那里就是不可用；而创建流程有 `initProject` 这条写路径可以把它变成可用。
+- **`withCreation(sessionId, action)`**：两把锁。先占 `session:${sessionId}`，再 `localProject` + `canonicalize`，用 `root:${canonical}` 占第二把，Windows 上 `canonical.toLowerCase()`。冲突一律 `operation_not_allowed` / `initialRepositoryBusy`。`finally` 双删。**必须先解析项目再加根锁**，否则拿不到 canonical 路径——这也是它没法在 `localProject` 之前做根级判重的原因。
+- **`createTarget(sourceSessionId, branch?)`**：调 `module.createIsolatedTarget`，随后对 registry 记录做三项身份核对，不一致抛 `checkout_mismatch`。
+- **`preflightCreate`**：`preflightInitialCommit?.()` 可选调用；**`!check` 与 `kind === 'ready'` 合并处理**，即适配器未实现预检时按「已就绪」返回并附带 `listLocalBranches?.()`；`files` 分支删掉本会话旧令牌后返回 `{ kind: 'files' }`；`empty` 分支先惰性清理过期项、超 500 条时 FIFO 驱逐、再发新令牌。
+- **`createWithInitialCommit`**：`withCreation` 内先取值**并立即删除**令牌，再逐项校验（含 `!options.git.initializeEmptyRepository` 的存在性检查），然后以 `assertAuthorized` 回调复核会话归属，最后 `createTarget`；`createTarget` 的任何异常被改写成 `git_operation_failed` / `initialCreatedWorktreeFailed`。
+- **`create`**：纯常规路径，`withCreation` 包 `createTarget`。
+- **`initProject`**：`withCreation` 内检查 `options.git.initializeProject` 存在性（不存在抛 `operation_not_allowed` / `initializationUnsupported`），调用 `initializeProject(project.root)`，返回 `true`。**不消费确认令牌**。
 
 ## Architecture
 
@@ -99,25 +98,25 @@ tags:
                                 │ RPC（读 / 写 严格分离）
                                 ▼
 ┌──────────────────────────────────────────────────────────────────────┐
-│ control-plane.ts :: createWorktreeConsoleControlPlane (193)          │
+│ control-plane.ts :: createWorktreeConsoleControlPlane                │
 │                                                                      │
-│  preflightCreate (765-781) ──发令牌──► confirmations Map (483)       │
-│  createWithInitialCommit (782-797) ──验令牌──┘                       │
-│  initProject (799-803) ──────────（不看令牌，只靠 UI 确认）           │
+│  preflightCreate ──发令牌──► confirmations Map                       │
+│  createWithInitialCommit ──验令牌──┘                                 │
+│  initProject ──────────（不看令牌，只靠 UI 确认）                     │
 │                                                                      │
-│  withCreation (511-528)：互斥键 session:<id> + root:<canonical>      │
+│  withCreation：互斥键 session:<id> + root:<canonical>                │
 └──────────────┬────────────────────────────────┬──────────────────────┘
         empty  │                                │ files
                ▼                                ▼
 ┌──────────────────────────────┐  ┌──────────────────────────────────┐
-│ initializeEmptyRepository    │  │ initializeProject (104-117)      │
-│ (48-100)                     │  │ init -b main → add -A → commit   │
+│ initializeEmptyRepository    │  │ initializeProject                │
+│                              │  │ init -b main → add -A → commit   │
 │ 锁 index.lock + 三次指纹 CAS │  │ 无指纹 / 无锁 / 不回滚           │
-│ mktree + commit-tree         │  │ 已有提交则拒绝 (106-108)         │
+│ mktree + commit-tree         │  │ 已有提交则拒绝                   │
 │ update-ref --stdin 两阶段    │  │                                  │
 └──────────────────────────────┘  └──────────────────────────────────┘
                │                                │
-               └──────────► 提交诞生 → createTarget (529-551) → worktree
+               └──────────► 提交诞生 → createTarget → worktree
 ```
 
 框里的行号只对应 `src/adapters/initial-commit.ts` 与 `src/console-host/control-plane.ts`；跨文件调用靠注入的 `inspect` / `run` / `options.git`，适配层自身不持有仓库状态。
@@ -126,29 +125,29 @@ tags:
 
 ### 通路一：空仓库 → 原子空提交后直接建 worktree
 
-1. UI 调 `preflightCreate`（`src/console-host/control-plane.ts:765`）；`preflightInitialCommit` 返回 `kind: 'empty'` 与指纹。
-2. 控制平面清理过期令牌、容量超限则 FIFO 驱逐（`776-777`），写入 `{ token, root, projectId, fingerprint, expires: now + 300_000 }`（`779`），返回 `{ kind: 'empty', confirmationToken }`（`780`）。
-3. 用户确认后调 `createWithInitialCommit(sessionId, token)`（`782`）：进入 `withCreation` 双锁；取令牌并**立即 delete**（`783-784`）；逐项校验 token / expires / root / projectId / 适配器能力（`785-788`）。
-4. 进入 `initializeEmptyRepository`：预检 → 建 `index.lock` → **再**预检 → `assertAuthorized` → 校验 AUTHOR/COMMITTER 身份 → `mktree` → `commit-tree` → **第三次**预检 → `update-ref --stdin` 的 `prepare`，在 `beforeCommit` 内做**第四次**预检并**第二次** `assertAuthorized`（`src/adapters/initial-commit.ts:48-83`）。
-5. `finally` 关句柄、删锁（`91-98`），返回新 OID。
-6. `createTarget` 建 worktree（`795`）；失败统一为 `git_operation_failed` / `initialCreatedWorktreeFailed`（`796`）。
+1. UI 调 `preflightCreate`；`preflightInitialCommit` 返回 `kind: 'empty'` 与指纹。
+2. 控制平面清理过期令牌、容量超限则 FIFO 驱逐，写入 `{ token, root, projectId, fingerprint, expires: now + 300_000 }`，返回 `{ kind: 'empty', confirmationToken }`。
+3. 用户确认后调 `createWithInitialCommit(sessionId, token)`：进入 `withCreation` 双锁；取令牌并**立即 delete**；逐项校验 token / expires / root / projectId / 适配器能力。
+4. 进入 `initializeEmptyRepository`：预检 → 建 `index.lock` → **再**预检 → `assertAuthorized` → 校验 AUTHOR/COMMITTER 身份 → `mktree` → `commit-tree` → **第三次**预检 → `update-ref --stdin` 的 `prepare`，在 `beforeCommit` 内做**第四次**预检并**第二次** `assertAuthorized`。
+5. `finally` 关句柄、删锁，返回新 OID。
+6. `createTarget` 建 worktree；失败统一为 `git_operation_failed` / `initialCreatedWorktreeFailed`。
 
 ### 通路二：有文件的未出生仓库 → `initProject` → 再常规创建
 
-1. `preflightCreate` 调 `preflightInitialCommit`，根目录非空即得 `kind: 'files'`，此时**不产生令牌**，并顺手删掉本会话可能残留的旧令牌（`src/console-host/control-plane.ts:767-769`）。
-2. UI 展示「目录里有内容」的说明，用户确认后调 `initProject`（`799`）。
-3. `withCreation` 双锁 → 存在性检查（`800`）→ `initializeProject(project.root)`（`801`）。
-4. 适配器：`inspect` 确认无提交（有则拒绝，`src/adapters/initial-commit.ts:106-108`）→ 需要时 `git init -b main`（`110-111`）→ 校验 `GIT_AUTHOR_IDENT`（`113-114`）→ `git add -A`（`115`）→ `git commit -m 'Initial commit'`（`116`）。
+1. `preflightCreate` 调 `preflightInitialCommit`，根目录非空即得 `kind: 'files'`，此时**不产生令牌**，并顺手删掉本会话可能残留的旧令牌。
+2. UI 展示「目录里有内容」的说明，用户确认后调 `initProject`。
+3. `withCreation` 双锁 → 存在性检查 → `initializeProject(project.root)`。
+4. 适配器：`inspect` 确认无提交（有则拒绝）→ 需要时 `git init -b main` → 校验 `GIT_AUTHOR_IDENT` → `git add -A` → `git commit -m 'Initial commit'`。
 5. RPC 返回 `true`；UI 随后重新走一次 `preflightCreate`（此时已是 `ready`），再调 `create` 建 worktree。
 
 ### 通路三：已有提交 → 什么都不特殊
 
-`preflightCreate` 返回 `ready` 并附 `listLocalBranches`（`src/console-host/control-plane.ts:768-771`）→ `create(sessionId, branch?)`（`798`）→ `createTarget`（`529-551`）。适配层的两个初始化函数都不会被触及。
+`preflightCreate` 返回 `ready` 并附 `listLocalBranches` → `create(sessionId, branch?)` → `createTarget`。适配层的两个初始化函数都不会被触及。
 
 ## Connections
 
 - [[session-checkout]]：`SessionCheckoutModule` 提供 `createIsolatedTarget` 与 `preflight`，被 `control-plane.ts` 注入式使用。
-- [[ports]]：`GitCheckoutSnapshot`、`InitialCommitPreflight`、`SessionCheckoutGitPort` 定义在这里；`preflightInitialCommit` / `initializeEmptyRepository` / `initializeProject` 在端口上是**可选成员**，这正是 `src/console-host/control-plane.ts:767`、`786`、`800` 三处存在性检查的由来。
+- [[ports]]：`GitCheckoutSnapshot`、`InitialCommitPreflight`、`SessionCheckoutGitPort` 定义在这里；`preflightInitialCommit` / `initializeEmptyRepository` / `initializeProject` 在端口上是**可选成员**，这正是控制平面三处存在性检查的由来。
 - [[i18n-host]]：`hostMessage` 提供 `initialStateChanged`、`initialCommitFailed`、`initialIdentityMissing`、`initialRepositoryBusy`、`initializationUnsupported`、`projectAlreadyVersioned`、`initialCreatedWorktreeFailed` 等文案键。
 - [[console-host-errors]]：`consoleFailure` / `domainError` / `failure` / `outcome` 把异常收敛为 `WorktreeConsoleOutcome`，是 `stale_local`、`operation_not_allowed`、`git_operation_failed` 三条错误通道的出口。
 - [[console-contract]]：三条 RPC 的请求/响应形状（`WorktreeConsoleCreatePreflightResponse` 的 `kind` 联合即本决策的状态机外化）。
@@ -156,13 +155,13 @@ tags:
 
 ## Known Issues
 
-- **令牌一读即删，失败不可重试**：`src/console-host/control-plane.ts:783-784` 先 `get` 再 `delete`，随后任何校验失败或下游异常都不会把令牌放回。用户必须重新 `preflightCreate` 才能再试一次。这是刻意的「一次性令牌」语义，但对瞬时错误（如身份尚未配置）不够友好。
-- **`initProject` 不复核世界状态**：`src/console-host/control-plane.ts:799-803` 没有指纹、没有 `stale_local` 复检，只由 `initializeProject` 内部的「已有提交则拒绝」（`src/adapters/initial-commit.ts:14-16`）兜底。若用户在「确认前」与「执行时」之间新增了敏感文件，那些文件仍会被 `git add -A` 一并提交。指纹在这里帮不上忙，因为 `files` 分支的指纹本就是空串（`src/adapters/initial-commit.ts:38`）。
+- **令牌一读即删，失败不可重试**：控制平面先 `get` 再 `delete`，随后任何校验失败或下游异常都不会把令牌放回。用户必须重新 `preflightCreate` 才能再试一次。这是刻意的「一次性令牌」语义，但对瞬时错误（如身份尚未配置）不够友好。
+- **`initProject` 不复核世界状态**：没有指纹、没有 `stale_local` 复检，只由 `initializeProject` 内部的「已有提交则拒绝」兜底。若用户在「确认前」与「执行时」之间新增了敏感文件，那些文件仍会被 `git add -A` 一并提交。指纹在这里帮不上忙，因为 `files` 分支的指纹本就是空串。
 - **`initializeProject` 失败不回滚**：`git init` 成功但 `commit` 失败（全部文件被 `.gitignore` 排除、身份未配置）时，`.git` 会留在用户目录里，仓库从「裸目录」变成「零提交的 Git 仓库」。这是 `src/adapters/initial-commit.ts:104-106` 注释明示的取舍（「不回滚任何字节」），用户再次操作会走 `files` 分支而不是 `empty` 分支。
-- **`initializeEmptyRepository` 要求身份为配置值**：`-c user.useConfigOnly=true`（`src/adapters/initial-commit.ts:48`、`68`）意味着仅靠 `GIT_AUTHOR_NAME` 等环境变量不会通过校验，CI 或临时 shell 里会落到 `initialIdentityMissing`。
-- **根目录为符号链接时 `empty` 路径直接不可用**：`identity()` 遇 symlink 即 `stale()`（`src/adapters/initial-commit.ts:22`），而项目根、规范根、`gitDir`、`commonDir` 全部要过 `identity()`（`40-43`）。macOS 的 `/var` → `/private/var` 一类规范根差异会走到这里，表现为无法定位原因的 `stale_local`。
-- **`confirmations` 只有惰性清理**：过期项仅在 `preflightCreate` 被调用时清（`src/console-host/control-plane.ts:776`），容量上限 500 条并按 Map 插入顺序 FIFO 驱逐（`777`）。若某会话刚拿到令牌而其它会话连续预检 500 次，**尚未使用的令牌可能被挤掉**，表现为莫名其妙的 `stale_local`。此外键只有 `sourceSessionId`，同一会话对两个不同项目预检会互相覆盖。
-- **`preflightCreate` 把「无预检能力」当成「已就绪」**：`src/console-host/control-plane.ts:767` 的 `!check` 与 `kind === 'ready'` 共用一条返回路径。适配器未实现 `preflightInitialCommit` 时，UI 会看到 `kind: 'ready'`，随后 `create` 才可能失败，错误码与真实原因（非 Git 目录）不一致。
-- **`createTarget` 的错误被抹平**：`src/console-host/control-plane.ts:795-796` 把成功初始化后的任何建 worktree 异常统一改写为 `git_operation_failed` / `initialCreatedWorktreeFailed`，原始错误码丢失。副作用是：提交已经落地（仓库已可用），但用户看到的是一次失败——重试会走 `ready` 分支，语义上能自愈，但日志里查不到首因。
-- **互斥只在进程内**：`creating` 是普通 `Set`（`src/console-host/control-plane.ts:484`），只在单进程内有效；跨进程的并发保护实际由适配层的 `index.lock`（`src/adapters/initial-commit.ts:55-58`）与 `update-ref` 事务承担，其余路径（`initProject`）在跨进程场景下没有等价兜底。
-- **Win32 路径大小写归一依赖 `canonical.toLowerCase()`**（`src/console-host/control-plane.ts:519`），是非 Windows 平台上唯一的分支差异，也是互斥键唯一按平台改写的地方；若 `canonicalize` 返回的形态与 `localProject` 拿到的 `project.root` 不一致，两把锁会锁到不同的键。
+- **`initializeEmptyRepository` 要求身份为配置值**：`-c user.useConfigOnly=true` 意味着仅靠 `GIT_AUTHOR_NAME` 等环境变量不会通过校验，CI 或临时 shell 里会落到 `initialIdentityMissing`。
+- **根目录为符号链接时 `empty` 路径直接不可用**：`identity()` 遇 symlink 即 `stale()`，而项目根、规范根、`gitDir`、`commonDir` 全部要过 `identity()`。macOS 的 `/var` → `/private/var` 一类规范根差异会走到这里，表现为无法定位原因的 `stale_local`。
+- **`confirmations` 只有惰性清理**：过期项仅在 `preflightCreate` 被调用时清，容量上限 500 条并按 Map 插入顺序 FIFO 驱逐。若某会话刚拿到令牌而其它会话连续预检 500 次，**尚未使用的令牌可能被挤掉**，表现为莫名其妙的 `stale_local`。此外键只有 `sourceSessionId`，同一会话对两个不同项目预检会互相覆盖。
+- **`preflightCreate` 把「无预检能力」当成「已就绪」**：`!check` 与 `kind === 'ready'` 共用一条返回路径。适配器未实现 `preflightInitialCommit` 时，UI 会看到 `kind: 'ready'`，随后 `create` 才可能失败，错误码与真实原因（非 Git 目录）不一致。
+- **`createTarget` 的错误被抹平**：成功初始化后的任何建 worktree 异常统一改写为 `git_operation_failed` / `initialCreatedWorktreeFailed`，原始错误码丢失。副作用是：提交已经落地（仓库已可用），但用户看到的是一次失败——重试会走 `ready` 分支，语义上能自愈，但日志里查不到首因。
+- **互斥只在进程内**：`creating` 是普通 `Set`，只在单进程内有效；跨进程的并发保护实际由适配层的 `index.lock` 与 `update-ref` 事务承担，其余路径（`initProject`）在跨进程场景下没有等价兜底。
+- **Win32 路径大小写归一依赖 `canonical.toLowerCase()`**，是非 Windows 平台上唯一的分支差异，也是互斥键唯一按平台改写的地方；若 `canonicalize` 返回的形态与 `localProject` 拿到的 `project.root` 不一致，两把锁会锁到不同的键。

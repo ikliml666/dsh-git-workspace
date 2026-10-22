@@ -3,6 +3,7 @@ title: Console Host Control Plane
 type: module
 source_files:
   - src/console-host/service.ts
+  - src/console-host/control-plane.ts
   - src/console-host/errors.ts
   - src/console-host/projection.ts
   - src/console-host/review-diff.ts
