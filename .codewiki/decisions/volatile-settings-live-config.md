@@ -26,11 +26,11 @@ dsh-worktree-panel 有插件设置页；DSH 的等价机制是 settings 服务�
 
 1. **7 个字段标 volatile**：`gitTimeoutMs`、`worktreeAddTimeoutMs`、`autoDeliver`、`autoPush`、`worktreesRoot`、`inheritLocalChanges`、`worktreeKeepCount`。`stateDir` 与 `enableWorkspaceProvider` 保持非 volatile——前者是启动期目录（中途改会撕裂已写状态），后者是 Workspace 接管开关（挂载期决策，语义上就该重启生效）。
 
-2. **类型上显式建模 LiveRef**：`src/ports.ts` 定义 `LiveValue<T> { get(): T }`（473–476）与 `liveConfigValue(value)` duck-type 解包（478–484，`typeof (value as { get?: unknown } | undefined)?.get === 'function'`；不引 cosmokit 依赖）。`SessionCheckoutDependencies` 的 `autoPush`/`autoDeliver`/`worktreesRoot`/`inheritLocalChanges`/`worktreeKeepCount` 与 `GitTimeoutOptions` 的两个超时字段都放宽为 `T | LiveValue<T>`（ports.ts:495–517, git-options.ts:3–6）。
+2. **类型上显式建模 LiveRef**：`src/ports.ts` 定义 `LiveValue<T> { get(): T }`（497–499）与 `liveConfigValue(value)` duck-type 解包（502–507，`typeof (value as { get?: unknown } | undefined)?.get === 'function'`；不引 cosmokit 依赖）。`SessionCheckoutDependencies` 的 `autoPush`/`autoDeliver`/`worktreesRoot`/`inheritLocalChanges`/`worktreeKeepCount` 与 `GitTimeoutOptions` 的两个超时字段都放宽为 `T | LiveValue<T>`（ports.ts:518–540, git-options.ts:3–6）。
 
 3. **消费点逐次解包**，不做启动期归一：
-   - `index.ts:221` `gitTimeoutMs()` 对 worktree add/remove/其他分别解包，设置页改超时对下一条 git 命令即生效。
-   - `index.ts:239–242` `volatile()` 助手设 `schema.meta.volatile = true`（宿主读的是 meta.volatile，不是方法）。Config schema 用 `z.object()` 定义（index.ts:244–293），volatile 字段包括 `gitTimeoutMs(254)`、`worktreeAddTimeoutMs(255)`、`autoDeliver(262)`、`autoPush(267)`、`worktreesRoot(274)`、`inheritLocalChanges(280)`、`worktreeKeepCount(285)`。
+   - `git-options.ts:21–27` `gitTimeoutMs()` 对 worktree add/remove/其他分别解包，设置页改超时对下一条 git 命令即生效。
+   - `index.ts:238–242` `volatile()` 助手设 `schema.meta.volatile = true`（宿主读的是 meta.volatile，不是方法）。Config schema 用 `z.object()` 定义（index.ts:244–293），volatile 字段包括 `gitTimeoutMs(254)`、`worktreeAddTimeoutMs(255)`、`autoDeliver(262)`、`autoPush(267)`、`worktreesRoot(274)`、`inheritLocalChanges(280)`、`worktreeKeepCount(285)`。
    - `index.ts:304–307` `resolveWorktreesRootValue()` 延迟到读时解析 relative→absolute，`index.ts:342–345` `apply()` 传入 `{ get: () => resolveWorktreesRootValue(worktreesRootInput) }` 包装器（中途改根目录只影响之后新建的 worktree，既有 registry 的 managedRoot 是绝对路径不受影响）；
    - `index.ts:330` `apply()` 将 `autoDeliver`/`autoPush`/`inheritLocalChanges`/`worktreeKeepCount` 直接透传给 `createSessionCheckoutModule`，模块内部逐次解包。
 

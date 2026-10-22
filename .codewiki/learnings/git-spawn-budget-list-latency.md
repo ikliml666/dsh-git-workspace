@@ -15,7 +15,7 @@ tags: [performance, spawn-budget, git, list-latency]
 
 ## 三个杠杆（2026-09-29 实施后，后续批量接口已落地）
 
-1. **合并**：`git.inspect` 方法中 `symbolic-ref --quiet HEAD` 作为并行 promise 提前发起（`src/adapters/git.ts:250`），挂 `catch(() => undefined)` noop 防 unhandledRejection（`:251`），随后单次 `rev-parse --show-toplevel --path-format=absolute --git-common-dir --absolute-git-dir HEAD^{commit}` 一次性取全部位置事实（`:252–254`）。输出按参数顺序一行一值，行数 ≠4 即回退逐项读取（换行路径歧义）；unborn/broken HEAD 分类逻辑原样保留在回退分支（`:267–310`）。
+1. **合并**：`git.inspect` 方法中 `symbolic-ref --quiet HEAD` 作为并行 promise 提前发起（`src/adapters/git.ts:252`），挂 `catch(() => undefined)` noop 防 unhandledRejection（`:253`），随后单次 `rev-parse --show-toplevel --path-format=absolute --git-common-dir --absolute-git-dir HEAD^{commit}` 一次性取全部位置事实（`:254–256`）。输出按参数顺序一行一值，行数 ≠4 即回退逐项读取（换行路径歧义）；unborn/broken HEAD 分类逻辑原样保留在回退分支（`:267–310`）。
 
 2. **并行读**：`inspectLocal` 与 `validateManagedCheckoutDetailed` 的独立 git 读并发化。`inspectLocal` 提前起 `statusPromise` 并立即挂 `promise.catch(() => undefined)`，仅在快照证明是仓库时才消费。`validateManagedCheckoutDetailed` 同样提前起 status promise，再用 `Promise.all` 并行执行 `dependencies.git.inspect(canonicalManagedRoot)` 和 `dependencies.git.inspect(canonicalLocalRoot)`，将原本 3 次串行 reduce 为 1 次（双 inspect 同批 + 1 次 status）。
 
@@ -25,5 +25,5 @@ tags: [performance, spawn-budget, git, list-latency]
 
 - 锁内并行验证是安全的：exclusive 锁下没有 mutation 交错，读的是同一 registry 快照；并行不会引入竞态。
 - 逐条 observe 的错误语义（checkout_missing / checkout_mismatch 整体抛出）在批量入口保持一致；批量失败时退回逐条降级观察，不拖垮整个面板。
-- `not-a-repo → null` 判定基于合并调用的 stderr 分类（`src/adapters/git.ts:267`）；合并调用失败但非 not-a-repo 时走原逐项路径二次分类（`:270–310`），不会误判。
+- `not-a-repo → null` 判定基于合并调用的 stderr 分类（`src/adapters/git.ts:272`）；合并调用失败但非 not-a-repo 时走原逐项路径二次分类（`:275–310`），不会误判。
 - status promise 的 noop catch 仅防 unhandledRejection 冒泡，不吞实际错误——仅在快照证明是仓库时才 await status，确保错误仍被消费。
