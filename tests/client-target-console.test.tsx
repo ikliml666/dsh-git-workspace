@@ -12,6 +12,7 @@ import { registerTargetConsole, type TargetConsoleContextLike } from '../src/cli
 import { WORKTREE_REVIEW_REFRESH_EVENT } from '../src/client/review-console/status-events.js'
 import { WorktreeReviewStatus } from '../src/client/target-console/WorktreeReviewStatus.js'
 import { TargetStatusAction } from '../src/client/target-console/TargetStatusAction.js'
+import { invalidateBranchOverview } from '../src/client/target-console/branch-overview-cache.js'
 import { WorktreeConsoleView } from '../src/client/target-console/WorktreeConsoleView.js'
 import { createWorktreeConsoleAdapterFixture } from './support/worktree-console.js'
 
@@ -175,6 +176,19 @@ describe('Harness-native Session Target slots', () => {
 
     slots.dispose()
     expect(slots.entries.some(candidate => candidate.descriptor.id === 'worktree-target')).toBe(false)
+  })
+
+  test('Header 挂载不拉分支总览，首次展开 popover 才请求 gitOverview', async () => {
+    const fixture = createWorktreeConsoleAdapterFixture()
+    invalidateBranchOverview('target-session')
+    render(<TargetStatusAction sessionId="target-session" adapter={fixture.adapter} services={clientServices()} />)
+
+    const trigger = await screen.findByRole('button', { name: 'Session Target：Worktree · 待验收' })
+    expect(fixture.calls.some(call => call.method === 'gitOverview')).toBe(false)
+
+    fireEvent.click(trigger)
+    await waitFor(() => expect(fixture.calls.some(call => call.method === 'gitOverview')).toBe(true))
+    expect(await screen.findByText('本地分支')).toBeTruthy()
   })
 
   test('Header 切换 Session 时丢弃旧请求，避免跨 Session 注入路径与来源身份', async () => {

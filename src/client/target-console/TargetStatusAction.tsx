@@ -114,15 +114,9 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
     })
   }, [adapter, language, sessionId])
 
-  // Prefetch the repo's branch overview once the session exists, so the first
-  // popover expand renders instantly from cache instead of waiting on git.
-  useEffect(() => {
-    let cancelled = false
-    void ensureBranchOverview(adapter, sessionId).then(value => {
-      if (!cancelled && value !== null) setOverview(value)
-    })
-    return () => { cancelled = true }
-  }, [adapter, sessionId])
+  // No branch-overview prefetch on mount: this capsule mounts for every
+  // session, and `gitOverview` costs 3 git spawns the user never asked for.
+  // The popover loads it on first expand instead (see the trigger's onClick).
 
   const state = target?.state ?? (loading ? 'loading' : 'error')
   const stateLabel = state === 'loading' ? t("loading") : state === 'error' ? t("unavailable") : STATE_LABELS(t)[state]
@@ -450,10 +444,16 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
                 return
               }
               setMenuOpen(true)
-              // Stale-while-revalidate: render cached branches immediately,
-              // refresh in the background while the popover is open.
+              // Stale-while-revalidate when a snapshot exists; otherwise this is
+              // the first expand and the branch list must be fetched now.
               const value = refreshBranchOverviewInBackground(adapter, sessionId)
-              if (value !== overview) setOverview(value)
+              if (value !== null) {
+                if (value !== overview) setOverview(value)
+              } else {
+                void ensureBranchOverview(adapter, sessionId).then(fetched => {
+                  if (fetched !== null && mounted.current) setOverview(fetched)
+                })
+              }
             }}
           >
             <ReviewIcon name={target?.state === 'local' ? 'local' : 'branch'} className="dsh-wtc-target-kind" />
