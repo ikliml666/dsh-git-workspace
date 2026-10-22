@@ -593,7 +593,7 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
           revision: record.revision,
           phase: record.phase,
           state: badgeState,
-          sourceBranch: sourceBranchFromRef(record.sourceRef),
+          sourceBranch: sourceBranchFromRef(record.sessionBranch ?? record.sourceRef),
         }
         const previous = project.tasksByOwner.get(record.ownerSessionId)
         if (!previous

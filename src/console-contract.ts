@@ -153,7 +153,7 @@ export interface WorktreeConsoleTargetSummary {
   dirty: boolean
   currentOid: string
   commitOid: string | null
-  /** Local branch this target tracks, derived from the recorded source ref; null when the Local side was detached or unversioned. */
+  /** The branch this target works on: the Session's own branch when the record has one, otherwise the recorded source ref (the fork point). null when the Local side was detached or unversioned. */
   sourceBranch: string | null
   retention?: Exclude<WorktreeRetentionMode, 'cleanup'>
   retainedAt?: number
@@ -178,6 +178,11 @@ export interface WorktreeConsoleTargetDetails extends WorktreeConsoleTargetSumma
   /** Host-validated canonical Local root used only for source Session navigation. */
   sourceRoot: string | null
   sourceOid: string
+  /**
+   * Branch the conversation chip names: what Git reports for the Worktree right
+   * now, falling back to the recorded session branch when the Worktree cannot be
+   * observed this instant. null only when neither is known.
+   */
   currentBranch: string | null
   /** Owner-only Host proof for one explicitly authorized recovery continuation. */
   recoveryContinuation?: WorktreeRecoveryProof

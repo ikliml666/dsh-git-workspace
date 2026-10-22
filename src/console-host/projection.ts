@@ -136,7 +136,11 @@ export function projectRecord(
     dirty: observed?.dirty ?? observed?.summary?.dirty ?? false,
     currentOid: observed?.snapshot?.headOid ?? fallbackOid(record),
     commitOid: commitOid(record),
-    sourceBranch: sourceBranchFromRef(record.sourceRef),
+    // The Session's own branch wins over the fork point: `sourceRef` names where
+    // the Worktree branched from, which for a legacy record can be another
+    // Session's branch — labelling the sidebar card with that would repeat the
+    // very attribution mistake the session branch was introduced to end.
+    sourceBranch: sourceBranchFromRef(record.sessionBranch ?? record.sourceRef),
     ...(delivery.state === 'retained' ? {
       retention: delivery.retention,
       retainedAt: delivery.retainedAt,
@@ -199,7 +203,12 @@ export function projectDetails(
     managedRoot,
     sourceRoot: record.localRoot,
     sourceOid: record.baseOid,
-    currentBranch: snapshot?.branch ?? null,
+    // The watched branch is what Git reports right now; the recorded session
+    // branch is the fallback so the conversation chip keeps naming the Session's
+    // own branch when the Worktree cannot be observed this instant (a frozen or
+    // vanished runtime, a transient inspect failure) instead of collapsing to
+    // the bare "Worktree · state" label.
+    currentBranch: snapshot?.branch ?? sourceBranchFromRef(record.sessionBranch ?? ''),
     ...(callerSessionId === record.ownerSessionId && !linkedRead && record.recoveryContinuation
       ? {
           recoveryContinuation: record.recoveryContinuation.kind === 'worktree_apply_conflict'

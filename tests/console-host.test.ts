@@ -183,6 +183,38 @@ describe('Worktree Console Host control plane', () => {
     expect(module.bind).not.toHaveBeenCalled()
   })
 
+  it('names the Session own branch on the target even when the Worktree reads as detached', async () => {
+    const record = readyRecord()
+    record.sessionBranch = 'refs/heads/feat/sess-target-session--labels'
+    const { control } = plane(record)
+
+    const result = await control.current('target-session')
+
+    expect(result).toMatchObject({
+      ok: true,
+      value: {
+        target: {
+          currentBranch: 'feat/sess-target-session--labels',
+          sourceBranch: 'feat/sess-target-session--labels',
+        },
+      },
+    })
+  })
+
+  it('falls back to the fork point for a legacy record that has no session branch', async () => {
+    const { control } = plane()
+
+    const result = await control.current('target-session')
+
+    // The git double reports a detached Worktree and the fixture predates
+    // session branches, so both labels stay on the recorded source ref rather
+    // than inventing a branch.
+    expect(result).toMatchObject({
+      ok: true,
+      value: { target: { currentBranch: null, sourceBranch: 'main' } },
+    })
+  })
+
   it('does not advertise Worktree creation for a bound Local Session outside a Git repository', async () => {
     const { module, control } = plane()
     vi.mocked(module.inspect).mockResolvedValueOnce({
