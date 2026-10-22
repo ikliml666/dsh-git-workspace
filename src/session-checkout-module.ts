@@ -4567,12 +4567,13 @@ export function createSessionCheckoutModule(
         journal: null,
         revision: current.revision + 1,
       }
-      readyRegistry.sessionBindings[sessionId] = attached
+      const readyBinding: SessionBindingRecord = attached
         ? { ...binding, sourceRef: attached.branchRef, sourceOid: created.headOid }
         : binding
+      readyRegistry.sessionBindings[sessionId] = readyBinding
       readyRegistry.revision += 1
       dependencies.registry.write(readyRegistry)
-      return inspectIsolated(binding)
+      return inspectIsolated(readyBinding)
     } catch (error) {
       finishFailedCreation(sessionId, checkoutId, error, previousBinding)
       let partialCheckout: GitCheckoutSnapshot | null = null
