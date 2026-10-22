@@ -11,6 +11,7 @@ tags:
   - control-plane
   - typert
   - projection
+  - git-worktree
 ---
 
 # Console Host Control Plane
@@ -31,50 +32,50 @@ tags:
 
 ### src/console-host/service.ts
 
-Typert RPC 服务层，继承自 `TypertRemoteService`，充当网关层。负责参数校验、国际化上下文注入（通过 `withHostLanguage`）、诊断日志记录，并将请求路由至 `controlPlane` 实例。
+Typert RPC 服务层，继承自 `TypertRemoteService` (L34)，充当网关层。负责参数校验、国际化上下文注入（通过 `withHostLanguage`）、诊断日志记录，并将请求路由至 `controlPlane` 实例。
 
 **构造函数依赖**:
-- `hostContext`: 运行时上下文。
-- `controlPlane`: `WorktreeConsoleControlPlane` 实例，实际业务逻辑执行者。
-- `diagFile?`: 可选的诊断文件路径，用于追加 NDJSON 格式的调试信息。
-- `officialWorkspaceActive`: 布尔值，标记官方工作区是否处于活跃状态，默认 `true`。
+- `hostContext`: 运行时上下文 (L36)。
+- `controlPlane`: `WorktreeConsoleControlPlane` 实例，实际业务逻辑执行者 (L37)。
+- `diagFile?`: 可选的诊断文件路径，用于追加 NDJSON 格式的调试信息 (L38)。
+- `officialWorkspaceActive`: 布尔值，标记官方工作区是否处于活跃状态，默认 `true` (L40)。
 
 **关键方法**:
-- **`appendDiag(line)` (L30-36)**: 使用 `appendFileSync` 同步写入 JSON 行到指定文件。采用“尽力而为”策略，捕获异常以防止破坏 RPC 表面。记录内容包括时间戳、操作结果、项目数量、主机 flavor 及锚点信息。
-- **`sidebarTopology(locale?)`**: 返回侧边栏拓扑结构，额外附加 `workspaceClientFlavor` 和 `officialWorkspaceActive` 状态。
-- **`clientBootReport(report)`**: 接收客户端启动报告，仅记录诊断并返回 `true`。
-- **`current(agent, locale?)`**: 获取当前工作区状态。
-- **`list(agent, needsAttention?, includeDelivered?, locale?)`**: 列出工作区，支持筛选关注项和已交付项。
-- **`preflightCreate(agent, locale?)`**: 创建前的预检。
-- **`createWithInitialCommit(agent, confirmationToken, locale?)`**: 带初始提交的创建工作区。
-- **`create(agent, branch?, locale?)`**: 标准创建工作区。
-- **`initProject(agent, locale?)`**: 初始化项目。
-- **`inspect(agent, checkoutId, locale?)`**: 检查特定检出点。
-- **`reviewDiff(agent, checkoutId, expectedRevision, expectedReviewId, locale?)`**: 审查差异。
-- **`preflight(agent, checkoutId, expectedRevision, expectedReviewId, locale?)`**: 预检操作。
-- **`previewRecoveryPreflight(...expectedPreviewId...)`**: 预览恢复预检。
-- **`preparePreviewRecoveryAnalysis(...)`**: 准备预览恢复分析。
-- **`createPreviewRecoveryHandoff(...)`**: 创建预览恢复交接。
-- **`preview(agent, checkoutId, expectedRevision, expectedReviewId, locale?)`**: 预览操作。
-- **`checkpoint(agent, checkoutId, expectedRevision, expectedReviewId, expectedGeneration, requestId, commitMessage, locale?)`**: 检查点提交。
-- **`prepareReviewRegeneration(agent, checkoutId, expectedRevision, expectedReviewId, locale?)`**: 准备审查重新生成。
-- **`resumeRevision(agent, checkoutId, expectedRevision, expectedReviewId, conflictContinuation?, locale?)`**: 恢复修订，支持冲突继续。
-- **`rollbackPreview(agent, checkoutId, expectedRevision, resumeRevision?, recoveryProof?, locale?)`**: 回滚预览。
-- **`discard(agent, checkoutId, expectedRevision, confirmDirty, rollbackPreview?, locale?)`**: 丢弃更改。
-- **`finalize(agent, checkoutId, expectedRevision, expectedReviewId, commitMessage, retention, locale?)`**: 最终化操作。
-- **`finalizePreview(agent, checkoutId, expectedRevision, expectedReviewId, commitMessage, retention, recoveryProof?, locale?)`**: 最终化预览。
-- **`setRetention(agent, checkoutId, expectedRevision, retention, locale?)`**: 设置保留模式（排除 'cleanup'）。
-- **`setPermanent(agent, checkoutId, expectedRevision, permanent, locale?)`**: 设置永久状态。
-- **`retryCleanup(agent, checkoutId, expectedRevision, locale?)`**: 重试清理。
-- **`beginNextIteration(agent, checkoutId, expectedRevision, locale?)`**: 开始下一次迭代。
-- **`clearSidebarBadge(agent, checkoutId, expectedRevision, locale?)`**: 清除侧边栏徽章。
-- **`gitOverview(agent, locale?)`**: Git 概览。
-- **`gitGraph(agent, limit?, locale?)`**: Git 图，支持限制深度。
-- **`gitCreateBranch(agent, name, locale?)`**: 创建分支。
-- **`gitSwitchBranch(agent, branch, locale?)`**: 切换分支。
-- **`gitPruneMergedBranches(agent, dryRun, locale?)`**: 修剪已合并分支，支持干运行。
-- **`listAbandoned(agent, locale?)`**: 列出被放弃的工作区。
-- **`restoreAbandoned(agent, checkoutId, locale?)`**: 恢复被放弃的工作区。
+- **`appendDiag(line)` (L46-51)**: 使用 `appendFileSync` 同步写入 JSON 行到指定文件。采用“尽力而为”策略，捕获异常以防止破坏 RPC 表面。记录内容包括时间戳、操作结果、项目数量、主机 flavor 及锚点信息。
+- **`sidebarTopology(locale?)` (L54-66)**: 返回侧边栏拓扑结构，额外附加 `workspaceClientFlavor` 和 `officialWorkspaceActive` 状态。
+- **`clientBootReport(report)` (L69-72)**: 接收客户端启动报告，仅记录诊断并返回 `true`。
+- **`current(agent, locale?)` (L75-77)**: 获取当前工作区状态。
+- **`list(agent, needsAttention?, includeDelivered?, locale?)` (L80-82)**: 列出工作区，支持筛选关注项和已交付项。
+- **`preflightCreate(agent, locale?)` (L85-87)**: 创建前的预检。
+- **`createWithInitialCommit(agent, confirmationToken, locale?)` (L90-92)**: 带初始提交的创建工作区。
+- **`create(agent, branch?, locale?)` (L95-97)**: 标准创建工作区。
+- **`initProject(agent, locale?)` (L100-102)**: 初始化项目。
+- **`inspect(agent, checkoutId, locale?)` (L105-107)**: 检查特定检出点。
+- **`reviewDiff(agent, checkoutId, expectedRevision, expectedReviewId, locale?)` (L110-112)**: 审查差异。
+- **`preflight(agent, checkoutId, expectedRevision, expectedReviewId, locale?)` (L115-117)**: 预检操作。
+- **`previewRecoveryPreflight(...expectedPreviewId...)` (L120-131)**: 预览恢复预检。
+- **`preparePreviewRecoveryAnalysis(...)` (L134-146)**: 准备预览恢复分析。
+- **`createPreviewRecoveryHandoff(...)` (L149-161)**: 创建预览恢复交接。
+- **`preview(agent, checkoutId, expectedRevision, expectedReviewId, locale?)` (L164-166)**: 预览操作。
+- **`checkpoint(agent, checkoutId, expectedRevision, expectedReviewId, expectedGeneration, requestId, commitMessage, locale?)` (L169-182)**: 检查点提交。
+- **`prepareReviewRegeneration(agent, checkoutId, expectedRevision, expectedReviewId, locale?)` (L185-193)**: 准备审查重新生成。
+- **`resumeRevision(agent, checkoutId, expectedRevision, expectedReviewId, conflictContinuation?, locale?)` (L196-207)**: 恢复修订，支持冲突继续。
+- **`rollbackPreview(agent, checkoutId, expectedRevision, resumeRevision?, recoveryProof?, locale?)` (L210-219)**: 回滚预览。
+- **`discard(agent, checkoutId, expectedRevision, confirmDirty, rollbackPreview?, locale?)` (L222-224)**: 丢弃更改。
+- **`finalize(agent, checkoutId, expectedRevision, expectedReviewId, commitMessage, retention, locale?)` (L227-237)**: 最终化操作。
+- **`finalizePreview(agent, checkoutId, expectedRevision, expectedReviewId, commitMessage, retention, recoveryProof?, locale?)` (L240-253)**: 最终化预览。
+- **`setRetention(agent, checkoutId, expectedRevision, retention, locale?)` (L256-264)**: 设置保留模式（排除 'cleanup'）。
+- **`setPermanent(agent, checkoutId, expectedRevision, permanent, locale?)` (L267-275)**: 设置永久状态。
+- **`retryCleanup(agent, checkoutId, expectedRevision, locale?)` (L278-280)**: 重试清理。
+- **`beginNextIteration(agent, checkoutId, expectedRevision, locale?)` (L283-285)**: 开始下一次迭代。
+- **`clearSidebarBadge(agent, checkoutId, expectedRevision, locale?)` (L288-290)**: 清除侧边栏徽章。
+- **`gitOverview(agent, locale?)` (L293-295)**: Git 概览。
+- **`gitGraph(agent, limit?, locale?)` (L298-300)**: Git 图，支持限制深度。
+- **`gitCreateBranch(agent, name, locale?)` (L303-305)**: 创建分支。
+- **`gitSwitchBranch(agent, branch, locale?)` (L308-310)**: 切换分支。
+- **`gitPruneMergedBranches(agent, dryRun, locale?)` (L313-315)**: 修剪已合并分支，支持干运行。
+- **`listAbandoned(agent, locale?)` (L318-320)**: 列出被放弃的工作区。
+- **`restoreAbandoned(agent, checkoutId, locale?)` (L323-325)**: 恢复被放弃的工作区。
 
 **国际化处理模式**:
 - 所有对外暴露的 RPC 方法均包裹在 `withHostLanguage` 中。
@@ -129,37 +130,37 @@ Typert RPC 服务层，继承自 `TypertRemoteService`，充当网关层。负�
 
 统一错误类型转换和 Outcome 包装器。
 
-- **`domainError(code, message, continuation?)`**: 创建带有 `code` 和可选 `continuation` 的标准 Error 对象。
-- **`consoleFailure(error)`**: 将内部 Error 转换为 `WorktreeConsoleOutcome<never>` (`ok: false`)。
+- **`domainError(code, message, continuation?)` (L5-11)**: 创建带有 `code` 和可选 `continuation` 的标准 Error 对象。
+- **`consoleFailure(error)` (L13-41)**: 将内部 Error 转换为 `WorktreeConsoleOutcome<never>` (`ok: false`)。
     - 若 Error code 在 `SESSION_CHECKOUT_ERROR_CODES` 中，透传 code/message/continuation。
     - 否则，统一转为 `git_error`，消息来自 i18n 或原 Error message（本地控制台允许泄露，远程传输需截断）。
-- **`failure<T>(code, message, details?, continuation?)`**: 直接构造一个失败的 Outcome 对象，支持 `details` 和 `continuation`。
-- **`outcome<T>(operation)`**: **核心包装器**。接收一个 Promise 函数，成功返回 `{ ok: true, value }`，失败捕获并调用 `consoleFailure`。
+- **`failure<T>(code, message, details?, continuation?)` (L43-58)**: 直接构造一个失败的 Outcome 对象，支持 `details` 和 `continuation`。
+- **`outcome<T>(operation)` (L60-66)**: **核心包装器**。接收一个 Promise 函数，成功返回 `{ ok: true, value }`，失败捕获并调用 `consoleFailure`。
 
 ### src/console-host/projection.ts
 
 将内部域模型（`ManagedCheckoutRecord`）转换为 UI 消费的数据结构（`WorktreeConsoleTargetSummary` / `WorktreeConsoleTargetDetails`）。
 
-- **`capabilities`**: 根据 Caller Session ID、Owner 可用性、Linked Read 状态及 Record 当前 Phase/Delivery State，计算当前用户对该 Worktree 拥有的能力集合（如 `open`, `inspect`, `discard`, `finalize` 等布尔值）。
-- **`projectRecord`**: 构建 Target Summary。提取 review, proof, iteration, state, dirty, oid, checkpoints, previewRecovery 等信息。
+- **`capabilities` (L61-98)**: 根据 Caller Session ID、Owner 可用性、Linked Read 状态及 Record 当前 Phase/Delivery State，计算当前用户对该 Worktree 拥有的能力集合（如 `open`, `inspect`, `discard`, `finalize` 等布尔值）。
+- **`projectRecord` (L109-183)**: 构建 Target Summary。提取 review, proof, iteration, state, dirty, oid, checkpoints, previewRecovery 等信息。
     - 若 `linkedRead` 为 true，隐藏 `deliveryProof`。
     - 处理 Retention 过期时间、Permanent 标记、Cleanup Message。
-- **`projectDetails`**: 构建 Target Details。继承 Summary，补充 `managedRoot`, `sourceRoot`, `sourceOid`, `currentBranch`。
+- **`projectDetails` (L185-255)**: 构建 Target Details。继承 Summary，补充 `managedRoot`, `sourceRoot`, `sourceOid`, `currentBranch`。
     - 若 Caller 是 Owner 且存在 `recoveryContinuation`，详细展开冲突恢复或预览恢复的上下文数据。
-- **`projectLocal`**: 构建 Local 目标的投影。所有 Worktree 特定能力置为 false，仅保留 `create` (若未版本化), `open`, `inspect`。
+- **`projectLocal` (L257-294)**: 构建 Local 目标的投影。所有 Worktree 特定能力置为 false，仅保留 `create` (若未版本化), `open`, `inspect`。
 
 ### src/console-host/review-diff.ts
 
 高效、安全地读取 Git 差异内容（Diff/Patch），用于 Code Review。
 
 **常量**:
-- `REVIEW_DIFF_MAX_FILES = 200`
-- `REVIEW_DIFF_MAX_PATCH_BYTES = 100KB`
-- `REVIEW_DIFF_MAX_PAYLOAD_BYTES = 1MB`
+- `REVIEW_DIFF_MAX_FILES = 200` (L9)
+- `REVIEW_DIFF_MAX_PATCH_BYTES = 100KB` (L10)
+- `REVIEW_DIFF_MAX_PAYLOAD_BYTES = 1MB` (L11)
 
 **类/函数**:
-- **`ReviewDiffStaleError`**: 自定义错误类，表示快照已过期。
-- **`createGitWorktreeReviewDiffReader`**: 工厂函数，返回 `read` 方法。
+- **`ReviewDiffStaleError` (L25-30)**: 自定义错误类，表示快照已过期。
+- **`createGitWorktreeReviewDiffReader` (L123-244)**: 工厂函数，返回 `read` 方法。
     - **实现逻辑**:
         1.  创建临时目录 (`mkdtemp`) 和 Object Directory。
         2.  使用 `GIT_ALTERNATE_OBJECT_DIRECTORIES` 指向源仓库的对象库，避免复制大对象。

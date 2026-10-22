@@ -2,9 +2,9 @@
 title: "Worktree Console RPC 适配器：超时看门狗与契约校验"
 type: decision
 source_files:
-  - "src/client/console-remote/adapter.ts"
-  - "src/console-contract.ts"
-  - "src/console-remote/schemas.ts"
+  - src/client/console-remote/adapter.ts
+  - src/console-contract.ts
+  - src/console-remote/schemas.ts
 tags:
   - rpc
   - timeout
@@ -23,48 +23,48 @@ tags:
 
 ### 常量与配置 (adapter.ts)
 
-*   **`FAST_TIMEOUT_MS = 30_000`** (Line 45): 快速路径方法的超时阈值（毫秒）。
-*   **`SLOW_TIMEOUT_MS = 180_000`** (Line 46): 慢速路径方法（通常涉及 git 操作或全量重算）的超时阈值。
-*   **`FAST_METHODS`** (Lines 49-54): 一个 `Set`，包含被视为“快路径”的方法名。这些方法通常只读且不触发大量 git spawn。
+*   **`FAST_TIMEOUT_MS = 30_000`** (Line 53): 快速路径方法的超时阈值（毫秒）。
+*   **`SLOW_TIMEOUT_MS = 180_000`** (Line 54): 慢速路径方法（通常涉及 git 操作或全量重算）的超时阈值。
+*   **`FAST_METHODS`** (Lines 57-62): 一个 `Set`，包含被视为“快路径”的方法名。这些方法通常只读且不触发大量 git spawn。
     *   内容: `'sidebarTopology'`, `'current'`, `'inspect'`, `'previewRecoveryPreflight'`, `'gitOverview'`, `'gitGraph'`, `'listAbandoned'`。
     *   注释指出 `list/preflight/preflightCreate` 因可能触发 20+ 次 git spawn 被排除在此集合外，归入 SLOW 档。
 
 ### 辅助函数 (adapter.ts)
 
-*   **`transport<T>(message)`** (Lines 24-26): 构造表示传输不可用的错误结果 `{ ok: false, error: { code: 'transport_unavailable', ... } }`。
-*   **`malformed<T>(method, locale)`** (Lines 28-30): 构造表示响应格式错误的结果，使用 i18n 翻译器生成消息。
-*   **`messageOf(value)`** (Lines 32-35): 从 Error 对象或普通值中提取人类可读的错误消息字符串。
-*   **`isCodecRejection(value)`** (Lines 37-40): 检测错误消息是否包含 codec 拒绝特征（如 `rejected "` 或 `返回了不符合 strict contract`），用于区分传输层错误和协议校验错误。
-*   **`timeoutOutcome<T>(method, locale, timeoutMs)`** (Lines 42-52): 构造标准化的超时错误结果，包含 `code: 'timeout'` 及对应的 i18n 消息。
+*   **`transport<T>(message)`** (Lines 28-30): 构造表示传输不可用的错误结果 `{ ok: false, error: { code: 'transport_unavailable', ... } }`。
+*   **`malformed<T>(method, locale)`** (Lines 32-34): 构造表示响应格式错误的结果，使用 i18n 翻译器生成消息。
+*   **`messageOf(value)`** (Lines 36-40): 从 Error 对象或普通值中提取人类可读的错误消息字符串。
+*   **`isCodecRejection(value)`** (Lines 42-45): 检测错误消息是否包含 codec 拒绝特征（如 `rejected "` 或 `返回了不符合 strict contract`），用于区分传输层错误和协议校验错误。
+*   **`timeoutOutcome<T>(method, locale, timeoutMs)`** (Lines 64-75): 构造标准化的超时错误结果，包含 `code: 'timeout'` 及对应的 i18n 消息。
 
 ### 核心类/函数
 
-*   **`createWorktreeConsoleRemoteAdapter(remote, getLanguage)`** (Lines 56-116):
+*   **`createWorktreeConsoleRemoteAdapter(remote, getLanguage)`** (Lines 77-147):
     *   **输入**: `remote: GitWorktreeRemote` (远程调用实现), `getLanguage: () => Language` (默认 `'zh'`)。
-    *   **初始化**: 构建 `descriptors` Map (Line 58)，将方法名映射到 `WORKTREE_CONSOLE_DESCRIPTORS` 中的 Schema 描述符。
-    *   **内部函数 `invoke<T>`** (Lines 60-88):
+    *   **初始化**: 构建 `descriptors` Map (Line 78)，将方法名映射到 `WORKTREE_CONSOLE_DESCRIPTORS` 中的 Schema 描述符。
+    *   **内部函数 `invoke<T>`** (Lines 80-109):
         *   **逻辑**:
-            1.  获取语言环境并标准化 (Line 61)。
-            2.  根据 `FAST_METHODS` 决定超时时间 (Line 62)。
-            3.  启动 `Promise.race` 竞跑实际调用与定时器 (Lines 64-69)。
-            4.  捕获异常：清除定时器，检查是否为 codec 拒绝（返回 `malformed`）或其他传输错误（返回 `transport`）(Lines 70-73)。
-            5.  检查 `timedOut` 标志：若是，返回 `timeoutOutcome` (Lines 75-77)。
-            6.  基础结构校验：检查返回值是否为对象且包含 `ok` 布尔字段，否则返回 `malformed` (Line 78)。
-            7.  业务错误处理：若 `ok === false`，再次检查是否为 codec 拒绝，否则透传错误消息 (Line 79)。
-            8.  **严格校验**: 获取对应方法的 descriptor，若非 `strict` 模式则报错 (Line 80)。尝试使用 descriptor 的 schema 解析 `carrier.value` (Lines 82-85)。解析失败则返回 `malformed`。
-    *   **返回**: 实现 `WorktreeConsoleAdapter` 接口的对象，包含所有工作树控制台操作方法（Lines 90-115）。每个方法都封装了对 `invoke` 的调用，传入具体的 remote 方法和参数。
+            1.  获取语言环境并标准化 (Line 81)。
+            2.  根据 `FAST_METHODS` 决定超时时间 (Line 82)。
+            3.  启动 `Promise.race` 竞跑实际调用与定时器 (Lines 86-91)。
+            4.  捕获异常：清除定时器，检查是否为 codec 拒绝（返回 `malformed`）或其他传输错误（返回 `transport`）(Lines 92-95)。
+            5.  检查 `timedOut` 标志：若是，返回 `timeoutOutcome` (Lines 97-99)。
+            6.  基础结构校验：检查返回值是否为对象且包含 `ok` 布尔字段，否则返回 `malformed` (Line 100)。
+            7.  业务错误处理：若 `ok === false`，再次检查是否为 codec 拒绝，否则透传错误消息 (Line 101)。
+            8.  **严格校验**: 获取对应方法的 descriptor，若非 `strict` 模式则报错 (Line 103)。尝试使用 descriptor 的 schema 解析 `carrier.value` (Lines 104-108)。解析失败则返回 `malformed`。
+    *   **返回**: 实现 `WorktreeConsoleAdapter` 接口的对象，包含所有工作树控制台操作方法（Lines 111-147）。每个方法都封装了对 `invoke` 的调用，传入具体的 remote 方法和参数。
 
-*   **`WorktreeConsoleAdapter` 接口定义** (`src/console-contract.ts`, Lines 593-628):
+*   **`WorktreeConsoleAdapter` 接口定义** (`src/console-contract.ts`, Lines 672-705):
     *   定义了所有公开的异步方法签名，如 `preflightCreate`, `create`, `sidebarTopology`, `gitOverview` 等。
     *   所有方法均返回 `Promise<WorktreeConsoleOutcome<T>>`。
 
-*   **`WorktreeConsoleOutcome<T>` 类型** (`src/console-contract.ts`, Lines 555-557):
+*   **`WorktreeConsoleOutcome<T>` 类型** (`src/console-contract.ts`, Lines 622-624):
     *   联合类型：`{ ok: true; value: T }` | `{ ok: false; error: WorktreeConsoleError }`。
 
-*   **`WorktreeConsoleError` 类型** (`src/console-contract.ts`, Lines 550-554):
+*   **`WorktreeConsoleError` 类型** (`src/console-contract.ts`, Lines 615-620):
     *   包含 `code` (ErrorCode), `message` (string), `details` (可选), `continuation` (可选恢复上下文)。
 
-*   **`ERROR_META` 映射** (`src/console-contract.ts`, Lines 526-550):
+*   **`ERROR_META` 映射** (`src/console-contract.ts`, Lines 632-665):
     *   定义了每种 `WorktreeConsoleErrorCode` 对应的元数据：`category` (错误类别), `recovery` (推荐恢复动作), `retryable` (是否可重试)。
     *   关键条目:
         *   `timeout`: `{ category: 'unavailable', recovery: 'retry', retryable: true }`
@@ -72,8 +72,8 @@ tags:
         *   `malformed_response`: `{ category: 'internal', recovery: 'none', retryable: false }`
 
 *   **Zod Schemas** (`src/console-remote/schemas.ts`):
-    *   定义了所有请求/响应的严格验证规则。例如 `outcomeSchema` (Lines 158-163) 用于包装任意类型的成功/失败结果。
-    *   `consoleErrorSchema` (Lines 146-155) 定义了错误对象的严格结构，并包含自定义校验逻辑（仅 `apply_conflict` 错误可携带 `continuation`）。
+    *   定义了所有请求/响应的严格验证规则。例如 `outcomeSchema` (Lines 218-223) 用于包装任意类型的成功/失败结果。
+    *   `consoleErrorSchema` (Lines 207-216) 定义了错误对象的严格结构，并包含自定义校验逻辑（仅 `apply_conflict` 错误可携带 `continuation`）。
     *   具体响应 Schema 如 `currentResponseSchema`, `createResponseSchema`, `mutationResponseSchema` 等均在文件中定义并被 `adapter.ts` 引用。
 
 ## Architecture
