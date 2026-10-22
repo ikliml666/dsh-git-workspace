@@ -26,15 +26,15 @@ tags:
 
 ### 导出类型与接口 (src/index.ts)
 
-- **`SessionCheckoutError`** (`src/index.ts:35`): 领域错误基类。继承 `Error`，包含 `readonly code: SessionCheckoutErrorCode` 和 `message`。构造函数设置 `name = 'SessionCheckoutError'`。
-- **`SessionCheckoutReconcileSummary`** (`src/index.ts:49`): 收敛摘要接口，包含 `recoveryRequiredCheckoutIds`, `orphanedCheckoutIds`, `dirtyOrphanedCheckoutIds`, `staleRootCheckoutIds`, `retainedCheckoutCount`。
-- **`ManageManagedWorktreeInput`** (`src/index.ts:57`): 管理输入接口，包含 `checkoutId`, `expectedRevision`, `action` ('cleanup_retained' | 'retry_cleanup' | 'set_retention' | 'set_permanent' | 'clear_sidebar_badge' | 'discard'), `retention?`, `permanent?`, `confirmDirty?`, `rollbackPreview?`。注意：相比旧版新增了 `clear_sidebar_badge` 动作。
-- **`ListManagedWorktreesInput`** (`src/index.ts:67`): 列表查询输入，包含 `projectId?`, `needsAttention?`, `checkoutId?`, `includeDiagnostics?`。
-- **`PruneMergedBranchesInput`** (`src/index.ts:74`): 修剪输入，包含 `dryRun?`, `olderThanDays?`。
-- **`MergeBranchForSessionInput`** (`src/index.ts:82`): 合并输入，包含 `sourceBranch`, `dryRun?`, `direction?` ('forward' | 'reverse')。
-- **`MarkReadyForReviewInput`** (`src/index.ts:90`): 准备审查输入，包含 `detailsMarkdown?`, `summary`, `validationStatus`, `validationSummary?`, `tests`, `suggestedCommitMessage`。
-- **`IsolatedTargetLaunch`** (`src/index.ts:102`): 隔离目标启动数据，包含 `targetSessionId`, `managedRoot`, `target` (`SessionTargetView`)。
-- **`SessionCheckoutModule`** (`src/index.ts:107`): 核心模块接口。主要方法包括：
+- **`SessionCheckoutError`** (`src/index.ts:41`): 领域错误基类。继承 `Error`，包含 `readonly code: SessionCheckoutErrorCode` 和 `message`。构造函数设置 `name = 'SessionCheckoutError'`。
+- **`SessionCheckoutReconcileSummary`** (`src/index.ts:55`): 收敛摘要接口，包含 `recoveryRequiredCheckoutIds`, `orphanedCheckoutIds`, `dirtyOrphanedCheckoutIds`, `staleRootCheckoutIds`, `retainedCheckoutCount`。
+- **`ManageManagedWorktreeInput`** (`src/index.ts:63`): 管理输入接口，包含 `checkoutId`, `expectedRevision`, `action` ('cleanup_retained' | 'retry_cleanup' | 'set_retention' | 'set_permanent' | 'clear_sidebar_badge' | 'discard'), `retention?`, `permanent?`, `confirmDirty?`, `rollbackPreview?`。
+- **`ListManagedWorktreesInput`** (`src/index.ts:73`): 列表查询输入，包含 `projectId?`, `needsAttention?`, `checkoutId?`, `includeDiagnostics?`。
+- **`PruneMergedBranchesInput`** (`src/index.ts:80`): 修剪输入，包含 `dryRun?`, `olderThanDays?`。
+- **`MergeBranchForSessionInput`** (`src/index.ts:87`): 合并输入，包含 `sourceBranch`, `dryRun?`, `direction?` ('forward' | 'reverse')。
+- **`MarkReadyForReviewInput`** (`src/index.ts:96`): 准备审查输入，包含 `detailsMarkdown?`, `summary`, `validationStatus`, `validationSummary?`, `tests`, `suggestedCommitMessage`。
+- **`IsolatedTargetLaunch`** (`src/index.ts:106`): 隔离目标启动数据，包含 `targetSessionId`, `managedRoot`, `target` (`SessionTargetView`)。
+- **`SessionCheckoutModule`** (`src/index.ts:113`): 核心模块接口。主要方法包括：
     - `inspect(sessionId)`: 检查会话目标。
     - `runtimeContext(sessionId, cwd?)`: 同步注册表快照，用于回放稳定。
     - `preflight?`, `preflightPreviewRecovery?`: 只读预检。
@@ -53,24 +53,24 @@ tags:
 ### 配置模式 (src/index.ts:222-270)
 
 使用 `@deepseek-ai/schemastery` (`z.object`) 定义 `Config`：
-- **`stateDir`** (`src/index.ts:230`): 插件状态目录。默认 `$DSH_HOME/plugins/dsh-git-worktree`，回退到 `~/.dsh/plugins/dsh-git-worktree`。非 volatile。
-- **`gitTimeoutMs`** (`src/index.ts:234`): volatile。Git 操作超时毫秒数。默认 `DEFAULT_GIT_TIMEOUT_MS`，范围 1,000–MAX_GIT_TIMEOUT_MS。
-- **`worktreeAddTimeoutMs`** (`src/index.ts:235`): volatile。添加 worktree 超时。默认 300,000ms。
-- **`autoDeliver`** (`src/index.ts:242`): volatile。代理自主交付开关。默认 `true`。
-- **`autoPush`** (`src/index.ts:248`): volatile。Finish 后自动 push。默认 `true`。
-- **`worktreesRoot`** (`src/index.ts:254`): volatile。受管 worktree 根目录。格式 `<worktreesRoot>/<project>/<topic>-<YYYYMMDD>`。
-- **`inheritLocalChanges`** (`src/index.ts:261`): volatile。Codex 对齐，创建时继承本地未提交修改。默认 `true`。
-- **`worktreeKeepCount`** (`src/index.ts:268`): volatile。托管 worktree 总量上限 (LRU)。默认 15，范围 0–500。0 关闭。
-- **`enableWorkspaceProvider`** (`src/index.ts:275`): 接管官方 ui-workspace 的开关。默认 `false`；仅对 legacy 宿主（0.1.x）生效——modern 宿主（0.2.x）自动接管（decorated 路径在 0.2.x 结构性必崩），flag 在 modern 上仅 advisory。非 volatile。
+- **`stateDir`** (`src/index.ts:251`): 插件状态目录。默认 `$DSH_HOME/plugins/dsh-git-worktree`，回退到 `~/.dsh/plugins/dsh-git-worktree`。非 volatile。
+- **`gitTimeoutMs`** (`src/index.ts:254`): volatile。Git 操作超时毫秒数。默认 `DEFAULT_GIT_TIMEOUT_MS`，范围 1,000–MAX_GIT_TIMEOUT_MS。
+- **`worktreeAddTimeoutMs`** (`src/index.ts:255`): volatile。添加 worktree 超时。默认 300,000ms。
+- **`autoDeliver`** (`src/index.ts:262`): volatile。代理自主交付开关。默认 `true`。
+- **`autoPush`** (`src/index.ts:267`): volatile。Finish 后自动 push。默认 `true`。
+- **`worktreesRoot`** (`src/index.ts:274`): volatile。受管 worktree 根目录。格式 `<worktreesRoot>/<project>/<topic>-<YYYYMMDD>`。
+- **`inheritLocalChanges`** (`src/index.ts:280`): volatile。Codex 对齐，创建时继承本地未提交修改。默认 `true`。
+- **`worktreeKeepCount`** (`src/index.ts:285`): volatile。托管 worktree 总量上限 (LRU)。默认 15，范围 0–500。0 关闭。
+- **`enableWorkspaceProvider`** (`src/index.ts:292`): 接管官方 ui-workspace 的开关。默认 `false`；仅对 legacy 宿主（0.1.x）生效——modern 宿主（0.2.x）自动接管（decorated 路径在 0.2.x 结构性必崩），flag 在 modern 上仅 advisory。非 volatile。
 
 辅助函数：
-- **`volatile<T>`** (`src/index.ts:217`): 给 schema 注入 `meta.volatile = true`。
-- **`resolveWorktreesRootValue`** (`src/index.ts:281`): 解析 `worktreesRoot` 配置值（处理 LiveValue）。
-- **`resolveStateDir`** (`src/index.ts:286`): 解析 `stateDir`。
+- **`volatile<T>`** (`src/index.ts:239`): 给 schema 注入 `meta.volatile = true`。
+- **`resolveWorktreesRootValue`** (`src/index.ts:304`): 解析 `worktreesRoot` 配置值（处理 LiveValue）。
+- **`resolveStateDir`** (`src/index.ts:309`): 解析 `stateDir`。
 
 ### apply() 装配序列 (src/index.ts:299-380)
 
-**`apply(ctx: Context, config)`** (`src/index.ts:299`): 插件挂载入口。
+**`apply(ctx: Context, config)`** (`src/index.ts:330`): 插件挂载入口。
 1. 校验 Git 超时 (`validateGitTimeouts`)。
 2. 挂载 Workspace Provider 生命周期 (`mountWorkspaceProviderLifecycle`)：legacy 宿主严格 opt-in (`config.enableWorkspaceProvider === true`)，modern 宿主自动接管（flag 仅 advisory）。
 3. 创建 `stateDir` 和 `disabled-git-hooks` 目录。
@@ -91,21 +91,21 @@ tags:
 
 ### 模型工具 (src/tools.ts)
 
-**`registerTools(ctx, module)`** (`src/tools.ts:34`): 注册 9 个模型工具，均包裹在 `withHostLanguage` 中。
+**`registerTools(ctx, module)`** (`src/tools.ts:94`): 注册 9 个模型工具，均包裹在 `withHostLanguage` 中。
 
-1.  **`worktree_create`** (`src/tools.ts:48`): 创建隔离目标。参数 `topic?`, `branch?`。调用 `module.createIsolatedTarget`。返回 `{kind: 'worktree_target_created', checkoutId, targetSessionId, managedRoot, phase, currentOid, sourceSessionId}`。
-2.  **`worktree_list`** (`src/tools.ts:106`): 列出当前会话可见的托管 worktree。调用 `module.listManagedWorktreesForSession`。返回 `{kind: 'worktree_list', worktrees: [...]}`。
-3.  **`worktree_resume_revision`** (`src/tools.ts:162`): 恢复未同步的审查。仅当 `delivery.state === 'ready_for_review'` 时可用。调用 `module.resumeRevision`。返回 `{kind: 'worktree_revision_resumed', ...}`。
-4.  **`worktree_begin_next_iteration`** (`src/tools.ts:210`): 开始新的同会话迭代。调用 `module.beginNextIteration`。返回 `{kind: 'worktree_next_iteration_started', ...}`。
-5.  **`worktree_ready_for_review`** (`src/tools.ts:251`): 标记为待审查。参数 `summary`, `details?`, `validationStatus`, `validationSummary?`, `tests`, `suggestedCommitMessage`。调用 `module.markReadyForReview`。返回 `{kind: 'worktree_ready_for_review', state, reviewId, revision, iteration, changedFiles}`。
-6.  **`worktree_deliver`** (`src/tools.ts:340`): 交付工作树。仅在 `isAutoDeliverEnabled()` 开启时可用。参数 `commitMessage?`, `retention?`, `report?`。如果处于 `ready_for_review` 态，自动携带 `expectedReviewId` 并使用 `suggestedCommitMessage`。调用 `module.operate({action: 'finish', ...})`。返回 `{kind: 'worktree_delivered', state, commitOid?, changedFiles, cleanup, push?, report?}`。
-7.  **`worktree_cleanup`** (`src/tools.ts:428`): 清理已交付/保留的 worktree。参数 `checkoutId`, `expectedRevision`。调用 `module.manageManagedWorktreeForSession(action: 'cleanup_retained')`。返回 `{kind: 'worktree_cleanup', ...}`。
-8.  **`worktree_prune_branches`** (`src/tools.ts:475`): 修剪已合并的本地分支。参数 `dryRun?`, `olderThanDays?`。调用 `module.pruneMergedBranchesForSession`。返回 `{kind: 'worktree_prune_branches', dryRun, headBranch?, pruned[], skipped[]}`。
-9.  **`worktree_merge`** (`src/tools.ts:538`): 合并会话分支到 Local。参数 `sourceBranch`, `dryRun?`, `direction?`。调用 `module.mergeBranchForSession`。返回 `{kind: 'worktree_merge', direction, dryRun, sourceBranch, localBranch?, targetBranch?, type, mergedFiles?, conflictingFiles?, conflictDetails?, reason?}`。
+1.  **`worktree_create`** (`src/tools.ts:101`): 创建隔离目标。参数 `topic?`, `branch?`。调用 `module.createIsolatedTarget`。返回 `{kind: 'worktree_target_created', checkoutId, targetSessionId, managedRoot, phase, currentOid, sourceSessionId}`。
+2.  **`worktree_list`** (`src/tools.ts:165`): 列出当前会话可见的托管 worktree。调用 `module.listManagedWorktreesForSession`。返回 `{kind: 'worktree_list', worktrees: [...]}`。
+3.  **`worktree_resume_revision`** (`src/tools.ts:223`): 恢复未同步的审查。仅当 `delivery.state === 'ready_for_review'` 时可用。调用 `module.resumeRevision`。返回 `{kind: 'worktree_revision_resumed', ...}`。
+4.  **`worktree_begin_next_iteration`** (`src/tools.ts:270`): 开始新的同会话迭代。调用 `module.beginNextIteration`。返回 `{kind: 'worktree_next_iteration_started', ...}`。
+5.  **`worktree_ready_for_review`** (`src/tools.ts:315`): 标记为待审查。参数 `summary`, `details?`, `validationStatus`, `validationSummary?`, `tests`, `suggestedCommitMessage`。调用 `module.markReadyForReview`。返回 `{kind: 'worktree_ready_for_review', state, reviewId, revision, iteration, changedFiles}`。
+6.  **`worktree_deliver`** (`src/tools.ts:402`): 交付工作树。仅在 `isAutoDeliverEnabled()` 开启时可用。参数 `commitMessage?`, `retention?`, `report?`。如果处于 `ready_for_review` 态，自动携带 `expectedReviewId` 并使用 `suggestedCommitMessage`。调用 `module.operate({action: 'finish', ...})`。返回 `{kind: 'worktree_delivered', state, commitOid?, changedFiles, cleanup, push?, report?}`。
+7.  **`worktree_cleanup`** (`src/tools.ts:502`): 清理已交付/保留的 worktree。参数 `checkoutId`, `expectedRevision`。调用 `module.manageManagedWorktreeForSession(action: 'cleanup_retained')`。返回 `{kind: 'worktree_cleanup', ...}`。
+8.  **`worktree_prune_branches`** (`src/tools.ts:554`): 修剪已合并的本地分支。参数 `dryRun?`, `olderThanDays?`。调用 `module.pruneMergedBranchesForSession`。返回 `{kind: 'worktree_prune_branches', dryRun, headBranch?, pruned[], skipped[]}`。
+9.  **`worktree_merge`** (`src/tools.ts:624`): 合并会话分支到 Local。参数 `sourceBranch`, `dryRun?`, `direction?`。调用 `module.mergeBranchForSession`。返回 `{kind: 'worktree_merge', direction, dryRun, sourceBranch, localBranch?, targetBranch?, type, mergedFiles?, conflictingFiles?, conflictDetails?, reason?}`。
 
 ### 用户命令 (src/commands.ts)
 
-**`registerWorktreeCommand(ctx, module)`** (`src/commands.ts:42`): 注册 `/worktree` 命令。
+**`registerWorktreeCommand(ctx, module)`** (`src/commands.ts:44`): 注册 `/worktree` 命令。
 
 动词及行为：
 -   **`status`**: 调用 `module.inspect`，返回目标文本。
@@ -119,23 +119,23 @@ tags:
 
 ### 会话目标上下文 (src/session-target-context.ts)
 
-**`registerSessionTargetContext(ctx, module)`** (`src/session-target-context.ts:13`): 通过 `ctx.inject(['systemPrompt'])` 注册 `git-worktree:session-target` 上下文片段 (order 118)。同步调用 `module.runtimeContext(sessionId)` 提供回放稳定的上下文，不执行 I/O。
+**`registerSessionTargetContext(ctx, module)`** (`src/session-target-context.ts:14`): 通过 `ctx.inject(['systemPrompt'])` 注册 `git-worktree:session-target` 上下文片段 (order 118)。同步调用 `module.runtimeContext(sessionId)` 提供回放稳定的上下文，不执行 I/O。
 
 ### Host 兼容探测 (src/host-compat.ts)
 
 -   **`WorkspaceClientFlavor`** (`src/host-compat.ts:6`): 类型 `'legacy' | 'alpha' | 'next' | 'modern' | 'unsupported'`。
--   **`workspaceClientFlavorForAgentVersion`** (`src/host-compat.ts:8`): 版本映射函数。四个精确锚点（0.1.2-rc.1→legacy、0.1.6-alpha.2→alpha、0.1.7-rc.2→next、0.2.0-rc.2→modern）之外，`0.2.x` 系未列版本兜底 `modern`（modern 分支消费的宿主服务与槽位契约已对照 0.2.1-rc.1 宿主源码验证未变）；`0.1.x`（三种 flavor 并存）与 `0.3+`（未经源码验证）的未知版本保持 `unsupported`。
--   **`isModernGeneration`** (`src/host-compat.ts:22`): 0.2.x 兜底判定的主次版本匹配。
--   **`agentVersionFromAnchor`** (`src/host-compat.ts:27`): 从文件锚点读取 `@deepseek-ai/dsh-agent/package.json` 获取版本号。
--   **`workspaceFlavorDiagnostics`** (`src/host-compat.ts:60`): 诊断函数，按 `[entry, cwd, plugin]` 顺序探测锚点，返回 flavor 和探针详情。
--   **`hostWorkspaceClientFlavor`** (`src/host-compat.ts:74`): 返回当前宿主 flavor。
+-   **`workspaceClientFlavorForAgentVersion`** (`src/host-compat.ts:7`): 版本映射函数。四个精确锚点（0.1.2-rc.1→legacy、0.1.6-alpha.2→alpha、0.1.7-rc.2→next、0.2.0-rc.2→modern）之外，`0.2.x` 系未列版本兜底 `modern`（modern 分支消费的宿主服务与槽位契约已对照 0.2.1-rc.1 宿主源码验证未变）；`0.1.x`（三种 flavor 并存）与 `0.3+`（未经源码验证）的未知版本保持 `unsupported`。
+-   **`isModernGeneration`** (`src/host-compat.ts:23`): 0.2.x 兜底判定的主次版本匹配。
+-   **`agentVersionFromAnchor`** (`src/host-compat.ts:28`): 从文件锚点读取 `@deepseek-ai/dsh-agent/package.json` 获取版本号。
+-   **`workspaceFlavorDiagnostics`** (`src/host-compat.ts:61`): 诊断函数，按 `[entry, cwd, plugin]` 顺序探测锚点，返回 flavor 和探针详情。
+-   **`hostWorkspaceClientFlavor`** (`src/host-compat.ts:75`): 返回当前宿主 flavor。
 
 ### i18n (src/i18n/host.ts)
 
--   **`currentHostLanguage`** (`src/i18n/host.ts:9`): 从 `AsyncLocalStorage` 获取当前语言，默认 'zh'。
+-   **`currentHostLanguage`** (`src/i18n/host.ts:8`): 从 `AsyncLocalStorage` 获取当前语言，默认 'zh'。
 -   **`withHostLanguage`** (`src/i18n/host.ts:12`): 在指定语言上下文中执行操作。
--   **`languageFromSettings`** (`src/i18n/host.ts:16`): 从 settings 缝隙读取语言偏好。
--   **`languageForInvocation`** (`src/i18n/host.ts:26`): 优先使用 Agent 上下文中的语言。
+-   **`languageFromSettings`** (`src/i18n/host.ts:17`): 从 settings 缝隙读取语言偏好。
+-   **`languageForInvocation`** (`src/i18n/host.ts:30`): 优先使用 Agent 上下文中的语言。
 -   **`hostMessage`** (`src/i18n/host.ts:31`): 翻译函数，使用 `createTranslator`。
 
 ## Architecture
