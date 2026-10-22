@@ -39,6 +39,41 @@ export function createManagedWorktreeRepositoryKey(canonicalGitRoot: string): st
   return createHash('sha256').update(canonicalGitRoot).digest('hex').slice(0, 12)
 }
 
+const BRANCH_INVALID_CHARACTERS = /[^A-Za-z0-9._/-]+/g
+const BRANCH_SEGMENT_FORBIDDEN = /^\.|\.\.|@\{|\/\.|\/\/|\.lock$|\/$/g
+
+/** 把任意会话标识/主题压成一个安全的 git 分支路径片段（保留 `-`/`_`/`.`）。 */
+export function sanitizeBranchSegment(raw: string | undefined): string {
+  const cleaned = (raw ?? '')
+    .trim()
+    .normalize('NFC')
+    .replace(/\s+/g, '-')
+    .replace(BRANCH_INVALID_CHARACTERS, '-')
+    .replace(REPEATED_DASHES, '-')
+    .replace(/^[.\s-]+|[.\s-]+$/g, '')
+  return truncateCodePoints(cleaned, MAX_LABEL_LENGTH).replace(/[.\s-]+$/g, '')
+}
+
+/**
+ * 会话自己的分支名候选：`feat/sess-<会话>[--主题]`。
+ *
+ * 会话分支是交付目标，所以必须一眼能看出属于哪个会话、对应哪次任务；重名时
+ * 用 `-2`、`-3`… 递增，由调用方逐个尝试创建。
+ */
+export function createSessionBranchCandidates(input: {
+  sessionId: string
+  topic?: string | null
+  limit?: number
+}): string[] {
+  const session = sanitizeBranchSegment(input.sessionId) || 'session'
+  const topic = sanitizeBranchSegment(input.topic ?? '')
+  const base = topic ? `feat/sess-${session}--${topic}` : `feat/sess-${session}`
+  const limit = Math.max(1, input.limit ?? 5)
+  const names = [base]
+  for (let index = 2; index <= limit; index += 1) names.push(`${base}-${index}`)
+  return names.map((name) => name.replace(BRANCH_SEGMENT_FORBIDDEN, '-'))
+}
+
 /** Physical basename: repository identity + trusted checkout identity only. */
 export function createManagedWorktreeDirectoryName(input: {
   repositoryName: string

@@ -1165,8 +1165,8 @@ export const hostMessages = {
     "en": "Deliver Worktree changes"
   },
   "worktreeDeliverDescription": {
-    "zh": "立即把当前 Worktree 快照交付到 Local：提交任务改动（按需自动推送 Local 分支）并清理 Worktree。可在 Working 或 Ready for Review 状态调用；这是完成实现与验证后的最终模型工具。",
-    "en": "Deliver the current Worktree snapshot to Local now: commit the task changes (auto-push the Local branch when enabled) and clean the Worktree up. Callable from Working or Ready for Review state; this is the final model tool after implementation and validation are complete."
+    "zh": "把当前 Worktree 的改动提交到**本会话自己的分支**上（不写 Local 的工作区、索引或 HEAD），随后按保留策略清理 Worktree。可在 Working 或 Ready for Review 状态调用；这是完成实现与验证后的最终模型工具。合并到 Local 是之后单独的一步（worktree_merge）。",
+    "en": "Commit the current Worktree changes onto **this session's own branch** (never touching Local's working tree, index or HEAD), then clean the Worktree up per the retention policy. Callable from Working or Ready for Review state; this is the final model tool after implementation and validation are complete. Merging into Local is a separate later step (worktree_merge)."
   },
   "worktreeDeliverCommitMessage": {
     "zh": "交付提交信息（1-500 字符）。Ready for Review 状态下缺省使用评审的 suggestedCommitMessage。",
@@ -1181,8 +1181,8 @@ export const hostMessages = {
     "en": "Complete user-facing delivery report (Markdown), returned with the delivery result; not written into the commit."
   },
   "optionalTopicForHumanReadableWorktreeNaming": {
-    "zh": "可选的主题名：设置后 Worktree 目录命名为 <主题>-<YYYYMMDD>（需宿主配置 worktreesRoot）。",
-    "en": "Optional topic: when the host configures worktreesRoot, the Worktree directory is named <topic>-<YYYYMMDD>."
+    "zh": "可选的主题名：既用于 Worktree 目录命名（<主题>-<YYYYMMDD>，需宿主配置 worktreesRoot），也用于生成本会话专属的分支名 feat/sess-<会话>--<主题>。",
+    "en": "Optional topic: used both for the Worktree directory name (<topic>-<YYYYMMDD>, needs a host-configured worktreesRoot) and for this session's own branch name feat/sess-<session>--<topic>."
   },
   "worktreeDeliverUnexpectedResult": {
     "zh": "worktree_deliver 未返回预期结果: {p0}",
@@ -1207,6 +1207,30 @@ export const hostMessages = {
   "worktreeFinishCommitMessageTooLong": {
     "zh": "finish 的提交信息超长（上限 500 字符）。",
     "en": "The finish commit message exceeds the 500-character limit."
+  },
+  "worktreeFinishCommitMessageRequired": {
+    "zh": "交付需要一条提交信息：请传入 summary 或 commitMessage。",
+    "en": "Delivery needs a commit message: pass summary or commitMessage."
+  },
+  "thisVersionCannotDeliverToASessionBranch": {
+    "zh": "当前版本无法交付到会话分支：git 端口未实现 attachWorktreeBranch。请升级插件后重试。",
+    "en": "This version cannot deliver to a session branch: the git port does not implement attachWorktreeBranch. Upgrade the plugin and retry."
+  },
+  "theSessionBranchCouldNotBeAttachedToTheWorktree": {
+    "zh": "无法为这个 Worktree 建立会话分支（候选名都被占用或写入失败）。请在仓库里手动创建一条分支后重试。",
+    "en": "Could not create a session branch for this Worktree (every candidate name is taken or the write failed). Create a branch in the repository manually and retry."
+  },
+  "theSessionBranchCouldNotBeAttachedFallingBackTo": {
+    "zh": "会话分支未能挂到 Worktree 上（git 端口未实现 attachWorktreeBranch），已退回旧的 detached HEAD 行为：对话栏将不显示分支名，交付也不会写回会话分支。",
+    "en": "The session branch could not be attached to the Worktree (the git port does not implement attachWorktreeBranch), so the legacy detached-HEAD behaviour is used: the conversation chip will show no branch and delivery will not write to a session branch."
+  },
+  "theWorktreeIsNotOnTheSessionBranch": {
+    "zh": "Worktree 的 HEAD 不在会话分支上（期望 {p0}，实际 {p1}）。交付只会写会话自己的分支，请先让该 Worktree 检出会话分支后重试。",
+    "en": "The Worktree HEAD is not on the session branch (expected {p0}, found {p1}). Delivery only writes the session's own branch; check it out in the Worktree and retry."
+  },
+  "theWorktreeHeadDidNotAdvanceToTheDeliveryCommit": {
+    "zh": "交付提交已创建，但 Worktree 的 HEAD 没有指向它。请检查该 Worktree 是否有并发提交，然后重试。",
+    "en": "The delivery commit was created but the Worktree HEAD does not point at it. Check for concurrent commits in that Worktree and retry."
   },
   "reviewFieldsExceedLengthLimits": {
     "zh": "评审字段超长：summary≤240，suggestedCommitMessage≤500，detailsMarkdown≤12000，validationSummary≤500，tests[].command/summary≤500。",
@@ -1283,6 +1307,26 @@ export const hostMessages = {
   "conflictNLocalHEADSyncAndResolveConflictsInWorktree": {
     "zh": "Conflict: {p0}\nLocal HEAD: {p1} — 在 Worktree 内同步并解决后重新 Ready。",
     "en": "Conflict: {p0}\\nLocal HEAD: {p1} — Sync and resolve conflicts in Worktree, then mark it Ready again."
+  },
+  "applyConflictLocalDirtyHint": {
+    "zh": "原因：Local 工作区有未提交改动，和本次交付重叠（{p0}）。解法二选一：在 Local 提交或 stash 这些改动（`git -C <Local> stash push -u`），或在 Worktree 里同步 Local 已提交的 HEAD 后重新 Ready；交付本身不会修改 Local 的工作区。",
+    "en": "Cause: the Local working tree has uncommitted changes that overlap this delivery ({p0}). Either commit or stash them in Local (`git -C <Local> stash push -u`), or sync the Worktree to Local's committed HEAD and mark it Ready again; delivery never writes the Local working tree."
+  },
+  "applyConflictUntrackedHint": {
+    "zh": "原因：本次交付会覆盖 Local 里尚未纳入 git 的同名文件（{p0}）。解法：把 Local 这些文件移走或加入 .gitignore 后重试；交付不会替你删除未跟踪文件。",
+    "en": "Cause: this delivery would overwrite files that exist in Local but are not tracked by git ({p0}). Move them aside or gitignore them in Local, then retry; delivery never deletes untracked files for you."
+  },
+  "applyConflictContentHint": {
+    "zh": "原因：两侧改动了同一批内容的真实差异（{p0}）。解法：在 Worktree 里合并 Local 已提交的 HEAD（`git -C <Worktree> merge <Local 分支>`），解决冲突并提交后重新 Ready。",
+    "en": "Cause: both sides really changed the same content ({p0}). Merge Local's committed HEAD inside the Worktree (`git -C <Worktree> merge <local branch>`), resolve and commit, then mark it Ready again."
+  },
+  "deliveryNoLongerWritesLocalUseDeliverInstead": {
+    "zh": "交付不再写入 Local：改动已经（或即将）提交在会话分支 {p0} 上，Local 的工作区、索引与 HEAD 都不会被动。这个操作属于旧的「写回 Local」路径，已停用——请用 worktree_deliver 交付，再用 worktree_merge 把 {p0} 合进 Local。",
+    "en": "Delivery no longer writes Local: the changes are (or will be) committed on session branch {p0}, and Local's working tree, index and HEAD stay untouched. This operation belongs to the old write-into-Local path and is disabled — use worktree_deliver, then worktree_merge to bring {p0} into Local."
+  },
+  "worktreeMergeSourceBelongsAnotherSession": {
+    "zh": "分支 {p0} 属于另一个会话（{p1}），本会话不会合并、推送或删除它。请确认要合并的是本会话自己的会话分支。",
+    "en": "Branch {p0} belongs to another Session ({p1}); this Session never merges, pushes, or deletes it. Confirm you are merging this Session's own branch."
   },
   "finalizeDidNotReturnTheExpectedResult": {
     "zh": "Finalize 未返回预期结果",

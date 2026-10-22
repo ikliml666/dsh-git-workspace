@@ -397,6 +397,11 @@ export interface SessionCheckoutFinishedResult {
   changedFiles: string[]
   /** null means no task delta, so no empty commit was created. */
   commitOid: string | null
+  /**
+   * The session branch the task commit landed on. Delivered work never touches
+   * the Local checkout, so this is where the user merges from.
+   */
+  branch?: string
   /** retained means the commit succeeded and the user explicitly kept the frozen runtime. */
   cleanup: 'discarded' | 'pending' | 'retained'
   cleanupMessage?: string
@@ -534,10 +539,18 @@ export interface MergeBranchForSessionView extends MergeLocalBranchResult {
   direction: 'forward' | 'reverse'
 }
 
+/**
+ * Why a Local merge refused to proceed. `local_dirty` means uncommitted Local
+ * changes overlap the delivery, `untracked_conflict` means the delivery would
+ * overwrite untracked Local files, and `content_conflict` is a real content
+ * difference between the two sides.
+ */
+export type ApplyConflictReason = 'content_conflict' | 'local_dirty' | 'untracked_conflict'
+
 export interface SessionCheckoutConflictResult {
   status: 'conflict'
   code: 'apply_conflict'
-  reason: 'content_conflict'
+  reason: ApplyConflictReason
   target: SessionTargetView
   baseStrategy: ApplyBaseStrategy
   effectiveBaseOid: string
@@ -548,6 +561,8 @@ export interface SessionCheckoutConflictResult {
   conflictingFiles: string[]
   /** Per-file combined conflict diffs so the agent can resolve without leaving the session. */
   conflictDetails?: ApplyConflictDetail[]
+  /** One concrete next command for the classified reason, so recovery is not a guessing game. */
+  resolveHint?: string
 }
 
 export interface SessionCheckoutDiscardedResult {

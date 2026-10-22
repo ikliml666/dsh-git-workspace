@@ -1,4 +1,5 @@
 import { type ProjectSkillStore, trackedSkillPaths } from './adapters/project-skills.js'
+import { deliveryExcludePathspecs } from './delivery-excludes.js'
 import { hostMessage } from './i18n/host.js'
 import { spawn } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
@@ -77,6 +78,40 @@ export interface ApplyErrorResult {
 }
 
 export type ApplyResult = ApplySuccessResult | ApplyErrorResult
+
+export interface CommitIsolatedInput {
+  isolatedPath: string
+  /** 变更集基准：changedFiles 报告 baseOid..新提交，提交本身总是接在 Worktree HEAD 之后。 */
+  baseOid: string
+  commitMessage: string
+  /** Worktree 相对 pathspec：永不被纳入提交的宿主运行期产物（如 `.dsh-ops`）。 */
+  excludePaths?: string[]
+  /** 交付目标分支；给出时校验 Worktree HEAD 确在该分支上，否则拒绝提交。 */
+  branchRef?: string | null
+}
+
+export interface CommitIsolatedSuccess {
+  status: 'committed'
+  /** 交付提交；Worktree 与 HEAD 原本一致时为 HEAD 本身且 created=false。 */
+  commitOid: string
+  changedFiles: string[]
+  /** 提交之后的隔离快照指纹（干净 HEAD），供清理阶段 CAS 使用。 */
+  isolatedFingerprint: string
+  /** 提交落到的分支（`refs/heads/…`）；仍是 detached HEAD 时为 null。 */
+  branch: string | null
+  created: boolean
+}
+
+export type CommitIsolatedResult = CommitIsolatedSuccess | ApplyErrorResult
+
+export interface ReviewIsolatedInput {
+  isolatedPath: string
+  baseOid: string
+  excludePaths?: string[]
+}
+
+export type ReviewIsolatedResult = ReviewSnapshotResult | ApplyErrorResult
+
 
 export interface FinishSuccessResult {
   status: 'finished'
@@ -249,6 +284,13 @@ export interface SessionCheckoutApplyEngine {
   plan(input: ApplyPlanInput): Promise<ApplyPlanResult>
   apply(plan: ApplyPlan): Promise<ApplyResult>
   finish(plan: ApplyPlan, options: { commitMessage: string }): Promise<FinishResult>
+  /**
+   * 会话分支交付：把 Worktree 自身的工作区提交到它检出的分支上，完全不读写
+   * Local（不改它的工作区、索引、HEAD，也不与它的未提交改动求交）。
+   */
+  commitIsolated?(input: CommitIsolatedInput): Promise<CommitIsolatedResult>
+  /** 只看 Worktree 的评审快照（会话分支交付用，不读 Local）。 */
+  reviewIsolated?(input: ReviewIsolatedInput): Promise<ReviewIsolatedResult>
   preview(plan: ApplyPlan, options: {
     previewId: string
     reviewId: string
@@ -566,6 +608,8 @@ async function captureSnapshot(
   objectDirectory: string | null,
   sourceObjects: string | null,
   projectSkills?: ProjectSkillStore,
+  /** 宿主运行期产物的排除 pathspec；默认排除插件自己写进会话 cwd 的文件。 */
+  excludes: string[] = deliveryExcludePathspecs(),
 ): Promise<CheckoutSnapshot> {
   const headOid = stdoutText(await runGit(checkoutPath, ['rev-parse', 'HEAD']))
   const headTreeOid = stdoutText(await runGit(checkoutPath, ['rev-parse', `${headOid}^{tree}`]))
@@ -599,7 +643,7 @@ async function captureSnapshot(
   }
   const indexTreeOid = stdoutText(await runGit(checkoutPath, ['write-tree'], { env }))
   // 先还原真实 index 的 staged 语义，再叠加 working tree，得到完整最终状态。
-  await runGit(checkoutPath, ['add', '-A', '--', '.'], { env })
+  await runGit(checkoutPath, ['add', '-A', '--', '.', ...excludes], { env })
   let carried: Awaited<ReturnType<ProjectSkillStore['state']>> = null
   if (await projectSkills?.paths(checkoutPath)) {
     const headPaths = (await runGit(checkoutPath, ['ls-tree', '-r', '--name-only', '-z', headOid])).stdout
@@ -1132,8 +1176,14 @@ class DefaultSessionCheckoutApplyEngine implements SessionCheckoutApplyEngine {
 
   constructor(private readonly options: SessionCheckoutApplyEngineOptions) {}
 
-  private captureSnapshot(checkoutPath: string, indexPath: string, objectDirectory: string | null, sourceObjects: string | null): Promise<CheckoutSnapshot> {
-    return captureSnapshot(checkoutPath, indexPath, objectDirectory, sourceObjects, this.options.projectSkills)
+  private captureSnapshot(
+    checkoutPath: string,
+    indexPath: string,
+    objectDirectory: string | null,
+    sourceObjects: string | null,
+    excludes?: string[],
+  ): Promise<CheckoutSnapshot> {
+    return captureSnapshot(checkoutPath, indexPath, objectDirectory, sourceObjects, this.options.projectSkills, excludes)
   }
 
   async checkpoint(input: CheckpointInput): Promise<CheckpointResult> {
@@ -1154,9 +1204,6 @@ class DefaultSessionCheckoutApplyEngine implements SessionCheckoutApplyEngine {
         return { status: 'error', error: { code: 'invalid_input', message: hostMessage('theCheckpointProjectDirectoryDoesNotBelongToThe') } }
       }
       const snapshot = await this.captureSnapshot(isolatedGitRoot, join(tempRoot, 'checkpoint.index'), null, null)
-      if (snapshot.headRef !== null) {
-        return { status: 'error', error: { code: 'operation_not_allowed', message: hostMessage('checkpointCanOnlyWriteToADetachedManagedWorktree') } }
-      }
       if (snapshot.headOid !== input.expectedHeadOid || snapshot.fingerprint !== input.expectedFingerprint) {
         return { status: 'error', error: { code: 'stale_isolated', message: hostMessage('worktreeChangedAfterPreparingTheReviewTheCheckpointCannot') } }
       }
@@ -1190,8 +1237,18 @@ class DefaultSessionCheckoutApplyEngine implements SessionCheckoutApplyEngine {
       }
 
       let headUpdated = false
+      const headRef = snapshot.headRef
+      const advanceHead = async (nextOid: string, previousOid: string): Promise<void> => {
+        // A branch-attached worktree must advance the branch, never overwrite HEAD: `--no-deref` on
+        // a symbolic HEAD would detach it and orphan the session branch the delivery commits to.
+        if (headRef === null) {
+          await runGit(isolatedGitRoot, ['update-ref', '--no-deref', 'HEAD', nextOid, previousOid])
+          return
+        }
+        await runGit(isolatedGitRoot, ['update-ref', headRef, nextOid, previousOid])
+      }
       try {
-        await runGit(isolatedGitRoot, ['update-ref', '--no-deref', 'HEAD', commitOid, snapshot.headOid])
+        await advanceHead(commitOid, snapshot.headOid)
         headUpdated = true
         await rename(adjacentIndex, realIndexPath)
         adjacentIndex = null
@@ -1200,7 +1257,7 @@ class DefaultSessionCheckoutApplyEngine implements SessionCheckoutApplyEngine {
       } catch (error) {
         if (headUpdated) {
           try {
-            await runGit(isolatedGitRoot, ['update-ref', '--no-deref', 'HEAD', snapshot.headOid, commitOid])
+            await advanceHead(snapshot.headOid, commitOid)
           } catch (rollbackError) {
             preserveRecoveryEvidence = true
             return {
@@ -1228,7 +1285,7 @@ class DefaultSessionCheckoutApplyEngine implements SessionCheckoutApplyEngine {
         const completed = await this.captureSnapshot(isolatedGitRoot, join(tempRoot, 'completed.index'), null, null)
         if (
           completed.headOid !== commitOid
-          || completed.headRef !== null
+          || completed.headRef !== snapshot.headRef
           || completed.headTreeOid !== snapshot.treeOid
           || completed.indexTreeOid !== snapshot.treeOid
           || completed.treeOid !== snapshot.treeOid
@@ -1289,9 +1346,6 @@ class DefaultSessionCheckoutApplyEngine implements SessionCheckoutApplyEngine {
       const existingLock = await inspectIndexFileTree(isolatedGitRoot, indexLockPath)
       const markerOwned = await checkpointLockMarkerOwned(indexLockMarker, input.commitOid)
       const snapshot = await this.captureSnapshot(isolatedGitRoot, join(tempRoot, 'current.index'), null, null)
-      if (snapshot.headRef !== null) {
-        return { status: 'error', error: { code: 'stale_isolated', message: hostMessage('worktreeNoLongerHasADetachedHEAD') } }
-      }
 
       if (snapshot.headOid === input.parentOid) {
         if (existingLock.exists) {
@@ -1347,7 +1401,7 @@ class DefaultSessionCheckoutApplyEngine implements SessionCheckoutApplyEngine {
       const completed = await this.captureSnapshot(isolatedGitRoot, join(tempRoot, 'completed.index'), null, null)
       if (
         completed.headOid !== input.commitOid
-        || completed.headRef !== null
+        || completed.headRef !== snapshot.headRef
         || completed.indexTreeOid !== completed.headTreeOid
         || completed.treeOid !== completed.headTreeOid
       ) {
@@ -1409,6 +1463,147 @@ class DefaultSessionCheckoutApplyEngine implements SessionCheckoutApplyEngine {
       }
     } catch (error) {
       return { status: 'error', error: { code: 'git_error', message: this.errorMessage(error) } }
+    } finally {
+      if (tempRoot) await this.cleanup(tempRoot)
+    }
+  }
+
+  /**
+   * 只看 Worktree 的评审快照：完全不读 Local（连它的 git 根都不解析），
+   * 供会话分支交付在提交前判断「评审之后 Worktree 是否又改了」。
+   */
+  async reviewIsolated(input: ReviewIsolatedInput): Promise<ReviewIsolatedResult> {
+    if (!OID_PATTERN.test(input.baseOid)) {
+      return { status: 'error', error: { code: 'invalid_input', message: hostMessage('invalidSessionBaseOIDFormat') } }
+    }
+    let tempRoot: string | null = null
+    try {
+      const isolatedGitRoot = await resolveGitRoot(input.isolatedPath)
+      const prefix = projectPrefix(isolatedGitRoot, input.isolatedPath)
+      if (prefix === null) {
+        return { status: 'error', error: { code: 'invalid_input', message: hostMessage('theLocalAndIsolatedProjectSubdirectoriesDoNotMatch') } }
+      }
+      await runGit(isolatedGitRoot, ['cat-file', '-e', `${input.baseOid}^{commit}`])
+      tempRoot = await mkdtemp(join(tmpdir(), 'domi-isolated-review-'))
+      const excludes = deliveryExcludePathspecs(input.excludePaths)
+      const isolated = await this.captureSnapshot(
+        isolatedGitRoot,
+        join(tempRoot, 'isolated.index'),
+        null,
+        null,
+        excludes,
+      )
+      const changedTree = await changedTreePaths(isolatedGitRoot, input.baseOid, isolated.treeOid, null, null)
+      if (changedTree.some((path) => !isProjectPath(path, prefix))) {
+        return { status: 'error', error: { code: 'invalid_input', message: hostMessage('isolatedContainsChangesOutsideTheProjectRootAReview') } }
+      }
+      return {
+        status: 'ready',
+        isolatedFingerprint: isolated.fingerprint,
+        isolatedHeadOid: isolated.headOid,
+        changedFiles: changedTree.map((path) => toProjectPath(path, prefix)).sort(),
+      }
+    } catch (error) {
+      return { status: 'error', error: { code: 'git_error', message: this.errorMessage(error) } }
+    } finally {
+      if (tempRoot) await this.cleanup(tempRoot)
+    }
+  }
+
+  /**
+   * 会话分支交付：把 Worktree 自身的工作区提交到它此刻检出的分支上。
+   *
+   * 与 `finish` 的根本差别是**完全不碰 Local**：不读 Local 的 HEAD/工作区/索引，
+   * 不与它的未提交改动求三方合并，也不往它里面写补丁。会话分支就是交付目标，
+   * 之后由用户或 `worktree_merge` 决定何时合出去。
+   */
+  async commitIsolated(input: CommitIsolatedInput): Promise<CommitIsolatedResult> {
+    const branch = input.branchRef ?? null
+    if (!OID_PATTERN.test(input.baseOid)) {
+      return { status: 'error', error: { code: 'invalid_input', message: hostMessage('invalidSessionBaseOIDFormat') } }
+    }
+    const commitMessage = input.commitMessage.trim()
+    if (!commitMessage) {
+      return { status: 'error', error: { code: 'invalid_input', message: hostMessage('worktreeFinishCommitMessageRequired') } }
+    }
+    if (commitMessage.length > 500) {
+      return { status: 'error', error: { code: 'invalid_input', message: hostMessage('worktreeFinishCommitMessageTooLong') } }
+    }
+    let tempRoot: string | null = null
+    try {
+      const isolatedGitRoot = await resolveGitRoot(input.isolatedPath)
+      const prefix = projectPrefix(isolatedGitRoot, input.isolatedPath)
+      if (prefix === null) {
+        return { status: 'error', error: { code: 'invalid_input', message: hostMessage('theLocalAndIsolatedProjectSubdirectoriesDoNotMatch') } }
+      }
+      await runGit(isolatedGitRoot, ['cat-file', '-e', `${input.baseOid}^{commit}`])
+      const excludes = deliveryExcludePathspecs(input.excludePaths)
+      const headOid = stdoutText(await runGit(isolatedGitRoot, ['rev-parse', 'HEAD']))
+      const headTreeOid = stdoutText(await runGit(isolatedGitRoot, ['rev-parse', `${headOid}^{tree}`]))
+      const symbolic = await runGit(isolatedGitRoot, ['symbolic-ref', '--quiet', 'HEAD'], { allowedExitCodes: [0, 1] })
+      const headRef = symbolic.exitCode === 0 ? stdoutText(symbolic) : null
+      if (branch && headRef !== branch) {
+        // 调用方保证先挂好会话分支；这里只做守门，避免把提交落到 detached HEAD 上丢线。
+        return {
+          status: 'error',
+          error: {
+            code: 'operation_not_allowed',
+            message: hostMessage('theWorktreeIsNotOnTheSessionBranch', { p0: branch, p1: headRef ?? 'HEAD' }),
+          },
+        }
+      }
+
+      // 提交树取自「评审快照」同一条构造路径（临时 index）：它已经排除了宿主
+      // 运行期产物与随会话携带的 Project Skills，交付提交因此不会把这些东西带进
+      // 会话分支；直接用真实 index 做 `add -A` 会把它们一起提交。
+      tempRoot = await mkdtemp(join(tmpdir(), 'domi-commit-snapshot-'))
+      const pending = await this.captureSnapshot(
+        isolatedGitRoot,
+        join(tempRoot, 'pending.index'),
+        null,
+        null,
+        excludes,
+      )
+      const created = pending.treeOid !== headTreeOid
+      let commitOid = headOid
+      if (created) {
+        commitOid = await createUserCommit(isolatedGitRoot, pending.treeOid, headOid, commitMessage)
+        // HEAD 通常是符号引用，默认 deref 会把分支一起推到新提交。
+        await runGit(isolatedGitRoot, ['update-ref', 'HEAD', commitOid, headOid])
+        // index 归位到新 HEAD；工作区文件不动。
+        await runGit(isolatedGitRoot, ['reset', '--quiet'])
+      }
+
+      // 提交后的干净快照：既作为清理阶段的 CAS 指纹，也用于报告变更集。
+      const snapshot = await this.captureSnapshot(
+        isolatedGitRoot,
+        join(tempRoot, 'isolated.index'),
+        null,
+        null,
+        excludes,
+      )
+      if (snapshot.headOid !== commitOid) {
+        return { status: 'error', error: { code: 'git_error', message: hostMessage('theWorktreeHeadDidNotAdvanceToTheDeliveryCommit') } }
+      }
+      const changedTree = await changedTreePaths(isolatedGitRoot, input.baseOid, snapshot.treeOid, null, null)
+      if (changedTree.some((path) => !isProjectPath(path, prefix))) {
+        return { status: 'error', error: { code: 'invalid_input', message: hostMessage('isolatedContainsChangesOutsideTheProjectRootAReview') } }
+      }
+      return {
+        status: 'committed',
+        commitOid,
+        changedFiles: changedTree.map((path) => toProjectPath(path, prefix)).sort(),
+        isolatedFingerprint: snapshot.fingerprint,
+        branch: headRef,
+        created,
+      }
+    } catch (error) {
+      const message = this.errorMessage(error)
+      // git 没配好提交身份时给一句可执行的提示，而不是让模型盯着 "empty ident" 猜。
+      if (/empty ident|who you are|please tell me who/i.test(message)) {
+        return { status: 'error', error: { code: 'invalid_input', message: hostMessage('initialIdentityMissing') } }
+      }
+      return { status: 'error', error: { code: 'git_error', message } }
     } finally {
       if (tempRoot) await this.cleanup(tempRoot)
     }

@@ -121,6 +121,7 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
           managedRoot: { type: 'string', required: true },
           phase: { type: 'string', required: true },
           currentOid: { type: 'string', required: true },
+          branch: { type: 'string' },
           sourceSessionId: { type: 'string', required: true },
           cwd: { type: 'string' },
           cwdSelected: { type: 'boolean', required: true },
@@ -152,6 +153,9 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
           managedRoot: launch.managedRoot,
           phase: launch.target.checkout.phase,
           currentOid: launch.target.current.oid,
+          // 创建即建好会话分支：Worktree 不再是 detached HEAD，对话栏的分支标签
+          // 与后续交付目标都来自这里。
+          ...(launch.target.current.branch ? { branch: launch.target.current.branch } : {}),
           sourceSessionId,
           cwdSelected: cwd !== undefined,
           ...(cwd === undefined ? {} : { cwd }),
@@ -424,6 +428,7 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
           kind: { type: 'string', required: true },
           state: { type: 'string', required: true },
           commitOid: { type: 'string' },
+          branch: { type: 'string' },
           changedFiles: { type: 'array', required: true, items: { type: 'string' } },
           cleanup: { type: 'string', required: true },
           push: {
@@ -488,6 +493,8 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
           kind: 'worktree_delivered',
           state: result.target.delivery?.state ?? 'unknown',
           ...(result.commitOid ? { commitOid: result.commitOid } : {}),
+          // 交付提交落在会话分支上（Local 未被写），把分支名交回调用方用于后续合并。
+          ...(result.branch ? { branch: result.branch } : {}),
           changedFiles: result.changedFiles,
           cleanup: result.cleanup,
           ...(result.push ? { push: { status: result.push.status, ...(result.push.message ? { message: result.push.message } : {}) } } : {}),

@@ -751,11 +751,11 @@ describe('SessionCheckoutModule', () => {
     })
 
     expect(finished).toMatchObject({ status: 'finished', cleanup: 'retained' })
-    expect(git(context.projectRoot, 'rev-parse', 'HEAD^')).toBe(localHeadBefore)
-    expect(git(context.projectRoot, 'rev-list', '--count', `${localHeadBefore}..HEAD`)).toBe('1')
-    expect(git(context.projectRoot, 'show', '--format=', '--name-only', 'HEAD').split('\n').sort()).toEqual([
-      'stage-one.txt', 'stage-two.txt', 'tracked.txt',
-    ])
+    if (finished.status !== 'finished') throw new Error(`expected finished, got ${finished.status}`)
+    // 交付只落在会话分支：Local 的 HEAD、索引、未跟踪文件一个字节都不动。
+    expect(git(context.projectRoot, 'rev-parse', 'HEAD')).toBe(localHeadBefore)
+    expect(git(managedRoot, 'rev-parse', 'HEAD')).toBe(finished.commitOid)
+    expect(finished.changedFiles.slice().sort()).toEqual(['stage-one.txt', 'stage-two.txt', 'tracked.txt'])
     expect(git(context.projectRoot, 'diff', '--cached', '--name-only')).toBe('local-staged.txt')
     expect(readFileSync(join(context.projectRoot, 'local-untracked.txt'), 'utf8')).toBe('keep untracked\n')
   })
@@ -1554,9 +1554,11 @@ describe('SessionCheckoutModule', () => {
         },
       },
     })
-    expect(git(context.projectRoot, 'rev-list', '--count', `${before}..HEAD`)).toBe('1')
-    expect(git(context.projectRoot, 'show', '-s', '--format=%s', 'HEAD')).toBe('test: direct finish')
-    expect(git(context.projectRoot, 'show', '--format=', '--name-only', 'HEAD')).toBe('tracked.txt')
+    // 交付只落在会话分支上：Local 的 HEAD 与工作区一个字节都不动。
+    expect(git(context.projectRoot, 'rev-parse', 'HEAD')).toBe(before)
+    expect(git(managedRoot, 'rev-list', '--count', `${before}..HEAD`)).toBe('1')
+    expect(git(managedRoot, 'show', '-s', '--format=%s', 'HEAD')).toBe('test: direct finish')
+    expect(git(managedRoot, 'show', '--format=', '--name-only', 'HEAD')).toBe('tracked.txt')
     expect(readFileSync(join(context.projectRoot, 'local-note.txt'), 'utf8')).toBe('keep local note\n')
   })
 

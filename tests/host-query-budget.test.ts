@@ -20,7 +20,7 @@ vi.mock('node:child_process', async importOriginal => {
   } }
 })
 
-test.each([1, 3])('bounds real Git queries for a one-file preview and a %i-worktree management list', async count => {
+test.each([1, 3])('bounds real Git queries for a one-file delivery and a %i-worktree management list', async count => {
   const root = mkdtempSync(join(tmpdir(), 'wt-host-latency-'))
   try {
     const projectRoot = join(root, 'repo'); mkdirSync(projectRoot)
@@ -56,13 +56,15 @@ test.each([1, 3])('bounds real Git queries for a one-file preview and a %i-workt
     writeFileSync(join(launch.managedRoot, 'hello.txt'), 'Hello, Worktree\n')
     await module.markReadyForReview('owner', { summary: 'One line', validationStatus: 'passed', tests: [], suggestedCommitMessage: 'test: line' })
     const plane = createWorktreeConsoleControlPlane({ module, lookup, files: deps.files, registry: deps.registry, git: deps.git })
-    async function measure(label: string, fn: () => Promise<unknown>) {
+    async function measure(label: string, fn: () => Promise<unknown>, expectOk = true) {
       traces.calls.length = 0
       const start = performance.now(); const result = await fn()
       // Wall-clock timings are diagnostic only; command budgets are deterministic.
       console.log(JSON.stringify({ count, label, ms: Math.round(performance.now() - start), commands: traces.calls.length, gitMs: Math.round(traces.calls.reduce((n,c) => n+c.ms,0)) }))
-      expect(result, JSON.stringify(result)).toMatchObject({ ok: true })
-      const budgets: Record<string, number> = { current: 18, list: 18 + 9 * (count - 1), preflight: 60, preview: 142 }
+      if (expectOk) expect(result, JSON.stringify(result)).toMatchObject({ ok: true })
+      // deliver 是 preview 的替代者：评审快照 + 提交 + 提交后校验 + 清理，
+      // 实测 74 次（1 与 3 个 Worktree 同值，交付不随列表规模增长），预算留出余量。
+      const budgets: Record<string, number> = { current: 18, list: 18 + 9 * (count - 1), preflight: 60, deliver: 90 }
       expect(traces.calls.length).toBeLessThanOrEqual(budgets[label]!)
       return result
     }
@@ -82,6 +84,15 @@ test.each([1, 3])('bounds real Git queries for a one-file preview and a %i-workt
     if (record.delivery.state !== 'ready_for_review') throw Error('not ready')
     const identity = { sessionId: 'owner', checkoutId: record.checkoutId, expectedRevision: record.revision, expectedReviewId: record.delivery.review.reviewId }
     await measure('preflight', () => plane.preflight(identity))
-    await measure('preview', () => plane.preview(identity))
+    // 交付已经不再往 Local 写（preview 属于旧的写回路径，会被明确拒绝），
+    // 这里度量的是它的替代者：在会话分支上完成一次提交式交付。
+    const delivered = await measure('deliver', () => module.operate({
+      action: 'finish',
+      sessionId: 'owner',
+      expectedRevision: record.revision,
+      commitMessage: 'test: line',
+      retention: 'cleanup',
+    }), false) as { status: string }
+    expect(delivered.status).toBe('finished')
   } finally { rmSync(root, { force: true, recursive: true }) }
 }, 120_000)

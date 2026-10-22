@@ -367,6 +367,7 @@ function isJournal(value: unknown): boolean {
     || value.operation === 'finalize_preview'
     || value.operation === 'cleanup'
   const validStep = value.step === 'planning'
+    || value.step === 'committing_session_branch'
     || value.step === 'artifacts_retained'
     || value.step === 'writing_local'
     || value.step === 'updating_ref'

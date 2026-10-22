@@ -395,6 +395,27 @@ export function createDshGitPort(ctx: Context, options: GitPortOptions): Session
       if (result.code === 1) return null
       throw new SessionCheckoutError('git_operation_failed', result.stderr || hostMessage('repositoryInspectionFailed'))
     },
+    attachWorktreeBranch: async (managedRoot, branchRef, headOid, expectedOldOid) => {
+      // 只动 ref 与 HEAD 指向，绝不碰工作区：Worktree 的检出内容与分支的
+      // 树必须完全一致，否则 `git status` 会凭空多出一堆改动。
+      // CAS 语义：expectedOldOid 为 null 时只在分支不存在时创建（以全零为
+      // 旧值），否则只允许从该提交推进，避免覆盖并发会话的提交。
+      const zeroOid = '0'.repeat(headOid.length)
+      const update = await runSessionGit(managedRoot, ['update-ref', branchRef, headOid, expectedOldOid ?? zeroOid])
+      if (update.code !== 0) {
+        throw new SessionCheckoutError(
+          'git_operation_failed',
+          update.stderr || hostMessage('gitOperationFailedGit', { p0: 'update-ref', p1: branchRef }),
+        )
+      }
+      const symbolic = await runSessionGit(managedRoot, ['symbolic-ref', 'HEAD', branchRef])
+      if (symbolic.code !== 0) {
+        throw new SessionCheckoutError(
+          'git_operation_failed',
+          symbolic.stderr || hostMessage('gitOperationFailedGit', { p0: 'symbolic-ref', p1: branchRef }),
+        )
+      }
+    },
     pushBranch: async (root) => {
       // Local adaptation: push the checked-out branch to its configured
       // upstream. Plain `git push` never rewrites remote history; a missing

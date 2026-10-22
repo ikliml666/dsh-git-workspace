@@ -93,6 +93,14 @@ export interface SessionCheckoutGitPort {
   findContainingWorktreeRoot(root: string): Promise<string | null>
   status(root: string): Promise<{ dirty: boolean }>
   createDetachedWorktree(localRoot: string, managedRoot: string, baseOid: string, saveEvidence?: (evidence: WorktreeCreationEvidence) => void): Promise<void>
+  /**
+   * Local adaptation: point a freshly created managed Worktree's HEAD at a real
+   * session-owned branch without touching a single file. `expectedOldOid` null
+   * creates the branch only when the ref does not exist yet; otherwise the ref
+   * moves only from that exact old OID, so a concurrent session never loses
+   * commits. Ports without it keep the legacy detached-HEAD behaviour.
+   */
+  attachWorktreeBranch?(managedRoot: string, branchRef: string, headOid: string, expectedOldOid: string | null): Promise<void>
   /** Deletion after the host verified checkout identity and the full fingerprint including untracked. */
   removeWorktree(localRoot: string, managedRoot: string): Promise<void>
   retainApplyBase(localRoot: string, checkoutId: string, oid: string): Promise<void>
@@ -234,7 +242,14 @@ export interface ManagedCheckoutCreateJournal extends ManagedCheckoutJournalBase
 
 export interface ManagedCheckoutMutationJournal extends ManagedCheckoutJournalBase {
   operation: 'apply' | 'preview' | 'checkpoint' | 'rollback_preview' | 'finish' | 'finalize_preview' | 'cleanup'
-  step: 'planning' | 'artifacts_retained' | 'writing_local' | 'updating_ref' | 'replacing_index' | 'removing_worktree'
+  step:
+    | 'planning'
+    | 'artifacts_retained'
+    | 'committing_session_branch'
+    | 'writing_local'
+    | 'updating_ref'
+    | 'replacing_index'
+    | 'removing_worktree'
   baseOid?: string
   planRevision?: string
   previewId?: string
@@ -452,6 +467,14 @@ export interface ManagedCheckoutRecord {
   /** Sidebar 终态徽章已被用户手动清除时的 record.revision；此后任何 revision 变更使该标记自然失效。 */
   sidebarBadgeClearedRevision?: number
   sourceRef: string
+  /**
+   * Local adaptation: the session-owned branch this Worktree commits to
+   * (`refs/heads/feat/sess-…`). Absent on historical records; delivery then
+   * adopts the Worktree onto a freshly created branch instead of reusing
+   * `sourceRef`, which for those records names the Local branch the session
+   * merely happened to fork from.
+   */
+  sessionBranch?: string
   phase: SessionCheckoutPhase
   delivery: ManagedCheckoutDelivery
   journal: ManagedCheckoutJournal | null

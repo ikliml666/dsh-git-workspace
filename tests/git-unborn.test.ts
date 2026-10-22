@@ -370,12 +370,11 @@ it('keeps carried Skills out of review, checkpoint, preview and finalize and car
   if (ready.delivery?.state !== 'ready_for_review') throw new Error('expected ready review')
   const diff = await createGitWorktreeReviewDiffReader(projectSkills).read({ managedRoot: targetRoot, baseOid, reviewId: ready.delivery.review.reviewId, revision: ready.revision, changedFiles: ['app.txt'] })
   expect(diff.files).toHaveLength(1)
-  const preview = await module.operate({ action: 'preview', sessionId: 'target', expectedRevision: ready.revision })
-  if (preview.status !== 'previewed') throw new Error(JSON.stringify(preview))
-  expect(await readFile(join(repo, skillPath), 'utf8')).toBe('private Skill v1\n')
-  const saved = await module.operate({ action: 'finalize_preview', sessionId: 'target', expectedRevision: preview.target.revision, commitMessage: 'test: isolation', retention: 'cleanup' })
+  // 交付只在会话分支上提交：没有任何一步会把 Skill 目录写进 Local。
+  const saved = await module.operate({ action: 'finish', sessionId: 'target', expectedRevision: ready.revision, commitMessage: 'test: isolation', retention: 'cleanup' })
   if (saved.status !== 'finished') throw new Error(JSON.stringify(saved))
   expect(saved.cleanup).toBe('discarded')
+  expect(await readFile(join(repo, skillPath), 'utf8')).toBe('private Skill v1\n')
   expect(git(repo, ['ls-tree', '-r', '--name-only', 'HEAD']).stdout).not.toContain(skillPath)
   await writeFile(join(repo, skillPath), 'private Skill v2\n')
   const head = git(repo, ['rev-parse', 'HEAD']).stdout

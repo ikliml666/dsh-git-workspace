@@ -5,6 +5,7 @@ import { realpathSync } from 'node:fs'
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import type {
   AbandonedWorktreeSnapshotView,
+  ApplyConflictReason,
   BulkCleanupManagedWorktreeCandidate,
   BulkCleanupManagedWorktreesResult,
   ManagedWorktreeCleanupView,
@@ -37,6 +38,7 @@ import { checkpointGenerationForRecord } from './checkpoint.js'
 import {
   createManagedWorktreePathCandidates,
   createManagedWorktreeRepositoryKey,
+  createSessionBranchCandidates,
   createTopicDateStamp,
 } from './managed-worktree-path.js'
 import type {
@@ -222,6 +224,11 @@ function pathIsWithin(candidate: string, root: string): boolean {
   const normalizedCandidate = normalize(candidate)
   const normalizedRoot = normalize(root)
   return normalizedCandidate === normalizedRoot || normalizedCandidate.startsWith(`${normalizedRoot}/`)
+}
+
+/** `refs/heads/x` → `x`；其他 ref（含 detached 的 `HEAD`）返回 null。 */
+function branchNameOf(ref: string | null | undefined): string | null {
+  return ref && ref.startsWith('refs/heads/') ? ref.slice('refs/heads/'.length) : null
 }
 
 export function createSessionCheckoutModule(
@@ -727,6 +734,105 @@ export function createSessionCheckoutModule(
     }
   }
 
+  /**
+   * 把新建的 Worktree 挂到它自己的会话分支上。
+   *
+   * 只动 ref 与 HEAD 指向，不碰工作区文件，所以创建路径原有的一整套身份校验
+   * （read-tree/checkout-index/证据回滚）都照旧生效。候选名逐个尝试，重名时
+   * 用 `-2`、`-3`… 兜底；端口未提供 `attachWorktreeBranch` 时保持旧的
+   * detached HEAD 行为并给出警告。
+   */
+  async function attachSessionBranch(input: {
+    localRoot: string
+    managedRoot: string
+    sessionId: string
+    topic: string | null | undefined
+  }): Promise<{ branch: string; branchRef: string } | null> {
+    const attach = dependencies.git.attachWorktreeBranch
+    if (!attach) {
+      console.warn(hostMessage('theSessionBranchCouldNotBeAttachedFallingBackTo'))
+      return null
+    }
+    const headOid = (await dependencies.git.inspect(input.managedRoot))?.headOid
+    if (!headOid) return null
+    const resolveTip = dependencies.git.resolveLocalBranchTip
+    for (const branch of createSessionBranchCandidates({ sessionId: input.sessionId, topic: input.topic })) {
+      const branchRef = `refs/heads/${branch}`
+      const existing = resolveTip ? await resolveTip(input.localRoot, branch) : null
+      if (existing !== null) continue
+      try {
+        await attach(input.managedRoot, branchRef, headOid, null)
+      } catch {
+        continue
+      }
+      const verified = await dependencies.git.inspect(input.managedRoot)
+      if (verified?.headRef === branchRef) return { branch, branchRef }
+    }
+    return null
+  }
+
+  type EnsureSessionBranchResult =
+    | { ok: true; record: ManagedCheckoutRecord }
+    | { ok: false; code: SessionCheckoutErrorCode; message: string }
+
+  /**
+   * 交付前保证 Worktree 挂在自己的会话分支上。
+   *
+   * 历史记录（旧版本创建）是 detached HEAD、且 `sourceRef` 记的是 Local 当时
+   * 所在的分支——那可能就是**别的会话**的分支，绝不能作为交付目标。这里改用
+   * 独立的会话分支：Worktree 当前 HEAD 就是它的起点，至于那条记录里的
+   * `sourceRef`，从此只当作「分叉来源」展示。
+   */
+  async function ensureSessionBranch(record: ManagedCheckoutRecord): Promise<EnsureSessionBranchResult> {
+    const attach = dependencies.git.attachWorktreeBranch
+    if (!attach) {
+      // 端口没实现挂分支时不能把交付整个堵死：退回「在 Worktree 当前 HEAD 上
+      // 提交」的旧行为，并明确告知分支归属信息缺失。生产 adapter 已实现该端口。
+      console.warn(hostMessage('theSessionBranchCouldNotBeAttachedFallingBackTo'))
+      return { ok: true, record }
+    }
+    const current = await dependencies.git.inspect(record.managedRoot)
+    if (!current) {
+      return { ok: false, code: 'recovery_required', message: hostMessage('theIsolatedCheckoutIdentityCannotBeVerifiedRecoveryIs') }
+    }
+    const recorded = record.sessionBranch
+    if (recorded && current.headRef === recorded) {
+      return { ok: true, record }
+    }
+    if (recorded) {
+      // 记录里已有会话分支，但 Worktree 离开了它（例如 checkpoint 会把 HEAD
+      // 写成游离提交）：先按记录值把分支快进到当前 HEAD，再重新检出。
+      try {
+        await attach(record.managedRoot, recorded, current.headOid, null)
+        const replaced = await dependencies.git.inspect(record.managedRoot)
+        if (replaced?.headRef === recorded) {
+          return { ok: true, record: updateManagedCheckout(record.checkoutId, (value) => ({ ...value, revision: value.revision + 1 })) ?? record }
+        }
+      } catch {
+        // 分支已被推进到别处：退回「另建一条会话分支」，绝不覆盖别人的提交。
+      }
+    }
+    const attached = await attachSessionBranch({
+      localRoot: record.localRoot,
+      managedRoot: record.managedRoot,
+      sessionId: record.ownerSessionId,
+      topic: record.projectName,
+    })
+    if (!attached) {
+      return { ok: false, code: 'git_operation_failed', message: hostMessage('theSessionBranchCouldNotBeAttachedToTheWorktree') }
+    }
+    const updated = updateManagedCheckout(record.checkoutId, (value) => ({
+      ...value,
+      sessionBranch: attached.branchRef,
+      sourceRef: attached.branchRef,
+      revision: value.revision + 1,
+    }))
+    if (!updated) {
+      return { ok: false, code: 'checkout_missing', message: hostMessage('theIsolatedCheckoutRecordDoesNotExist') }
+    }
+    return { ok: true, record: updated }
+  }
+
   async function validateCleanupQuarantine(record: ManagedCheckoutRecord): Promise<string | undefined> {
     const journal = record.journal?.operation === 'cleanup' ? record.journal : undefined
     const quarantinePath = journal?.cleanupQuarantinePath
@@ -935,6 +1041,28 @@ export function createSessionCheckoutModule(
         'If the user requests new code or file changes, call worktree_begin_next_iteration first; it safely recreates this Session immutable cwd for the next iteration. Do not call worktree_create.',
       ].join('\n')
     }
+    // Delivered but the runtime is still preserved (retention) or awaiting
+    // cleanup: the task commit already lives on the session branch and Local was
+    // never written, yet the Session cwd is back at the Local boundary. Saying
+    // "Isolated Checkout + write-guard blocks Local" here produced the
+    // self-contradictory state a user could not finish from; state the real
+    // boundary instead, and keep the cleanup/recovery wording separate.
+    if (
+      (record.delivery.state === 'finalized' || record.delivery.state === 'retained')
+      && (!cwd || !pathIsWithin(cwd, record.managedRoot))
+    ) {
+      const deliveredBranch = record.sessionBranch
+        ? `Task commit is on session branch ${branchNameOf(record.sessionBranch) ?? record.sessionBranch}.`
+        : 'The task commit is already stored; no session branch was recorded for this legacy Worktree.'
+      return [
+        `Session Target: Local Checkout (this Session's Worktree ${record.checkoutId} is already delivered).`,
+        `Working boundary: ${record.localRoot}`,
+        'Ordinary Local work is allowed again in this Session: the delivery did not write Local, so finish Local-side chores (baseline refresh, changelog, follow-up edits) normally.',
+        deliveredBranch,
+        'The preserved Worktree is frozen for rollback and cleanup only; do not edit it. Merge the session branch into Local with worktree_merge, and remove the frozen runtime with worktree_cleanup.',
+        'If the user requests new code or file changes, call worktree_begin_next_iteration first to recreate this Session immutable cwd. Do not call worktree_create.',
+      ].join('\n')
+    }
     const lines = [
       `Session Target: Isolated Checkout ${record.checkoutId}.`,
       `Authoritative cwd: ${record.managedRoot}`,
@@ -969,12 +1097,12 @@ export function createSessionCheckoutModule(
       lines.push('Delivery state: Preview detached after Local drift. Do not mutate Local or the Worktree; the user must retry rollback, and Discard remains blocked until recovery succeeds.')
     } else if (record.delivery.state === 'working') {
       lines.push((liveConfigValue(dependencies.autoDeliver) ?? true)
-        ? 'Delivery state: Working. When implementation and validation are complete, call worktree_deliver as the final model tool: put the complete report only in its report parameter (commitMessage carries the commit wording). It commits the Worktree snapshot to Local, automatically pushes the Local branch when enabled, and cleans this Worktree up. Do not duplicate that report in ordinary assistant prose. Use worktree_ready_for_review only when the user explicitly asks to review before saving.'
+        ? 'Delivery state: Working. When implementation and validation are complete, call worktree_deliver as the final model tool: put the complete report only in its report parameter (commitMessage carries the commit wording). It commits the Worktree snapshot on this Session own branch; Local working tree, index and HEAD are never touched, so merging into Local is a separate, explicit step (worktree_merge). Do not duplicate that report in ordinary assistant prose. Use worktree_ready_for_review only when the user explicitly asks to review before saving.'
         : 'Delivery state: Working. When implementation and validation are complete, put the complete report only in worktree_ready_for_review and call it as the final model tool. Do not duplicate that report in ordinary assistant prose; at most one short sentence may point the user to the bottom acceptance bar.')
     } else if (record.delivery.state === 'delivered') {
-      lines.push('Delivery state: Delivered and cleaned. If the user requests new code or file changes in this conversation, call worktree_begin_next_iteration first; it safely recreates this Session immutable cwd for the next iteration. Do not call worktree_create.')
+      lines.push('Delivery state: Delivered and cleaned. This Session own branch holds the commit; Local was never written, so merge it with worktree_merge. If the user requests new code or file changes in this conversation, call worktree_begin_next_iteration first; it safely recreates this Session immutable cwd for the next iteration. Do not call worktree_create.')
     } else if (record.delivery.state === 'retained') {
-      lines.push('Delivery state: Retained. This frozen environment must be cleaned through the user controls before a next iteration can start.')
+      lines.push('Delivery state: Retained. The commit is on the Session own branch and Local was never written. This frozen environment must be cleaned through the user controls before a next iteration can start; merge first with worktree_merge, then worktree_cleanup.')
     } else {
       lines.push(`Delivery state: ${record.delivery.state}. Treat this Session as terminal until cleanup or recovery completes.`)
     }
@@ -1376,6 +1504,57 @@ export function createSessionCheckoutModule(
     target?: SessionTargetView,
   ): SessionCheckoutOperationErrorResult {
     return { status: 'error', code, message, ...(target ? { target } : {}) }
+  }
+
+  /**
+   * 把一次 Local 合并冲突翻译成可动作的原因。
+   *
+   * 旧行为只会说 `apply_conflict` + 路径列表，而同一份路径列表可能来自两种完全
+   * 不同的处境：Local 工作区本来就脏（未提交改动与交付重叠），或者两侧真的改了
+   * 同一段内容。调用方只能靠试错区分，所以这里先判定原因，再给一条具体命令。
+   */
+  async function explainApplyConflict(input: {
+    localRoot: string
+    conflictingFiles: string[]
+  }): Promise<{ reason: ApplyConflictReason; resolveHint: string }> {
+    const preview = input.conflictingFiles.slice(0, 5).join(', ')
+    const untracked = dependencies.git.listUntrackedFiles
+      ? await dependencies.git.listUntrackedFiles(input.localRoot).catch(() => [] as string[])
+      : []
+    const untrackedSet = new Set(untracked.map((path) => path.replace(/\\/gu, '/')))
+    const untrackedHits = input.conflictingFiles.filter((path) => untrackedSet.has(path.replace(/\\/gu, '/')))
+    if (untrackedHits.length > 0) {
+      return {
+        reason: 'untracked_conflict',
+        resolveHint: hostMessage('applyConflictUntrackedHint', { p0: untrackedHits.slice(0, 5).join(', ') }),
+      }
+    }
+    const status = await dependencies.git.status(input.localRoot).catch(() => null)
+    if (status?.dirty) {
+      return { reason: 'local_dirty', resolveHint: hostMessage('applyConflictLocalDirtyHint', { p0: preview }) }
+    }
+    return { reason: 'content_conflict', resolveHint: hostMessage('applyConflictContentHint', { p0: preview }) }
+  }
+
+  /**
+   * 交付语义已改为「只在会话分支内提交，Local 完全不动」。
+   *
+   * apply / preview / finalize_preview 都属于「把改动写进 Local」的旧路径，
+   * 而写进 Local 正是当初把改动混到别的会话分支上的原因。会话分支存在时这些
+   * 遗留操作一律拒绝，并指向正确的出口（deliver 后由 worktree_merge 合并）。
+   */
+  async function refuseLegacyLocalWrite(
+    record: ManagedCheckoutRecord,
+    binding: SessionBindingRecord,
+  ): Promise<SessionCheckoutOperationErrorResult | null> {
+    if (!record.sessionBranch) return null
+    return operationError(
+      'operation_not_allowed',
+      hostMessage('deliveryNoLongerWritesLocalUseDeliverInstead', {
+        p0: branchNameOf(record.sessionBranch) ?? record.sessionBranch,
+      }),
+      await inspectIsolated(binding),
+    )
   }
 
   function updateManagedCheckout(
@@ -1927,6 +2106,8 @@ export function createSessionCheckoutModule(
     if (!record || record.phase !== 'ready') {
       return operationError('recovery_required', hostMessage('theIsolatedCheckoutStateHasChangedRecoveryIsRequired'))
     }
+    const legacyGate = await refuseLegacyLocalWrite(record, binding)
+    if (legacyGate) return legacyGate
 
     const startedAt = Date.now()
     const operationId = dependencies.createCheckoutId()
@@ -1946,10 +2127,11 @@ export function createSessionCheckoutModule(
     })
     if (planResult.status === 'conflict') {
       updateManagedCheckout(applying.checkoutId, (current) => ({ ...current, phase: 'ready', journal: null, revision: current.revision + 1 }))
+      const explained = await explainApplyConflict({ localRoot: applying.localRoot, conflictingFiles: planResult.conflictingFiles })
       return {
         status: 'conflict',
         code: 'apply_conflict',
-        reason: 'content_conflict',
+        reason: explained.reason,
         target: await inspectIsolated(binding),
         baseStrategy: planResult.baseStrategy,
         effectiveBaseOid: planResult.effectiveBaseOid,
@@ -1958,6 +2140,7 @@ export function createSessionCheckoutModule(
         canRetryAfterRefresh: false,
         conflictingFiles: planResult.conflictingFiles,
         ...(planResult.conflictDetails ? { conflictDetails: planResult.conflictDetails } : {}),
+        resolveHint: explained.resolveHint,
       }
     }
     if (planResult.status === 'error') {
@@ -2364,6 +2547,8 @@ export function createSessionCheckoutModule(
     if (!record || record.delivery.state !== 'ready_for_review') {
       return operationError('stale_target', hostMessage('theAcceptanceStateHasChangedRefreshAndRetry'))
     }
+    const legacyGate = await refuseLegacyLocalWrite(record, binding)
+    if (legacyGate) return legacyGate
     const review = record.delivery.review
     const operationId = dependencies.createCheckoutId()
     const previewId = dependencies.createCheckoutId()
@@ -2392,10 +2577,11 @@ export function createSessionCheckoutModule(
     })
     if (planResult.status === 'conflict') {
       updateManagedCheckout(mutating.checkoutId, (current) => ({ ...current, phase: 'ready', journal: null, revision: current.revision + 1 }))
+      const explained = await explainApplyConflict({ localRoot: mutating.localRoot, conflictingFiles: planResult.conflictingFiles })
       return {
         status: 'conflict',
         code: 'apply_conflict',
-        reason: 'content_conflict',
+        reason: explained.reason,
         target: await inspectIsolated(binding),
         baseStrategy: planResult.baseStrategy,
         effectiveBaseOid: planResult.effectiveBaseOid,
@@ -2404,6 +2590,7 @@ export function createSessionCheckoutModule(
         canRetryAfterRefresh: false,
         conflictingFiles: planResult.conflictingFiles,
         ...(planResult.conflictDetails ? { conflictDetails: planResult.conflictDetails } : {}),
+        resolveHint: explained.resolveHint,
       }
     }
     if (planResult.status === 'error') {
@@ -2899,6 +3086,8 @@ export function createSessionCheckoutModule(
       }
     }
     // Harness plugin does not expose Domi collaborator checkout inheritance.
+    const legacyGate = await refuseLegacyLocalWrite(record, binding)
+    if (legacyGate) return legacyGate
     const { preview, review } = record.delivery
     const operationId = dependencies.createCheckoutId()
     const startedAt = Date.now()
@@ -3041,6 +3230,9 @@ export function createSessionCheckoutModule(
       return operationError('operation_not_allowed', hostMessage('localCheckoutDoesNotSupportFinish'))
     }
     const finishCommitMessage = input.commitMessage.trim()
+    if (!finishCommitMessage) {
+      return operationError('invalid_input', hostMessage('worktreeFinishCommitMessageRequired'))
+    }
     if (finishCommitMessage.length > 500) {
       return operationError('invalid_input', hostMessage('worktreeFinishCommitMessageTooLong'))
     }
@@ -3056,6 +3248,7 @@ export function createSessionCheckoutModule(
     )) {
       return operationError('stale_target', hostMessage('thisReviewCardIsNoLongerTheCurrentReview166'), await inspectIsolated(binding))
     }
+    // 历史记录仍停在「把改动写进 Local」那套中间态时，先让它按旧规则收口。
     if (record.applyBaseOid && (record.delivery.state === 'working' || record.delivery.state === 'ready_for_review')) {
       return operationError(
         'operation_not_allowed',
@@ -3083,70 +3276,66 @@ export function createSessionCheckoutModule(
     if (!record || record.phase !== 'ready') {
       return operationError('recovery_required', hostMessage('theIsolatedCheckoutStateHasChangedRecoveryIsRequired'))
     }
+    // bind 回引擎实例：这些方法通过 this 访问内部状态，脱开实例调用会崩。
+    const engine = dependencies.applyEngine
+    const reviewIsolated = engine.reviewIsolated ? engine.reviewIsolated.bind(engine) : undefined
+    const commitIsolated = engine.commitIsolated ? engine.commitIsolated.bind(engine) : undefined
+    if (!reviewIsolated || !commitIsolated) {
+      return operationError('operation_not_allowed', hostMessage('thisVersionCannotDeliverToASessionBranch'), await inspectIsolated(binding))
+    }
+
     const startedAt = Date.now()
     const operationId = dependencies.createCheckoutId()
     const applyBaseOid = record.applyBaseOid ?? record.baseOid
-    const applying = updateManagedCheckout(record.checkoutId, (current) => ({
+    const mutating = updateManagedCheckout(record.checkoutId, (current) => ({
       ...current,
       phase: 'mutating',
       journal: {
         operation: 'finish',
         operationId,
-        step: 'planning',
+        step: 'committing_session_branch',
         startedAt,
         baseOid: applyBaseOid,
       },
       revision: current.revision + 1,
     }))
-    if (!applying) return operationError('checkout_missing', hostMessage('theIsolatedCheckoutRecordDoesNotExist'))
+    if (!mutating) return operationError('checkout_missing', hostMessage('theIsolatedCheckoutRecordDoesNotExist'))
 
-    const planResult = await dependencies.applyEngine.plan({
-      baseOid: applyBaseOid,
-      isolatedPath: applying.managedRoot,
-      localPath: applying.localRoot,
-    })
-    if (planResult.status === 'conflict') {
-      updateManagedCheckout(applying.checkoutId, (current) => ({
+    const restoreReady = (): void => {
+      updateManagedCheckout(mutating.checkoutId, (current) => ({
         ...current,
         phase: 'ready',
         journal: null,
         revision: current.revision + 1,
       }))
-      return {
-        status: 'conflict',
-        code: 'apply_conflict',
-        reason: 'content_conflict',
-        target: await inspectIsolated(binding),
-        baseStrategy: planResult.baseStrategy,
-        effectiveBaseOid: planResult.effectiveBaseOid,
-        localHeadOid: planResult.localHeadOid,
-        isolatedHeadOid: planResult.isolatedHeadOid,
-        canRetryAfterRefresh: false,
-        conflictingFiles: planResult.conflictingFiles,
-        ...(planResult.conflictDetails ? { conflictDetails: planResult.conflictDetails } : {}),
-      }
-    }
-    if (planResult.status === 'error') {
-      updateManagedCheckout(applying.checkoutId, (current) => ({
-        ...current,
-        phase: 'ready',
-        journal: null,
-        revision: current.revision + 1,
-      }))
-      return operationError(planResult.error.code, planResult.error.message, await inspectIsolated(binding))
     }
 
+    // 先把 Worktree 挂到它自己的会话分支（历史记录在这里补建），再只在该分支上提交。
+    // Local 的工作区、索引与 HEAD 全程不被读写。
+    const branched = await ensureSessionBranch(mutating)
+    if (!branched.ok) {
+      restoreReady()
+      return operationError(branched.code, branched.message, await inspectIsolated(binding))
+    }
+    const deliverable = branched.record
+    const branchRef = deliverable.sessionBranch ?? null
+
+    const isolatedReview = await reviewIsolated({ isolatedPath: deliverable.managedRoot, baseOid: applyBaseOid })
+    if (isolatedReview.status === 'error') {
+      restoreReady()
+      return operationError(isolatedReview.error.code, isolatedReview.error.message, await inspectIsolated(binding))
+    }
     if (
       input.expectedReviewId !== undefined
-      && applying.delivery.state === 'ready_for_review'
+      && deliverable.delivery.state === 'ready_for_review'
       && (
-        applying.delivery.review.reviewId !== input.expectedReviewId
-        || planResult.plan.isolatedFingerprint !== applying.delivery.review.isolatedFingerprint
-        || planResult.plan.isolatedHeadOid !== applying.delivery.review.isolatedHeadOid
+        deliverable.delivery.review.reviewId !== input.expectedReviewId
+        || isolatedReview.isolatedFingerprint !== deliverable.delivery.review.isolatedFingerprint
+        || isolatedReview.isolatedHeadOid !== deliverable.delivery.review.isolatedHeadOid
       )
     ) {
-      const reviewIteration = applying.delivery.review.iteration
-      updateManagedCheckout(applying.checkoutId, (current) => ({
+      const reviewIteration = deliverable.delivery.review.iteration
+      updateManagedCheckout(mutating.checkoutId, (current) => ({
         ...current,
         phase: 'ready',
         delivery: { state: 'working', iteration: reviewIteration },
@@ -3156,13 +3345,13 @@ export function createSessionCheckoutModule(
       return operationError('stale_isolated', hostMessage('worktreeChangedAfterReviewPrepareTheReviewAgain'), await inspectIsolated(binding))
     }
 
-    const iteration = applying.delivery.state === 'working'
-      ? applying.delivery.iteration
-      : applying.delivery.state === 'delivered'
-        ? applying.delivery.iteration + 1
-        : applying.delivery.review.iteration
-    const review = applying.delivery.state === 'ready_for_review'
-      ? applying.delivery.review
+    const iteration = deliverable.delivery.state === 'working'
+      ? deliverable.delivery.iteration
+      : deliverable.delivery.state === 'delivered'
+        ? deliverable.delivery.iteration + 1
+        : deliverable.delivery.review.iteration
+    const reviewed = deliverable.delivery.state === 'ready_for_review'
+      ? deliverable.delivery.review
       : {
           reviewId: operationId,
           iteration,
@@ -3170,118 +3359,59 @@ export function createSessionCheckoutModule(
           summary: hostMessage('skipLocalAcceptanceAndCommitDirectly'),
           validationStatus: 'not_run' as const,
           tests: [],
-          changedFiles: [...planResult.plan.changedFiles],
+          changedFiles: [...isolatedReview.changedFiles],
           suggestedCommitMessage: finishCommitMessage,
-          isolatedFingerprint: planResult.plan.isolatedFingerprint,
-          isolatedHeadOid: planResult.plan.isolatedHeadOid,
+          isolatedFingerprint: isolatedReview.isolatedFingerprint,
+          isolatedHeadOid: isolatedReview.isolatedHeadOid,
         }
-    const previewId = dependencies.createCheckoutId()
-    updateManagedCheckout(applying.checkoutId, (current) => ({
+    updateManagedCheckout(mutating.checkoutId, (current) => ({
       ...current,
-      delivery: { state: 'ready_for_review', review },
+      delivery: { state: 'ready_for_review', review: reviewed },
       journal: {
         operation: 'finish',
         operationId,
-        step: 'writing_local',
+        step: 'committing_session_branch',
         startedAt,
         baseOid: applyBaseOid,
-        planRevision: planResult.plan.revision,
-        localFingerprint: planResult.plan.localFingerprint,
-        isolatedFingerprint: planResult.plan.isolatedFingerprint,
-        effectiveBaseOid: planResult.plan.effectiveBaseOid,
-        baseStrategy: planResult.plan.baseStrategy,
-        localHeadOid: planResult.plan.localHeadOid,
-        isolatedHeadOid: planResult.plan.isolatedHeadOid,
-        changedFiles: [...planResult.plan.changedFiles],
+        isolatedFingerprint: isolatedReview.isolatedFingerprint,
+        changedFiles: [...isolatedReview.changedFiles],
       },
       revision: current.revision + 1,
     }))
-    const previewResult = await dependencies.applyEngine.preview(planResult.plan, {
-      previewId,
-      reviewId: review.reviewId,
-      iteration: review.iteration,
-      beforeWrite: async (receipt) => {
-        await retainPreviewArtifacts(applying, receipt)
-        updateManagedCheckout(applying.checkoutId, (current) => ({
-          ...current,
-          delivery: { state: 'preview_active', review, preview: receipt },
-          journal: current.journal?.operation === 'finish'
-            ? { ...current.journal, step: 'artifacts_retained', previewId, reviewId: review.reviewId }
-            : current.journal,
-          revision: current.revision + 1,
-        }))
-      },
-    })
-    if (previewResult.status === 'error') {
-      const current = dependencies.registry.read().managedCheckouts[applying.checkoutId]
-      if (current?.journal?.step === 'writing_local') {
-        await releasePreviewArtifactsBestEffort(applying, previewId)
-        updateManagedCheckout(applying.checkoutId, (checkout) => ({ ...checkout, phase: 'ready', journal: null, revision: checkout.revision + 1 }))
-      }
-      return operationError(previewResult.error.code, previewResult.error.message, await inspectIsolated(binding))
-    }
-    const receipt = previewResult.receipt
-    updateManagedCheckout(applying.checkoutId, (current) => ({
-      ...current,
-      phase: 'mutating',
-      delivery: { state: 'preview_active', review, preview: receipt },
-      journal: {
-        operation: 'finish',
-        operationId,
-        step: 'planning',
-        startedAt,
-        previewId,
-        reviewId: review.reviewId,
-        isolatedFingerprint: receipt.isolatedFingerprint,
-        retention: input.retention ?? DEFAULT_WORKTREE_RETENTION,
-        changedFiles: [...receipt.changedFiles],
-      },
-      revision: current.revision + 1,
-    }))
-    const finishResult = await dependencies.applyEngine.finalize({
-      localPath: applying.localRoot,
-      receipt,
+
+    const committed = await commitIsolated({
+      isolatedPath: deliverable.managedRoot,
+      baseOid: applyBaseOid,
       commitMessage: finishCommitMessage,
-      beforeCommit: async (commitOid) => {
-        updateManagedCheckout(applying.checkoutId, (current) => ({
-          ...current,
-          journal: current.journal?.operation === 'finish'
-            ? { ...current.journal, step: 'updating_ref', commitOid }
-            : current.journal,
-          revision: current.revision + 1,
-        }))
-      },
+      branchRef,
     })
-    if (finishResult.status === 'error') {
-      const safePreview = finishResult.error.code === 'stale_local'
-        || finishResult.error.code === 'preview_modified'
-        || finishResult.error.code === 'invalid_input'
-        || finishResult.error.code === 'commit_isolation_conflict'
-        || finishResult.error.code === 'operation_not_allowed'
-      if (safePreview) {
-        updateManagedCheckout(applying.checkoutId, (current) => ({ ...current, phase: 'ready', journal: null, revision: current.revision + 1 }))
-      }
-      return operationError(finishResult.error.code, finishResult.error.message, await inspectIsolated(binding))
+    if (committed.status === 'error') {
+      restoreReady()
+      return operationError(committed.error.code, committed.error.message, await inspectIsolated(binding))
     }
 
-    const finalized = updateManagedCheckout(applying.checkoutId, (current) => ({
+    const finalReview = {
+      ...reviewed,
+      changedFiles: [...committed.changedFiles],
+      isolatedFingerprint: committed.isolatedFingerprint,
+      isolatedHeadOid: committed.commitOid,
+    }
+    const finalized = updateManagedCheckout(mutating.checkoutId, (current) => ({
       ...current,
       phase: 'finalized',
       delivery: {
         state: 'finalized' as const,
-        review,
-        commitOid: finishResult.commitOid,
+        review: finalReview,
+        commitOid: committed.commitOid,
         proof: {
-          localBranch: receipt.localHeadRef?.startsWith('refs/heads/')
-            ? receipt.localHeadRef.slice('refs/heads/'.length)
-            : null,
-          localHeadBefore: receipt.localHeadOid,
-          localHeadAfter: finishResult.commitOid ?? receipt.localHeadOid,
-          changedFiles: [...finishResult.changedFiles],
-          validationStatus: review.validationStatus,
-          ...(review.validationSummary === undefined ? {} : { validationSummary: review.validationSummary }),
+          localBranch: branchNameOf(branchRef),
+          localHeadBefore: isolatedReview.isolatedHeadOid,
+          localHeadAfter: committed.commitOid,
+          changedFiles: [...committed.changedFiles],
+          validationStatus: reviewed.validationStatus,
+          ...(reviewed.validationSummary === undefined ? {} : { validationSummary: reviewed.validationSummary }),
         },
-        isolatedFingerprint: receipt.isolatedFingerprint,
+        isolatedFingerprint: committed.isolatedFingerprint,
         finalizedAt: Date.now(),
         cleanup: 'pending' as const,
       },
@@ -3292,22 +3422,22 @@ export function createSessionCheckoutModule(
       return operationError('checkout_missing', hostMessage('theTaskCommitWasCreatedButTheCheckoutRecord'))
     }
     const retention = input.retention ?? DEFAULT_WORKTREE_RETENTION
-    // Local adaptation: best-effort automatic push of the Local branch right
-    // after the delivery commit. Never force-pushes; a failure is reported on
-    // the result and never blocks cleanup or the finished state.
+    // 自动 push 推的是会话分支（Worktree 的 HEAD），不是 Local 的当前分支；
+    // 新分支通常没有 upstream，于是退化成一条「已跳过」的备注，不会误推。
     const push: WorktreePushOutcome | undefined = (liveConfigValue(dependencies.autoPush) ?? true)
-      && finishResult.commitOid
       && dependencies.git.pushBranch
-      ? await pushLocalBranchBestEffort(dependencies.git.pushBranch, applying.localRoot)
+      ? await pushLocalBranchBestEffort(dependencies.git.pushBranch, deliverable.managedRoot)
       : undefined
+    const branchName = branchNameOf(branchRef)
     if (retention !== 'cleanup') {
       const retained = retainFinalized(finalized, retention)
       if (!retained) return operationError('checkout_missing', hostMessage('theTaskCommitWasCreatedButSavingTheRetained'))
       return {
         status: 'finished',
         target: await inspectIsolated(binding),
-        changedFiles: finishResult.changedFiles,
-        commitOid: finishResult.commitOid,
+        changedFiles: committed.changedFiles,
+        commitOid: committed.commitOid,
+        ...(branchName ? { branch: branchName } : {}),
         cleanup: 'retained',
         ...(push ? { push } : {}),
       }
@@ -3316,8 +3446,9 @@ export function createSessionCheckoutModule(
     return {
       status: 'finished',
       target: await inspectIsolated(binding),
-      changedFiles: finishResult.changedFiles,
-      commitOid: finishResult.commitOid,
+      changedFiles: committed.changedFiles,
+      commitOid: committed.commitOid,
+      ...(branchName ? { branch: branchName } : {}),
       cleanup: cleanup.cleaned ? 'discarded' : 'pending',
       ...(cleanup.message ? { cleanupMessage: cleanup.message } : {}),
       ...(cleanup.reason ? { cleanupReason: cleanup.reason } : {}),
@@ -3986,8 +4117,13 @@ export function createSessionCheckoutModule(
     }
     const direction = input.direction === 'reverse' ? 'reverse' : 'forward'
     // 门控：sourceBranch 必须是本会话某个托管 worktree 的当前分支；Local 自身分支不可作为来源。
+    // 会话分支名直接来自记录，即使该 worktree 当前脱离分支（历史记录、checkpoint 后）
+    // 也仍然认得出「这是本会话的分支」。
     const managedRootByBranch = new Map<string, string>()
     for (const record of records) {
+      if (record.sessionBranch) {
+        managedRootByBranch.set(branchNameOf(record.sessionBranch) ?? record.sessionBranch, record.managedGitRoot)
+      }
       const overview = await branchOverview(record.managedGitRoot)
       const current = overview?.branches.find((branch) => branch.isCurrent)
       if (current) managedRootByBranch.set(current.name, record.managedGitRoot)
@@ -3999,6 +4135,20 @@ export function createSessionCheckoutModule(
     }
     const managedRoot = managedRootByBranch.get(sourceBranch)
     if (!managedRoot) {
+      // 归因：这条分支是否属于**另一个会话**？并行会话里这几乎总是误操作，
+      // 明确说出来比「不是本会话的」好诊断。
+      const foreign = Object.values(dependencies.registry.read().managedCheckouts)
+        .find((record) => record.projectId === projectId
+          && record.ownerSessionId !== sessionId
+          && record.sourceSessionId !== sessionId
+          && (branchNameOf(record.sessionBranch) === sourceBranch
+            || branchNameOf(record.sourceRef) === sourceBranch))
+      if (foreign) {
+        throw new SessionCheckoutError(
+          'not_owner',
+          hostMessage('worktreeMergeSourceBelongsAnotherSession', { p0: sourceBranch, p1: foreign.ownerSessionId }),
+        )
+      }
       throw new SessionCheckoutError('not_owner', hostMessage('worktreeMergeSourceNotOwnedBySession', { p0: sourceBranch }))
     }
     const dryRun = input.dryRun === true
@@ -4313,6 +4463,15 @@ export function createSessionCheckoutModule(
     if (projectRelativePath.startsWith('..') || isAbsolute(projectRelativePath)) {
       throw new SessionCheckoutError('checkout_mismatch', hostMessage('theProjectRootIsNotInsideItsGitCheckout'))
     }
+    // 交付只写会话分支、Local 永远不动，所以上一轮的提交在 Local HEAD 上看不到：
+    // 新迭代必须以「上一轮会话分支的 tip」为起点，否则迭代链会在交付处断开，
+    // 上一轮的工作内容整段丢失。分支解析不到（被删/被改名）才退回 Local HEAD。
+    const predecessorBranch = branchNameOf(predecessor.sessionBranch) ?? branchNameOf(predecessor.sourceRef)
+    const resolveTip = dependencies.git.resolveLocalBranchTip
+    const predecessorTip = predecessorBranch && resolveTip
+      ? await resolveTip(canonicalLocalRoot, predecessorBranch)
+      : null
+    const iterationBaseOid = predecessorTip ?? snapshot.headOid
     if (!resolvedPathsEqual(resolve(predecessor.managedGitRoot, projectRelativePath), predecessor.managedRoot)) {
       throw new SessionCheckoutError('checkout_mismatch', hostMessage('thePreviousIterationSManagedProjectPathCannotBe'))
     }
@@ -4340,7 +4499,7 @@ export function createSessionCheckoutModule(
       managedGitRoot: predecessor.managedGitRoot,
       gitCommonDir: snapshot.commonDir,
       gitDir: '',
-      baseOid: snapshot.headOid,
+      baseOid: iterationBaseOid,
       sourceRef: snapshot.headRef,
       phase: 'preparing',
       delivery: { state: 'working', iteration },
@@ -4359,7 +4518,7 @@ export function createSessionCheckoutModule(
       target: { kind: 'isolated', checkoutId },
       ownerSessionId: sessionId,
       sourceRef: snapshot.headRef,
-      sourceOid: snapshot.headOid,
+      sourceOid: iterationBaseOid,
       revision: previousBinding.revision + 1,
     }
     registry.sessionBindings[sessionId] = binding
@@ -4368,7 +4527,7 @@ export function createSessionCheckoutModule(
     dependencies.registry.write(registry)
 
     try {
-      await dependencies.git.createDetachedWorktree(snapshot.root, predecessor.managedGitRoot, snapshot.headOid,
+      await dependencies.git.createDetachedWorktree(snapshot.root, predecessor.managedGitRoot, iterationBaseOid,
         evidence => saveCreationEvidence(checkoutId, record.journal!.operationId, evidence))
       const canonicalManagedGitRoot = await dependencies.files.canonicalize(predecessor.managedGitRoot)
       const canonicalManagedRoot = await dependencies.files.canonicalize(predecessor.managedRoot)
@@ -4382,7 +4541,7 @@ export function createSessionCheckoutModule(
         || !created
         || !pathsEqual(created.root, canonicalManagedGitRoot)
         || !pathsEqual(created.commonDir, snapshot.commonDir)
-        || created.headOid !== snapshot.headOid
+        || created.headOid !== iterationBaseOid
       ) {
         throw new SessionCheckoutError('checkout_mismatch', hostMessage('theNextIterationSCheckoutGitIdentityDoesNot'))
       }
@@ -4391,15 +4550,26 @@ export function createSessionCheckoutModule(
       if (!current || current.phase !== 'preparing') {
         throw new SessionCheckoutError('stale_target', hostMessage('theStateChangedWhileCreatingTheNextIterationS'))
       }
+      // 下一轮同样落在（新的）会话分支上，交付才有一条属于本会话的分支可写。
+      const attached = await attachSessionBranch({
+        localRoot: canonicalLocalRoot,
+        managedRoot: canonicalManagedRoot,
+        sessionId,
+        topic: predecessor.projectName,
+      })
       readyRegistry.managedCheckouts[checkoutId] = {
         ...current,
         managedRoot: canonicalManagedRoot,
         managedGitRoot: canonicalManagedGitRoot,
         gitDir: created.gitDir,
+        ...(attached ? { sessionBranch: attached.branchRef, sourceRef: attached.branchRef } : {}),
         phase: 'ready',
         journal: null,
         revision: current.revision + 1,
       }
+      readyRegistry.sessionBindings[sessionId] = attached
+        ? { ...binding, sourceRef: attached.branchRef, sourceOid: created.headOid }
+        : binding
       readyRegistry.revision += 1
       dependencies.registry.write(readyRegistry)
       return inspectIsolated(binding)
@@ -4789,6 +4959,14 @@ export function createSessionCheckoutModule(
           throw new SessionCheckoutError('checkout_mismatch', hostMessage('theNewCheckoutSGitCommonDirectoryDoesNot'))
         }
         await copyWorktreeincludeFiles(snapshot.root, canonicalManagedRoot)
+        // 会话分支：创建阶段就把 Worktree 挂到自己的分支上，而不是留在
+        // detached HEAD。交付只写这条分支，所以它的名字必须能说明属于哪个会话。
+        const attached = await attachSessionBranch({
+          localRoot: localGitRoot,
+          managedRoot: canonicalManagedRoot,
+          sessionId,
+          topic: createOptions?.topic,
+        })
         // codex 对齐：仅当受管基点与本地 HEAD 一致时继承未提交修改——补丁
         // 以本地 HEAD 为基准，基点不同（按分支创建且分支 tip ≠ HEAD）则不适用。
         if (baseOid === snapshot.headOid && liveConfigValue(dependencies.inheritLocalChanges) !== false) {
@@ -4800,14 +4978,21 @@ export function createSessionCheckoutModule(
           managedRoot: canonicalManagedRoot,
           managedGitRoot: canonicalManagedGitRoot,
           gitDir: created.gitDir,
+          // sourceRef 从「Local 当时所在的分支」改为「本会话自己的分支」：
+          // 旧语义会让侧栏与交付都把别人的分支当成这个 Worktree 的归属。
+          ...(attached ? { sessionBranch: attached.branchRef, sourceRef: attached.branchRef } : {}),
           phase: 'ready',
           journal: null,
           revision: record.revision + 1,
         }
+        const readyBinding: SessionBindingRecord = attached
+          ? { ...binding, sourceRef: attached.branchRef, sourceOid: created.headOid }
+          : binding
         readyRegistry.managedCheckouts[checkoutId] = readyRecord
+        readyRegistry.sessionBindings[sessionId] = readyBinding
         readyRegistry.revision += 1
         dependencies.registry.write(readyRegistry)
-        return inspectIsolated(binding)
+        return inspectIsolated(readyBinding)
       } catch (error) {
         finishFailedCreation(sessionId, checkoutId, error, replacedDeliveredBinding)
         let partialCheckout: GitCheckoutSnapshot | null = null
