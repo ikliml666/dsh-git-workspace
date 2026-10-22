@@ -2959,6 +2959,49 @@ describe('SessionCheckoutModule', () => {
       .resolves.toMatchObject({ dryRun: true, type: 'merged' })
   }, 30_000)
 
+  test('Given another session owns a worktree branch When this session asks to merge it Then the guard names the real owner', async () => {
+    const context = createContext()
+    context.addSession('session-2', 'project-1', 'Second owner')
+    const mine = await context.module.bind('session-1', { kind: 'isolated' })
+    const foreign = await context.module.bind('session-2', { kind: 'isolated' })
+    const foreignRoot = await context.module.resolveManagedRoot(foreign.checkout.id)
+    const foreignBranch = 'feat/wt-other-session'
+    git(foreignRoot, 'switch', '-c', foreignBranch)
+    writeFileSync(join(foreignRoot, 'other-session.txt'), 'other session work\n', 'utf8')
+    git(foreignRoot, 'add', 'other-session.txt')
+    git(foreignRoot, 'commit', '-m', 'feat: other session work')
+
+    // 端口未实现 attachWorktreeBranch 时不会写 sessionBranch，这里直接把记录改成
+    // 「已认领会话分支」的形态，复现并发会话互相看到对方分支的真实台账。
+    const registryPath = join(context.configDir, 'managed-checkouts.json')
+    const registry = JSON.parse(readFileSync(registryPath, 'utf8')) as {
+      revision: number
+      managedCheckouts: Record<string, { revision: number; sessionBranch?: string; sourceRef: string }>
+    }
+    const foreignRecord = registry.managedCheckouts[foreign.checkout.id]!
+    foreignRecord.sessionBranch = `refs/heads/${foreignBranch}`
+    foreignRecord.revision += 1
+    registry.revision += 1
+    writeFileSync(registryPath, JSON.stringify(registry, null, 2))
+
+    // 本会话自己的 worktree 分支仍然可合（归属门不误伤）。
+    const mineRoot = await context.module.resolveManagedRoot(mine.checkout.id)
+    const mineBranch = 'feat/wt-mine'
+    git(mineRoot, 'switch', '-c', mineBranch)
+    writeFileSync(join(mineRoot, 'mine.txt'), 'mine\n', 'utf8')
+    git(mineRoot, 'add', 'mine.txt')
+    git(mineRoot, 'commit', '-m', 'feat: mine')
+    const own = await context.module.mergeBranchForSession('session-1', { sourceBranch: mineBranch, dryRun: true })
+    expect(own).toMatchObject({ dryRun: true, type: 'merged' })
+
+    // 别人会话的分支必须被拒，并指名真正的 owner，便于诊断。
+    await expect(context.module.mergeBranchForSession('session-1', { sourceBranch: foreignBranch }))
+      .rejects.toMatchObject({ code: 'not_owner', message: expect.stringContaining('session-2') })
+    // 归属判定只看台账归属，dryRun 也不例外——试合同样拒绝，避免用 dryRun 探别人的分支。
+    await expect(context.module.mergeBranchForSession('session-1', { sourceBranch: foreignBranch, dryRun: true }))
+      .rejects.toMatchObject({ code: 'not_owner', message: expect.stringContaining('session-2') })
+  }, 30_000)
+
   test('Given a delivered checkout whose directory residue survived cleanup When Recover is requested Then the terminal record is not revived', async () => {
     const context = createContext()
     const target = await context.module.bind('session-1', { kind: 'isolated' })
