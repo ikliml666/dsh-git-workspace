@@ -94,6 +94,10 @@ describe('Managed Workspace profile ownership', () => {
     expect(source).toContain('worktreeDecoration.ariaLabel')
     expect(source).toContain('"data-managed-worktree": "true"')
     expect(source).toContain('className: Rows_module_css_default.hoverStatus')
+    // The badge must render the model's "state · branch" label instead of
+    // re-deriving a state-only string, and keep the full text on hover.
+    expect(source).toContain('const label = typeof value.label === "string" && value.label !== "" ? value.label : stateLabel;')
+    expect(source).toContain('title: decoration.label,')
     if (source.includes('sessionMenuItems')) {
       expect(source).toContain('worktreeDecoration === void 0 ? sessionMenuItems : sessionMenuItems.filter((item) => item.id !== "fork")')
       expect(source).toContain('items: visibleSessionMenuItems')

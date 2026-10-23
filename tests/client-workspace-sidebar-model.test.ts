@@ -95,6 +95,33 @@ describe('Managed Workspace sidebar projection', () => {
     expect(states.map(([,], index) => result.managedBySessionId[`owner-${index}`]?.label)).toEqual(states.map(([, label]) => label))
   })
 
+  test('names the task branch in the sidebar label so the row shows which branch it works on', () => {
+    const result = projectManagedWorkspaceSidebar({
+      workspaces: [
+        workspace('project-local', 'demo', ['local-session']),
+        workspace('managed-workspace', 'demo--checkout', ['owner-session']),
+      ],
+      sessions: {
+        'local-session': session('local-session', 'Local'),
+        'owner-session': session('owner-session', 'Managed owner'),
+      },
+      topology: topology([{
+        checkoutId: 'checkout-1',
+        ownerSessionId: 'owner-session',
+        sourceSessionId: 'source-session',
+        iteration: 1,
+        revision: 2,
+        phase: 'ready',
+        state: 'ready_for_review',
+        sourceBranch: 'feat/sess-owner--labels',
+      }]),
+    })
+
+    // The state and the branch both belong in the badge: a Session that works on
+    // its own branch must be distinguishable from a Local one at a glance.
+    expect(result.managedBySessionId['owner-session']?.label).toBe('待验收 · feat/sess-owner--labels')
+  })
+
   test('collapses a Managed Workspace while suppressing a provably blank launcher Session', () => {
     const result = projectManagedWorkspaceSidebar({
       workspaces: [

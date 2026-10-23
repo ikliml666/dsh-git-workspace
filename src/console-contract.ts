@@ -225,7 +225,7 @@ export interface WorktreeSidebarTask {
   revision: number
   phase: SessionCheckoutPhase
   state: WorktreeSidebarTaskState
-  /** Local branch recorded at creation; null when detached or unversioned. */
+  /** The branch this task delivers onto: its own Session branch when recorded, otherwise the fork point; null when unknown. */
   sourceBranch: string | null
 }
 

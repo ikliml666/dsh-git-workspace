@@ -16,7 +16,8 @@ export const WORKTREE_STYLES = String.raw`
 }
 .dsh-git-worktree-sidebar-badge {
   box-sizing: border-box;
-  max-width: 76px;
+  /* Wide enough for "state · branch"; the badge ellipsizes, the row title keeps the space. */
+  max-width: 168px;
   min-height: 20px;
   margin-inline-end: 4px;
   padding: 1px 6px;
