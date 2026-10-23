@@ -475,6 +475,13 @@ export interface ManagedCheckoutRecord {
    * merely happened to fork from.
    */
   sessionBranch?: string
+  /**
+   * Local adaptation: the agent supplied topic that named the Worktree directory
+   * and the session branch (`feat/sess-<session>--<topic>`). Persisted so that a
+   * record adopted later derives the SAME branch name instead of falling back to
+   * the project name, which would rename the Worktree's branch out from under it.
+   */
+  sessionTopic?: string
   phase: SessionCheckoutPhase
   delivery: ManagedCheckoutDelivery
   journal: ManagedCheckoutJournal | null

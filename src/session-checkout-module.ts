@@ -756,10 +756,25 @@ export function createSessionCheckoutModule(
     const headOid = (await dependencies.git.inspect(input.managedRoot))?.headOid
     if (!headOid) return null
     const resolveTip = dependencies.git.resolveLocalBranchTip
+    const isAncestor = dependencies.git.isAncestor
     for (const branch of createSessionBranchCandidates({ sessionId: input.sessionId, topic: input.topic })) {
       const branchRef = `refs/heads/${branch}`
       const existing = resolveTip ? await resolveTip(input.localRoot, branch) : null
-      if (existing !== null) continue
+      if (existing !== null) {
+        // 同名分支已存在：只有「它正指着当前 HEAD」或「它是当前 HEAD 的祖先
+        // （可以快进）」时才复用。别的情况下它带着别的提交，绝不覆盖——换下一个候选名。
+        const reusable = existing === headOid
+          || (isAncestor ? await isAncestor(input.localRoot, existing, headOid) : false)
+        if (!reusable) continue
+        try {
+          await attach(input.managedRoot, branchRef, headOid, existing)
+        } catch {
+          continue
+        }
+        const verified = await dependencies.git.inspect(input.managedRoot)
+        if (verified?.headRef === branchRef) return { branch, branchRef }
+        continue
+      }
       try {
         await attach(input.managedRoot, branchRef, headOid, null)
       } catch {
@@ -816,7 +831,9 @@ export function createSessionCheckoutModule(
       localRoot: record.localRoot,
       managedRoot: record.managedRoot,
       sessionId: record.ownerSessionId,
-      topic: record.projectName,
+      // 优先用记录里保存的主题：adopt 出来的分支名必须与创建时一致，否则
+      // 用项目名会得到另一条分支，看起来像「换了归属」。
+      topic: record.sessionTopic ?? record.projectName,
     })
     if (!attached) {
       return { ok: false, code: 'git_operation_failed', message: hostMessage('theSessionBranchCouldNotBeAttachedToTheWorktree') }
@@ -1602,10 +1619,16 @@ export function createSessionCheckoutModule(
     if (inspected.checkout.phase !== 'ready') {
       throw new SessionCheckoutError('recovery_required', hostMessage('theIsolatedCheckoutIdentityCannotBeVerifiedRecoveryIs'))
     }
+    // Review 之前就把 Worktree 挂到它自己的会话分支（历史记录在这里补建），
+    // 让验收指纹记录的是交付期真实的 HEAD 身份。否则交付时才挂分支，
+    // headRef 会从 DETACHED 变成本会话分支，指纹必然不同而被误判成 stale_isolated。
+    const branched = await ensureSessionBranch(record)
+    if (!branched.ok) throw new SessionCheckoutError(branched.code, branched.message)
+    const reviewable = branched.record
     const snapshot = await dependencies.applyEngine.inspectReview({
-      baseOid: record.applyBaseOid ?? record.baseOid,
-      isolatedPath: record.managedRoot,
-      localPath: record.localRoot,
+      baseOid: reviewable.applyBaseOid ?? reviewable.baseOid,
+      isolatedPath: reviewable.managedRoot,
+      localPath: reviewable.localRoot,
     })
     if (snapshot.status === 'error') {
       throw new SessionCheckoutError(snapshot.error.code, snapshot.error.message)
@@ -4551,18 +4574,22 @@ export function createSessionCheckoutModule(
         throw new SessionCheckoutError('stale_target', hostMessage('theStateChangedWhileCreatingTheNextIterationS'))
       }
       // 下一轮同样落在（新的）会话分支上，交付才有一条属于本会话的分支可写。
+      // 主题沿用上一轮记录里的值，避免同一会话的迭代之间分支命名漂移。
+      const iterationTopic = predecessor.sessionTopic ?? predecessor.projectName
       const attached = await attachSessionBranch({
         localRoot: canonicalLocalRoot,
         managedRoot: canonicalManagedRoot,
         sessionId,
-        topic: predecessor.projectName,
+        topic: iterationTopic,
       })
       readyRegistry.managedCheckouts[checkoutId] = {
         ...current,
         managedRoot: canonicalManagedRoot,
         managedGitRoot: canonicalManagedGitRoot,
         gitDir: created.gitDir,
-        ...(attached ? { sessionBranch: attached.branchRef, sourceRef: attached.branchRef } : {}),
+        ...(attached
+          ? { sessionBranch: attached.branchRef, sourceRef: attached.branchRef, sessionTopic: iterationTopic }
+          : {}),
         phase: 'ready',
         journal: null,
         revision: current.revision + 1,
@@ -4981,7 +5008,9 @@ export function createSessionCheckoutModule(
           gitDir: created.gitDir,
           // sourceRef 从「Local 当时所在的分支」改为「本会话自己的分支」：
           // 旧语义会让侧栏与交付都把别人的分支当成这个 Worktree 的归属。
-          ...(attached ? { sessionBranch: attached.branchRef, sourceRef: attached.branchRef } : {}),
+          ...(attached
+            ? { sessionBranch: attached.branchRef, sourceRef: attached.branchRef, ...(createOptions?.topic ? { sessionTopic: createOptions.topic } : {}) }
+            : {}),
           phase: 'ready',
           journal: null,
           revision: record.revision + 1,
