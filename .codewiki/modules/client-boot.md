@@ -12,112 +12,91 @@ source_files:
   - src/client/workspace-sidebar/model.ts
   - src/i18n/core.ts
   - src/i18n/transport-messages.ts
-tags: [client, boot, adapter, toolview, i18n]
+  - src/console-contract.ts
+  - scripts/workspace-sidebar-upstream.mjs
+tags: [client, boot, adapter, toolview, i18n, sidebar]
 ---
 
 # Client Boot 客户端入口与启动
 
-Client 侧是插件的浏览器运行时：把 Host 暴露的 Remote 服务适配成 `WorktreeConsoleAdapter`，向 Harness Workspace 注册 ToolView、会话徽章、会话前开关等 UI，并完成 Workspace 代际探测与启动上报。共享契约定义在 `src/console-contract.ts`（目标状态、capabilities、错误码 meta、Adapter 接口）。
+Client 侧是插件的浏览器运行时：把 Host 暴露的 Remote 服务适配成 `WorktreeConsoleAdapter`，向 Harness Workspace 注册 ToolView、会话徽章、会话前开关与 Target 胶囊等 UI，并完成 Workspace 代际探测与启动上报。共享契约定义在 `src/console-contract.ts`（目标状态、capabilities、错误码 meta、Adapter 接口）。
 
 ## Overview
 
-该模块负责在 DSH Web 环境中初始化 Git Worktree 插件。它包含两个主要的入口点：
-1. **Browser Entry (`src/client/index.tsx`)**：用于直接嵌入 ToolView 的轻量级模式（通常用于测试或无 Remote 环境）。
-2. **Remote Entry (`src/client/console-remote/index.ts`)**：生产环境的主入口，通过 Cordis Context 挂载 Remote Proxy，解析 Sidebar Topology，并根据 Host 的 Workspace 版本（Legacy/Modern/Alpha/Next）执行接管或装饰策略。
+该模块负责在 DSH Web 环境中初始化 Git Worktree 插件。它包含两个入口点：
 
-核心组件包括：
-- **Adapter Layer**: 将 RPC 调用转换为带超时和严格校验的结果对象。
-- **Sidebar Projection**: 将远程拓扑数据投影到本地 Workspace 视图，处理 Session/Workspace 的保护、隐藏和重定位逻辑。
-- **ToolView Models**: 从日志化的 call/result 块中解析出稳定的 UI 模型。
+1. **Browser Entry**（`src/client/index.tsx`）：直接挂载 UI 槽位的轻量模式（测试或无 Remote 环境时使用）。
+2. **Remote Entry**（`src/client/console-remote/index.ts`）：生产环境主入口，通过 Cordis Context 挂载 Remote Proxy、解析 Sidebar Topology，并按 Host 的 Workspace 代际（legacy / modern / alpha / next）选择「接管」还是「装饰」策略。
+
+核心组成部分：
+
+- **Adapter Layer**：把 RPC 调用转换为带超时与严格 schema 校验的结果对象。
+- **Sidebar Projection**：把远程拓扑投影为本地 Workspace 视图，处理 Session/Workspace 的保护、隐藏与重定位；同时给每行拼出**带分支名**的徽章标签。
+- **ToolView Models**：从日志化 call/result 块解析出稳定的 UI 模型。
 
 ## Key Components
 
 ### Browser Entry (`src/client/index.tsx`)
 
-- **`WORKTREE_CONSOLE_ADAPTER_SERVICE`** (Line 23): 常量 `'worktreeConsole'`，用于在服务容器中查找适配器。
-- **`inject`** (Line 36): 依赖列表 `['slots', 'workspaces', 'sessions', 'conversation', 'connection', 'locale']`。
-- **`servicesOf(ctx)`** (Lines 39-47): 从 Context 提取并类型断言必要的服务 (`locale`, `workspaces`, `sessions`, `uiWorkspace`, `conversation`)。
-- **`apply(ctx, adapterOverride?)`** (Lines 50-93):
-    - **Localized Slots Proxy** (Lines 53-59): 包装 `ctx.slots.register`，自动为注册的 React 组件包裹 `ClientI18nProvider`。
-    - **Adapter Resolution** (Lines 64-65): 优先使用 `adapterOverride`，否则从 Context 获取。
-    - **Style Injection** (Lines 69-77): 创建 `<style>` 元素，设置 `data-dsh-git-worktree`, `data-plugin='dsh-git-worktree'` 等属性，注入 `WORKTREE_STYLES` 和 `TARGET_CONSOLE_STYLES`。Cleanup 时移除该元素。
-    - **ToolView Registration** (Lines 79-88): 注册 `tool.call.toolview` 槽位，key 分别为 `'worktree_create'` 和 `'worktree_ready_for_review'`。
-    - **Target Console** (Lines 90-93): 如果 Adapter 存在，调用 `registerTargetConsole`。
+- **`WORKTREE_CONSOLE_ADAPTER_SERVICE`**（16）：常量 `'worktreeConsole'`，服务容器里的适配器键。
+- **`inject`**（34）：`['slots', 'workspaces', 'sessions', 'conversation', 'connection', 'locale']`。
+- **`servicesOf(ctx)`**（36-45）：取出并类型断言所需服务（`locale`、`workspaces`、`sessions`、`uiWorkspace`、`conversation`）。
+- **`apply(ctx, adapterOverride?)`**（47-96）：
+  - **Localized Slots Proxy**（51-59）：包装 `ctx.slots.register`，自动为注册的 React 组件套 `ClientI18nProvider`。
+  - **Adapter Resolution**（61-62）：优先 `adapterOverride`，否则从 Context 取。
+  - **Style Injection**（68-76）：创建 `<style>`，标 `data-dsh-git-worktree` / `data-plugin` / `data-plugin-css`，注入 `WORKTREE_STYLES` 与 `TARGET_CONSOLE_STYLES`；cleanup 时移除。自打标签是必须的——client-module 系统会收养任何没有 `data-plugin` 的 head `<style>`，并在该模块失效时删掉它。
+  - **ToolView Registration**（79-88）：两次 `ctx.slots.inject('tool.call.toolview', …)`，key 分别为 `worktree_create` 与 `worktree_ready_for_review`。
+  - **Target Console**（90-95）：仅当 Adapter 存在时调 `registerTargetConsole`。
 
 ### Remote Entry (`src/client/console-remote/index.ts`)
 
-- **`inject`** (Lines 57-63): 继承官方 Workspace 的 inject 列表，但过滤掉 `remote.directoryPicker` 和 `remoteAccess` 以避免死锁，额外声明 `slots` 和 `configForms`。
-- **`apply(ctx)`** (Lines 75-200):
-    - **Remote Mount** (Lines 77-85): 挂载 `contribution`，获取 `remote.gitWorktree`，创建 Adapter 并提供给 Context。
-    - **Topology Fetch** (Lines 114-121): 调用 `adapter.sidebarTopology()`。失败则报告 `topology-failed` 并抛出错误。
-    - **Branch Routing** (Lines 122-200):
-        - **Legacy** (Lines 123-133): 检查 `sessions.open`，调用 `registerManagedWorkspaceSidebar`。
-        - **Modern** (Lines 134-163): 根据 `officialWorkspaceActive` 决定 Decorate 还是 Managed。
-        - **Alpha/Next** (Lines 164-193): 同 Modern 逻辑，使用对应的 `applyAlphaWorkspace` / `applyNextWorkspace`。
-        - **Unsupported** (Lines 194-198): 仅挂载 Tools。
-    - **`reportBoot`** (Lines 96-112): 异步上报启动报告，包含 flavor, branch, registered, elapsed times。
+- **`inject`**（45-60）：继承官方 Workspace 的 inject 并过滤掉 `remote.directoryPicker` / `remoteAccess`（避免死锁），额外声明 `slots` 与 `configForms`。
+- **`apply(ctx)`**（62-206）：
+  - **Remote Mount**（64-71）：`ctx.remote.$mount(contribution)` → `ctx.get('remote.gitWorktree')` → `createWorktreeConsoleRemoteAdapter` → `ctx.provide('worktreeConsole', adapter)`。
+  - **`mountTools`**（75-81）：`workspaceCtx.inject(toolViewInject, child => applyToolViews(child, adapter))`——会话相关视图必须挂在 UI Workspace provider 之下，兄弟 fiber 不能假定导航服务存在。
+  - **`reportBoot`**（86-102）：`remote.clientBootReport({flavor, branch, registered, detail?, elapsedMountMs, elapsedTopologyMs}, undefined)`，尾部 locale 必须显式传（Remote proxy 按位置校验 arity）；诊断是尽力而为，绝不阻断启动。
+  - **Topology Fetch**（103-109）：`adapter.sidebarTopology()` 失败则 `reportBoot('topology-failed', …)` 并抛 `workspaceGenerationUnknown`。
+  - **Branch Routing**（110-206）：`legacy`（112-121，要求 `sessions.open` 可用）→ `registerManagedWorkspaceSidebar` + `mountTools`；`modern`（122-161）：`officialWorkspaceActive === true` 时先 `reportBoot('modern', false, 'decorate-pending')` 再 `ctx.inject(inject, …)` 走 `registerDecoratedWorkspaceSidebar`，否则走接管；`alpha` / `next`（162-200）同构，分别用 `alphaWorkspaceInject`/`applyAlphaWorkspace` 与 `nextWorkspaceInject`/`applyNextWorkspace`；其余（201-205）只挂 Tools。
 
 ### Adapter Layer (`src/client/console-remote/adapter.ts`)
 
-- **`createWorktreeConsoleRemoteAdapter(remote, getLanguage)`** (Lines 83-151):
-    - **Timeout Configuration** (Lines 59-68): `FAST_TIMEOUT_MS = 30_000`, `SLOW_TIMEOUT_MS = 180_000`. `FAST_METHODS` 包含 `sidebarTopology`, `current`, `inspect`, `previewRecoveryPreflight`, `gitOverview`, `gitGraph`, `listAbandoned`。
-    - **`invoke<T>`** (Lines 86-115):
-        - 使用 `Promise.race` 实现超时控制。
-        - 异常处理：区分 `isCodecRejection` (映射为 `malformed_response`) 和其他错误 (`transport_unavailable`)。
-        - 结果校验：检查 `carrier.ok`，校验 descriptor mode 为 `strict`，并使用 schema `.parse()` 验证 payload。
-    - **Method Mappings** (Lines 117-151): 将 Remote 方法映射为 Adapter 方法，例如 `sidebarTopology`, `createWithInitialCommit`, `reviewDiff`, `gitCreateBranch` 等。
+- **超时档位**（53-54）：`FAST_TIMEOUT_MS = 30_000`、`SLOW_TIMEOUT_MS = 180_000`；`FAST_METHODS`（57-62）含 `sidebarTopology`、`current`、`inspect`、`previewRecoveryPreflight`、`gitOverview`、`gitGraph`、`listAbandoned`；`list`/`preflight`/`preflightCreate` 因多记录时 20+ 次 git spawn 逼近 30s 而落慢档。
+- **`createWorktreeConsoleRemoteAdapter(remote, getLanguage)`**（77-148）：
+  - **`invoke<T>`**（80-109）：`Promise.race` 超时；`isCodecRejection` → `malformed_response`，其余异常 → `transport_unavailable`；`carrier` 形状非法、`descriptor.result.mode !== 'strict'`、schema `.parse()` 抛错一律 `malformed_response`。
+- **方法映射**（111-148）：`sidebarTopology`、`current`、`list`、`preflightCreate`、`createWithInitialCommit`、`create`、`reviewDiff`、`gitCreateBranch` 等。
 
 ### Model Layer (`src/client/model.ts`)
 
-- **Interfaces**:
-    - `ToolContentBlock` (Lines 7-10)
-    - `ToolCallBlockLike` (Lines 12-19)
-    - `ToolCallViewPropsLike` (Lines 21-28)
-    - `WorktreeCreatePayload` (Lines 30-38)
-    - `WorktreeReviewPayload` (Lines 40-47)
-    - `ReviewArgs` (Lines 49-56)
-    - `ParsedTool<TPayload, TArgs>` (Lines 62-66)
-- **Functions**:
-    - **`textContent(block)`** (Lines 68-75): 提取文本内容。
-    - **`lifecycle(block)`** (Lines 82-86): 判断生命周期状态 (`running`, `stopped`, `error`, `ok`)。
-    - **`parseCreateTool(block, t)`** (Lines 96-113): 解析 Create 工具调用，校验 `kind === 'worktree_target_created'` 及必填字段。
-    - **`reviewArgs(value)`** (Lines 115-146): 严格校验 ReviewArgs 结构。
-    - **`parseReviewTool(block, t)`** (Lines 148-181): 解析 Review 工具调用，校验 payload 和 args。
+- **接口**：`ToolContentBlock`（4）、`ToolCallBlockLike`（10）、`ToolCallViewPropsLike`（20）、`WorktreeCreatePayload`（31）、`WorktreeReviewPayload`（45）、`ReviewArgs`（54）、`ToolLifecycle`（63）、`ParsedTool`（65）。
+- **函数**：`textContent`（72）、`parseJson`（81）、`lifecycle`（86）、`isRecord`（92）、`stringField`（96）、`parseCreateTool`（100）、`reviewArgs`（119）、`parseReviewTool`（152）。
 
 ### Sidebar Logic (`src/client/workspace-sidebar/index.tsx`)
 
-- **`ManagedOfficialWorkspaceBrowser`** (Lines 42-159):
-    - 接收官方 Browser 组件，投影 workspace/session 状态。
-    - 监听 `WORKTREE_REVIEW_REFRESH_EVENT` 刷新拓扑。
-    - 保护 `startSession`, `forkSession`, `insertSessionBefore` 操作。
-- **`deferredRemoteDirectoryPicker`** (Lines 175-191): 延迟解析 `remote.directoryPicker`，解决现代 Host 中的死锁问题。
-- **`officialContextProxy`** (Lines 193-264):
-    - 代理 `slots.register`，对 `sidebar.workspaces.session.menu.item` 和 `row.action` 进行守卫（除 pin 外）。
-    - 替换 `sidebar.workspaces` 注册为 `ManagedOfficialWorkspaceBrowser`。
-    - 提供 `__dshGitWorktreeManagedGuard` 和 deferred picker。
-- **`registerManagedWorkspaceSidebar`** (Lines 271-277): 调用 `applyWorkspace` 并传入代理后的 Context。
-- **`registerDecoratedWorkspaceSidebar`** (Lines 304-354):
-    - 读取 slot registry，找到最低优先级的官方注册项。
-    - 以 `priority - 10` 降级注册自己的 `Decorated` 组件。
-    - 订阅 slot 变化，动态尝试重新装饰。
+- **`ManagedOfficialWorkspaceBrowser`**（67-200）：接收官方 Browser，投影 workspace/session 状态，监听 `WORKTREE_REVIEW_REFRESH_EVENT` 刷新拓扑，守卫 `startSession` / `forkSession` / `insertSessionBefore`。
+- **`deferredRemoteDirectoryPicker`**（216-232）：延迟解析 `remote.directoryPicker`，解决现代 Host 的死锁。
+- **`officialContextProxy`**（234-318）：代理 `slots.register`，对 `sidebar.workspaces.session.menu.item` 与 `row.action` 做守卫（pin 除外），把 `sidebar.workspaces` 注册替换为 `ManagedOfficialWorkspaceBrowser`。
+- **`registerManagedWorkspaceSidebar`**（325-331）：`applyWorkspace(officialContextProxy(ctx, adapter))`。
+- **`ClearSidebarBadgeMenuItem`**（344-378）与 **`registerClearSidebarBadgeEntry`**（380-390）：侧栏行菜单里的「清除 Worktree 徽章」入口。
+- **`registerDecoratedWorkspaceSidebar`**（417-470）：读 slot registry 找到优先级最低的官方注册项，以 `priority - 10` 降级注册自己的装饰组件，并订阅 slot 变化动态重试。
 
 ### Sidebar Model (`src/client/workspace-sidebar/model.ts`)
 
-- **`projectManagedWorkspaceSidebar(input, t)`** (Lines 82-187):
-    - 输入：workspaces, sessions, topology, archivedSessionIds, currentSessionId。
-    - 输出：`ManagedWorkspaceSidebarProjection`。
-    - 逻辑：
-        - 提取当前任务 (`currentTasks`)。
-        - 合并 Owner Session 到 Local Project。
-        - 处理 Protected/Suppressed/Relocated Session IDs。
-        - 基于 Directory Membership 重定位 Session。
-        - 隐藏空的 Workspace。
+- **`STATE_LABELS(t)`**（38-47）：状态 → 文案表。
+- **`currentTasks(topology, t)`**（48-70）：按 owner 聚合，`iteration`/`revision` 取大者；**第 59 行**是徽章标签的唯一生成点：
+  ```ts
+  label: task.sourceBranch ? `${stateLabel} · ${task.sourceBranch}` : stateLabel,
+  ```
+- **`projectManagedWorkspaceSidebar(input)`**（77-199）：合并远程 task 与本地 workspace/session 状态，算出 `protectedSessionIds`、`suppressedSessionIds`、`relocatedSessionIds`、`hiddenWorkspaceIds`；Workspace 归属歧义时 fail open（宁可让官方行继续可见，也不隐藏无法证明安全的 Session）。
+
+徽章最终显示在**脚本装饰**的官方侧栏里：`scripts/workspace-sidebar-upstream.mjs` 的 `managedWorktreeDecoration(node, t)`（89）取 `node.__dshGitWorktree`，`label` 优先用它（`typeof value.label === "string" && value.label !== "" ? value.label : stateLabel`），并给徽章 span 加 `title: decoration.label`。样式在 `src/client/styles.ts`：徽章块（17-36）`max-width: 168px`（20，够放「状态 · 分支名」，超长 ellipsis 由 `title` 兜底可读），悬停时若该行有安全操作容器则让位（37-39）。
 
 ### i18n (`src/client/i18n.tsx`, `src/i18n/core.ts`, `src/i18n/transport-messages.ts`)
 
-- **`readClientLanguage(locale)`** (Lines 19-21): 归一化语言，失败回退 `'zh'`。
-- **`ClientI18nProvider`** (Lines 29-40): 使用 `useSyncExternalStore` 管理语言上下文。
-- **`transportMessages`** (`src/i18n/transport-messages.ts`): 包含 `malformed`, `mountFailed`, `workspaceGenerationUnknown`, `invokeTimeout` 四条消息。
+- **`readClientLanguage(locale)`**（i18n.tsx:19-21）：归一化语言，失败回退 `'zh'`。
+- **`clientTranslator(language)`**（23）、**`defaultClientTranslator`**（26）。
+- **`ClientI18nProvider`**（29-40）：`useSyncExternalStore` 管理语言上下文；`useClientLanguage`（42）、`useClientTranslator`（43）、`translatorForServices`（49）。
+- **`src/i18n/core.ts`**：`normalizeLanguage`（4）、`MessageCatalog`（8）、`Translator`（14）、`createTranslator`（19）。
+- **`src/i18n/transport-messages.ts`**：`transportMessages`（3）含 `malformed`、`mountFailed`、`workspaceGenerationUnknown`、`invokeTimeout` 四条。
 
 ## Architecture
 
@@ -132,74 +111,44 @@ Client 侧是插件的浏览器运行时：把 Host 暴露的 Remote 服务适�
           │                    │                     │
           ▼                    ▼                     ▼
 ┌──────────────────────────────────────────────────────────────┐
-│                   Client Fiber (Cordis)                       │
-│                                                               │
-│  ┌─────────────────────────────────────────────────────────┐  │
-│  │              apply (console-remote/index.ts)            │  │
-│  │                                                         │  │
-│  │  1. Mount Remote Contribution                           │  │
-│  │  2. Create Adapter (adapter.ts)                         │  │
-│  │  3. Fetch Topology                                      │  │
-│  │  4. Route: Legacy / Modern / Alpha / Next               │  │
-│  └───────────────────┬─────────────────────────────────────┘  │
-│                      │                                        │
-│          ┌───────────┴───────────┐                            │
-│          ▼                       ▼                            │
-│  ┌──────────────────┐   ┌──────────────────────────────────┐  │
-│  │ registerManaged  │   │ registerDecorated                  │  │
-│  │ WorkspaceSidebar │   │ WorkspaceSidebar                   │  │
-│  │ (index.tsx:271)  │   │ (index.tsx:304)                    │  │
-│  │                  │   │                                    │  │
-│  │ Uses             │   │ Reads Slot Registry                │  │
-│  │ officialContext  │   │ Finds Lowest Priority              │  │
-│  │ Proxy            │   │ Re-registers with lower priority   │  │
-│  └────────┬─────────┘   └──────────────┬───────────────────┘  │
-│           │                            │                       │
-│           ▼                            ▼                       │
-│  ┌─────────────────────────────────────────────────────────┐  │
-│  │         ManagedOfficialWorkspaceBrowser                 │  │
-│  │         (index.tsx:42)                                  │  │
-│  │                                                         │  │
-│  │  - Projects Workspace/Session State                     │  │
-│  │  - Guards Actions (start/fork/insert)                   │  │
-│  │  - Renders Official Browser                             │  │
-│  └─────────────────────────────────────────────────────────┘  │
-│                                                               │
-│  ┌─────────────────────────────────────────────────────────┐  │
-│  │              ToolViews (index.tsx:77)                   │  │
-│  │                                                         │  │
-│  │  worktree_create  → WorktreeCreateRow                   │  │
-│  │  ready_for_review → WorktreeReviewRow                   │  │
-│  └─────────────────────────────────────────────────────────┘  │
+│                   Client Fiber (Cordis)                      │
+│  ┌────────────────────────────────────────────────────────┐  │
+│  │          apply (console-remote/index.ts:62)            │  │
+│  │  1. Mount Remote   2. Build Adapter   3. Fetch Topology│  │
+│  │  4. Route: legacy / modern / alpha / next              │  │
+│  └──────────────┬─────────────────────┬───────────────────┘  │
+│                 ▼                     ▼                      │
+│      ┌────────────────────┐  ┌──────────────────────────┐    │
+│      │ registerManaged…   │  │ registerDecorated…       │    │
+│      │ (sidebar:325)      │  │ (sidebar:417)            │    │
+│      │ 代理 Context 接管   │  │ 降级装饰官方注册         │    │
+│      └─────────┬──────────┘  └────────────┬─────────────┘    │
+│                └────────────┬─────────────┘                  │
+│                             ▼                                │
+│      ┌──────────────────────────────────────────────────┐    │
+│      │ delegated rows → managedWorktreeDecoration        │    │
+│      │ label = value.label ?? state text → 徽章 + title  │    │
+│      └──────────────────────────────────────────────────┘    │
 └──────────────────────────────────────────────────────────────┘
 ```
 
 ## Data Flow
 
-1. **Initialization**:
-   - `apply` is called by the Host.
-   - Remote contribution is mounted.
-   - `WorktreeConsoleAdapter` is created, wrapping `GitWorktreeRemote`.
-
-2. **Topology Resolution**:
-   - `adapter.sidebarTopology()` is called.
-   - Result determines the `flavor` (legacy/modern/alpha/next) and `officialWorkspaceActive` status.
-
-3. **Sidebar Integration**:
-   - **Managed Mode**: The entire official Workspace Client is re-applied via a proxy context (`officialContextProxy`). This proxy intercepts service reads and slot registrations to inject protection logic.
-   - **Decorated Mode**: The existing official Workspace registration is found in the slot registry. A new registration with lower priority is added, wrapping the official browser component with `ManagedOfficialWorkspaceBrowser`.
-
-4. **State Projection**:
-   - `projectManagedWorkspaceSidebar` merges remote task data with local workspace/session state.
-   - It calculates `protectedSessionIds`, `suppressedSessionIds`, and `relocatedSessionIds`.
-   - The `ManagedOfficialWorkspaceBrowser` uses these projections to filter and modify the UI state passed to the official browser.
-
-5. **ToolView Interaction**:
-   - User actions in ToolViews trigger methods on the `WorktreeConsoleAdapter`.
-   - Adapter methods use `invoke` to make RPC calls with timeouts and strict validation.
-   - Results are parsed by `parseCreateTool` or `parseReviewTool` into stable models for rendering.
+1. **Initialization**：Host 调 `apply`；Remote contribution 挂载，`WorktreeConsoleAdapter` 就绪并 `ctx.provide('worktreeConsole')`。
+2. **Topology Resolution**：`adapter.sidebarTopology()` 返回 `workspaceClientFlavor` 与 `officialWorkspaceActive`，决定走「接管」（重放官方模块 apply）还是「装饰」（降级重注册包装官方 Browser）。
+3. **Model Projection**：`projectManagedWorkspaceSidebar` 合并远程 task 与本地状态；`currentTasks`（src/client/workspace-sidebar/model.ts:48-70）同时算出每行的 `label`（含分支名）。
+4. **Decoration Render**：装饰层 `managedWorktreeDecoration`（upstream.mjs:89）读取行节点的 `__dshGitWorktree`，优先用 `value.label`、缺失才退回 i18n 状态文案，产出带 `title` 的徽章——历史上这里只查状态文案、把 `value.label` 丢掉，导致徽章永远只有「进行中/待验收/已完成」。
+5. **ToolView Interaction**：用户在 ToolView 的操作打到 Adapter，`invoke` 带超时与严格校验返回，再由 `parseCreateTool` / `parseReviewTool` 解析成稳定模型渲染。
 
 ## Connections
 
-- [[target-console|Target Console]]: Handles session badges and console integration.
-- [[review-console|Review Console]]: Handles review diffs and recovery logic.
+- [[target-console|Target Console]]：会话胶囊与 Target 面板，`currentBranch` 决定胶囊主标签。
+- [[review-console|Review Console]]：评审差异与恢复流程。
+- [[console-host]]：Remote 侧的 `sidebarTopology` / `current` / `list` 等投影来源。
+
+## Known Issues
+
+- **徽章宽度是硬编码值**：`max-width: 168px`（styles.ts:20）按「状态 · 分支名」的典型长度选，遇到超长分支名只能靠 ellipsis + `title` 兜底，不是自适应测量。
+- **装饰层依赖官方 bundle 的精确片段匹配**：`scripts/workspace-sidebar-upstream.mjs` 用 `replaceExactlyOnce` 对官方 client 源码做逐字替换，官方升级后即触发 hash 校验失败（`WORKSPACE_CLIENT_SHA256`），必须同步更新脚本。
+- **`value.label` 缺失时的回落是静默的**：装饰层不会区分「模型没给 label」和「label 是空串」，两者都退回状态文案，排查时看不出是哪一侧的问题。
+- **`reportBoot` 的诊断不可靠作为健康判据**：它同样是尽力而为（catch 后只打日志），`registered: true` 只说明注册调用没抛错，不代表行渲染成功。

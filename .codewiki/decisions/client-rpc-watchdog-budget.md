@@ -4,6 +4,7 @@ type: decision
 source_files:
   - src/client/console-remote/adapter.ts
   - src/console-contract.ts
+  - src/console-remote/descriptors.ts
   - src/console-remote/schemas.ts
 tags:
   - rpc
@@ -14,67 +15,65 @@ tags:
 
 ## Overview
 
-`src/client/console-remote/adapter.ts` 实现了 `createWorktreeConsoleRemoteAdapter`，作为客户端与远程 Worktree Console 宿主之间的传输层代理。核心职责包括：
-1. **超时防护**：由于底层 Web RPC 传输无原生超时机制，适配器通过 `Promise.race` 注入看门狗，防止 UI 永久冻结。
-2. **严格契约校验**：基于 `src/console-remote/schemas.ts` 中的 Zod schemas 对服务端响应进行严格解析（strict parsing），确保数据一致性。
-3. **错误标准化**：将网络异常、超时和格式错误统一转换为 `WorktreeConsoleOutcome<T>` 结构，并映射到 `src/console-contract.ts` 定义的语义化错误代码。
+`src/client/console-remote/adapter.ts` 实现了 `createWorktreeConsoleRemoteAdapter`（Lines 77-147），作为客户端与远程 Worktree Console 宿主之间的传输层代理。核心职责包括：
+
+1. **超时防护**：底层 Web RPC 传输无原生超时机制（注释 Lines 47-52），适配器通过 `Promise.race` 注入看门狗（Lines 86-91），防止 UI 永久冻结，且服务端变更调用在超时后仍在宿主安全运行并可重试。
+2. **严格契约校验**：基于 `WORKTREE_CONSOLE_DESCRIPTORS` 中的描述符（Line 78 构建 Map，Line 102-105 获取 `descriptor` 并调用 `descriptor.result.create().parse` 对 `carrier.value` 进行严格解析），依赖 `src/console-remote/schemas.ts` 的 Zod schemas 确保数据一致性。
+3. **错误标准化**：将网络异常、超时和格式错误统一转换为 `WorktreeConsoleOutcome<T>` 结构（类型定义见 `src/console-contract.ts` Lines 622-624），并映射到 `src/console-contract.ts` 定义的语义化错误代码与元数据（Lines 536-541, 632-665）。
 
 ## Key Components
 
 ### 常量与配置 (adapter.ts)
 
-*   **`FAST_TIMEOUT_MS = 30_000`** (Line 53): 快速路径方法的超时阈值（毫秒）。
-*   **`SLOW_TIMEOUT_MS = 180_000`** (Line 54): 慢速路径方法（通常涉及 git 操作或全量重算）的超时阈值。
-*   **`FAST_METHODS`** (Lines 57-62): 一个 `Set`，包含被视为“快路径”的方法名。这些方法通常只读且不触发大量 git spawn。
-    *   内容: `'sidebarTopology'`, `'current'`, `'inspect'`, `'previewRecoveryPreflight'`, `'gitOverview'`, `'gitGraph'`, `'listAbandoned'`。
-    *   注释指出 `list/preflight/preflightCreate` 因可能触发 20+ 次 git spawn 被排除在此集合外，归入 SLOW 档。
+*   **`FAST_TIMEOUT_MS = 30_000`** (Line 53)：快速路径方法的超时阈值（毫秒）。
+*   **`SLOW_TIMEOUT_MS = 180_000`** (Line 54)：慢速路径方法的超时阈值。
+*   **`FAST_METHODS`** (Lines 57-62)：`Set` 结构，包含快路径方法名。根据 Lines 55-56 注释，`list`/`preflight`/`preflightCreate` 因全量重算（多记录时 20+ 次 git spawn）归入 SLOW 档。
+
+| 档位 | 超时常量 (行号) | 包含方法 (行号) | 特征 |
+| --- | --- | --- | --- |
+| FAST | `FAST_TIMEOUT_MS` 30_000 (L53) | `sidebarTopology`, `current`, `inspect`, `previewRecoveryPreflight`, `gitOverview`, `gitGraph`, `listAbandoned` (L57-62) | 只读、不触发大量 git spawn |
+| SLOW | `SLOW_TIMEOUT_MS` 180_000 (L54) | 其余方法（如 `list`, `preflight`, `preflightCreate`, `create`, `finalize` 等） | 涉及 git 操作或全量重算 (L55-56) |
 
 ### 辅助函数 (adapter.ts)
 
-*   **`transport<T>(message)`** (Lines 28-30): 构造表示传输不可用的错误结果 `{ ok: false, error: { code: 'transport_unavailable', ... } }`。
-*   **`malformed<T>(method, locale)`** (Lines 32-34): 构造表示响应格式错误的结果，使用 i18n 翻译器生成消息。
-*   **`messageOf(value)`** (Lines 36-40): 从 Error 对象或普通值中提取人类可读的错误消息字符串。
-*   **`isCodecRejection(value)`** (Lines 42-45): 检测错误消息是否包含 codec 拒绝特征（如 `rejected "` 或 `返回了不符合 strict contract`），用于区分传输层错误和协议校验错误。
-*   **`timeoutOutcome<T>(method, locale, timeoutMs)`** (Lines 64-75): 构造标准化的超时错误结果，包含 `code: 'timeout'` 及对应的 i18n 消息。
+*   **`transport<T>(message)`** (Lines 28-30)：构造 `{ ok: false, error: { code: 'transport_unavailable', message } }`。
+*   **`malformed<T>(method, locale)`** (Lines 32-34)：构造格式错误结果，使用 i18n 翻译器生成 `malformed_response` 消息。
+*   **`messageOf(value)`** (Lines 36-40)：从 `Error` 或含 `message` 字段的对象中提取字符串。
+*   **`isCodecRejection(value)`** (Lines 42-45)：检测消息是否含 `rejected "` 或 `返回了不符合 strict contract`，区分 codec 拒绝与传输错误。
+*   **`timeoutOutcome<T>(method, locale, timeoutMs)`** (Lines 64-75)：构造标准化超时错误，`code: 'timeout'` 并附 i18n 消息。
 
-### 核心类/函数
+### 核心函数与接口
 
-*   **`createWorktreeConsoleRemoteAdapter(remote, getLanguage)`** (Lines 77-147):
-    *   **输入**: `remote: GitWorktreeRemote` (远程调用实现), `getLanguage: () => Language` (默认 `'zh'`)。
-    *   **初始化**: 构建 `descriptors` Map (Line 78)，将方法名映射到 `WORKTREE_CONSOLE_DESCRIPTORS` 中的 Schema 描述符。
-    *   **内部函数 `invoke<T>`** (Lines 80-109):
-        *   **逻辑**:
-            1.  获取语言环境并标准化 (Line 81)。
-            2.  根据 `FAST_METHODS` 决定超时时间 (Line 82)。
-            3.  启动 `Promise.race` 竞跑实际调用与定时器 (Lines 86-91)。
-            4.  捕获异常：清除定时器，检查是否为 codec 拒绝（返回 `malformed`）或其他传输错误（返回 `transport`）(Lines 92-95)。
-            5.  检查 `timedOut` 标志：若是，返回 `timeoutOutcome` (Lines 97-99)。
-            6.  基础结构校验：检查返回值是否为对象且包含 `ok` 布尔字段，否则返回 `malformed` (Line 100)。
-            7.  业务错误处理：若 `ok === false`，再次检查是否为 codec 拒绝，否则透传错误消息 (Line 101)。
-            8.  **严格校验**: 获取对应方法的 descriptor，若非 `strict` 模式则报错 (Line 103)。尝试使用 descriptor 的 schema 解析 `carrier.value` (Lines 104-108)。解析失败则返回 `malformed`。
-    *   **返回**: 实现 `WorktreeConsoleAdapter` 接口的对象，包含所有工作树控制台操作方法（Lines 111-147）。每个方法都封装了对 `invoke` 的调用，传入具体的 remote 方法和参数。
+*   **`createWorktreeConsoleRemoteAdapter(remote, getLanguage)`** (Lines 77-147)：
+    *   输入：`remote: GitWorktreeRemote`，`getLanguage: () => Language`（默认 `'zh'`）。
+    *   初始化：构建 `descriptors` Map（Line 78），映射方法名到 `WORKTREE_CONSOLE_DESCRIPTORS`。
+    *   内部函数 **`invoke<T>(method, call)`** (Lines 80-109)：
+        1. 获取并标准化语言（Line 81）。
+        2. 依 `FAST_METHODS` 决定 `timeoutMs`（Line 82）。
+        3. `Promise.race` 竞跑调用与定时器（Lines 86-91）。
+        4. 捕获异常：清定时器，按 `isCodecRejection` 返回 `malformed` 或 `transport`（Lines 92-95）。
+        5. 检测 `timedOut` 标志返回 `timeoutOutcome`（Lines 97-99）。
+        6. 基础结构校验：非对象或无 `ok` 布尔则 `malformed`（Line 100）。
+        7. 业务错误：`!carrier.ok` 时按 `isCodecRejection(carrier.error)` 转 `malformed` 或 `transport(carrier.error.message)`（Line 101）。
+        8. 严格校验：取 `descriptor`，非 `'strict'` 模式报 `malformed`（Line 103），用 `descriptor.result.create().parse` 解析（Lines 104-108）。
+    *   返回对象（Lines 111-147）实现 `WorktreeConsoleAdapter`，封装全部方法：`sidebarTopology`, `current`, `list`, `preflightCreate`, `createWithInitialCommit`, `create`, `initializeProject`, `inspect`, `reviewDiff`, `preflight`, `previewRecoveryPreflight`, `preparePreviewRecoveryAnalysis`, `createPreviewRecoveryHandoff`, `preview`, `checkpoint`, `resumeRevision`, `prepareReviewRegeneration`, `rollbackPreview`, `discard`, `finalize`, `finalizePreview`, `setRetention`, `setPermanent`, `retryCleanup`, `beginNextIteration`, `clearSidebarBadge`, `gitOverview`, `gitGraph`, `gitCreateBranch`, `gitSwitchBranch`, `gitPruneMergedBranches`, `listAbandoned`, `restoreAbandoned`。
 
-*   **`WorktreeConsoleAdapter` 接口定义** (`src/console-contract.ts`, Lines 672-705):
-    *   定义了所有公开的异步方法签名，如 `preflightCreate`, `create`, `sidebarTopology`, `gitOverview` 等。
-    *   所有方法均返回 `Promise<WorktreeConsoleOutcome<T>>`。
+*   **`WorktreeConsoleAdapter` 接口** (`src/console-contract.ts`, Lines 672-705)：定义所有公开异步方法签名，均返回 `Promise<WorktreeConsoleOutcome<T>>`。
+*   **`WorktreeConsoleOutcome<T>`** (`src/console-contract.ts`, Lines 622-624)：联合类型 `{ ok: true; value: T }` | `{ ok: false; error: WorktreeConsoleError }`。
+*   **`WorktreeConsoleError`** (`src/console-contract.ts`, Lines 615-620)：字段 `code: WorktreeConsoleErrorCode`、`message: string`、`details?`、`continuation?`。
+*   **`WORKTREE_CONSOLE_ERROR_CODES`** (`src/console-contract.ts`, Lines 536-541)：错误代码常量数组，含 `'transport_unavailable'`、`'malformed_response'`、`'timeout'`。
+*   **`ERROR_META`** (`src/console-contract.ts`, Lines 632-665)：映射各错误码到 `{ category, recovery, retryable }`。
 
-*   **`WorktreeConsoleOutcome<T>` 类型** (`src/console-contract.ts`, Lines 622-624):
-    *   联合类型：`{ ok: true; value: T }` | `{ ok: false; error: WorktreeConsoleError }`。
+| 错误代码 | category | recovery | retryable | 定义行号 |
+| --- | --- | --- | --- | --- |
+| `timeout` | unavailable | retry | true | L664 |
+| `transport_unavailable` | unavailable | retry | true | L662 |
+| `malformed_response` | internal | none | false | L663 |
 
-*   **`WorktreeConsoleError` 类型** (`src/console-contract.ts`, Lines 615-620):
-    *   包含 `code` (ErrorCode), `message` (string), `details` (可选), `continuation` (可选恢复上下文)。
-
-*   **`ERROR_META` 映射** (`src/console-contract.ts`, Lines 632-665):
-    *   定义了每种 `WorktreeConsoleErrorCode` 对应的元数据：`category` (错误类别), `recovery` (推荐恢复动作), `retryable` (是否可重试)。
-    *   关键条目:
-        *   `timeout`: `{ category: 'unavailable', recovery: 'retry', retryable: true }`
-        *   `transport_unavailable`: `{ category: 'unavailable', recovery: 'retry', retryable: true }`
-        *   `malformed_response`: `{ category: 'internal', recovery: 'none', retryable: false }`
-
-*   **Zod Schemas** (`src/console-remote/schemas.ts`):
-    *   定义了所有请求/响应的严格验证规则。例如 `outcomeSchema` (Lines 218-223) 用于包装任意类型的成功/失败结果。
-    *   `consoleErrorSchema` (Lines 207-216) 定义了错误对象的严格结构，并包含自定义校验逻辑（仅 `apply_conflict` 错误可携带 `continuation`）。
-    *   具体响应 Schema 如 `currentResponseSchema`, `createResponseSchema`, `mutationResponseSchema` 等均在文件中定义并被 `adapter.ts` 引用。
+*   **Zod Schemas** (`src/console-remote/schemas.ts`)：
+    *   `outcomeSchema<T>` (Lines 218-223)：discriminatedUnion 包装成功/失败结果。
+    *   `consoleErrorSchema` (Lines 207-216)：错误严格结构，superRefine 确保仅 `apply_conflict` 可携带 `continuation`。
+    *   响应 Schema（如 `currentResponseSchema` L225, `listResponseSchema` L237, `mutationResponseSchema` L264-270 等）被 `descriptors.ts` 引用，供 adapter 严格解析。
 
 ## Architecture
 
@@ -82,55 +81,55 @@ tags:
 ┌──────────────────────────────────────────────────────────────┐
 │                     Client UI Layer                          │
 └─────────────────────────────┬────────────────────────────────┘
-                              │ calls adapter methods
+                              │ calls adapter methods (adapter.ts L111-147)
                               ▼
 ┌──────────────────────────────────────────────────────────────┐
 │              WorktreeConsoleRemoteAdapter                      │
 │  File: src/client/console-remote/adapter.ts                  │
-│                                                              │
 │  ┌──────────────────────────────────────────────────────────┐ │
-│  │                   invoke<T>()                            │ │
-│  │  1. Determine timeout (FAST vs SLOW)                     │ │
-│  │  2. Promise.race(call(), setTimeout(timeout))            │ │
-│  │  3. Handle Result:                                       │ │
-│  │     - Error? → malformed/transport                       │ │
-│  │     - Timeout? → timeoutOutcome                          │ │
-│  │     - Invalid Structure? → malformed                     │ │
-│  │     - Codec Reject? → malformed                          │ │
-│  │     - Success? → Strict Parse via Descriptor Schema      │ │
+│  │                   invoke<T>()  (L80-109)                 │ │
+│  │  1. Timeout: FAST vs SLOW (L82)                          │ │
+│  │  2. Promise.race(call, timer) (L86-91)                   │ │
+│  │  3. Branch:                                         │ │
+│  │     - catch → malformed/transport (L92-95)                │ │
+│  │     - timedOut → timeoutOutcome (L97-99)                  │ │
+│  │     - ok → descriptor.parse strict (L102-108)             │ │
 │  └──────────────────────────┬───────────────────────────────┘ │
 └─────────────────────────────┼────────────────────────────────┘
                               │ invokes remote method
                               ▼
 ┌──────────────────────────────────────────────────────────────┐
 │                  GitWorktreeRemote                           │
-│  File: src/console-remote/remote.js (or .ts)                 │
-│  - Underlying Web RPC Transport (No Timeout)                 │
+│  - Underlying Web RPC Transport (No Native Timeout)          │
 └─────────────────────────────┬────────────────────────────────┘
                               │ returns RemoteResult<Outcome>
                               ▼
 ┌──────────────────────────────────────────────────────────────┐
 │                Host / Server Handler                         │
-│  - Executes Worktree Operations                              │
-│  - Returns JSON Response                                     │
+│  - Executes Ops, returns JSON (validated by schemas.ts)     │
 └──────────────────────────────────────────────────────────────┘
 ```
 
 ## Data Flow
 
-1.  **初始化**: `createWorktreeConsoleRemoteAdapter` 被调用时，遍历 `WORKTREE_CONSOLE_DESCRIPTORS` 构建 `descriptors` Map，将方法名与其对应的 Zod Schema 绑定。
-2.  **方法调用**: 客户端调用 Adapter 上的某个方法（如 `current()`）。
-3.  **路由与超时设置**: 该方法内部调用 `invoke<T>('current', ...)`。`invoke` 检查 `'current'` 是否在 `FAST_METHODS` 中，从而选择 `30s` 或 `180s` 超时。
-4.  **竞跑执行**: `Promise.race` 同时启动实际的 `remote.current()` 调用和一个延迟 `timeoutMs` 的定时器。
-5.  **结果处理**:
-    *   **正常完成**: 定时器清除。检查返回值的结构。如果 `ok: true`，使用对应的 Descriptor Schema 进行严格解析。解析成功则返回 `{ ok: true, value: parsedData }`；解析失败则视为 `malformed`。
-    *   **超时**: 定时器触发，`Promise.race` 返回 `{ timedOut: true }`。`invoke` 检测到该标志，返回 `timeoutOutcome`。
-    *   **异常**: 捕获到 `error`。清除定时器。检查是否为 codec 拒绝（解析错误），是则返回 `malformed`，否则返回 `transport` 错误。
-6.  **错误分类**: 无论哪种错误形式，最终都转化为 `WorktreeConsoleOutcome` 中的 `{ ok: false, error: { code, message, ... } }`。消费端可根据 `code` 查阅 `ERROR_META` 获取 `category` 和 `retryable` 信息以决定后续行为（如自动重试或显示用户提示）。
+1.  **初始化**：`createWorktreeConsoleRemoteAdapter` 被调用（L77），遍历 `WORKTREE_CONSOLE_DESCRIPTORS` 构建 `descriptors` Map（L78），绑定方法名与 Schema 描述符。
+2.  **方法调用**：客户端调用 Adapter 方法（如 `current()` 在 L113）。
+3.  **路由与超时设置**：内部调用 `invoke<T>('current', ...)`（L80）。`invoke` 检查 `'current'` 在 `FAST_METHODS` 中（L57-62），选 `FAST_TIMEOUT_MS` = 30s（L82）。
+4.  **竞跑执行**：`Promise.race` 同时启动 `remote.current()` 与延迟 `timeoutMs` 的定时器（L86-91）。
+5.  **结果处理**：
+    *   **正常**：清定时器（L96），校验结构（L100）。`ok: true` 时取 descriptor（L102），要求 `strict` 模式（L103），用 `descriptor.result.create().parse` 解析（L105），成功返回 `{ ok: true, value }`。
+    *   **超时**：定时器触发返回 `{ timedOut: true }`，检测后返回 `timeoutOutcome`（L98）。
+    *   **异常**：捕获错误（L92），清定时器（L93），按 `isCodecRejection` 返回 `malformed` 或 `transport`（L94）。
+6.  **错误分类**：最终均封装为 `WorktreeConsoleOutcome` 的 `{ ok: false, error }`。消费端据 `code` 查 `worktreeConsoleErrorMeta`（L667-669）获取类别与重试策略。
 
 ## Connections
 
-*   [[web-rpc-transport-has-no-timeout]]: 解释了为什么需要客户端看门狗，因为底层传输无超时。
-*   [[learnings/git-spawn-budget-list-latency]]: 解释了为什么 `list` 等方法被归类为 SLOW，以及与服务端批量优化的关系。
-*   `src/console-contract.ts`: 定义了 `WorktreeConsoleAdapter` 接口、`WorktreeConsoleOutcome` 类型、错误代码及元数据。
-*   `src/console-remote/schemas.ts`: 提供了 `adapter.ts` 中使用的严格 Zod 验证 Schema。
+*   [[web-rpc-transport-has-no-timeout]]：解释底层传输无超时，故需客户端看门狗（adapter.ts L47-52, L86-91）。
+*   [[learnings/git-spawn-budget-list-latency]]：解释 `list` 等因 git spawn 预算归 SLOW 档（adapter.ts L55-56, L82）。
+*   `src/console-contract.ts`：定义 `WorktreeConsoleAdapter` 接口、类型、`ERROR_META` 与错误码。
+*   `src/console-remote/schemas.ts`：提供 adapter 严格解析使用的 Zod 验证 Schema。
+
+## Known Issues
+
+*   **客户端超时与服务端状态分歧**：超时仅终止客户端等待（adapter.ts L47-52 注释明确 server work keeps running），对于 `create`/`finalize` 等 mutating 调用，重试安全依赖 Host 端 CAS（如 `expectedRevision` 参数，见 contract.ts L289, L366 等），adapter 本身不保证幂等。
+*   **Descriptor 强依赖**：`invoke` 在 L103 要求 `descriptor?.result.mode !== 'strict'` 时直接返回 `malformed`。若 `WORKTREE_CONSOLE_DESCRIPTORS` 漏配新增方法，客户端将永远收到 `malformed_response`，需确保 descriptors.ts 与 schemas.ts 同步。
