@@ -158,9 +158,11 @@ export function TagManagerModal({ open, onClose, adapter, sessionId, t, target }
     >
       <div className="dsh-wtc-tag-manager">
         <div className="dsh-wtc-tag-create">
-          {target !== null && target !== undefined ? (
-            <div className="dsh-wtc-tag-target">{t("tag.target.hint", { p0: target.slice(0, 7) })}</div>
-          ) : null}
+          <div className="dsh-wtc-tag-target">
+            {target !== null && target !== undefined
+              ? t("tag.target.hint", { p0: target.slice(0, 7) })
+              : t("tag.target.head")}
+          </div>
           <input
             className="dsh-wtc-create-branch-input"
             value={createName}

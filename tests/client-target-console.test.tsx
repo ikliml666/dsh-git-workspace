@@ -285,10 +285,11 @@ describe('Harness-native Session Target slots', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Session Target：Worktree · 待验收' }))
     fireEvent.click(await screen.findByText('查看提交图'))
 
-    // Footer entry carries no commit, so no target hint is rendered.
+    // Footer entry carries no commit: the modal says it will tag the current HEAD.
     const footerEntry = await screen.findByRole('button', { name: '管理标签' })
     fireEvent.click(footerEntry)
     await screen.findByText('本地还没有标签。')
+    expect(await screen.findByText('将指向当前 HEAD')).toBeTruthy()
     expect(screen.queryByText(/将指向提交/u)).toBeNull()
 
     fireEvent.change(screen.getByPlaceholderText('新标签名（如 v1.2.0）'), { target: { value: 'v1.0.0' } })
