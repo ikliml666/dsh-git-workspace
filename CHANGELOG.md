@@ -15,6 +15,9 @@
 
 ### Changed
 
+- 适配 DSH `0.2.1-rc.3`（基线适配，2026-10-24）：插件版本升至 `0.12.0`，DSH devDependencies 精确锁定 `0.2.1-rc.3`（核心 peer 的 caret 范围 `^0.2.1-rc.1` 已覆盖该版本，locale peer 精确清单追加 `|| 0.2.1-rc.3`），`minimumReleaseAgeExclude` 同步覆盖 rc.3 精确锁定依赖。官方 Workspace Browser 派生门禁版本与编译后 Client SHA-256 对齐 rc.3（`9c2c17a6…6544`，232824 字节），`src/host-compat.ts` 的 modern generation 注释与 `tests/host-compat.test.ts` 的 flavor 映射补充 rc.3，locale peer 精确清单追加 `|| 0.2.1-rc.3`。rc.2→rc.3 的实际源码差异集中在官方 Workspace Client 的预会话草稿语义（`whenDraftExists` 取代 `clearPreviousDraft` 布尔、空白 Session 复用按 `agentPreset` 过滤、`openWorkspaceSession` 分支合并），插件装饰的 9 个接缝全部存活，无需改动装饰逻辑；插件自身未调用受影响的新签名，`agentPreset` 仍按既有 Host 默认路径透传。
+  - 验证（Windows x64，Node 24.19.0，pnpm 12.5.1，Cordis 4.0.5 / loader 1.0.6 / include 1.0.10 / schemastery 3.18.5，TypeScript 5.9.3 / Vitest 2.1.9 / tsdown 0.17.4）：`typecheck` 0 诊断、`build` 通过（`lib/client.js` 1154.72 kB）、`check:sidebar-version` 通过（ui-workspace 0.2.1-rc.3 + 0.1.6-alpha.2 + 0.1.7-rc.2 三路 SHA-256、locale 0.2.1-rc.3）、`check:publish` 全部通过（13 Host singleton、12 导出目标、38 项 strict Remote 方法）、`pnpm test` 52 个测试文件 **722 passed / 4 skipped**，其中 focused lifecycle 27 passed。
+  - 仅源码兼容验证：未启动正式/隔离 DSH Profile，未做 rc.3 浏览器、真实 AI 对话、桌面端与 Windows 全流程验收。4 个 skipped 均为平台条件跳过（`tests/git-unborn.test.ts:72`、`tests/session-checkout-apply.test.ts:1225`、`:1241`、`tests/project-skills.test.ts:88` 为非 Windows 专用用例；本轮平台为 Windows，`tests/git-unborn.test.ts:253` 的 Windows 长路径用例已实际执行）。
 - 吸收 dsh-git-graph 上游三项体验优化（target-console 模块，2026-10-24）：
   - 分支弹层支持搜索：分支超过 12 条时在菜单顶部展示搜索框，实时过滤分支列表，回车即切换首个匹配分支，无匹配时给出提示；关闭菜单自动清空搜索词。
   - 分支切换成功反馈：切换确认后在胶囊上显示约 900ms 的「已切换到 <分支>」绿色提示，避免快速关闭被误认为无操作。

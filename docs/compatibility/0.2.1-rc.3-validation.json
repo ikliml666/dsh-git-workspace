@@ -1,0 +1,110 @@
+{
+  "target": "0.2.1-rc.3",
+  "pluginVersion": "0.12.0",
+  "status": "source-compatibility-passed",
+  "validatedAt": "2026-10-24",
+  "environment": {
+    "platform": "win32",
+    "arch": "x64",
+    "node": "24.19.0",
+    "pnpm": "12.5.1",
+    "cordis": "4.0.5",
+    "cordisPluginLoader": "1.0.6",
+    "cordisPluginInclude": "1.0.10",
+    "schemastery": "3.18.5",
+    "typescript": "5.9.3",
+    "vitest": "2.1.9",
+    "tsdown": "0.17.4",
+    "dshPackages": "0.2.1-rc.3"
+  },
+  "checks": [
+    {
+      "name": "typecheck",
+      "command": "pnpm run typecheck",
+      "exit": 0,
+      "result": "no diagnostics"
+    },
+    {
+      "name": "build",
+      "command": "pnpm run build",
+      "exit": 0,
+      "result": "lib/client.js 1154.72 kB"
+    },
+    {
+      "name": "sidebar-version-gate",
+      "command": "pnpm run check:sidebar-version",
+      "exit": 0,
+      "result": "ui-workspace 0.2.1-rc.3 + 0.1.6-alpha.2 + 0.1.7-rc.2 SHA-256 gates, locale 0.2.1-rc.3"
+    },
+    {
+      "name": "publish-gate",
+      "command": "pnpm run check:publish",
+      "exit": 0,
+      "result": "13 Host singletons, 12 export targets, 38 strict Remote methods, mount patch, NOTICE, browser ModuleLoader and lazy directory-picker"
+    },
+    {
+      "name": "test-suite",
+      "command": "pnpm test",
+      "exit": 0,
+      "files": 52,
+      "passed": 722,
+      "skipped": 4,
+      "failed": 0
+    },
+    {
+      "name": "focused-lifecycle",
+      "command": "node node_modules/vitest/vitest.mjs run tests/workspace-provider-lifecycle.test.ts",
+      "exit": 0,
+      "passed": 27,
+      "failed": 0
+    },
+    {
+      "name": "seam-probe",
+      "command": "node .dsh-ops/probe-rc3-seams.mjs",
+      "exit": 0,
+      "result": "source bytes 232824; RESULT: ALL SEAMS OK; derived bytes 236414"
+    }
+  ],
+  "skippedTests": [
+    {
+      "file": "tests/git-unborn.test.ts",
+      "line": 72,
+      "reason": "non-Windows-only case"
+    },
+    {
+      "file": "tests/session-checkout-apply.test.ts",
+      "line": 1225,
+      "reason": "non-Windows-only case"
+    },
+    {
+      "file": "tests/session-checkout-apply.test.ts",
+      "line": 1241,
+      "reason": "non-Windows-only case"
+    },
+    {
+      "file": "tests/project-skills.test.ts",
+      "line": 88,
+      "reason": "non-Windows-only case"
+    }
+  ],
+  "notValidated": [
+    "0.2.1-rc.3 real browser rendering and interactions",
+    "AI conversation and the complete review/preview/delivery/rollback/recovery/cleanup runtime lifecycle",
+    "DSH Profile install or startup",
+    "Desktop end-to-end behaviour",
+    "Release packaging and publishing"
+  ],
+  "sourceDifference": {
+    "from": "0.2.1-rc.2",
+    "to": "0.2.1-rc.3",
+    "summary": "Official Workspace Client pre-session draft semantics only: whenDraftExists replaces clearPreviousDraft, blank-Session reuse filters on the agentPreset projection value, openWorkspaceSession pre-session branch folds into openWorkspace.",
+    "seamsSurvived": 9,
+    "seamsMissed": [
+      {
+        "marker": "visibleSessionMenuItems",
+        "note": "also absent on 0.2.1-rc.2; optional replaceIfPresent seam matches zero times on both generations"
+      }
+    ],
+    "decorationChangeRequired": false
+  }
+}

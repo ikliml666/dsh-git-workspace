@@ -80,20 +80,21 @@ See the [full usage guide](docs/USAGE.en.md) for detailed actions, recovery scen
 
 | DeepSeek Harness | Plugin version |
 | --- | --- |
+| `0.2.1-rc.3` | `0.12.0` |
 | `0.2.1-rc.2` | `0.11.0` |
 | `0.2.0-rc.2` | `0.10.0` |
 | `0.1.x` | See the historical `0.9.x` compatibility records; not every `0.1.x` version has been verified |
 
 Match the plugin version to your Harness version rather than installing the latest plugin on an older Harness.
 
-The DSH `0.2.1-rc.2` adaptation included in `0.11.0` passed pre-release source compatibility checks. Browser, real AI conversation, desktop and Windows end-to-end acceptance for this combination remain incomplete. See the [compatibility notes](docs/COMPATIBILITY.md#english) and [validation report](docs/compatibility/0.2.1-rc.2.md) for the scope. Historical validation records remain valid for their original combinations, not as acceptance evidence for newer ones.
+The DSH `0.2.1-rc.3` adaptation included in `0.12.0` passed source compatibility checks (typecheck, build, sidebar version/SHA gate, publish gate and the full test suite). Browser, real AI conversation and full desktop acceptance for this combination remain incomplete. See the [compatibility notes](docs/COMPATIBILITY.md#english) and [validation report](docs/compatibility/0.2.1-rc.3.md) for the scope. Historical validation records remain valid for their original combinations, not as acceptance evidence for newer ones.
 
 ### Install
 
-For DSH `0.2.1-rc.2`, install through the `dsh` Web Profile:
+For DSH `0.2.1-rc.3`, install through the `dsh` Web Profile:
 
 ```bash
-dsh plugin --profile web add dsh-git-worktree@0.11.0
+dsh plugin --profile web add dsh-git-worktree@0.12.0
 ```
 
 For other Harness versions, choose the matching plugin version from the table above first.
