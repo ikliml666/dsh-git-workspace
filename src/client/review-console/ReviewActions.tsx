@@ -1,3 +1,4 @@
+import { isValidCommitMessage } from '../../commit-message.js'
 import { ReviewIcon } from './ReviewIcon.js'
 import type { ReactNode } from 'react'
 import { useClientTranslator, defaultClientTranslator, type ClientTranslator } from '../i18n.js'
@@ -493,7 +494,7 @@ export function ReviewActions({
   const checkpoint = async (): Promise<void> => {
     const value = checkpointMessage.trim()
     const requestId = checkpointRequestId.current
-    if (!value || value.length > 500 || !requestId || !begin('checkpoint') || !adapter || !identity || !target?.checkpointGeneration) return
+    if (!isValidCommitMessage(value) || !requestId || !begin('checkpoint') || !adapter || !identity || !target?.checkpointGeneration) return
     const expectedCount = target.checkpoints?.length ?? 0
     const outcome = await adapter.checkpoint({
       ...identity,
@@ -624,7 +625,7 @@ export function ReviewActions({
   const submitCommit = async (): Promise<void> => {
     const value = commitMessage.trim()
     const mode = commitMode
-    if (!mode || !value || value.length > 500 || !begin(mode) || !adapter || !identity) return
+    if (!mode || !isValidCommitMessage(value) || !begin(mode) || !adapter || !identity) return
     const selectedRetention: WorktreeRetentionMode = retainEnvironment ? retention : 'cleanup'
     const request = { ...identity, commitMessage: value, retention: selectedRetention }
     if (mode === 'finish') {
@@ -948,9 +949,10 @@ export function ReviewActions({
 
   return (
     <>
-    {renderStatus?.(submitting)}
     <section className="dsh-wt-review-actions" aria-label={t("review.actions")}>
       {!live ? <p className="dsh-wt-status">{unavailableMessage}</p> : null}
+      <div className={renderStatus ? 'dsh-wt-review-action-head' : undefined}>
+      {renderStatus?.(submitting)}
       {terminal && !renderStatus ? (
         <p className="dsh-wt-status">
           {target.state === 'retained'
@@ -959,7 +961,7 @@ export function ReviewActions({
         </p>
       ) : !terminal ? (
         <div className="dsh-wt-actions">
-          {primary}
+          {ready && preflightSnapshot.status === 'success' && preflightSnapshot.preflight.status === 'conflict' ? null : primary}
           <details ref={moreMenuRef} className="dsh-wt-more-menu">
             <summary className="dsh-wt-more-trigger" aria-label={t("more.delivery.actions")}><ReviewIcon name="more" /></summary>
             <div className="dsh-wt-more-content" role="menu">
@@ -1019,6 +1021,7 @@ export function ReviewActions({
           </details>
         </div>
       ) : null}
+      </div>
 
       <Modal
         open={checkpointOpen}
@@ -1031,7 +1034,7 @@ export function ReviewActions({
         footer={(
           <div className="dsh-wt-modal-footer">
             <button type="button" className="dsh-wt-button" disabled={submitting !== null} onClick={closeCheckpoint}>{t("cancel")}</button>
-            <button type="button" className="dsh-wt-button dsh-wt-primary" disabled={submitting !== null || !checkpointMessage.trim() || checkpointMessage.trim().length > 500} onClick={() => { void checkpoint() }}>
+            <button type="button" className="dsh-wt-button dsh-wt-primary" disabled={submitting !== null || !isValidCommitMessage(checkpointMessage)} onClick={() => { void checkpoint() }}>
               <ReviewIcon name="save" />{submitting === 'checkpoint' ? t("saving") : t("save.progress.and.continue")}
             </button>
           </div>
@@ -1043,8 +1046,8 @@ export function ReviewActions({
             <span>{t("checkpoint.summary", { count: target?.checkpoints?.length ?? 0 })}</span>
           </div>
           <label htmlFor={`${formId}-checkpoint-message`}>{t("checkpoint.commit.message")}</label>
-          <textarea id={`${formId}-checkpoint-message`} aria-label={t("checkpoint.commit.message")} rows={6} maxLength={500} value={checkpointMessage} onChange={event => setCheckpointMessage(event.target.value)} />
-          <div className="dsh-wt-character-count">{checkpointMessage.length}{t("500")}</div>
+          <textarea id={`${formId}-checkpoint-message`} aria-label={t("checkpoint.commit.message")} rows={6} value={checkpointMessage} onChange={event => setCheckpointMessage(event.target.value)} />
+          <div className="dsh-wt-character-count">{checkpointMessage.length}</div>
         </div>
       </Modal>
 
@@ -1061,7 +1064,7 @@ export function ReviewActions({
         footer={(
           <div className="dsh-wt-modal-footer">
             <button type="button" className="dsh-wt-button" disabled={submitting !== null} onClick={closeCommit}>{t("cancel")}</button>
-            <button type="button" className="dsh-wt-button dsh-wt-primary" disabled={submitting !== null || !commitMessage.trim() || commitMessage.trim().length > 500} onClick={() => { void submitCommit() }}>
+            <button type="button" className="dsh-wt-button dsh-wt-primary" disabled={submitting !== null || !isValidCommitMessage(commitMessage)} onClick={() => { void submitCommit() }}>
               <ReviewIcon name="confirm" />{submitting === 'finish' || submitting === 'finalize_preview'
                 ? t("saving")
                 : retainEnvironment ? t("confirm.delivery.and.retain.environment") : t("confirm.delivery.and.clean.up")}
@@ -1071,8 +1074,8 @@ export function ReviewActions({
       >
         <div className="dsh-wt-commit-dialog">
           <label htmlFor={`${formId}-message`}>{t("commit.message")}</label>
-          <textarea id={`${formId}-message`} aria-label={t("commit.message")} rows={6} maxLength={500} value={commitMessage} onChange={event => setCommitMessage(event.target.value)} />
-          <div className="dsh-wt-character-count">{commitMessage.length}{t("500")}</div>
+          <textarea id={`${formId}-message`} aria-label={t("commit.message")} rows={6} value={commitMessage} onChange={event => setCommitMessage(event.target.value)} />
+          <div className="dsh-wt-character-count">{commitMessage.length}</div>
           <label className="dsh-wt-retention-check">
             <input type="checkbox" checked={retainEnvironment} onChange={event => setRetainEnvironment(event.target.checked)} />
             <span>{t("temporarily.retain.the.current.environment.after.committing")}</span>

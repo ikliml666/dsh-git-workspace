@@ -2,8 +2,8 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 
-export const WORKSPACE_UI_VERSION = '0.2.1-rc.1'
-export const WORKSPACE_LOCALE_VERSION = '0.2.1-rc.1'
+export const WORKSPACE_UI_VERSION = '0.2.1-rc.2'
+export const WORKSPACE_LOCALE_VERSION = '0.2.1-rc.2'
 export const WORKSPACE_CLIENT_SHA256 = '52765aacb6c7f96327da5d8709d8cbb30dd2957d4744a42da04c18e07fe264e5'
 export const OFFICIAL_WORKSPACE_VIRTUAL_ID = 'virtual:dsh-official-workspace-client'
 export const RESOLVED_OFFICIAL_WORKSPACE_VIRTUAL_ID = `\0${OFFICIAL_WORKSPACE_VIRTUAL_ID}`
@@ -48,6 +48,20 @@ function replaceIfPresent(source, needle, replacement, label) {
  */
 export function decorateOfficialWorkspaceClient(source) {
   let derived = source
+  // Service derives its own Cordis Context, so retain the proxy's per-instance
+  // guard at construction. Menus and shortcuts share these service boundaries.
+  derived = replaceExactlyOnce(derived,
+    '\t\t\t\tsuper(ctx, "uiWorkspace");\n\t\t\t\tthis.directoryPicker = directoryPicker;',
+    '\t\t\t\tsuper(ctx, "uiWorkspace");\n\t\t\t\tthis.managedWorktreeGuard = ctx.get("__dshGitWorktreeManagedGuard");\n\t\t\t\tthis.directoryPicker = directoryPicker;',
+    'instance-local managed guard')
+  derived = replaceExactlyOnce(derived,
+    '\t\t\tasync forkSession(sessionId, onCreated, options) {\n\t\t\t\treturn this.sessions.fork({',
+    '\t\t\tasync forkSession(sessionId, onCreated, options) {\n\t\t\t\tif (this.managedWorktreeGuard.blockSession(sessionId)) throw new Error("managed Session must be changed through its Worktree owner");\n\t\t\t\treturn this.sessions.fork({',
+    'Managed Session fork from menus and shortcuts')
+  derived = replaceExactlyOnce(derived,
+    '\t\t\t\tconst target = workspaceId ?? currentWorkspaceId ?? recent;\n\t\t\t\tif (target === void 0) {',
+    '\t\t\t\tconst target = workspaceId ?? currentWorkspaceId ?? recent;\n\t\t\t\tif (target !== void 0 && this.managedWorktreeGuard.blockWorkspace(target)) return;\n\t\t\t\tif (target === void 0) {',
+    'Managed Workspace new Session shortcut')
   derived = replaceExactlyOnce(derived,
     '\t\tconst zh = {',
     `\t\tconst zh = {\n\t\t\t"dshGitWorktree.managed": "托管 Worktree",\n\t\t\t"dshGitWorktree.state.working": "进行中",\n\t\t\t"dshGitWorktree.state.ready_for_review": "待验收",\n\t\t\t"dshGitWorktree.state.preview_active": "预览中",\n\t\t\t"dshGitWorktree.state.preview_detached": "待恢复",\n\t\t\t"dshGitWorktree.state.recovery_required": "需要恢复",\n\t\t\t"dshGitWorktree.state.finalized": "已完成",\n\t\t\t"dshGitWorktree.state.discarded": "已放弃",`,
@@ -86,7 +100,7 @@ export function decorateOfficialWorkspaceClient(source) {
     'modern session row decoration')
   derived = replaceIfPresent(derived,
     '\t\tfunction SessionHoverContent',
-    `\t\tfunction managedWorktreeDecoration(node, t) {\n\t\t\tconst value = node.__dshGitWorktree;\n\t\t\tif (value?.kind !== "managed-worktree" || typeof value.state !== "string") return void 0;\n\t\t\tconst stateLabel = t(\`dshGitWorktree.state.\${value.state}\`);\n\t\t\tconst label = typeof value.label === "string" && value.label !== "" ? value.label : stateLabel;\n\t\t\treturn {\n\t\t\t\tstate: value.state,\n\t\t\t\tlabel,\n\t\t\t\tariaLabel: \`\${t("dshGitWorktree.managed")}, \${label}, \${displayTitle(node, t)}\`\n\t\t\t};\n\t\t}\n\t\tfunction ManagedWorktreeIdentity({ decoration }) {\n\t\t\treturn (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [(0, react_jsx_runtime.jsx)("span", {\n\t\t\t\tclassName: "dsh-git-worktree-sidebar-icon",\n\t\t\t\t"data-worktree-state": decoration.state,\n\t\t\t\t"aria-hidden": "true",\n\t\t\t\tchildren: (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconBranchOutlineRegular, {})\n\t\t\t}), (0, react_jsx_runtime.jsx)("span", {\n\t\t\t\tclassName: "dsh-git-worktree-sidebar-badge",\n\t\t\t\t"data-worktree-state": decoration.state,\n\t\t\t\t"aria-hidden": "true",\n\t\t\t\ttitle: decoration.label,\n\t\t\t\tchildren: decoration.label\n\t\t\t})] });\n\t\t}\n\t\t/** Hover-card body: full title, relative time, and every relevant live status. */\n\t\tfunction SessionHoverContent`,
+    `\t\tfunction managedWorktreeDecoration(node, t) {\n\t\t\tconst value = node.__dshGitWorktree;\n\t\t\tif (value?.kind !== "managed-worktree" || typeof value.state !== "string") return void 0;\n\t\t\tconst stateLabel = t(\`dshGitWorktree.state.\${value.state}\`);\n\t\t\tconst label = typeof value.label === "string" && value.label !== "" ? value.label : stateLabel;\n\t\t\treturn {\n\t\t\t\tstate: value.state,\n\t\t\t\tlabel,\n\t\t\t\tariaLabel: \`\${t("dshGitWorktree.managed")}, \${label}, \${displayTitle(node, t)}\`\n\t\t\t};\n\t\t}\n\t\tfunction ManagedWorktreeIdentity({ decoration }) {\n\t\t\treturn (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [(0, react_jsx_runtime.jsx)("span", {\n\t\t\t\tclassName: "dsh-git-worktree-sidebar-icon",\n\t\t\t\t"data-worktree-state": decoration.state,\n\t\t\t\t"aria-hidden": "true",\n\t\t\t\tchildren: (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconBranchOutlineRegular, {})\n\t\t\t}), decoration.state !== "working" && (0, react_jsx_runtime.jsx)("span", {\n\t\t\t\tclassName: "dsh-git-worktree-sidebar-badge",\n\t\t\t\t"data-worktree-state": decoration.state,\n\t\t\t\t"aria-hidden": "true",\n\t\t\t\ttitle: decoration.label,\n\t\t\t\tchildren: decoration.label\n\t\t\t})] });\n\t\t}\n\t\t/** Hover-card body: full title, relative time, and every relevant live status. */\n\t\tfunction SessionHoverContent`,
     'Managed row helper')
   derived = replaceExactlyOnce(derived,
     '\t\t\tconst statuses = sessionStatuses(node, t).filter((status) => !(node.archived && (status.state === "done" || status.state === "idle")));\n\t\t\treturn (0, react_jsx_runtime.jsxs)("div", {\n\t\t\t\tclassName: Rows_module_css_default.hoverContent,',

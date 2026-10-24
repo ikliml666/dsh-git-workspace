@@ -24,16 +24,14 @@ export const clientMessages = {
   "detail.conflict": {"zh": "冲突", "en": "Conflict"},
   "detail.validation": {"zh": "验证记录", "en": "Validation records"},
   "detail.noTests": {"zh": "未提供验证记录。", "en": "No validation records provided."},
+  "detail.expandList": {"zh": "展开全部 {count} 项", "en": "Show all {count} items"},
+  "detail.collapseList": {"zh": "收起", "en": "Show fewer"},
   "detail.version": {"zh": "版本信息", "en": "Version information"},
   "detail.reviewId": {"zh": "验收标识", "en": "Review ID"},
   "detail.revision": {"zh": "当前版本", "en": "Current revision"},
   "detail.commit": {"zh": "Worktree 提交", "en": "Worktree commit"},
   "detail.view": {"zh": "查看详情", "en": "View details"},
 
-  "500": {
-    "zh": "/500",
-    "en": "/500"
-  },
   "the.cwd.of.new.harness.session.does.not": {
     "zh": "Harness 新建 Session {p0} 的 cwd 与 Host 记录不一致。",
     "en": "The cwd of new Harness Session {p0} does not match the Host record."

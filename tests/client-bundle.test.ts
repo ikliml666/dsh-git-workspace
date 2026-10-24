@@ -2,11 +2,35 @@
 
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { dirname, join, resolve } from 'node:path'
+import { resolve } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
-import { describe, expect, test, vi } from 'vitest'
+import { beforeEach, afterEach, describe, expect, test, vi } from 'vitest'
+import { transferableAbortController } from 'node:util'
+
+beforeEach(() => {
+  const abort = transferableAbortController()
+  vi.stubGlobal('AbortController', abort.constructor)
+  vi.stubGlobal('AbortSignal', abort.signal.constructor)
+})
+afterEach(() => vi.unstubAllGlobals())
 import { createWorktreeConsoleAdapterFixture } from './support/worktree-console.js'
+import { loadOfficialBrowserClient } from './support/official-client.js'
+
+function gatewayClient() {
+  const gateway = loadOfficialBrowserClient('@deepseek-ai/dsh-api-gateway')
+  const access = loadOfficialBrowserClient('@deepseek-ai/dsh-api-remote-access', specifier =>
+    specifier === '@deepseek-ai/dsh-api-gateway/client' ? gateway : createRequire(import.meta.url)(specifier))
+  return { gateway, access }
+}
+
+async function mountAccess(ctx: Context, access: { inject: string[]; apply(ctx: Context): void }) {
+  // No owner snapshot or live access stream: official UI answers stay false.
+  const slots = ctx.get('slots') as any
+  slots.registerFactory = () => () => {}
+  await ctx.plugin(access)
+}
+
 
 interface ClientHandoff {
   id: string
@@ -19,15 +43,9 @@ function platformRequire(nodeRequire: NodeRequire, specifier: string): unknown {
 }
 
 /**
- * 0.2.1-rc.1 gateway `./client` export splits into node (pure ESM) and
- * browser (ModuleLoader handoff bundle); the handoff contract under test
- * lives in the browser artifact, so resolve it by file.
+ * The handoff contract under test lives in the browser artifact of the gateway
+ * client bundle; `loadOfficialBrowserClient` resolves that file directly.
  */
-function gatewayBrowserClientPath(): string {
-  const nodeRequire = createRequire(import.meta.url)
-  return resolve(join(dirname(nodeRequire.resolve('@deepseek-ai/dsh-api-gateway/package.json')), 'lib', 'client.browser.js'))
-}
-
 function executeBundle(code: string): ClientHandoff {
   let handoff: ClientHandoff | undefined
   const window = {
@@ -95,11 +113,7 @@ describe('built Client ModuleLoader artifact', () => {
 
   test('restores uiWorkspace before conversation, then mounts Worktree surfaces and withdraws them with the fiber', async () => {
     const nodeRequire = createRequire(import.meta.url)
-    const gatewayPath = gatewayBrowserClientPath()
-    const gateway = executeBundle(readFileSync(gatewayPath, 'utf8')).factory(nodeRequire) as {
-      apply(ctx: Context): void
-      inject: string[]
-    }
+    const { gateway, access } = gatewayClient()
     const worktreeHandoff = executeBundle(readFileSync(resolve('lib/client.js'), 'utf8'))
     const worktree = worktreeHandoff.factory(specifier => platformRequire(nodeRequire, specifier)) as {
       apply(ctx: Context): void
@@ -146,10 +160,10 @@ describe('built Client ModuleLoader artifact', () => {
     ctx.provide('remote.directoryPicker', {} as never)
     // The 0.2.1 official workspace apply reads `ctx.remoteAccess` for the
     // slot-root keyed hook; the real service comes from the gateway client.
-    ctx.provide('remoteAccess', { source: () => ({}) } as never)
     ctx.provide('layout', { beginNavigation: () => new AbortController().signal } as never)
     ctx.provide('shortcuts', { register: vi.fn(() => () => {}) } as never)
 
+    await mountAccess(ctx, access)
     const fiber = ctx.plugin({ inject: worktree.inject, apply: worktree.apply })
     await fiber
     expect(ctx.worktreeConsole).toBeDefined()
@@ -203,11 +217,7 @@ describe('built Client ModuleLoader artifact', () => {
 
   test('boots a modern Host whose picker provider waits for uiWorkspace, then resolves picker calls lazily', async () => {
     const nodeRequire = createRequire(import.meta.url)
-    const gatewayPath = gatewayBrowserClientPath()
-    const gateway = executeBundle(readFileSync(gatewayPath, 'utf8')).factory(nodeRequire) as {
-      apply(ctx: Context): void
-      inject: string[]
-    }
+    const { gateway, access } = gatewayClient()
     const worktree = executeBundle(readFileSync(resolve('lib/client.js'), 'utf8'))
       .factory(specifier => platformRequire(nodeRequire, specifier)) as {
       apply(ctx: Context): void
@@ -258,10 +268,10 @@ describe('built Client ModuleLoader artifact', () => {
     ctx.provide('locale', { register: vi.fn(), bind: () => () => '' } as never)
     // The 0.2.1 official workspace apply reads `ctx.remoteAccess` for the
     // slot-root keyed hook; the real service comes from the gateway client.
-    ctx.provide('remoteAccess', { source: () => ({}) } as never)
     ctx.provide('layout', { beginNavigation: () => new AbortController().signal } as never)
     ctx.provide('shortcuts', { register: vi.fn(() => () => {}) } as never)
 
+    await mountAccess(ctx, access)
     const fiber = ctx.plugin({ inject: worktree.inject, apply: worktree.apply })
     await fiber
     // Without the filtered inject this fiber could never settle: the entry

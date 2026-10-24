@@ -1,14 +1,15 @@
 // @vitest-environment jsdom
 
-import { createRequire } from 'node:module'
 import { randomUUID } from 'node:crypto'
 import { readFileSync, rmSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { pathToFileURL } from 'node:url'
 import { Context } from '@deepseek-ai/cordis'
 import { AgentRegistry, type Agent } from '@deepseek-ai/dsh-agent'
 import { TypertGatewayService } from '@deepseek-ai/dsh-api-gateway'
+import RemoteAccessService from '@deepseek-ai/dsh-api-remote-access'
+import { Peer } from '@deepseek-ai/dsh-client-connection'
 import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
 import { describe, expect, it, vi } from 'vitest'
 import { apply as applyTypertLoader, inject as typertLoaderInject, validateTypertManifest } from '@deepseek-ai/dsh-typert-loader'
@@ -19,9 +20,13 @@ import type { WorktreeConsoleControlPlane } from '../src/console-host/control-pl
 import { createWorktreeConsoleRemoteAdapter } from '../src/client/console-remote/adapter.js'
 import { createWorktreeConsoleAdapterFixture } from './support/worktree-console.js'
 import { currentHostLanguage } from '../src/i18n/host.js'
+import { loadOfficialBrowserClient } from './support/official-client.js'
 
-interface ClientModuleHandoff {
-  factory(require: (specifier: string) => unknown): { apply: (ctx: Context) => void; inject: string[] }
+// Test-only principal kind: no policy is registered, so it must not gain access.
+declare module '@deepseek-ai/dsh-typert-protocol' {
+  interface PrincipalMap {
+    compatibilityTest: { readonly kind: 'compatibilityTest' }
+  }
 }
 
 /**
@@ -35,28 +40,11 @@ const OWNER_PEER = {
   interactions: 'answer' as const,
 }
 
-// 0.2.1-rc.1 gateway `./client` export splits into node (pure ESM, no
-// ModuleLoader handoff) and browser (handoff bundle); the handoff contract
-// under test lives in the browser artifact, so load it by file.
-function gatewayBrowserClientPath(): string {
-  const nodeRequire = createRequire(import.meta.url)
-  return resolve(join(dirname(nodeRequire.resolve('@deepseek-ai/dsh-api-gateway/package.json')), 'lib', 'client.browser.js'))
-}
-
+// The 0.2.1 gateway `./client` export splits into a Node face and a browser
+// ModuleLoader handoff bundle; the handoff contract under test lives in the
+// browser artifact, so `loadOfficialBrowserClient` resolves that face by file.
 async function loadRemoteClientModule(): Promise<{ apply: (ctx: Context) => void; inject: string[] }> {
-  let handoff: ClientModuleHandoff | undefined
-  const previousWindow = (globalThis as { window?: unknown }).window
-  ;(globalThis as { window?: unknown }).window = {
-    __ModuleLoader__: { load: (value: ClientModuleHandoff) => { handoff = value } },
-  }
-  try {
-    const code = readFileSync(gatewayBrowserClientPath(), 'utf8')
-    new Function('window', code)((globalThis as { window?: unknown }).window)
-  } finally {
-    ;(globalThis as { window?: unknown }).window = previousWindow
-  }
-  if (handoff === undefined) throw new Error('api-gateway client did not register a ModuleLoader handoff')
-  return handoff.factory(createRequire(import.meta.url))
+  return loadOfficialBrowserClient('@deepseek-ai/dsh-api-gateway')
 }
 
 const METHODS = [
@@ -175,7 +163,19 @@ describe('manual strict Worktree Console Remote contribution', () => {
     const finalize = WORKTREE_CONSOLE_DESCRIPTORS.find((descriptor) => descriptor.method === 'finalize')!
     const commitMessage = finalize.parameters.find(parameter => parameter.name === 'commitMessage')!
     expect(() => commitMessage.codec.mode === 'strict' && commitMessage.codec.schema.parse('   ')).toThrow()
-    expect(() => commitMessage.codec.mode === 'strict' && commitMessage.codec.schema.parse('x'.repeat(501))).toThrow()
+    expect(() => commitMessage.codec.mode === 'strict' && commitMessage.codec.schema.parse('feat: invalid\0message')).toThrow()
+  })
+
+  it('accepts complete multiline Commit Messages beyond 500 characters for every commit action', () => {
+    const message = `feat: 完整提交说明\n\n${'保留正文与 emoji 😀\n'.repeat(100)}`.trim()
+    for (const method of ['checkpoint', 'finalize', 'finalizePreview']) {
+      const descriptor = WORKTREE_CONSOLE_DESCRIPTORS.find(item => item.method === method)!
+      const codec = descriptor.parameters.find(parameter => parameter.name === 'commitMessage')!.codec
+      if (codec.mode !== 'strict') throw new Error('expected strict codec')
+      expect(codec.schema.parse(`  ${message}\n`)).toBe(message)
+      expect(() => codec.schema.parse(' \n ')).toThrow()
+      expect(() => codec.schema.parse('feat: bad\0message')).toThrow()
+    }
   })
 
   it('roundtrips path-free acceptance blocker and delivery proof through strict schemas', () => {
@@ -394,6 +394,33 @@ describe('manual strict Worktree Console Remote contribution', () => {
     }
   })
 
+  it('denies non-owner topology and agent calls before business dispatch, including unrelated resource grants', async () => {
+    const ctx = new Context()
+    await ctx.plugin(TypertRegistry)
+    const access = new RemoteAccessService(ctx)
+    const control = { sidebarTopology: vi.fn(), current: vi.fn(), discard: vi.fn() } as unknown as WorktreeConsoleControlPlane
+    new WorktreeConsoleService(ctx, control)
+    new TypertGatewayService(ctx)
+    ctx.typert.register(TYPERT)
+    const peer = new Peer(ctx, { principal: { kind: 'compatibilityTest' }, interactions: 'none' })
+    // No plugin sharing policy or global grant is installed. Granting an
+    // unrelated resource must not implicitly authorize this plugin surface.
+    for (const permissive of [false, true]) {
+      const unregister = permissive ? access.registerPolicy('compatibilityTest', { bindings: () => [{ resource: { kind: 'session', id: 'agent-1' }, role: 'editor' }] }) : undefined
+      for (const [method, args] of [
+        ['sidebarTopology', {}],
+        ['current', { agentId: 'agent-1' }],
+      ] as const) {
+        await expect(ctx.typertGateway.invoke({ peer, namespace: 'gitWorktree', method, args }))
+          .rejects.toMatchObject({ code: 'remote-access/denied' })
+      }
+      unregister?.()
+    }
+    expect(control.sidebarTopology).not.toHaveBeenCalled()
+    expect(control.current).not.toHaveBeenCalled()
+    await peer.dispose()
+  })
+
   it('registers the Host manifest and resolves the official agent lookup before dispatch', async () => {
     const ctx = new Context()
     await ctx.plugin(TypertRegistry)
@@ -404,6 +431,7 @@ describe('manual strict Worktree Console Remote contribution', () => {
       send: () => undefined, followup: () => undefined,
     } as unknown as Agent
     agents.register(agent)
+    const peer = new Peer(ctx, { principal: { kind: 'owner' } })
     const fixture = createWorktreeConsoleAdapterFixture()
     const expected = await fixture.adapter.current({ sessionId: 'agent-1' })
     const control = {
@@ -444,6 +472,7 @@ describe('manual strict Worktree Console Remote contribution', () => {
     new TypertGatewayService(host)
     host.typert.register(TYPERT)
 
+    const peer = new Peer(host, { principal: { kind: 'owner' } })
     const call = vi.fn(async (_channel: string, endpoint: string, payload: { args: Record<string, unknown> }) => {
       const [namespace, method] = endpoint.split('/') as [string, string]
       try {

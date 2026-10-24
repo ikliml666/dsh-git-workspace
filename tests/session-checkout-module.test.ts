@@ -1,3 +1,4 @@
+import { longCommitMessage } from './support/commit-message.js'
 import { createHash } from 'node:crypto'
 import { WorktreeCreationFailure } from '../src/creation-failure.js'
 import { afterEach, describe, expect, test } from 'vitest'
@@ -619,14 +620,43 @@ describe('SessionCheckoutModule', () => {
     expect(context.module.runtimeContext('session-1')).toContain('worktree_ready_for_review')
   })
 
-  test('Given a legacy oversized suggested commit message When a review becomes previous Then persistence stays valid and existing affected registries self-repair', async () => {
+  test('Given invalid commit bodies When any commit action is requested Then it rejects before persisting a mutation', async () => {
+    const context = createContext()
+    const target = await context.module.bind('session-1', { kind: 'isolated' })
+    const managedRoot = await context.module.resolveManagedRoot(target.checkout.id)
+    writeFileSync(join(managedRoot, 'tracked.txt'), 'invalid commit candidate\n')
+    const ready = await context.module.markReadyForReview('session-1', {
+      summary: 'invalid message regression', validationStatus: 'passed', tests: [], suggestedCommitMessage: 'test: valid suggestion',
+    })
+    if (ready.delivery?.state !== 'ready_for_review' || !ready.checkpointGeneration) throw new Error('expected ready')
+    const registryPath = join(context.configDir, 'managed-checkouts.json')
+    const before = readFileSync(registryPath, 'utf8')
+    for (const action of ['checkpoint', 'finish', 'finalize_preview'] as const) {
+      for (const commitMessage of [' \n ', 'feat: bad\0message']) {
+        const result = await context.module.operate({
+          action, sessionId: 'session-1', expectedRevision: ready.revision,
+          expectedReviewId: ready.delivery.review.reviewId,
+          expectedGeneration: ready.checkpointGeneration, requestId: `checkpoint:${ready.checkpointGeneration}`,
+          commitMessage,
+        })
+        expect(result).toMatchObject({ status: 'error', code: 'invalid_input' })
+        expect(readFileSync(registryPath, 'utf8')).toBe(before)
+      }
+    }
+    await expect(context.module.markReadyForReview('session-1', {
+      summary: 'invalid suggestion', validationStatus: 'passed', tests: [], suggestedCommitMessage: 'feat: bad\0message',
+    })).rejects.toMatchObject({ code: 'invalid_input' })
+    expect(readFileSync(registryPath, 'utf8')).toBe(before)
+  })
+
+  test('Given a long suggested commit message When a review becomes previous Then persistence and restart preserve the complete Unicode message', async () => {
     const context = createContext()
     const target = await context.module.bind('session-1', { kind: 'isolated' })
     const managedRoot = await context.module.resolveManagedRoot(target.checkout.id)
     writeFileSync(join(managedRoot, 'tracked.txt'), 'oversized review\n')
     const oversizedMessage = `${'x'.repeat(499)}😀${'y'.repeat(438)}`
     const ready = await context.module.markReadyForReview('session-1', {
-      summary: 'oversized commit message', validationStatus: 'passed', tests: [], suggestedCommitMessage: 'test: oversized legacy',
+      summary: 'oversized commit message', validationStatus: 'passed', tests: [], suggestedCommitMessage: oversizedMessage,
     })
     if (ready.delivery?.state !== 'ready_for_review') throw new Error('expected ready review')
 
@@ -634,21 +664,15 @@ describe('SessionCheckoutModule', () => {
 
     const registryPath = join(context.configDir, 'managed-checkouts.json')
     const persisted = JSON.parse(readFileSync(registryPath, 'utf8')) as any
-    // With the entry-length cap in place, legacy oversized values can only come
-    // from old on-disk registries: inject them directly and verify self-repair.
-    persisted.managedCheckouts[target.checkout.id].previousReview.suggestedCommitMessage = oversizedMessage
-    writeFileSync(registryPath, JSON.stringify(persisted, null, 2))
-
-    const repaired = new AtomicJsonCheckoutRegistry(registryPath).read()
-    expect(repaired.managedCheckouts[target.checkout.id].previousReview?.suggestedCommitMessage).toHaveLength(499)
+    expect(persisted.managedCheckouts[target.checkout.id].previousReview.suggestedCommitMessage).toBe(oversizedMessage)
     expect(() => context.restart()).not.toThrow()
 
     persisted.managedCheckouts[target.checkout.id].previousReview.suggestedCommitMessage = oversizedMessage
     writeFileSync(registryPath, JSON.stringify(persisted, null, 2))
-    const repairedAgain = new AtomicJsonCheckoutRegistry(registryPath).read()
-    expect(repairedAgain.managedCheckouts[target.checkout.id].previousReview?.suggestedCommitMessage).toHaveLength(499)
-    const repairedOnDisk = JSON.parse(readFileSync(registryPath, 'utf8')) as any
-    expect(repairedOnDisk.managedCheckouts[target.checkout.id].previousReview.suggestedCommitMessage).toHaveLength(499)
+    const reloaded = new AtomicJsonCheckoutRegistry(registryPath).read()
+    expect(reloaded.managedCheckouts[target.checkout.id].previousReview?.suggestedCommitMessage).toBe(oversizedMessage)
+    const onDisk = JSON.parse(readFileSync(registryPath, 'utf8')) as any
+    expect(onDisk.managedCheckouts[target.checkout.id].previousReview.suggestedCommitMessage).toBe(oversizedMessage)
   })
 
   test('Given oversized review fields When marking ready for review Then the module rejects with invalid_input', async () => {
@@ -661,9 +685,6 @@ describe('SessionCheckoutModule', () => {
       ...base, summary: 'x'.repeat(241), suggestedCommitMessage: 'test: ok',
     })).rejects.toMatchObject({ code: 'invalid_input' })
     await expect(context.module.markReadyForReview('session-1', {
-      ...base, summary: 'ok', suggestedCommitMessage: 'x'.repeat(501),
-    })).rejects.toMatchObject({ code: 'invalid_input' })
-    await expect(context.module.markReadyForReview('session-1', {
       ...base, summary: 'ok', suggestedCommitMessage: 'test: ok', validationSummary: 'x'.repeat(501),
     })).rejects.toMatchObject({ code: 'invalid_input' })
     await expect(context.module.markReadyForReview('session-1', {
@@ -674,23 +695,27 @@ describe('SessionCheckoutModule', () => {
     })).rejects.toMatchObject({ code: 'invalid_input' })
   })
 
-  test('Given an oversized finish commit message When operating finish Then it is rejected as invalid_input without touching Local', async () => {
+  test('Given a long finish commit message When operating finish Then the complete body is committed on the session branch only', async () => {
     const context = createContext()
     const target = await context.module.bind('session-1', { kind: 'isolated' })
     const managedRoot = await context.module.resolveManagedRoot(target.checkout.id)
-    writeFileSync(join(managedRoot, 'tracked.txt'), 'finish cap\n')
+    writeFileSync(join(managedRoot, 'tracked.txt'), 'finish long body\n')
     const ready = await context.module.markReadyForReview('session-1', {
-      summary: 'finish cap', validationStatus: 'passed', tests: [], suggestedCommitMessage: 'test: finish cap',
+      summary: 'finish long body', validationStatus: 'passed', tests: [], suggestedCommitMessage: 'test: finish long body',
     })
     if (ready.delivery?.state !== 'ready_for_review') throw new Error('expected ready review')
 
+    // 提交信息没有 500 字符上限（上游 eb1f49f）：多行 / Unicode 正文原样写进提交。
+    const longFinishMessage = `feat: keep the whole body\n\n${'x'.repeat(499)}😀${'y'.repeat(438)}`
     const localHead = git(context.projectRoot, 'rev-parse', 'HEAD')
     const outcome = await context.module.operate({
       action: 'finish', sessionId: 'session-1', expectedRevision: ready.revision,
-      expectedReviewId: ready.delivery.review.reviewId, commitMessage: 'x'.repeat(501), retention: 'cleanup',
+      expectedReviewId: ready.delivery.review.reviewId, commitMessage: longFinishMessage, retention: 'retain_manual',
     })
-    expect(outcome).toMatchObject({ status: 'error', code: 'invalid_input' })
+    expect(outcome).toMatchObject({ status: 'finished' })
+    // 交付只落在会话分支：Local 的 HEAD 不动，Worktree 的 HEAD 是交付提交。
     expect(git(context.projectRoot, 'rev-parse', 'HEAD')).toBe(localHead)
+    expect(git(managedRoot, 'show', '-s', '--format=%B', 'HEAD')).toBe(longFinishMessage)
   })
 
   test('Given an exact Ready review When checkpoint is confirmed Then it saves one Worktree-only stage, replays the same request idempotently, and final delivery remains one cumulative Local commit', async () => {
@@ -716,7 +741,7 @@ describe('SessionCheckoutModule', () => {
       expectedReviewId: ready.delivery.review.reviewId,
       expectedGeneration: ready.checkpointGeneration,
       requestId: `checkpoint:${ready.checkpointGeneration}`,
-      commitMessage: 'feat(checkpoint): save stage one',
+      commitMessage: longCommitMessage,
     }
 
     const saved = await context.module.operate(request)
@@ -732,10 +757,14 @@ describe('SessionCheckoutModule', () => {
     expect(git(context.projectRoot, 'status', '--porcelain=v1', '-uall')).toBe(localStatusBefore)
     expect(git(managedRoot, 'status', '--porcelain=v1', '-uall')).toBe('')
     expect(git(managedRoot, 'rev-parse', 'HEAD')).not.toBe(localHeadBefore)
+    expect(git(managedRoot, 'show', '-s', '--format=%B', 'HEAD')).toBe(longCommitMessage)
+    const registry = new AtomicJsonCheckoutRegistry(join(context.configDir, 'managed-checkouts.json')).read()
+    expect(registry.managedCheckouts[target.checkout.id]?.checkpoints?.[0]?.commitMessage).toBe(longCommitMessage)
+    expect(() => context.restart()).not.toThrow()
     expect(context.module.runtimeContext('session-1')).toContain('Saved Worktree checkpoints: 1')
     expect(context.module.runtimeContext('session-1')).toContain('remain unpublished to Local')
 
-    const replayed = await context.module.operate(request)
+    const replayed = await context.restart().operate(request)
     expect(replayed).toMatchObject({ status: 'checkpointed', checkpoint: { checkpointId: saved.checkpoint.checkpointId, sequence: 1 } })
     expect((await context.module.inspect('session-1')).checkpoints).toHaveLength(1)
 
@@ -747,7 +776,7 @@ describe('SessionCheckoutModule', () => {
     const finished = await context.module.operate({
       action: 'finish', sessionId: 'session-1', expectedRevision: finalReady.revision,
       expectedReviewId: finalReady.delivery.review.reviewId,
-      commitMessage: 'feat: deliver cumulative task', retention: 'retain_manual',
+      commitMessage: longCommitMessage, retention: 'retain_manual',
     })
 
     expect(finished).toMatchObject({ status: 'finished', cleanup: 'retained' })
@@ -758,6 +787,45 @@ describe('SessionCheckoutModule', () => {
     expect(finished.changedFiles.slice().sort()).toEqual(['stage-one.txt', 'stage-two.txt', 'tracked.txt'])
     expect(git(context.projectRoot, 'diff', '--cached', '--name-only')).toBe('local-staged.txt')
     expect(readFileSync(join(context.projectRoot, 'local-untracked.txt'), 'utf8')).toBe('keep untracked\n')
+  })
+
+  test('Given a long checkpoint message journaled before a crash When Host restarts Then recovery and replay retain the exact body', async () => {
+    const engine = createSessionCheckoutApplyEngine()
+    const checkpoint = engine.checkpoint.bind(engine)
+    engine.checkpoint = input => checkpoint({
+      ...input,
+      beforeCommit: async prepared => {
+        await input.beforeCommit?.(prepared)
+        throw new Error('simulate interruption after checkpoint journal persistence')
+      },
+    })
+    const context = createContext({ applyEngine: engine })
+    const target = await context.module.bind('session-1', { kind: 'isolated' })
+    const managedRoot = await context.module.resolveManagedRoot(target.checkout.id)
+    writeFileSync(join(managedRoot, 'tracked.txt'), 'recover long checkpoint\n')
+    const ready = await context.module.markReadyForReview('session-1', {
+      summary: 'checkpoint recovery', validationStatus: 'passed', tests: [], suggestedCommitMessage: longCommitMessage,
+    })
+    if (ready.delivery?.state !== 'ready_for_review' || !ready.checkpointGeneration) throw new Error('expected ready')
+    const request = {
+      action: 'checkpoint' as const, sessionId: 'session-1', expectedRevision: ready.revision,
+      expectedReviewId: ready.delivery.review.reviewId, expectedGeneration: ready.checkpointGeneration,
+      requestId: `checkpoint:${ready.checkpointGeneration}`, commitMessage: longCommitMessage,
+    }
+    expect(await context.module.operate(request)).toMatchObject({ status: 'error', code: 'git_error' })
+    const registryPath = join(context.configDir, 'managed-checkouts.json')
+    const journaled = new AtomicJsonCheckoutRegistry(registryPath).read().managedCheckouts[target.checkout.id]
+    expect(journaled?.journal).toMatchObject({ operation: 'checkpoint', checkpointMessage: longCommitMessage })
+    if (!journaled?.journal?.commitOid || !journaled.journal.parentOid) throw new Error('expected prepared checkpoint')
+    // Model a process stop after HEAD CAS, before completing the journal/index update.
+    git(managedRoot, 'update-ref', '--no-deref', 'HEAD', journaled.journal.commitOid, journaled.journal.parentOid)
+    const restarted = context.restart()
+    await restarted.reconcile()
+    const recovered = new AtomicJsonCheckoutRegistry(registryPath).read().managedCheckouts[target.checkout.id]
+    expect(recovered?.journal).toBeNull()
+    expect(recovered?.checkpoints?.[0]?.commitMessage).toBe(longCommitMessage)
+    expect(git(managedRoot, 'show', '-s', '--format=%B', 'HEAD')).toBe(longCommitMessage)
+    expect(await restarted.operate(request)).toMatchObject({ status: 'checkpointed', checkpoint: { sequence: 1 } })
   })
 
   test('Given an active Local Preview When checkpoint is confirmed Then Host rolls back the receipt first and saves the reviewed Worktree stage without leaving Preview bytes in Local', async () => {
@@ -1742,7 +1810,7 @@ describe('SessionCheckoutModule', () => {
       action: 'finalize_preview',
       sessionId: 'session-1',
       expectedRevision: preview.target.revision,
-      commitMessage: 'test: accepted preview',
+      commitMessage: longCommitMessage,
       retention: 'retain_manual',
     })
 
@@ -1756,7 +1824,7 @@ describe('SessionCheckoutModule', () => {
         },
       },
     })
-    expect(git(context.projectRoot, 'show', '-s', '--format=%s', 'HEAD')).toBe('test: accepted preview')
+    expect(git(context.projectRoot, 'show', '-s', '--format=%B', 'HEAD')).toBe(longCommitMessage)
     expect(git(context.projectRoot, 'show', '--format=', '--name-only', 'HEAD')).toBe('tracked.txt')
     expect(readFileSync(join(context.projectRoot, 'review-note.txt'), 'utf8')).toBe('keep local review work\n')
   })

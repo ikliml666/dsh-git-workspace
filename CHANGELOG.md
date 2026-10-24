@@ -2,7 +2,44 @@
 
 本项目的显著变更记录在此文件中。版本号遵循 Semantic Versioning；在 `0.x` 阶段，minor 版本可能包含需要迁移的公开能力调整。
 
-## [Unreleased]
+## [0.11.0] - 2026-10-18
+
+`0.11.0` 将 DSH 基线从 `0.2.0-rc.2` 精确切换到 `0.2.1-rc.2`，并修复新版 Cordis/Loader 下的 Provider 生命周期；同时取消提交信息长度限制、精简验收冲突展示。本版完整包含 tag `v0.10.1` 的全部变更；`v0.10.1` 有 Git tag 与 GitHub Release 但从未发布到 npm，npm 用户应直接安装 `0.11.0`。
+
+### Changed
+
+- DSH peers/devDependencies 精确锁定 `0.2.1-rc.2`；Cordis 4.0.5、cordis-plugin-loader 1.0.6、cordis-plugin-include 1.0.10、schemastery 3.18.5 及锁文件同步。Workspace 版本/SHA 门禁与 Fork mandatory seam 对齐新源码，保留 allowMigration、agentPreset 与官方草稿初始化；新派生不复用于 0.2.0 Host，历史 alpha/next 别名保持。
+- 接入官方 remoteAccess Client 依赖，保持 directoryPicker 惰性防环；Remote 测试使用官方 owner Peer 和真实 browser 条件入口，非 owner 默认拒绝，不添加分享授权策略。
+- 放行已核对的只读 session-id 菜单，Fork/未知动作继续阻断；预会话创建保留已记录的 agentPreset，未记录时使用 Host 默认，保留草稿/附件回归。
+- `minimumReleaseAgeExclude` 覆盖 `0.2.1-rc.2` 精确锁定依赖与 Cordis/schemastery 新版，延续既有精确锁定豁免惯例。
+
+### Fixed
+
+- 修复 Cordis 4.0.5 / Loader 1.0.6 下 Provider 生命周期：显式释放 marker，不依赖并发卸载的顺序；等待禁用 fiber 真正结束，以公开 `entry.init()` 替换已销毁的官方 fiber；按身份撤回失败/禁用的 replacement fiber 并通知 Web registry。保留非阻塞启动、超时/在途保护、不持久化配置和根卸载不复活；补充同 fiber 重启及多轮启停回归。
+- 取消提交信息的 500 字符限制并保留完整正文：贯通前端、RPC、Host 与 checkpoint 传递，移除历史 Review 截断与 registry 正文长度上限，统一非空与 NUL 校验，保持身份与幂等门禁；补充长正文、Unicode、重启恢复回归并更新文档。
+- 验收冲突展示精简：摘要与操作统一为顶部布局，冲突提示独立紧凑展示；冲突文件列表移入验收详情并复用列表展开与长路径换行；突出解决冲突操作，冲突时隐藏不可用的预览按钮。
+
+### Compatibility
+
+- 基线适配通过新鲜隔离源码验证（typecheck/build/sidebar/发布门禁通过；43 个测试文件 607 passed、1 skipped，focused lifecycle 24 passed）；仅为源码兼容验证，未验收真实浏览器、AI 对话、桌面或 Windows 全流程。详见 [0.2.1-rc.2 验证报告](docs/compatibility/0.2.1-rc.2.md)。
+- 无 Worktree registry、Review 或 Recovery 数据迁移；`0.1.x` Host 继续使用 `0.9.x` 插件线，其兼容记录不变。
+
+## [0.10.1] - 2026-10-07
+
+`0.10.1` 恢复托管会话被过度屏蔽的官方侧边栏操作，收敛行内状态展示，并让验收详情的长列表默认折叠；是无数据迁移的补丁版。
+
+### Added
+
+- 验收详情的修改文件与验证记录超过 5 项时默认只显示前 5 项，提供各自独立的展开全部/收起按钮；重新打开详情或切换验收（checkout/review/revision）时重置折叠状态，保留总数与验证状态提示；补齐中英文文案、`aria-expanded`/`aria-controls` 无障碍属性及交互样式。
+
+### Fixed
+
+- 恢复托管会话行的官方重命名、归档及归档恢复入口：`pin`、`rename`、`archive` 视为不创建 Session、不改变 Workspace 归属的安全官方操作，alpha、next、modern 三版 Client 派生同步放行其原生菜单与回调，并在 `uiWorkspace` 实例上保存 guard，避免 Cordis Context 派生丢失引用；Fork 等可能破坏托管归属的操作继续被阻止，安全操作也不再依赖拓扑加载完成。新增三版真实回调回归测试。
+- 托管会话处于 working 状态时仅隐藏行内 Worktree 文字标签，保留 Worktree 图标、官方运行指示器、完整悬停状态（modern 在官方 HoverCard，旧派生在分支原生 tooltip）及其他状态标签；新增三版行组件渲染回归，不装饰普通会话。
+
+### Documentation
+
+- README 与使用指南的安装/排错示例更新到 `0.10.0`，环境要求按 Host 版本分线（`0.10.0` 面向 DSH `0.2.0-rc.2`；`0.1.x` Host 继续使用 `0.9.x` 插件线），并说明刚发布的版本可能被 `minimumReleaseAge` 供应链防护静默回退到旧版，需显式指定精确版本安装。
 
 ### Fixed
 
@@ -588,6 +625,9 @@
 
 - 发布初版生产级 Worktree 管理、基础 apply/finish/discard 生命周期和安全清理。
 
+[0.11.0]: https://github.com/wloops/dsh-git-worktree/compare/v0.10.1...v0.11.0
+[0.10.1]: https://github.com/wloops/dsh-git-worktree/compare/v0.10.0...v0.10.1
+[0.10.0]: https://github.com/wloops/dsh-git-worktree/compare/v0.9.3...v0.10.0
 [0.9.3]: https://github.com/wloops/dsh-git-worktree/compare/v0.9.2...v0.9.3
 [0.9.2]: https://github.com/wloops/dsh-git-worktree/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/wloops/dsh-git-worktree/compare/v0.9.0...v0.9.1
