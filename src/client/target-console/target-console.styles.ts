@@ -191,6 +191,23 @@ export const TARGET_CONSOLE_STYLES = String.raw`
 .dsh-wtc-graph-meta > .dsh-wtc-graph-ref { flex:0 1 auto; max-width:12em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .dsh-wtc-graph-ref { padding:1px 6px; border-radius:999px; background:color-mix(in srgb, currentColor 9%, transparent); font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:10px; }
 .dsh-wtc-graph-ref[data-gitgraph-ref-current] { background:color-mix(in srgb, #2f6fd0 16%, transparent); color:#2f6fd0; font-weight:650; }
+.dsh-wtc-graph-ref[data-gitgraph-ref-tag] { background:color-mix(in srgb, #3aa981 15%, transparent); color:#2c8a68; font-weight:620; }
+.dsh-wtc-graph-ref[data-gitgraph-ref-tag]::before { content:"⌗"; margin-right:2px; opacity:.75; }
 .dsh-wtc-graph-empty { padding:26px 14px; color:color-mix(in srgb, currentColor 55%, transparent); text-align:center; font-family:system-ui, sans-serif; }
+.dsh-wtc-tag-modal { width:min(620px, calc(100vw - 32px)); max-width:calc(100vw - 32px); }
+.dsh-wtc-tag-manager { display:grid; gap:10px; }
+.dsh-wtc-tag-create { display:grid; grid-template-columns:1fr; gap:8px; }
+.dsh-wtc-tag-push-toggle { display:flex; align-items:center; gap:6px; font-size:12px; color:color-mix(in srgb, currentColor 72%, transparent); }
+.dsh-wtc-tag-notice { color:#3aa981; font-size:12px; }
+.dsh-wtc-tag-list { display:grid; gap:2px; max-height:min(48vh, 420px); overflow:auto; }
+.dsh-wtc-tag-row { display:flex; align-items:center; gap:8px; min-width:0; padding:6px 8px; border-radius:6px; font-size:12px; }
+.dsh-wtc-tag-row:hover { background:color-mix(in srgb, currentColor 5%, transparent); }
+.dsh-wtc-tag-name { flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-weight:600; }
+.dsh-wtc-tag-row[data-tag-pushed] .dsh-wtc-tag-name { color:color-mix(in srgb, #2f6fd0 82%, currentColor); }
+.dsh-wtc-tag-kind { flex:0 0 auto; padding:1px 6px; border-radius:999px; background:color-mix(in srgb, currentColor 9%, transparent); font-size:10px; }
+.dsh-wtc-tag-message { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:color-mix(in srgb, currentColor 55%, transparent); font-size:11px; }
+.dsh-wtc-tag-actions { flex:0 0 auto; display:flex; align-items:center; gap:4px; margin-left:auto; }
+.dsh-wtc-tag-confirm { display:grid; gap:8px; padding:10px; border:1px solid color-mix(in srgb, currentColor 18%, transparent); border-radius:8px; }
+.dsh-wtc-button-small { min-height:24px; padding:2px 8px; font-size:11px; }
 .dsh-wtc-graph-footer { display:flex; justify-content:center; gap:8px; }
 `

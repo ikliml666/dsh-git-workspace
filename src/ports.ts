@@ -61,8 +61,19 @@ export interface BranchOverviewEntry {
   upstream: string | null
 }
 
-/** One parsed `git log` row for the commit graph (lanes are computed client-side). */
-export interface GraphLogCommit {
+/** One local tag in the tag manager (annotated tags keep their message). */
+export interface TagOverviewEntry {
+  name: string
+  oid: string
+  /** Commit the tag points at, when it resolves (annotated tags peel to it). */
+  commitOid: string | null
+  annotated: boolean
+  message: string | null
+  /** True when `origin` already has a tag of the same name. */
+  pushed: boolean
+}
+
+/** One parsed `git log` row for the commit graph (lanes are computed client-side). */export interface GraphLogCommit {
   oid: string
   parents: string[]
   author: string
@@ -159,6 +170,23 @@ export interface SessionCheckoutGitPort {
   createLocalBranch?(root: string, name: string): Promise<void>
   /** Local adaptation: switch the local checkout to an existing local branch. */
   switchLocalBranch?(root: string, branch: string): Promise<void>
+  /**
+   * Local adaptation: local tags with their commit, annotation state and
+   * whether `origin` already carries the same name. One spawn for tags, one
+   * best-effort spawn for the remote check; null when git fails.
+   */
+  listTags?(root: string): Promise<TagOverviewEntry[] | null>
+  /** Local adaptation: create a lightweight or annotated tag after `git check-ref-format`. */
+  createTag?(root: string, name: string, options?: { message?: string; target?: string }): Promise<void>
+  /** Local adaptation: delete a local tag (`git tag -d`); never touches the remote. */
+  deleteLocalTag?(root: string, name: string): Promise<void>
+  /**
+   * Local adaptation: push a single tag to `origin` without force. Returns the
+   * human-readable failure instead of throwing so callers can degrade softly.
+   */
+  pushTag?(root: string, name: string): Promise<{ ok: boolean; message?: string }>
+  /** Local adaptation: delete a tag on `origin` (never forced). */
+  deleteRemoteTag?(root: string, name: string): Promise<{ ok: boolean; message?: string }>
   /**
    * Local adaptation (codex parity): capture the checkout's uncommitted tracked
    * changes as a binary patch against HEAD, or null when the worktree is clean.

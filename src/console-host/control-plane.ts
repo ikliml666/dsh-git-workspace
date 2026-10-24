@@ -15,10 +15,15 @@ import type {
   WorktreeConsoleDiscardRequest,
   WorktreeConsoleFinalizePreviewRequest,
   WorktreeConsoleFinalizeRequest,
+  WorktreeConsoleGitCreateTagRequest,
+  WorktreeConsoleGitDeleteTagRequest,
   WorktreeConsoleGitGraphResponse,
   WorktreeConsoleGitMutationResponse,
   WorktreeConsoleGitOverviewResponse,
   WorktreeConsoleGitPruneResponse,
+  WorktreeConsoleGitPushTagRequest,
+  WorktreeConsoleGitTagListResponse,
+  WorktreeConsoleGitTagMutationResponse,
   WorktreeConsoleInspectResponse,
   WorktreeConsoleListRequest,
   WorktreeConsoleListResponse,
@@ -102,6 +107,10 @@ export interface WorktreeConsoleControlPlane {
   gitCreateBranch(sessionId: string, name: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>
   gitSwitchBranch(sessionId: string, branch: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>
   gitPruneMergedBranches(sessionId: string, dryRun: boolean): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitPruneResponse>>
+  gitListTags(sessionId: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitTagListResponse>>
+  gitCreateTag(request: WorktreeConsoleGitCreateTagRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitTagMutationResponse>>
+  gitDeleteTag(request: WorktreeConsoleGitDeleteTagRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitTagMutationResponse>>
+  gitPushTag(request: WorktreeConsoleGitPushTagRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitTagMutationResponse>>
   listAbandoned(sessionId: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleAbandonedListResponse>>
   restoreAbandoned(request: WorktreeConsoleRestoreAbandonedRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleRestoreAbandonedResponse>>
 }
@@ -674,6 +683,46 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
 
     gitPruneMergedBranches: (sessionId, dryRun) => outcome(async () => {
       return await options.module.pruneMergedBranchesForSession(sessionId, { dryRun })
+    }),
+
+    gitListTags: sessionId => outcome(async () => {
+      const { root } = await projectRootFor(sessionId)
+      if (options.git.listTags === undefined) throw domainError('git_error', hostMessage('gitOperationFailedGit', { p0: 'for-each-ref', p1: '' }))
+      const tags = await options.git.listTags(root)
+      if (tags === null) throw domainError('git_error', hostMessage('gitOperationFailedGit', { p0: 'for-each-ref', p1: '' }))
+      return { root, tags }
+    }),
+
+    gitCreateTag: request => outcome(async () => {
+      const { root } = await projectRootFor(request.sessionId)
+      if (options.git.createTag === undefined) throw domainError('git_error', hostMessage('gitOperationFailedGit', { p0: 'tag', p1: request.name }))
+      await options.git.createTag(root, request.name, { message: request.message, target: request.target })
+      if (request.push !== true) return { tag: request.name }
+      if (options.git.pushTag === undefined) return { tag: request.name, pushed: false, pushMessage: hostMessage('gitOperationFailedGit', { p0: 'push', p1: request.name }) }
+      const pushed = await options.git.pushTag(root, request.name)
+      return pushed.ok
+        ? { tag: request.name, pushed: true }
+        : { tag: request.name, pushed: false, pushMessage: pushed.message ?? hostMessage('gitOperationFailedGit', { p0: 'push', p1: request.name }) }
+    }),
+
+    gitDeleteTag: request => outcome(async () => {
+      const { root } = await projectRootFor(request.sessionId)
+      if (options.git.deleteLocalTag === undefined) throw domainError('git_error', hostMessage('gitOperationFailedGit', { p0: 'tag -d', p1: request.name }))
+      await options.git.deleteLocalTag(root, request.name)
+      if (request.remote !== true) return { tag: request.name }
+      if (options.git.deleteRemoteTag === undefined) return { tag: request.name, pushed: false, pushMessage: hostMessage('gitOperationFailedGit', { p0: 'push', p1: request.name }) }
+      const deleted = await options.git.deleteRemoteTag(root, request.name)
+      return deleted.ok
+        ? { tag: request.name, pushed: true }
+        : { tag: request.name, pushed: false, pushMessage: deleted.message ?? hostMessage('gitOperationFailedGit', { p0: 'push', p1: request.name }) }
+    }),
+
+    gitPushTag: request => outcome(async () => {
+      const { root } = await projectRootFor(request.sessionId)
+      if (options.git.pushTag === undefined) throw domainError('git_error', hostMessage('gitOperationFailedGit', { p0: 'push', p1: request.name }))
+      const pushed = await options.git.pushTag(root, request.name)
+      if (!pushed.ok) throw domainError('git_error', pushed.message ?? hostMessage('gitOperationFailedGit', { p0: 'push', p1: request.name }))
+      return { tag: request.name, pushed: true }
     }),
 
     listAbandoned: sessionId => outcome(async () => {

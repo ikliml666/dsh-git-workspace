@@ -15,6 +15,11 @@ import {
   gitMutationResponseSchema,
   gitOverviewResponseSchema,
   gitPruneResponseSchema,
+  gitTagListResponseSchema,
+  gitTagMutationResponseSchema,
+  tagMessageSchema,
+  tagNameSchema,
+  tagTargetSchema,
   abandonedListResponseSchema,
   restoreAbandonedResponseSchema,
   requestIdSchema,
@@ -217,6 +222,20 @@ export const WORKTREE_CONSOLE_DESCRIPTORS: readonly InvocationDescriptor[] = Obj
   descriptor('gitPruneMergedBranches', [
     json('dryRun', booleanSchema, 'boolean'),
   ], outcomeSchema(gitPruneResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleGitPruneResponse>'),
+  descriptor('gitListTags', [], outcomeSchema(gitTagListResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleGitTagListResponse>'),
+  descriptor('gitCreateTag', [
+    json('name', tagNameSchema, 'string'),
+    json('message', tagMessageSchema, 'string | undefined', true),
+    json('target', tagTargetSchema, 'string | undefined', true),
+    json('push', optionalBooleanSchema, 'boolean | undefined', true),
+  ], outcomeSchema(gitTagMutationResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleGitTagMutationResponse>'),
+  descriptor('gitDeleteTag', [
+    json('name', tagNameSchema, 'string'),
+    json('remote', optionalBooleanSchema, 'boolean | undefined', true),
+  ], outcomeSchema(gitTagMutationResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleGitTagMutationResponse>'),
+  descriptor('gitPushTag', [
+    json('name', tagNameSchema, 'string'),
+  ], outcomeSchema(gitTagMutationResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleGitTagMutationResponse>'),
   descriptor('listAbandoned', [], outcomeSchema(abandonedListResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleAbandonedListResponse>'),
   descriptor('restoreAbandoned', [
     json('checkoutId', checkoutIdSchema, `${PACKAGE}/console-contract#WorktreeConsoleRestoreAbandonedRequest.checkoutId`),

@@ -13,9 +13,15 @@ import type {
   WorktreeConsoleFinalizePreviewRequest,
   WorktreeConsoleFinalizeRequest,
   WorktreeConsoleGitBranch,
+  WorktreeConsoleGitCreateTagRequest,
+  WorktreeConsoleGitDeleteTagRequest,
   WorktreeConsoleGitGraphResponse,
   WorktreeConsoleGitMutationResponse,
   WorktreeConsoleGitOverviewResponse,
+  WorktreeConsoleGitPushTagRequest,
+  WorktreeConsoleGitTag,
+  WorktreeConsoleGitTagListResponse,
+  WorktreeConsoleGitTagMutationResponse,
   WorktreeConsoleInspectRequest,
   WorktreeConsoleInspectResponse,
   WorktreeConsoleListRequest,
@@ -158,6 +164,9 @@ export function createWorktreeConsoleAdapterFixture(stateful = false): WorktreeC
       commitOid: 'c'.repeat(40),
     }
   }
+
+  // Mutable tag state: the tag UI reads it back after every mutation.
+  const tags: WorktreeConsoleGitTag[] = []
 
   const adapter: WorktreeConsoleAdapter = {
     async sidebarTopology() {
@@ -435,6 +444,42 @@ export function createWorktreeConsoleAdapterFixture(stateful = false): WorktreeC
     async restoreAbandoned(request: WorktreeConsoleRestoreAbandonedRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleRestoreAbandonedResponse>> {
       record('restoreAbandoned', request)
       return outcome({ checkoutId: request.checkoutId, branch: `worktree-restore-${request.checkoutId.slice(0, 8)}` })
+    },
+    async gitListTags(sessionId: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitTagListResponse>> {
+      record('gitListTags', sessionId)
+      return outcome({
+        root: target.sourceRoot ?? '/fixture/project',
+        tags: tags.map(tag => ({ ...tag })),
+      })
+    },
+    async gitCreateTag(request: WorktreeConsoleGitCreateTagRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitTagMutationResponse>> {
+      record('gitCreateTag', request)
+      if (tags.some(tag => tag.name === request.name)) {
+        return { ok: false, error: { code: 'git_operation_failed', message: `tag '${request.name}' already exists` } }
+      }
+      tags.push({
+        name: request.name,
+        oid: 'c'.repeat(40),
+        commitOid: target.currentOid,
+        annotated: (request.message ?? '').trim() !== '',
+        message: (request.message ?? '').trim() === '' ? null : request.message!.trim(),
+        pushed: request.push === true,
+      })
+      return outcome({ tag: request.name, ...(request.push === true ? { pushed: true } : {}) })
+    },
+    async gitDeleteTag(request: WorktreeConsoleGitDeleteTagRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitTagMutationResponse>> {
+      record('gitDeleteTag', request)
+      const index = tags.findIndex(tag => tag.name === request.name)
+      if (index === -1) return { ok: false, error: { code: 'git_operation_failed', message: `tag '${request.name}' not found` } }
+      tags.splice(index, 1)
+      return outcome({ tag: request.name, ...(request.remote === true ? { pushed: true } : {}) })
+    },
+    async gitPushTag(request: WorktreeConsoleGitPushTagRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitTagMutationResponse>> {
+      record('gitPushTag', request)
+      const tag = tags.find(entry => entry.name === request.name)
+      if (tag === undefined) return { ok: false, error: { code: 'git_operation_failed', message: `tag '${request.name}' not found` } }
+      tag.pushed = true
+      return outcome({ tag: request.name, pushed: true })
     },
   }
 

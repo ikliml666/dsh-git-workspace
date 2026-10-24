@@ -18,6 +18,8 @@ import type {
   WorktreeConsoleGitMutationResponse,
   WorktreeConsoleGitOverviewResponse,
   WorktreeConsoleGitPruneResponse,
+  WorktreeConsoleGitTagListResponse,
+  WorktreeConsoleGitTagMutationResponse,
   WorktreeApplyConflictContinuation,
   WorktreeClientBootReport,
   WorktreeSidebarTopologyResponse,
@@ -64,6 +66,10 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
     'gitWorktree/gitCreateBranch': (agentId: string, name: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>>
     'gitWorktree/gitSwitchBranch': (agentId: string, branch: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>>
     'gitWorktree/gitPruneMergedBranches': (agentId: string, dryRun: boolean, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleGitPruneResponse>>>
+    'gitWorktree/gitListTags': (agentId: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleGitTagListResponse>>>
+    'gitWorktree/gitCreateTag': (agentId: string, name: string, message?: string, target?: string, push?: boolean, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleGitTagMutationResponse>>>
+    'gitWorktree/gitDeleteTag': (agentId: string, name: string, remote?: boolean, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleGitTagMutationResponse>>>
+    'gitWorktree/gitPushTag': (agentId: string, name: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleGitTagMutationResponse>>>
     'gitWorktree/listAbandoned': (agentId: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleAbandonedListResponse>>>
     'gitWorktree/restoreAbandoned': (agentId: string, checkoutId: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleRestoreAbandonedResponse>>>
   }

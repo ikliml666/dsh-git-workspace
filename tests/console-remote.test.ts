@@ -80,6 +80,10 @@ const METHODS = [
   'gitCreateBranch',
   'gitSwitchBranch',
   'gitPruneMergedBranches',
+  'gitListTags',
+  'gitCreateTag',
+  'gitDeleteTag',
+  'gitPushTag',
   'listAbandoned',
   'restoreAbandoned',
 ]

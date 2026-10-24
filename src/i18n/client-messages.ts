@@ -1035,6 +1035,90 @@ export const clientMessages = {
     "zh": "正在检查可清理的分支…",
     "en": "Checking branches to prune…"
   },
+  "tag.manager.title": {
+    "zh": "管理标签",
+    "en": "Manage tags"
+  },
+  "tag.create.placeholder": {
+    "zh": "新标签名（如 v1.2.0）",
+    "en": "New tag name (e.g. v1.2.0)"
+  },
+  "tag.message.placeholder": {
+    "zh": "标签说明（留空则为轻量标签）",
+    "en": "Tag message (empty for a lightweight tag)"
+  },
+  "tag.push.on.create": {
+    "zh": "创建后推送到 origin",
+    "en": "Push to origin after creating"
+  },
+  "tag.create.confirm": {
+    "zh": "创建标签",
+    "en": "Create tag"
+  },
+  "tag.created": {
+    "zh": "已创建标签 {p0}",
+    "en": "Created tag {p0}"
+  },
+  "tag.created.and.pushed": {
+    "zh": "已创建并推送标签 {p0}",
+    "en": "Created and pushed tag {p0}"
+  },
+  "tag.loading": {
+    "zh": "正在加载标签…",
+    "en": "Loading tags…"
+  },
+  "tag.empty": {
+    "zh": "本地还没有标签。",
+    "en": "No local tags yet."
+  },
+  "tag.kind.annotated": {
+    "zh": "附注",
+    "en": "annotated"
+  },
+  "tag.kind.pushed": {
+    "zh": "已推送",
+    "en": "pushed"
+  },
+  "tag.push": {
+    "zh": "推送",
+    "en": "Push"
+  },
+  "tag.pushed": {
+    "zh": "已推送标签 {p0}",
+    "en": "Pushed tag {p0}"
+  },
+  "tag.push.failed": {
+    "zh": "标签已创建，但推送失败",
+    "en": "Tag created, but the push failed"
+  },
+  "tag.delete": {
+    "zh": "删除",
+    "en": "Delete"
+  },
+  "tag.deleted": {
+    "zh": "已删除标签 {p0}",
+    "en": "Deleted tag {p0}"
+  },
+  "tag.deleted.and.remote": {
+    "zh": "已删除本地与 origin 上的标签 {p0}",
+    "en": "Deleted tag {p0} locally and on origin"
+  },
+  "tag.delete.confirm": {
+    "zh": "删除标签 {p0}？",
+    "en": "Delete tag {p0}?"
+  },
+  "tag.delete.confirm.action": {
+    "zh": "确认删除",
+    "en": "Delete tag"
+  },
+  "tag.delete.also.remote": {
+    "zh": "同时删除 origin 上的同名标签",
+    "en": "Also delete the tag on origin"
+  },
+  "tag.delete.remote.failed": {
+    "zh": "本地标签已删除，但远端删除失败",
+    "en": "Local tag deleted, but the remote delete failed"
+  },
   "commit.graph.title": {
     "zh": "查看提交图",
     "en": "View commit graph"

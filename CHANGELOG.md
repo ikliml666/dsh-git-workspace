@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+### Added
+
+- Git 标签管理（target-console 模块，2026-10-24）：分支菜单新增「管理标签」入口，弹层支持列出本地标签（附注/轻量、已推送状态、说明正文）、按名称创建轻量或附注标签、创建时可选同步推送到 `origin`、对未推送标签单独推送、删除前二次确认并可选同时删除 `origin` 上的同名标签。
+  - 新增 Remote 方法 `gitListTags` / `gitCreateTag` / `gitDeleteTag` / `gitPushTag`（严格 descriptor + zod 校验，标签名走 `git check-ref-format` 同等规则），发布门禁方法面同步为 38 项。
+  - 标签推送永不 force：本地创建成功而推送失败时仍保留标签并以提示报告失败原因；`gitPushTag` 单独推送失败返回 `git_error` 领域错误。
+  - 提交图谱区分标签与分支：适配器装饰解析保留 `tag:` 标记，同名 tag 与 branch 不再合并为同一徽章，标签徽章以绿色 `⌗` 前缀渲染。
+
 ### Changed
 
 - 吸收 dsh-git-graph 上游三项体验优化（target-console 模块，2026-10-24）：

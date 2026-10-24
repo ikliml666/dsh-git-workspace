@@ -14,6 +14,7 @@ import { openExistingSession, type WorktreeClientServices } from '../actions.js'
 import { requestWorktreeReviewRefresh } from '../review-console/status-events.js'
 import { WorktreeManagerModal } from './WorktreeManagerModal.js'
 import { BranchGraphModal } from './BranchGraphModal.js'
+import { TagManagerModal } from './TagManagerModal.js'
 import {
   ensureBranchOverview,
   cachedBranchOverview,
@@ -69,6 +70,7 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
   const [pruneBusy, setPruneBusy] = useState(false)
   const [branchQuery, setBranchQuery] = useState('')
   const [switchNotice, setSwitchNotice] = useState<string | null>(null)
+  const [tagsOpen, setTagsOpen] = useState(false)
   const actionScope = useRef(0)
   const activeSession = useRef(sessionId)
   if (activeSession.current !== sessionId) {
@@ -103,6 +105,7 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
     setPrunePreview(null)
     setPruneLoading(false)
     setPruneBusy(false)
+    setTagsOpen(false)
     setBranchQuery('')
     setSwitchNotice(null)
     return subscribeCurrent(adapter, sessionId, language, result => {
@@ -439,6 +442,7 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
     ...(overviewBranches.length > 0 ? [{ type: 'separator' as const, id: 'branches-separator' }] : []),
     { id: 'create_branch', icon: <ReviewIcon name="create" />, label: t("branch.create.title"), disabled: pendingAction !== null },
     { id: 'prune_branches', icon: <ReviewIcon name="refresh" />, label: t("branch.prune.title"), disabled: pendingAction !== null },
+    { id: 'manage_tags', icon: <ReviewIcon name="list" />, label: t("tag.manager.title"), disabled: pendingAction !== null },
     { id: 'graph', icon: <ReviewIcon name="list" />, label: t("commit.graph.title"), disabled: pendingAction !== null },
     ...(target?.managedRoot && target.capabilities.open ? [{ id: 'reveal', icon: <ReviewIcon name="folder" />, label: t("open.current.working.location") } satisfies MenuEntry] : []),
     ...(target && target.sourceSessionId !== sessionId
@@ -472,6 +476,7 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
           if (id === 'discard') { setMenuOpen(false); setCleanupConfirmOpen(true) }
           if (id === 'create_branch') { setMenuOpen(false); setCreateName(''); setError(null); setCreateOpen(true) }
           if (id === 'prune_branches') openPrunePreview()
+          if (id === 'manage_tags') { setMenuOpen(false); setTagsOpen(true) }
           if (id === 'graph') { setMenuOpen(false); setGraphOpen(true) }
           if (id.startsWith('branch:')) void switchBranch(id.slice('branch:'.length))
         }}
@@ -547,6 +552,13 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
         t={t}
         currentBranch={overview?.branch ?? target?.currentBranch ?? null}
         onClose={() => setGraphOpen(false)}
+      />
+      <TagManagerModal
+        open={tagsOpen}
+        adapter={adapter}
+        sessionId={sessionId}
+        t={t}
+        onClose={() => setTagsOpen(false)}
       />
       <Modal
         open={createOpen}

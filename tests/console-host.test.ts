@@ -726,11 +726,61 @@ describe('Worktree Console Host control plane', () => {
     expect(git.switchLocalBranch).not.toHaveBeenCalled()
   })
 
+  it('lists local tags through the git port', async () => {
+    const tags = [{ name: 'v1.0.0', oid: 'c'.repeat(40), commitOid: 'b'.repeat(40), annotated: true, message: 'release', pushed: false }]
+    const git = { ...gitDouble(), listTags: vi.fn(async () => tags) }
+    const { control } = plane(readyRecord(), { git })
+
+    const result = await control.gitListTags('source-session')
+
+    expect(result).toMatchObject({ ok: true, value: { tags } })
+    expect(git.listTags).toHaveBeenCalledWith('/local')
+  })
+
+  it('creates a tag and reports the push result without failing the local create', async () => {
+    const git = {
+      ...gitDouble(),
+      createTag: vi.fn(async () => undefined),
+      pushTag: vi.fn(async () => ({ ok: false, message: 'no remote' })),
+    }
+    const { control } = plane(readyRecord(), { git })
+
+    const result = await control.gitCreateTag({ sessionId: 'source-session', name: 'v1.0.0', push: true })
+
+    expect(git.createTag).toHaveBeenCalledWith('/local', 'v1.0.0', { message: undefined, target: undefined })
+    // The tag exists locally; only the push failed, so this is still a success.
+    expect(result).toMatchObject({ ok: true, value: { tag: 'v1.0.0', pushed: false, pushMessage: 'no remote' } })
+  })
+
+  it('reports a tag push failure as a domain error', async () => {
+    const git = { ...gitDouble(), pushTag: vi.fn(async () => ({ ok: false, message: 'no remote' })) }
+    const { control } = plane(readyRecord(), { git })
+
+    const result = await control.gitPushTag({ sessionId: 'source-session', name: 'v1.0.0' })
+
+    expect(result).toMatchObject({ ok: false, error: { code: 'git_error', message: 'no remote' } })
+  })
+
+  it('deletes a tag locally and on origin when asked for both', async () => {
+    const git = {
+      ...gitDouble(),
+      deleteLocalTag: vi.fn(async () => undefined),
+      deleteRemoteTag: vi.fn(async () => ({ ok: true })),
+    }
+    const { control } = plane(readyRecord(), { git })
+
+    const result = await control.gitDeleteTag({ sessionId: 'source-session', name: 'v1.0.0', remote: true })
+
+    expect(git.deleteLocalTag).toHaveBeenCalledWith('/local', 'v1.0.0')
+    expect(git.deleteRemoteTag).toHaveBeenCalledWith('/local', 'v1.0.0')
+    expect(result).toMatchObject({ ok: true, value: { tag: 'v1.0.0' } })
+  })
+
   it('observes list records in one module batch when the module supports batch observation', async () => {
     const record = readyRecord()
     const { module, control } = plane(record)
-    const snapshot = { root: '/managed', commonDir: '/git/common', gitDir: '/git/worktrees/one', branch: null, headOid: B, headRef: 'HEAD' }
-    const batch = vi.fn(async (checkoutIds: string[]) => checkoutIds.map(checkoutId => ({ managedRoot: '/managed', snapshot, dirty: false })))
+    const snapshot = { root: '/local', commonDir: '/git/common', gitDir: '/git/worktrees/one', branch: null, headOid: B, headRef: 'HEAD' }
+    const batch = vi.fn(async (checkoutIds: string[]) => checkoutIds.map(checkoutId => ({ managedRoot: '/local', snapshot, dirty: false })))
     module.observeManagedCheckouts = batch
 
     const listed = await control.list({ sessionId: 'target-session' })

@@ -248,6 +248,115 @@ describe('Harness-native Session Target slots', () => {
     expect(screen.getByText('main')).toBeTruthy()
   })
 
+  test('菜单「管理标签」打开标签弹层，创建附注标签后回到列表并显示附注徽章', async () => {
+    const fixture = createWorktreeConsoleAdapterFixture()
+    invalidateBranchOverview('target-session')
+    render(<TargetStatusAction sessionId="target-session" adapter={fixture.adapter} services={clientServices()} />)
+
+    const trigger = await screen.findByRole('button', { name: 'Session Target：Worktree · 待验收' })
+    fireEvent.click(trigger)
+    fireEvent.click(await screen.findByText('管理标签'))
+
+    await waitFor(() => expect(fixture.calls.some(call => call.method === 'gitListTags')).toBe(true))
+    expect(await screen.findByText('本地还没有标签。')).toBeTruthy()
+
+    fireEvent.change(screen.getByPlaceholderText('新标签名（如 v1.2.0）'), { target: { value: 'v1.2.0' } })
+    fireEvent.change(screen.getByPlaceholderText('标签说明（留空则为轻量标签）'), { target: { value: 'first release' } })
+    fireEvent.click(screen.getByRole('button', { name: '创建标签' }))
+
+    await waitFor(() => expect(fixture.calls.some(call => call.method === 'gitCreateTag')).toBe(true))
+    const create = fixture.calls.find(call => call.method === 'gitCreateTag')
+    expect(create?.request).toMatchObject({ sessionId: 'target-session', name: 'v1.2.0', message: 'first release' })
+    await waitFor(() => expect(screen.getByText('v1.2.0')).toBeTruthy())
+    expect(screen.getByText('附注')).toBeTruthy()
+    expect(screen.getByText('first release')).toBeTruthy()
+  })
+
+  test('创建标签时勾选推送会在同一次请求里带上 push 并提示已推送', async () => {
+    const fixture = createWorktreeConsoleAdapterFixture()
+    invalidateBranchOverview('target-session')
+    render(<TargetStatusAction sessionId="target-session" adapter={fixture.adapter} services={clientServices()} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Session Target：Worktree · 待验收' }))
+    fireEvent.click(await screen.findByText('管理标签'))
+    await screen.findByText('本地还没有标签。')
+
+    fireEvent.change(screen.getByPlaceholderText('新标签名（如 v1.2.0）'), { target: { value: 'v2.0.0' } })
+    fireEvent.click(screen.getByLabelText('创建后推送到 origin'))
+    fireEvent.click(screen.getByRole('button', { name: '创建标签' }))
+
+    await waitFor(() => expect(fixture.calls.some(call => call.method === 'gitCreateTag')).toBe(true))
+    expect(fixture.calls.find(call => call.method === 'gitCreateTag')?.request).toMatchObject({ name: 'v2.0.0', push: true })
+    await waitFor(() => expect(screen.getByText('已创建并推送标签 v2.0.0')).toBeTruthy())
+    expect(screen.getByText('已推送')).toBeTruthy()
+  })
+
+  test('标签弹层删除需要二次确认，并支持同时删除 origin 上的标签', async () => {
+    const fixture = createWorktreeConsoleAdapterFixture()
+    invalidateBranchOverview('target-session')
+    render(<TargetStatusAction sessionId="target-session" adapter={fixture.adapter} services={clientServices()} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Session Target：Worktree · 待验收' }))
+    fireEvent.click(await screen.findByText('管理标签'))
+    await screen.findByText('本地还没有标签。')
+
+    // Seed through the real create path so delete acts on fixture-owned state.
+    fireEvent.change(screen.getByPlaceholderText('新标签名（如 v1.2.0）'), { target: { value: 'v0.9.0' } })
+    fireEvent.click(screen.getByLabelText('创建后推送到 origin'))
+    fireEvent.click(screen.getByRole('button', { name: '创建标签' }))
+    await waitFor(() => expect(screen.getByText('v0.9.0')).toBeTruthy())
+    expect(screen.getByText('已推送')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '删除' }))
+    await waitFor(() => expect(screen.getByText('删除标签 v0.9.0？')).toBeTruthy())
+    fireEvent.click(screen.getByLabelText('同时删除 origin 上的同名标签'))
+    fireEvent.click(screen.getByRole('button', { name: '确认删除' }))
+
+    await waitFor(() => expect(fixture.calls.some(call => call.method === 'gitDeleteTag')).toBe(true))
+    expect(fixture.calls.find(call => call.method === 'gitDeleteTag')?.request).toMatchObject({ name: 'v0.9.0', remote: true })
+    await waitFor(() => expect(screen.getByText('已删除本地与 origin 上的标签 v0.9.0')).toBeTruthy())
+    await waitFor(() => expect(screen.getByText('本地还没有标签。')).toBeTruthy())
+  })
+
+  test('未推送的标签可单独推送，成功后徽章变为已推送', async () => {
+    const fixture = createWorktreeConsoleAdapterFixture()
+    invalidateBranchOverview('target-session')
+    render(<TargetStatusAction sessionId="target-session" adapter={fixture.adapter} services={clientServices()} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Session Target：Worktree · 待验收' }))
+    fireEvent.click(await screen.findByText('管理标签'))
+    await screen.findByText('本地还没有标签。')
+
+    fireEvent.change(screen.getByPlaceholderText('新标签名（如 v1.2.0）'), { target: { value: 'v0.8.0' } })
+    fireEvent.click(screen.getByRole('button', { name: '创建标签' }))
+    await waitFor(() => expect(screen.getByText('v0.8.0')).toBeTruthy())
+    expect(screen.queryByText('已推送')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: '推送' }))
+    await waitFor(() => expect(fixture.calls.some(call => call.method === 'gitPushTag')).toBe(true))
+    expect(fixture.calls.find(call => call.method === 'gitPushTag')?.request).toMatchObject({ name: 'v0.8.0' })
+    await waitFor(() => expect(screen.getByText('已推送标签 v0.8.0')).toBeTruthy())
+    await waitFor(() => expect(screen.getByText('已推送')).toBeTruthy())
+  })
+
+  test('标签创建失败时展示错误而不是静默', async () => {
+    const fixture = createWorktreeConsoleAdapterFixture()
+    invalidateBranchOverview('target-session')
+    fixture.adapter.gitCreateTag = vi.fn(async () => ({
+      ok: false,
+      error: { code: 'git_operation_failed' as const, message: "tag 'v1.0.0' already exists" },
+    }))
+    render(<TargetStatusAction sessionId="target-session" adapter={fixture.adapter} services={clientServices()} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Session Target：Worktree · 待验收' }))
+    fireEvent.click(await screen.findByText('管理标签'))
+    await screen.findByText('本地还没有标签。')
+
+    fireEvent.change(screen.getByPlaceholderText('新标签名（如 v1.2.0）'), { target: { value: 'v1.0.0' } })
+    fireEvent.click(screen.getByRole('button', { name: '创建标签' }))
+    await waitFor(() => expect(screen.getByText(/already exists/u)).toBeTruthy())
+  })
+
   test('Header 切换 Session 时丢弃旧请求，避免跨 Session 注入路径与来源身份', async () => {
     const fixture = createWorktreeConsoleAdapterFixture()
     let resolveA!: (value: Awaited<ReturnType<typeof fixture.adapter.current>>) => void

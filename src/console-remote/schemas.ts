@@ -20,6 +20,8 @@ import {
   type WorktreeConsoleGitMutationResponse,
   type WorktreeConsoleGitOverviewResponse,
   type WorktreeConsoleGitPruneResponse,
+  type WorktreeConsoleGitTagListResponse,
+  type WorktreeConsoleGitTagMutationResponse,
   type WorktreeClientBootReport,
   type WorktreeSidebarTopologyResponse,
 } from '../console-contract.js'
@@ -414,6 +416,28 @@ export const gitPruneResponseSchema: z.ZodType<WorktreeConsoleGitPruneResponse> 
   headBranch: z.string().min(1).max(300).nullable(),
   pruned: z.array(gitPruneEntrySchema).max(2000),
   skipped: z.array(gitPruneEntrySchema).max(2000),
+})
+
+export const tagNameSchema = z.string().min(1).max(255).regex(/^[^\s~^:?*[\\]+$/u)
+export const tagMessageSchema = z.string().max(4000).optional()
+export const tagTargetSchema = z.string().min(1).max(300).optional()
+
+const gitTagSchema = strict({
+  name: tagNameSchema,
+  oid: gitOidSchema,
+  commitOid: gitOidSchema.nullable(),
+  annotated: booleanSchema,
+  message: z.string().max(4000).nullable(),
+  pushed: booleanSchema,
+})
+export const gitTagListResponseSchema: z.ZodType<WorktreeConsoleGitTagListResponse> = strict({
+  root: z.string().min(1),
+  tags: z.array(gitTagSchema).max(2000),
+})
+export const gitTagMutationResponseSchema: z.ZodType<WorktreeConsoleGitTagMutationResponse> = strict({
+  tag: tagNameSchema,
+  pushed: booleanSchema.optional(),
+  pushMessage: z.string().max(4000).optional(),
 })
 
 export const abandonedSnapshotSchema: z.ZodType<WorktreeConsoleAbandonedSnapshot> = strict({

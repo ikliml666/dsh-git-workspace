@@ -55,12 +55,19 @@ interface GitCommandResult {
   quiescent?: boolean
 }
 
-/** `%D` decoration → ref names, without the HEAD/tag plumbing prefixes. */
+/**
+ * `%D` decoration → ref names. Tag refs keep a `tag:` marker so the client can
+ * style them apart from branches; the HEAD handoff prefix is dropped and a
+ * bare detached `HEAD` entry is not a ref.
+ */
 function parseDecoration(decoration: string): string[] {
   if (decoration === '') return []
-  return decoration.split(', ').map((part) =>
-    part.replace(/^HEAD -> /u, '').replace(/^tag: /u, '').trim(),
-  ).filter((name) => name !== '')
+  return decoration.split(', ').map((part) => {
+    const trimmed = part.trim()
+    if (trimmed === 'HEAD') return ''
+    if (trimmed.startsWith('tag: ')) return `tag:${trimmed.slice('tag: '.length).trim()}`
+    return trimmed.replace(/^HEAD -> /u, '').trim()
+  }).filter((name) => name !== '')
 }
 
 async function settleCreationTree(handle: SubprocessHandle): Promise<boolean> {
@@ -547,6 +554,75 @@ export function createDshGitPort(ctx: Context, options: GitPortOptions): Session
         }
         throw new SessionCheckoutError('git_operation_failed', stderr || hostMessage('gitOperationFailedGit', { p0: 'switch', p1: branch }))
       }
+    },
+    listTags: async (root) => {
+      // One spawn lists tags with their object, peeled commit and subject;
+      // a second best-effort spawn marks which names `origin` already has.
+      // Annotated tags peel via `*objectname`/`*subject` (format v2 markers).
+      const refs = await runSessionGit(root, [
+        'for-each-ref',
+        '--format=%(refname:short)%00%(objectname)%00%(objecttype)%00%(*objectname)%00%(*objecttype)%00%(contents:subject)',
+        'refs/tags',
+      ])
+      if (refs.code !== 0) return null
+      const tags = refs.stdout.split(/\r?\n/).filter(Boolean).map((line) => {
+        const [name = '', oid = '', objectType = '', peeledOid = '', peeledType = '', subject = ''] = line.split('\0')
+        const annotated = objectType === 'tag'
+        const commitOid = annotated
+          ? (peeledType === 'commit' && /^[0-9a-f]{40,64}$/iu.test(peeledOid) ? peeledOid : null)
+          : (/^[0-9a-f]{40,64}$/iu.test(oid) ? oid : null)
+        return {
+          name,
+          oid,
+          commitOid,
+          annotated,
+          // Lightweight tags have no message: `contents:subject` would print the
+          // commit subject, so only annotated tags keep a body.
+          message: annotated && subject.trim() !== '' ? subject.trim() : null,
+          pushed: false,
+        }
+      }).filter(tag => tag.name !== '' && /^[0-9a-f]{40,64}$/iu.test(tag.oid))
+      const remote = await runSessionGit(root, ['ls-remote', '--tags', 'origin'])
+      if (remote.code === 0) {
+        const remoteNames = new Set(remote.stdout.split(/\r?\n/).map(line => line.split('\t')[1] ?? '')
+          .map(ref => ref.replace(/^refs\/tags\//u, '').replace(/\^\{\}$/u, ''))
+          .filter(Boolean))
+        for (const tag of tags) tag.pushed = remoteNames.has(tag.name)
+      }
+      return tags
+    },
+    createTag: async (root, name, options) => {
+      // `check-ref-format --branch` also validates tag names: both share the
+      // same refname rules (no spaces, no leading dash, no `..`/`~`/`^`).
+      const check = await runSessionGit(root, ['check-ref-format', `refs/tags/${name}`])
+      if (check.code !== 0) {
+        throw new SessionCheckoutError('git_operation_failed', check.stderr.trim() || hostMessage('gitOperationFailedGit', { p0: 'check-ref-format', p1: name }))
+      }
+      const target = options?.target && options.target.trim() !== '' ? options.target.trim() : 'HEAD'
+      const message = options?.message?.trim() ?? ''
+      const created = message !== ''
+        ? await runSessionGit(root, ['tag', '-a', name, '-m', message, target])
+        : await runSessionGit(root, ['tag', name, target])
+      if (created.code !== 0) {
+        throw new SessionCheckoutError('git_operation_failed', (created.stderr || created.stdout).trim() || hostMessage('gitOperationFailedGit', { p0: 'tag', p1: name }))
+      }
+    },
+    deleteLocalTag: async (root, name) => {
+      const deleted = await runSessionGit(root, ['tag', '-d', name])
+      if (deleted.code !== 0) {
+        throw new SessionCheckoutError('git_operation_failed', (deleted.stderr || deleted.stdout).trim() || hostMessage('gitOperationFailedGit', { p0: 'tag -d', p1: name }))
+      }
+    },
+    pushTag: async (root, name) => {
+      // Never force: a rejected or missing remote is reported, not overwritten.
+      const pushed = await runSessionGit(root, ['push', 'origin', `refs/tags/${name}:refs/tags/${name}`])
+      if (pushed.code === 0) return { ok: true }
+      return { ok: false, message: (pushed.stderr || pushed.stdout || hostMessage('gitOperationFailedGit', { p0: 'push', p1: name })).trim() }
+    },
+    deleteRemoteTag: async (root, name) => {
+      const deleted = await runSessionGit(root, ['push', 'origin', `:refs/tags/${name}`])
+      if (deleted.code === 0) return { ok: true }
+      return { ok: false, message: (deleted.stderr || deleted.stdout || hostMessage('gitOperationFailedGit', { p0: 'push', p1: name })).trim() }
     },
     mergeLocalBranch: async (root, source, options) => {
       const dryRun = options?.dryRun === true

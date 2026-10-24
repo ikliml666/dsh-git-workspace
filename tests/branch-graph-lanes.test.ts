@@ -91,17 +91,36 @@ describe('computeGraphLanes', () => {
 
 describe('mergeRefs', () => {
   it('collapses local and remote refs with the same short name into one badge', () => {
-    expect(mergeRefs(['feat/a', 'origin/feat/a'])).toEqual([{ label: 'feat/a', full: 'feat/a · origin/feat/a' }])
+    expect(mergeRefs(['feat/a', 'origin/feat/a'])).toEqual([{ label: 'feat/a', full: 'feat/a · origin/feat/a', tag: false }])
   })
 
   it('keeps distinct branches separate', () => {
     expect(mergeRefs(['feat/a', 'origin/feat/b'])).toEqual([
-      { label: 'feat/a', full: 'feat/a' },
-      { label: 'feat/b', full: 'origin/feat/b' },
+      { label: 'feat/a', full: 'feat/a', tag: false },
+      { label: 'feat/b', full: 'origin/feat/b', tag: false },
     ])
   })
 
   it('does not duplicate a repeated ref', () => {
-    expect(mergeRefs(['feat/a', 'feat/a'])).toEqual([{ label: 'feat/a', full: 'feat/a' }])
+    expect(mergeRefs(['feat/a', 'feat/a'])).toEqual([{ label: 'feat/a', full: 'feat/a', tag: false }])
+  })
+
+  it('marks a tag ref as a tag and strips its marker from the label', () => {
+    expect(mergeRefs(['tag:v1.0.0'])).toEqual([{ label: 'v1.0.0', full: 'v1.0.0', tag: true }])
+  })
+
+  it('never collapses a tag with a same-named branch', () => {
+    // A tag and a branch are different objects even when their names collide.
+    expect(mergeRefs(['v1.0.0', 'tag:v1.0.0'])).toEqual([
+      { label: 'v1.0.0', full: 'v1.0.0', tag: false },
+      { label: 'v1.0.0', full: 'v1.0.0', tag: true },
+    ])
+  })
+
+  it('keeps a tag and a same-named remote branch apart', () => {
+    expect(mergeRefs(['tag:v1.0.0', 'origin/v1.0.0'])).toEqual([
+      { label: 'v1.0.0', full: 'v1.0.0', tag: true },
+      { label: 'v1.0.0', full: 'origin/v1.0.0', tag: false },
+    ])
   })
 })

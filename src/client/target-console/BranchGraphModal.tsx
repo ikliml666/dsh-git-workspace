@@ -23,26 +23,35 @@ export interface GraphRowLanes {
 }
 
 export interface GraphRefBadge {
-  /** Short name shown in the badge (origin/ prefix stripped). */
+  /** Short name shown in the badge (origin/ prefix and the tag marker stripped). */
   label: string
   /** Every raw ref collapsed into this badge, joined for the tooltip. */
   full: string
+  /** True for a tag ref, so the badge renders apart from branch refs. */
+  tag: boolean
 }
 
-/** Collapse local + remote refs sharing a short name (foo + origin/foo) into one badge. */
+/**
+ * Collapse local + remote refs sharing a short name (foo + origin/foo) into one
+ * badge. Tag refs arrive marked (`tag:<name>` from the git adapter) and never
+ * collapse with a same-named branch: a tag and a branch are different objects.
+ */
 export function mergeRefs(refs: string[]): GraphRefBadge[] {
   const merged: GraphRefBadge[] = []
-  const indexByLabel = new Map<string, number>()
+  const indexByKey = new Map<string, number>()
   for (const ref of refs) {
-    const label = ref.startsWith('origin/') ? ref.slice('origin/'.length) : ref
-    const existing = indexByLabel.get(label)
+    const isTag = ref.startsWith('tag:')
+    const raw = isTag ? ref.slice('tag:'.length) : ref
+    const label = raw.startsWith('origin/') ? raw.slice('origin/'.length) : raw
+    const key = `${isTag ? 'tag' : 'ref'}:${label}`
+    const existing = indexByKey.get(key)
     if (existing === undefined) {
-      indexByLabel.set(label, merged.length)
-      merged.push({ label, full: ref })
+      indexByKey.set(key, merged.length)
+      merged.push({ label, full: raw, tag: isTag })
       continue
     }
     const entry = merged[existing]!
-    if (!entry.full.split(' · ').includes(ref)) entry.full = `${entry.full} · ${ref}`
+    if (!entry.full.split(' · ').includes(raw)) entry.full = `${entry.full} · ${raw}`
   }
   return merged
 }
@@ -261,10 +270,11 @@ export function BranchGraphModal({ open, onClose, adapter, sessionId, t, current
                 <span className="dsh-wtc-graph-meta">
                   {mergeRefs(commit.refs).map(entry => (
                     <span
-                      key={entry.full}
+                      key={`${entry.tag ? 'tag' : 'ref'}:${entry.full}`}
                       className="dsh-wtc-graph-ref"
+                      data-gitgraph-ref-tag={entry.tag ? '' : undefined}
                       data-gitgraph-ref-current={entry.label === currentBranch || (currentBranch !== null && entry.full.split(' · ').includes(currentBranch)) ? '' : undefined}
-                      title={entry.full}
+                      title={entry.tag ? `tag: ${entry.full}` : entry.full}
                     >
                       {entry.label}
                     </span>

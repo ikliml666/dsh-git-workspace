@@ -533,6 +533,55 @@ export interface WorktreeConsoleGitMutationResponse {
   branch: string
 }
 
+/** One local tag in the tag manager (annotated tags keep their message). */
+export interface WorktreeConsoleGitTag {
+  name: string
+  oid: string
+  /** Commit the tag points at, when it resolves. */
+  commitOid: string | null
+  annotated: boolean
+  /** Tag message for annotated tags; null for lightweight tags. */
+  message: string | null
+  /** True when `origin` already has a tag of the same name. */
+  pushed: boolean
+}
+
+export interface WorktreeConsoleGitTagListResponse {
+  root: string
+  tags: WorktreeConsoleGitTag[]
+}
+
+export interface WorktreeConsoleGitTagMutationResponse {
+  tag: string
+  /** Push outcome for the remote-aware operations; absent when no push was requested. */
+  pushed?: boolean
+  /** Human-readable push failure; absent when the push succeeded or was not requested. */
+  pushMessage?: string
+}
+
+/** Create a tag at HEAD (or a given ref), optionally annotated and optionally pushed. */
+export interface WorktreeConsoleGitCreateTagRequest {
+  sessionId: string
+  name: string
+  message?: string
+  /** Ref/oid to tag; defaults to HEAD. */
+  target?: string
+  /** Push the new tag to `origin` after creating it. */
+  push?: boolean
+}
+
+export interface WorktreeConsoleGitDeleteTagRequest {
+  sessionId: string
+  name: string
+  /** Also delete the tag on `origin` (never forced). */
+  remote?: boolean
+}
+
+export interface WorktreeConsoleGitPushTagRequest {
+  sessionId: string
+  name: string
+}
+
 export const WORKTREE_CONSOLE_ERROR_CODES = [
   ...SESSION_CHECKOUT_ERROR_CODES,
   'transport_unavailable',
@@ -701,6 +750,10 @@ export interface WorktreeConsoleAdapter {
   gitCreateBranch(sessionId: string, name: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>
   gitSwitchBranch(sessionId: string, branch: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>
   gitPruneMergedBranches(sessionId: string, dryRun: boolean): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitPruneResponse>>
+  gitListTags(sessionId: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitTagListResponse>>
+  gitCreateTag(request: WorktreeConsoleGitCreateTagRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitTagMutationResponse>>
+  gitDeleteTag(request: WorktreeConsoleGitDeleteTagRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitTagMutationResponse>>
+  gitPushTag(request: WorktreeConsoleGitPushTagRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitTagMutationResponse>>
   listAbandoned?(request: WorktreeConsoleAbandonedListRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleAbandonedListResponse>>
   restoreAbandoned?(request: WorktreeConsoleRestoreAbandonedRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleRestoreAbandonedResponse>>
 }
