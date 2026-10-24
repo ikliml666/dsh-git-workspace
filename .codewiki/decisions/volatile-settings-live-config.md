@@ -20,7 +20,7 @@ tags:
 
 ## 背景
 
-dsh-git-worktree 插件通过宿主 settings 服务将 `Config` schema 中标为 volatile 的字段投影为设置表单，写入 `cordis.patch.yml` 且通过 revision CAS 生效。宿主 settings `schema.ts` 读取 `meta.volatile`（见 `src/index.ts:238` 注释）。volatile 编辑**不重挂载插件**：`apply` 不重跑，配置值以 `LiveValue<T>`（即 `{ get(): T }`）形式到达（见 `src/ports.ts:503-506`）。
+dsh-git-worktree 插件通过宿主 settings 服务将 `Config` schema 中标为 volatile 的字段投影为设置表单，写入 `cordis.patch.yml` 且通过 revision CAS 生效。宿主 settings `schema.ts` 读取 `meta.volatile`（见 `src/index.ts:238` 注释）。volatile 编辑**不重挂载插件**：`apply` 不重跑，配置值以 `LiveValue<T>`（即 `{ get(): T }`）形式到达（见 `src/ports.ts:533-536`）。
 
 ## 决策
 
@@ -34,7 +34,7 @@ dsh-git-worktree 插件通过宿主 settings 服务将 `Config` schema 中标为
    - `worktreeKeepCount`（行 285）：`volatile(z.number().min(0).max(500).step(1).default(15))`
    `stateDir`（行 251）与 `enableWorkspaceProvider`（行 292）保持非 volatile——前者是启动期目录（`resolveStateDir` 在 `apply` 期解析并 `mkdirSync`，见行 309-313、336-339），后者是 Workspace 接管开关（`mountWorkspaceProviderLifecycle` 在行 335 使用，语义上挂载期决策，重启生效）。
 
-2. **类型上显式建模 LiveValue**：`src/ports.ts` 定义 `LiveValue<T> { get(): T }`（行 503-506）与 `liveConfigValue(value)` duck-type 解包（行 508-514，判断 `typeof (value as { get?: unknown } | undefined)?.get === 'function'`；不引 cosmokit 依赖）。`SessionCheckoutDependencies` 接口（行 516-548）的 `autoPush`（行 525）、`autoDeliver`（行 527）、`worktreesRoot`（行 533）、`inheritLocalChanges`（行 540）、`worktreeKeepCount`（行 547）均放宽为 `T | LiveValue<T>`。`GitTimeoutOptions`（`src/adapters/git-options.ts` 行 3-6）的两个超时字段也放宽为 `number | LiveValue<number | undefined>`。此外 `src/index.ts` 的 `LocalAdaptationConfig` 接口（行 295-302）也将这些字段类型定义为 `boolean | LiveValue<boolean | undefined>` 等。
+2. **类型上显式建模 LiveValue**：`src/ports.ts` 定义 `LiveValue<T> { get(): T }`（行 533-536）与 `liveConfigValue(value)` duck-type 解包（行 538-544，判断 `typeof (value as { get?: unknown } | undefined)?.get === 'function'`；不引 cosmokit 依赖）。`SessionCheckoutDependencies` 接口（行 546-577）的 `autoPush`（行 555）、`autoDeliver`（行 557）、`worktreesRoot`（行 563）、`inheritLocalChanges`（行 570）、`worktreeKeepCount`（行 577）均放宽为 `T | LiveValue<T>`。`GitTimeoutOptions`（`src/adapters/git-options.ts` 行 3-6）的两个超时字段也放宽为 `number | LiveValue<number | undefined>`。此外 `src/index.ts` 的 `LocalAdaptationConfig` 接口（行 295-302）也将这些字段类型定义为 `boolean | LiveValue<boolean | undefined>` 等。
 
 3. **消费点逐次解包**，不做启动期归一：
    - `src/adapters/git-options.ts` 的 `gitTimeoutMs(args, options)` 函数（行 21-27）对 `worktree add` 解包 `worktreeAddTimeoutMs`（默认 `DEFAULT_WORKTREE_ADD_TIMEOUT_MS = 5*60_000`，见行 9），`worktree remove` 硬编码 300000，其他解包 `gitTimeoutMs`（默认 `DEFAULT_GIT_TIMEOUT_MS = 120_000`，见行 8）；`validateGitTimeouts`（行 12-19）校验时也逐次解包。设置页改超时对下一条 git 命令即生效。
@@ -47,7 +47,7 @@ dsh-git-worktree 插件通过宿主 settings 服务将 `Config` schema 中标为
 ## 后果与映射
 
 - 设置页改 volatile 字段即时生效、零重挂载；代价是所有消费点必须逐次解包，新增消费点忘记解包会在 typecheck 阶段被抓出（类型是显式联合 `T | LiveValue<T>`）。
-- **孤儿工作区自愈映射**：设置页暴露 `worktreesRoot` 后，改根目录可能留下旧根下的孤儿 worktree。无需新代码——`module.reconcile()`（`SessionCheckoutModule` 接口定义于 `src/index.ts:201`，启动时 `ctx.events.on('ready')` 于行 384-398 调用）已有孤儿检测（`SessionCheckoutReconcileSummary` 含 `orphanedCheckoutIds` 等，行 55-61），路径候选解析本身也按当前值逐次进行（`resolveWorktreesRootValue` 定义于行 304-307，在 `apply` 中于行 342-345 包装为 live getter）。运维口径：换根目录后旧根目录可整目录手工删除，reconcile 会按当前配置把状态收敛到新根。
+- **孤儿工作区自愈映射**：设置页暴露 `worktreesRoot` 后，改根目录可能留下旧根下的孤儿 worktree。无需新代码——`module.reconcile()`（`SessionCheckoutModule` 接口的 `reconcile` 方法定义于 `src/index.ts:201`，启动时 `ctx.events.on('ready')` 于行 384-398 调用）已有孤儿检测（`SessionCheckoutReconcileSummary` 含 `orphanedCheckoutIds` 等，行 55-61），路径候选解析本身也按当前值逐次进行（`resolveWorktreesRootValue` 定义于行 304-307，在 `apply` 中于行 342-345 包装为 live getter）。运维口径：换根目录后旧根目录可整目录手工删除，reconcile 会按当前配置把状态收敛到新根。
 - `autoDeliver`/`autoPush` 的 `?? true` 归一从 apply 期移到消费期：未设置 = true 的语义不变（`Config` 里 `z.boolean().default(true)` 定义于行 262/267，live ref 解包后未定义则走默认）。
 - `isAutoDeliverEnabled()` 模块方法（`SessionCheckoutModule` 接口 `src/index.ts:170`）实时读取 volatile 值，工具层在其关闭时拒绝 model-driven delivery（`registerTools` 于行 377 注册的工具会检查）。
 
