@@ -19,205 +19,216 @@ tags: [adapters, git, registry, project-skills]
 
 ## Overview
 
-`src/adapters/` 模块是 DSH（DeepSeek Session Harness）插件的核心基础设施层，将宿主能力适配为领域端口（`SessionCheckoutDependencies`，定义于 `src/ports.ts`）。该层作为插件与底层系统（Git、文件系统、Workspace Registry）之间的隔离带，确保状态机逻辑不直接依赖具体的运行时服务。装配点在插件的 `apply()` 方法（参见 [[host-overview|Host Entry and Registration Surface]]）；领域消费方主要为 [[session-checkout-module|Session Checkout State Machine]]。
+`src/adapters/` 模块是 DSH（DeepSeek Session Harness）插件的核心基础设施层，将宿主能力适配为领域端口（定义于 `src/ports.ts`）。该层作为插件与底层系统（Git、文件系统、Workspace Registry）之间的隔离带，确保状态机逻辑不直接依赖具体的运行时服务。装配点在插件的 `apply()` 方法（参见 [[host-overview|Host Entry and Registration Surface]]）；领域消费方主要为 [[session-checkout-module|Session Checkout State Machine]]。
 
 核心职责包括：
-1. **Git 操作抽象**：通过 `ctx.subprocess` 安全执行 Git 命令，处理超时、环境隔离与子进程树静默。
-2. **文件原子性与安全性**：提供崩溃安全的 JSON 读写、目录身份核验（CAS）与 quarantine 机制。
-3. **持久化注册表**：基于原子 JSON 文件的 checkout 状态管理，支持版本迁移与数据校验。
-4. **上下文查找**：动态适配 Harness 的 Workspace 与会话查询服务。
-5. **Worktree 创建保障**：严格的容器身份核验与失败回滚路径。
-6. **Project Skills 携带**：在项目技能目录间同步文件，支持 snapshot/carry/forget 生命周期。
+1. **Git 操作抽象**：通过 `ctx.subprocess` 安全执行 Git 命令，处理超时、环境隔离与子进程树静默（`src/adapters/git.ts`）。
+2. **文件原子性与安全性**：提供崩溃安全的 JSON 读写、目录身份核验（CAS）与 quarantine 机制（`src/adapters/files.ts`、`src/adapters/safe-file.ts`）。
+3. **持久化注册表**：基于原子 JSON 文件的 checkout 状态管理，支持版本迁移与数据校验（`src/adapters/registry.ts`）。
+4. **上下文查找**：动态适配 Harness 的 Workspace 与会话查询服务（`src/adapters/lookup.ts`）。
+5. **Worktree 创建保障**：严格的容器身份核验与失败回滚路径（`src/adapters/worktree-creation.ts`）。
+6. **Project Skills 携带**：在项目技能目录间同步文件，支持 snapshot/carry/forget 生命周期（`src/adapters/project-skills.ts`、`project-skill-io.ts`、`project-skill-provider.ts`）。
 
 ## Key Components
 
 ### Git Port (`src/adapters/git.ts`)
 
-`createDshGitPort(ctx, options)` (git.ts L242) 构建并返回 `SessionCheckoutGitPort` 对象，混入初始提交相关方法。
+`createDshGitPort(ctx, options)` (git.ts L242-L674) 构建并返回 `SessionCheckoutGitPort` 对象，最后混入 `initialCommitActions` 返回的方法 (git.ts L674)。
 
 #### 常量与配置
 - `GIT_TERMINATION_GRACE_MS = 1_000` (git.ts L38): 终止宽限期。
 - `GIT_COLLECT_BYTES = 1 << 20` (git.ts L40): 单流收集输出上限 (1MB)。
 - `WIP_PATCH_COLLECT_BYTES = 16 << 20` (git.ts L42): WIP patch 收集上限 (16MB)，应对 base85 膨胀。
-- `DEFAULT_GIT_TIMEOUT_MS = 120_000` (来自 `git-options.ts`, git.ts): 默认超时 2 分钟。
-- `DEFAULT_WORKTREE_ADD_TIMEOUT_MS = 5 * 60_000` (来自 `git-options.ts`, git.ts): worktree add 超时 5 分钟。
-- `GitPortOptions` (git.ts L44): 接口定义，包含 `hooksPath` 和可选的 `projectSkills`。
+- `GitPortOptions` 接口 (git.ts L44-L48): 继承 `GitTimeoutOptions`，含 `hooksPath: string` 与可选 `projectSkills?: ProjectSkillStore`。
+- 超时默认值来自 `git-options.ts`：`DEFAULT_GIT_TIMEOUT_MS = 120_000` (git-options.ts L8)，`DEFAULT_WORKTREE_ADD_TIMEOUT_MS = 5 * 60_000` (git-options.ts L9)。
 
-#### 内部辅助函数
-- `parseDecoration(decoration)` (git.ts L59): 解析 `%D` 装饰字符串，去除 HEAD/tag 前缀。
-- `settleCreationTree(handle)` (git.ts L66): 最多等待 10s 确保子进程树完全退出。
-- `runGit(...)` (git.ts L86):
-  - 底层执行器。处理超时、信号、输入管道（支持 `GitCommitProtocol`）、输出收集。
-  - 关键逻辑：构建 argv 始终包含 `--no-pager`, `--no-optional-locks`, `core.hooksPath=${options.hooksPath}`, `LC_ALL=C` 等硬编码参数 (git.ts L95-L104, L114-L124)。
-  - 若为 `GitCommitProtocol`，通过 stdin pipe 发送 `prepare`，等待 `prepare: ok` 后执行 `beforeCommit` 回调，最后发送 `commit\n` 或 `abort\n` (git.ts L126-L146)。
-  - 返回值 `GitCommandResult` 包含 `code`, `stdout`, `stderr`, `quiescent`。
-- `runGitChecked(...)` (git.ts L183): 包装 `runGit`，非零退出码抛出 `SessionCheckoutError`。
-- `checkoutRefRoot(checkoutId)` (git.ts L194): 生成内部 Ref 根路径 `refs/dsh-worktree/session-checkouts/<hash>`。
-- `assertArtifactName(artifactName)` (git.ts L199): 验证 artifact 名称合法性。
-- `internalArtifactRef(...)` (git.ts L209): 生成完整内部引用路径。
-- `abandonedSnapshotRef(checkoutId)` (git.ts L223): 生成废弃快照引用路径 `refs/dsh-worktree/abandoned/<id>`。
-- `hasGitMetadata(root)` (git.ts L228): 向上遍历查找 `.git`。
+#### 内部辅助函数与接口
+- `GitCommandResult` 接口 (git.ts L50-L56): 字段 `code: number`, `stdout: string`, `stderr: string`, `quiescent?: boolean`。
+- `parseDecoration(decoration)` (git.ts L59-L64): 解析 `%D` 装饰字符串，去除 `HEAD -> ` 与 `tag: ` 前缀。
+- `settleCreationTree(handle)` (git.ts L66-L79): 最多等待 10s 确保子进程树完全退出，返回 boolean。
+- `runGit(ctx, cwd, args, options, input?, creation?, collectBytes?)` (git.ts L86-L181): 底层执行器。构建 argv 包含 `--no-pager`, `--no-optional-locks`, Windows 下 `core.longpaths=true`, `core.quotePath=false`, `core.fsmonitor=false`, `core.hooksPath=${options.hooksPath}` (git.ts L95-L104)；环境变量清除敏感 GIT_* 覆盖并强制 `GIT_OPTIONAL_LOCKS=0`, `GIT_TERMINAL_PROMPT=0`, `LC_ALL=C`, `LANG=C` (git.ts L114-L124)。支持 `input` 为字符串或 `GitCommitProtocol` (git.ts L126-L147)。creation 模式等待树静默 (git.ts L150-L161)。
+- `runGitChecked(...)` (git.ts L183-L192): 包装 `runGit`，非零退出抛 `SessionCheckoutError`。
+- `checkoutRefRoot(checkoutId)` (git.ts L194-L197): 生成 `refs/dsh-worktree/session-checkouts/<sha256前24字符>`。
+- `assertArtifactName(artifactName)` (git.ts L199-L207): 校验片段符合 `^[A-Za-z0-9][A-Za-z0-9._-]*$`。
+- `internalArtifactRef(checkoutId, artifactName)` (git.ts L209-L212): 组合 ref 路径。
+- `applyBaseRef(checkoutId)` (git.ts L214-L216): 返回 `internalArtifactRef(checkoutId, 'apply-base')`。
+- `abandonedSnapshotRef(checkoutId)` (git.ts L223-L226): 返回 `refs/dsh-worktree/abandoned/${checkoutId}`，调用 `assertArtifactName(checkoutId)`。
+- `hasGitMetadata(root)` (git.ts L228-L239): 向上遍历查找 `.git` 元数据。
 
-#### Port 方法实现
-- `inspect(root)` (git.ts L249):
-  - 快径：单次 `rev-parse --show-toplevel --path-format=absolute --git-common-dir --absolute-git-dir HEAD^{commit}` + 并行 `symbolic-ref`。
-  - 回退：处理 unborn/broken HEAD、换行路径歧义、not-a-repo 情况。
-- `findContainingWorktreeRoot(root)` (git.ts L316): `rev-parse --show-toplevel`。
-- `status(root)` (git.ts L324): 检查工作树脏状态，结合 `ProjectSkillStore` 过滤可交付文件。
-- `createDetachedWorktree(localRoot, managedRoot, baseOid, saveEvidence)` (git.ts L329):
-  - 检查 Project Skills 变更，调用 `worktree-creation.ts` 中的逻辑，并携带 skills。
-- `removeWorktree(localRoot, managedRoot)` (git.ts L342):
-  - 验证技能可移除性，强制移除，遗忘技能。
-- `pruneWorktrees(localRoot)` (git.ts L353): 清理过期工作树。
-- `retainApplyBase(...)` (git.ts L356): 保留应用基础 Ref。
-- `releaseApplyBase(...)` (git.ts L360): 释放应用基础 Ref。
-- `retainInternalArtifact(...)`, `readInternalArtifact(...)`, `releaseInternalArtifacts(...)` (git.ts L364-L381): 管理内部工件 Ref。批量删除使用 `update-ref --stdin` 事务 (git.ts L379)。
-- `isAncestor(root, ancestorOid, descendantOid)` (git.ts L382): 检查祖先关系。
-- `listLocalBranches(root)` (git.ts L388): 列出本地分支并排序。
-- `resolveLocalBranchTip(root, branch)` (git.ts L392): 解析分支 Tip OID。
-- `attachWorktreeBranch(managedRoot, branchRef, headOid, expectedOldOid)` (git.ts L398): 仅更新 ref 和 HEAD 指向，不触碰工作区文件。使用 CAS 语义防止并发覆盖。
-- `pushBranch(root)` (git.ts L419): 推送到上游。若无本地分支或上游则跳过。
-- `repairWorktreeLinks(repoCommonDir, managedRoot)` (git.ts L436): 修复移动后的工作树链接。
-- `listWorktreeincludeFiles(localRoot, includeFile)` (git.ts L442): 找出被忽略但匹配 `.worktreeinclude` 的文件，包含 `AGENTS.override.md`。
-- `branchOverview(root)` (git.ts L462): 获取分支概览（名称、OID、是否当前、上游、脏计数）。
-- `defaultBranch(root)` (git.ts L479): 获取默认分支。
-- `branchTipTimes(root)` (git.ts L487): 获取分支提交时间戳。
-- `deleteLocalBranch(root, name)` (git.ts L501): 删除分支，返回成功与否及原因。
-- `graphLog(root, limit)` (git.ts L506): 获取图日志，格式化输出为对象数组。
-- `createLocalBranch(root, name)` (git.ts L529): 创建新分支，校验格式。
-- `switchLocalBranch(root, branch)` (git.ts L539): 切换分支，处理已被其他工作树占用的错误。
-- `mergeLocalBranch(root, source, options)` (git.ts L551): 合并分支。支持 `dryRun`（在临时探测工作树中试合并，完成后强制移除 git.ts L588-L610）。正式合并保留冲突状态供上层处理 (git.ts L612-L621)。
-- `captureLocalWip(root)` (git.ts L622): 捕获未提交的 WIP 差异（二进制格式）。
-- `applyWorktreePatch(root, patch)` (git.ts L631): 应用补丁。
-- `listUntrackedFiles(root)` (git.ts L638): 列出非忽略的未跟踪文件。
-- `snapshotAbandonedWorktree(localRoot, managedRoot, checkoutId)` (git.ts L643): 将废弃工作树内容快照为独立提交，保存 Ref。
-- `restoreAbandonedSnapshot(localRoot, checkoutId, snapshotOid)` (git.ts L664): 从快照恢复，创建新分支。
-- 附加 `initialCommitActions` (git.ts L674): 注入初始提交相关行为。
+#### Port 方法实现（对象字面量 L248-L673）
+- `inspect(root)` (git.ts L249-L315): 快径单次 `rev-parse` 取四行，回退处理 unborn/broken HEAD。
+- `findContainingWorktreeRoot(root)` (git.ts L316-L323): `rev-parse --show-toplevel`。
+- `status(root)` (git.ts L324-L328): `status --porcelain=v1 -z --untracked-files=all`，结合 `ProjectSkillStore.scope` 过滤。
+- `createDetachedWorktree(localRoot, managedRoot, baseOid, saveEvidence)` (git.ts L329-L341): 校验技能变更后调 `createWorktree` 并 `carry`。
+- `removeWorktree(localRoot, managedRoot)` (git.ts L342-L352): 校验技能可移除性后强制移除并 `forget`。
+- `pruneWorktrees(localRoot)` (git.ts L353-L355): `worktree prune --expire now`。
+- `retainApplyBase(localRoot, checkoutId, oid)` (git.ts L356-L358): `update-ref applyBaseRef oid`。
+- `releaseApplyBase(localRoot, checkoutId)` (git.ts L359-L361): `update-ref -d applyBaseRef`。
+- `retainInternalArtifact(localRoot, checkoutId, artifactName, oid)` (git.ts L362-L364)
+- `readInternalArtifact(localRoot, checkoutId, artifactName)` (git.ts L365-L370)
+- `releaseInternalArtifacts(localRoot, checkoutId, artifactPrefix?)` (git.ts L371-L381): 批量 `update-ref --stdin` 事务删除。
+- `isAncestor(root, ancestorOid, descendantOid)` (git.ts L382-L387): `merge-base --is-ancestor`。
+- `listLocalBranches(root)` (git.ts L388-L391)
+- `resolveLocalBranchTip(root, branch)` (git.ts L392-L397)
+- `attachWorktreeBranch(managedRoot, branchRef, headOid, expectedOldOid?)` (git.ts L398-L418): 仅更新 ref/HEAD，CAS 语义。
+- `pushBranch(root)` (git.ts L419-L435): 推送到上游，无分支/上游则返回 `{ok:false, message}`。
+- `repairWorktreeLinks(repoCommonDir, managedRoot)` (git.ts L436-L441): `worktree repair`。
+- `listWorktreeincludeFiles(localRoot, includeFile)` (git.ts L442-L461): 交集忽略文件与 `.worktreeinclude` 匹配，自动带入 `AGENTS.override.md`。
+- `branchOverview(root)` (git.ts L462-L478)
+- `defaultBranch(root)` (git.ts L479-L486): 从 `origin/HEAD` 或 `init.defaultBranch` 解析。
+- `branchTipTimes(root)` (git.ts L487-L500)
+- `deleteLocalBranch(root, name)` (git.ts L501-L505)
+- `graphLog(root, limit)` (git.ts L506-L528): 解析 `%H%x00%P...` 记录。
+- `createLocalBranch(root, name)` (git.ts L529-L538)
+- `switchLocalBranch(root, branch)` (git.ts L539-L550): 处理 worktree 占用错误。
+- `mergeLocalBranch(root, source, options?)` (git.ts L551-L621): 支持 `dryRun` 临时 detached probe (git.ts L588-L610)，正式合并保留冲突 (git.ts L612-L621)。
+- `captureLocalWip(root)` (git.ts L622-L630): `diff --binary HEAD` 收集上限 `WIP_PATCH_COLLECT_BYTES`。
+- `applyWorktreePatch(root, patch)` (git.ts L631-L637): `apply --binary`。
+- `listUntrackedFiles(root)` (git.ts L638-L642)
+- `snapshotAbandonedWorktree(localRoot, managedRoot, checkoutId)` (git.ts L643-L663): `add -A` + `write-tree` + `commit-tree` 固定身份。
+- `restoreAbandonedSnapshot(localRoot, checkoutId, snapshotOid)` (git.ts L664-L672): 创建分支并删除 abandoned ref。
 
 ### Files Port (`src/adapters/files.ts`)
 
-`createNodeFilesPort()` (files.ts L89) 返回 `SessionCheckoutFilesPort`。
+`createNodeFilesPort()` (files.ts L89-L108) 返回 `SessionCheckoutFilesPort`。
 
-- `exists(path)` (files.ts L90): 同步存在性检查。
-- `canonicalize(path)` (files.ts L91): 解析真实路径。
-- `ensureDirectory(path)` (files.ts L92): 递归创建目录。
-- `readTextFile(path)` (files.ts L93): 读取文本文件，不存在返回 null。
-- `copyFile(from, to)` (files.ts L94): 复制文件，目标存在则强制删除。
-- `isSymbolicLink(path)` (files.ts L95): 检查是否为符号链接。
-- `measureDirectoryBytes(path)` (files.ts L16): 递归计算目录大小，忽略符号链接。
-- `removeEmptyDirectoryTree(path)` (files.ts L24): 同步递归删除空目录树。
-- `inspectDirectoryIdentity(path)` (files.ts L33): 获取目录的设备、inode、创建时间。
-- `directoryIdentitiesEqual(...)` (files.ts L42): 比较两个身份。
-- `quarantineDirectoryTree(path, expectedIdentity, quarantinePath)` (files.ts L52): 原子移动目录到隔离区。验证源和目标父目录相同，且目标不存在。若移动后身份不匹配或原路径仍存在，尝试回滚。
-- `removeDirectoryTree(path)` (files.ts L74): 异步递归删除，Windows 下重试更多次。
+辅助函数：
+- `measureDirectoryBytes(path)` (files.ts L16-L24): 递归计算字节，忽略符号链接。
+- `removeEmptyDirectoryTree(path)` (files.ts L26-L35): 同步删空目录树。
+- `inspectDirectoryIdentity(path)` (files.ts L37-L46): 返回 `{device, inode, birthtimeNs}` 或 null。
+- `directoryIdentitiesEqual(left, right)` (files.ts L48-L50)
+- `quarantineDirectoryTree(path, expectedIdentity, quarantinePath)` (files.ts L52-L72): 同父目录原子 rename 并校验身份。
+- `removeDirectoryTree(path)` (files.ts L74-L86): 异步递归删，Windows 重试 6 次。
+
+端口方法（L91-L107）：
+- `exists`: L91 `existsSync`
+- `canonicalize`: L92 `realpath(resolve(path))`
+- `inspectDirectoryIdentity`: L93 引用上述函数
+- `ensureDirectory`: L94 `mkdirSync(recursive)`
+- `removeEmptyDirectoryTree`: L95 引用
+- `quarantineDirectoryTree`: L96 引用
+- `removeDirectoryTree`: L97 引用
+- `measureDirectoryBytes`: L98 引用
+- `readTextFile`: L99 存在则读否则 null
+- `copyFile`: L100-L104 建目录并覆盖写
+- `isSymbolicLink`: L105-L107 `lstatSync().isSymbolicLink()`
 
 ### Safe File Utilities (`src/adapters/safe-file.ts`)
 
-崩溃安全的 JSON/文本文件读写，解决强制关机/崩溃导致的截断问题。
+崩溃安全的 JSON/文本读写，解决强制关机/崩溃导致的截断问题。
 
-- `sleepSync(milliseconds)` (safe-file.ts L20): 同步睡眠，兼容无 `SharedArrayBuffer` 的环境。
-- `renameAtomicWithRetry(source, target, maxAttempts)` (safe-file.ts L30): Windows 下处理文件句柄竞争的重试重命名。
-- `tmpPathFor(filePath)` (safe-file.ts L50): 生成唯一命名的临时文件路径 `<file>.<pid>.<uuid>.tmp`。
-- `listTmpFiles(filePath)` (safe-file.ts L55): 列出所有相关的 `.tmp` 残留文件，按 mtime 排序。
-- `cleanupTmpFiles(filePath)` (safe-file.ts L70): 清理所有 `.tmp` 残留。
-- `writeJsonFileAtomic(filePath, data, skipBackup)` (safe-file.ts L82): 写入唯一命名的 tmp 文件，原子 rename。可选备份。
-- `writeTextFileAtomic(filePath, content)` (safe-file.ts L103): 同上，用于非 JSON 文本。
-- `readJsonFileSafe<T>(filePath)` (safe-file.ts L113): 安全读取。优先级：主文件 -> 最新可解析 .tmp -> .bak。失败返回 null。
+- `RETRYABLE_RENAME_CODES` (safe-file.ts L14-L18): Windows 含 EBUSY/EPERM/EACCES/ENOTEMPTY，其他含 EBUSY/ENOTEMPTY。
+- `sleepSync(milliseconds)` (safe-file.ts L20-L27): 用 `Atomics.wait` 或回退忙等。
+- `renameAtomicWithRetry(source, target, maxAttempts=5)` (safe-file.ts L30-L44): 可重试原子重命名。
+- `tmpPathFor(filePath)` (safe-file.ts L50-L52): `<file>.<pid>.<uuid>.tmp` 唯一名。
+- `listTmpFiles(filePath)` (safe-file.ts L55-L68): 列出 `.tmp` 残留按 mtime 新→旧。
+- `cleanupTmpFiles(filePath)` (safe-file.ts L70-L74): 删除所有 `.tmp`。
+- `writeJsonFileAtomic(filePath, data, skipBackup=false)` (safe-file.ts L82-L100): 写唯一 tmp → 可选 `.bak` 备份 → 原子 rename。
+- `writeTextFileAtomic(filePath, content)` (safe-file.ts L103-L107): 同上用于文本。
+- `readJsonFileSafe<T>(filePath)` (safe-file.ts L113-L161): 主文件 → 最新可解析 `.tmp` 提升 → `.bak` 回退，全失败返 null。
 
 ### Registry (`src/adapters/registry.ts`)
 
 `AtomicJsonCheckoutRegistry` 实现 `SessionCheckoutRegistryPort`，管理 `managed-checkouts.json`。
 
-- `constructor(path)` (registry.ts L418): 注册表文件路径。
-- `read()` (registry.ts L420): 读取并验证。若损坏，尝试修复过大的 commit message 或迁移 v1。若完全无法恢复则抛出错误。
-- `write(registry)` (registry.ts L437): 原子写入。
-- 验证函数（大量私有函数，确保数据结构完整性）(registry.ts L25-L336):
-  - `isRecord`, `isStringArray`, `isOid`, `isBoundedText`, `isSafeRelativePath`。
-  - `isTargetRef`, `isSessionBinding`, `isReview`, `isPreviousReview`, `isCheckpoint`, `isPreviewReceipt`, `isDeliveryProof`, `isDelivery`, `isJournal`, `isRecoveryContinuation`, `isManagedCheckout`, `isRegistry`。
-- `emptyRegistry()` (registry.ts L16): 创建空 registry 对象。
-- `repairOversizedPreviousReviewCommitMessage(value)` (registry.ts L338): 修复过长的 commit message。
-- `migrateLegacyRegistry(value)` (registry.ts L359): 将 v1 注册表迁移到 v2，未知阶段标记为 `recovery_required`。
+- `emptyRegistry()` (registry.ts L17-L24): 返回 `{version:2, revision:0, sessionBindings:{}, managedCheckouts:{}}`。
+- 类型守卫（全部私有函数）：
+  - `isRecord` L26-L28, `isStringArray` L30-L32, `isOid` L34-L36, `isBoundedText` L38-L40, `isSafeRelativePath` L42-L46
+  - `isTargetRef` L48-L53, `isSessionBinding` L55-L65, `isReview` L67-L85, `isPreviousReview` L87-L95, `isCheckpoint` L97-L114, `isPreviewReceipt` L116-L136, `isDeliveryProof` L138-L150, `isDelivery` L152-L191, `isJournal` L193-L250
+  - `safeRecoveryString` L252-L254, `safeRecoveryRevision` L256-L258, `safeConflictFile` L260-L264, `isRecoveryContinuation` L266-L290, `isManagedCheckout` L292-L325, `isRegistry` L327-L337
+- `migrateLegacyRegistry(value)` (registry.ts L339-L394): v1→v2，非 ready/discarded 阶段标记 `recovery_required`，delivery 置 `{state:'working', iteration:1}`。
+- 类 `AtomicJsonCheckoutRegistry` (registry.ts L397-L415):
+  - `constructor(private readonly path: string)` L398
+  - `read()` L400-L410: `readJsonFileSafe` → `isRegistry` 校验 → 尝试迁移 → 不存在返空 → 损坏抛 `SessionCheckoutError('registry_corrupt')`。
+  - `write(registry)` L412-L415: `mkdirSync` + `writeJsonFileAtomic`。
 
 ### Lookup (`src/adapters/lookup.ts`)
 
-`createDshLookupPort(ctx)` (lookup.ts L64) 适配 Harness 服务为 `SessionCheckoutLookupPort`。
+`createDshLookupPort(ctx)` (lookup.ts L64-L121) 适配 Harness 服务为 `SessionCheckoutLookupPort`。
 
-- `getSidebarMemberships(managedRoots)` (lookup.ts L75): 根据受管根目录查找关联的工作区和会话 ID。同时扫描工作区记录和活动会话头。
-- `getSession(sessionId)` (lookup.ts L97): 查找会话的项目 ID。优先在工作区列表中查找，若找不到则尝试从活动会话头恢复 cwd 映射。
-- `getProject(projectId)` (lookup.ts L115): 查找项目记录。
+- 接口 `WorkspaceLike` L19-L24, `WorkspaceRegistryLike` L26-L32, `LiveSessionLike` L34-L36, `SessionStoreLike` L38-L40。
+- `isWorkspaceRegistryLike` L42-L47, `isSessionStoreLike` L49-L53, `sameResolvedPath` L55-L61。
+- `getSidebarMemberships(managedRoots)` L75-L96: 结合 `registry()?.list()` 与 `sessionQuery.listSessions()` 头 cwd 匹配。
+- `getSession(sessionId)` L97-L114: 先扫 workspace sessionIds，未果则用 `sessions().get(sessionId).header.cwd` 恢复。
+- `getProject(projectId)` L115-L120: 返回 `{id, name:title, root:path}`。
 
 ### Worktree Creation (`src/adapters/worktree-creation.ts`)
 
-`createWorktree(localRoot, target, baseOid, run, saveEvidence)` (worktree-creation.ts L17) 提供严格的容器身份核验与失败回滚。
+`createWorktree(localRoot, target, baseOid, run, saveEvidence?)` (worktree-creation.ts L17-L124) 严格身份核验与回滚。
 
-- **阶段 ① 创建与验证**:
-  1. Inspect `commonDir` & `parent` identity (worktree-creation.ts L30-L35)。
-  2. `mkdir(target)` claimed (worktree-creation.ts L38)。
-  3. Inspect `rootIdentity` → `saveEvidence` (worktree-creation.ts L42)。
-  4. `worktree add --detach --no-checkout --lock` (worktree-creation.ts L44)。
-  5. Inspect `gitDir` & `gitIdentity` & `metadataFingerprint` → `saveEvidence` (worktree-creation.ts L46-L48)。
-  6. `verifyIdentity(evidence, baseOid)` (worktree-creation.ts L126)。
-  7. Sparse checkout 分支：`reset --hard` (worktree-creation.ts L61) 或 `read-tree` + `checkout-index` (worktree-creation.ts L63-L66)。
-  8. `verifyIdentity` & `unlock` (worktree-creation.ts L51, L68-L69)。
-- **阶段 ② 失败处理**:
-  - `claimed=false`: 抛 `WorktreeCreationFailure.rolledBack` (worktree-creation.ts L72)。
-  - `registered=false`: 条件性 `rmdir`（验证 clean 且 identity 未变）(worktree-creation.ts L74-L87)。
-  - `registered=true`: 全链路 rollback：
-    - `verifyIdentity` → `verifyRollbackMetadata` → `verifyUnmodified` (worktree-creation.ts L94-L120)。
-    - `worktree move --force` 至 quarantine path (worktree-creation.ts L104)。
-    - 再次 verify → `worktree remove --force` (worktree-creation.ts L113)。
-- `verifyIdentity(e, baseOid)` (worktree-creation.ts L126): 检查 root/parent/common/gitDir identity、`.git` pointer、`commondir`、`HEAD`、`locked` 文件、无 `.lock` 残留 (worktree-creation.ts L147)。
-- `verifyRollbackMetadata(e, baseOid)` (worktree-creation.ts L150): 检查 `metadataFingerprint`、`indexFingerprint`、`ORIG_HEAD`。
-- `metadataFingerprint(gitDir)` (worktree-creation.ts L162): SHA-256 哈希遍历 gitDir，排除 `index`, `gitdir`, `ORIG_HEAD`。
-- `verifyUnmodified(root, baseOid, run)` (worktree-creation.ts L185): 检查 index 条目 hash、submodule 残留、conversion filters、unknown contents、staged/untracked/changed 状态。
+- 阶段①（L29-L69）：验 commonDir/parent 身份 → `mkdir` claimed → 存 evidence → `worktree add --detach --no-checkout --lock` → 验 gitDir 身份与 metadataFingerprint → `verifyIdentity` → sparse 分支 `reset --hard` 或 `read-tree`+`checkout-index` → 再 `verifyIdentity` → `unlock`。
+- 阶段②失败处理（L70-L123）：
+  - `!claimed` → `WorktreeCreationFailure(message, true)` L72
+  - `claimed && !registered && quiescent` → 条件性 `rmdir` L74-L87
+  - `registered && quiescent` → 全链路 rollback：verify → `worktree move --force` 至 quarantine → `worktree remove --force` L94-L120
+- `verifyIdentity(e, baseOid)` L126-L148: 检查 root/parent/common/gitDir 身份、`.git` 指针、`commondir`、`HEAD`、`locked`、无 `.lock`。
+- `verifyRollbackMetadata(e, baseOid)` L150-L160: 校验 `metadataFingerprint`、`indexFingerprint`、`ORIG_HEAD`。
+- `metadataFingerprint(gitDir)` L162-L183: SHA-256 遍历 gitDir，排除 index/gitdir/ORIG_HEAD。
+- `verifyUnmodified(root, baseOid, run)` L185-L250: 校验 index 条目 hash、submodule、filters、unknown contents、staged/untracked/changed。
 
 ### Initial Commit (`src/adapters/initial-commit.ts`)
 
-由 `initialCommitActions` (initial-commit.ts L13) 暴露的方法。
+`GitCommitProtocol` 接口 (initial-commit.ts L8-L9): `{ prepare: string; beforeCommit(): Promise<void> }`。
 
-- `preflightInitialCommit(root)` (initial-commit.ts L29):
-  - `ready`: 已有 commit。
-  - `files`: 有文件或 index 条目。
-  - `empty`: 无文件无 index，生成 fingerprint。
-- `initializeEmptyRepository(root, fingerprint, assertAuthorized?)` (initial-commit.ts L48):
-  - CAS 复核指纹 → 拿 `index.lock` → re-preflight → `var GIT_AUTHOR_IDENT` → `mktree` → `commit-tree` → `update-ref --stdin` CAS 写入 unborn HEAD。
-  - `finally` 块清理锁文件（即使失败也不掩盖主错误）(initial-commit.ts L91-L96)。
-- `initializeProject(root)` (initial-commit.ts L104):
-  - 非 Git → `git init -b main`。
-  - Unborn → `add -A` + `commit -m "Initial commit"`。
+`initialCommitActions(inspect, run)` (initial-commit.ts L13-L118) 返回 `{ preflightInitialCommit, initializeEmptyRepository, initializeProject }`。
+- `checked` L15-L19
+- `identity` L20-L24
+- `indexBytes` L25-L28
+- `preflightInitialCommit(root)` L29-L47: 返回 `ready`/`files`/`empty`(带 fingerprint)
+- `initializeEmptyRepository(root, fingerprint, assertAuthorized?)` L48-L100: 拿 `index.lock` → CAS 复核 → `mktree`+`commit-tree` → `update-ref --stdin` 事务
+- `initializeProject(root)` L104-L117: 非 Git 则 `init -b main`，unborn 则 `add -A` + `commit`
 
 ### Project Skills (`src/adapters/project-skills.ts`, `project-skill-io.ts`, `project-skill-provider.ts`)
 
-- `PROJECT_SKILL_ROOTS` (project-skills.ts L8): 常量数组 `['.dsh/skills', '.agents/skills', '.claude/skills']`。
-- `MAX_FILES = 5000`, `MAX_BYTES = 64MB` (project-skills.ts L8-L9): 资源限制常量。
-- `Manifest` (project-skills.ts L11): 版本控制结构，包含 `phase: 'copying' | 'ready'`。
-- `SkillSnapshot` (project-skills.ts L15): 接口，包含 `directories?` 和 `files: Array<Entry & { content: Buffer }>`。
-- `CarriedSkillState` (project-skills.ts L17): 接口，包含 `paths`, `fingerprint`, `modified`。
-- `assertSkillTree(root, skillRoot)` (project-skills.ts L65-L73): 递归遍历 Skill 目录树，限制深度 64 和节点数 10000，确保无符号链接或特殊文件。
-- `inventory(...)` (project-skills.ts L79-L105): 递归遍历技能根，收集文件元数据。校验 `safePath`，限制总字节数和文件数。调用 `readSkillFiles` 读取内容并计算 SHA256 Hash。
-- `ProjectSkillStore(directory)` (project-skills.ts L101):
-  - `file(root)` (project-skills.ts): 生成 Manifest 文件路径。
-  - `snapshot(source)` (project-skills.ts L104): 调用 `inventory` 收集所有 Skill 文件及其内容。
-  - `load(root)` (project-skills.ts L108): 加载并严格校验 Manifest JSON。
-  - `carry(snapshot, target)` (project-skills.ts L125): 将 Skill 从源复制到目标工作区，含预检冲突、独占写 Manifest、原子替换。
-  - `scope(root)` (project-skills.ts L168): 返回 Manifest 中定义的路径和目录集合。
-  - `state(root, tracked)` (project-skills.ts L173): 对比当前文件系统与 Manifest，计算 `fingerprint` 和 `modified` 标志。
-  - `assertRemovable(root, tracked)` (project-skills.ts L204): 检查是否可以安全移除 Skill 记录。
-  - `forget(root)` (project-skills.ts L213): 删除 Manifest 文件。
-- `trackedSkillPaths(indexEntries, headPaths)` (project-skills.ts L216): 解析 Git Index 和 Head 输出，提取被跟踪的技能路径集合。
-- `hasDeliverableStatus(output, auxiliary, directories)` (project-skills.ts L225): 检查 Git status 输出，判断是否有非辅助性的可交付变更。
-- `assertSkillPath(root, path)` (project-skills.ts L243-L245): 验证单个 Skill 路径的安全性和存在性。
-- `ProjectSkillIO` (project-skill-io.ts): 技能文件读写原语，`checkRoot/checkPath` 验证身份与安全，`boundedRead` 限长读取，`createSkillDirectories/createSkillFiles` 原子创建。
-  - `readSkillFiles(root, identity, files)` (project-skill-io.ts L38): 批量读取技能文件。每次操作前调用 `checkRoot` 验证根目录身份（防替换攻击），调用 `checkPath` 验证路径组件合法性。使用 `O_NOFOLLOW` 打开文件，比对 stat 信息（ino, dev, size, mtime），防止读取过程中文件被替换。累计字节数限制（64MB）。
-  - `createSkillDirectories(root, identity, directories)` (project-skill-io.ts L66): 通过创建 `.directory-check` 文件来原子性地创建目录结构，同时验证路径安全性。
-  - `createSkillFiles(root, identity, files)` (project-skill-io.ts L75): 使用 `O_CREAT | O_EXCL` 原子创建文件，防止覆盖。设置文件权限，同步磁盘。创建后再次验证路径和根身份。
-- `ClaudeProjectSkillProvider` (project-skill-provider.ts): 封装 `FileSystemSkillProvider` 实例池（≤32），list/get 经过安全校验后注入 `provider=NAME/source='project-claude'/rank=250`。
-  - `list(options)` (project-skill-provider.ts L75): 列出技能候选者，过滤出属于当前项目的技能，赋予 `rank: 250`。
-  - `get(candidate, options)` (project-skill-provider.ts L95): 获取技能定义，验证路径安全性。
-  - `observeHostMutation(path)` (project-skill-provider.ts L109): 转发文件系统变更通知给底层 Provider。
-  - `dispose()` (project-skill-provider.ts L112): 清理所有子 Provider。
-- `mountProjectSkillProvider(ctx, registry)` (project-skill-provider.ts L121): 注册 skills provider + fs/observed 转发 + dispose effect。
-- `managedSkillRoot(cwd, registry)` (project-skill-provider.ts L22): 遍历 `registry.managedCheckouts[phase==='ready']` 匹配 cwd 子目录并验证 `.git` 指针双向链接。
+`PROJECT_SKILL_ROOTS` (project-skills.ts L7): `['.dsh/skills', '.agents/skills', '.claude/skills']`。
+`MAX_FILES = 5000` L8, `MAX_BYTES = 64*1024*1024` L9。
+类型：
+- `Entry` L10: `{path: string; hash: string; mode: number}`
+- `Manifest` L11: `{version:1; root:string; identity:string; phase:'copying'|'ready'; files:Entry[]; directories?:string[]}`
+- `SkillSnapshot` L12: `{directories?:string[]; files: Array<Entry & {content: Buffer}>}`
+- `CarriedSkillState` L13: `{paths:string[]; fingerprint:string; modified:boolean}`
+
+函数：
+- `digest` L14, `missing` L15, `failure` L16
+- `safePath` L17-L22, `identity` L23-L27, `inspectPath` L29-L39, `boundedRead` L40-L58
+- `assertSkillTree` L60-L70, `ownedSkillDirectories` L71-L73, `inventory` L74-L98
+- `ProjectSkillStore` 类 L101-L214:
+  - `constructor(directory)` L102
+  - `file(root)` L103
+  - `snapshot(source)` L104-L107
+  - `load(root)` L108-L124 严格校验 Manifest
+  - `carry(snapshot, target)` L125-L167 冲突预检+独占写 Manifest+原子替换
+  - `scope(root)` L168-L171
+  - `paths(root)` L172-L172
+  - `state(root, tracked?)` L173-L203
+  - `assertRemovable(root, tracked)` L204-L212
+  - `forget(root)` L213-L214
+- `trackedSkillPaths` L216-L223, `hasDeliverableStatus` L225-L235, `assertSkillPath` L237-L239
+
+`project-skill-io.ts`:
+- `SkillRead` L5, `SkillBytes` L6
+- `checkRoot` L10-L15, `checkPath` L16-L36
+- `readSkillFiles` L38-L64 批量读，每次 `checkRoot`+`checkPath`+`O_NOFOLLOW`+stat 比对
+- `createSkillDirectories` L66-L73 通过 `.directory-check` 原子建目录
+- `createSkillFiles` L75-L88 `O_CREAT|O_EXCL` 写文件
+
+`project-skill-provider.ts`:
+- `NAME = 'worktree-project-claude'` L10, `Locator` L11
+- `candidatePath` L14-L19 兼容 DSH 0.1/0.2
+- `managedSkillRoot(registry)` L22-L45 遍历 `managedCheckouts` phase==='ready' 验证 `.git` 双向链接
+- `ClaudeProjectSkillProvider` 类 L48-L119:
+  - 字段 `name` L49, `providers` Map L50, `operations` L51, `disposed` L52
+  - `run` L53-L57 序列化操作
+  - `constructor(ctx, control, resolveRoot)` L58-L59
+  - `provider(root)` L60-L74 实例池≤32
+  - `list` L75-L77 → `listNow` L78-L94 过滤 rank=250
+  - `get` L95-L97 → `getNow` L98-L108
+  - `observeHostMutation` L109-L111, `dispose` L112-L118
+- `mountProjectSkillProvider(ctx, registry)` L121-L133 注册 provider 与 fs/observed 转发
+
+### Tests (`tests/adapters-safe-file.test.ts`)
+
+覆盖 `safe-file.ts` 行为：tmp 提升 (L19-L31)、legacy `.tmp` (L33-L40)、无残留返 null (L42-L50)、原子写与 `.bak` (L52-L64)、文本原子写 (L66-L73)。
 
 ## Architecture
 
@@ -268,35 +279,35 @@ tags: [adapters, git, registry, project-skills]
 ## Data Flow
 
 1. **Git Command Execution**:
-   - Caller → `runGit(ctx, cwd, args, options, input?, creation?)` (git.ts)。
-   - `ctx.subprocess.spawn` 启动 git，注入安全环境变量与参数 (git.ts)。
-   - 若为 `GitCommitProtocol`，通过 stdin pipe 发送 `prepare`，等待 `prepare: ok` 后执行 `beforeCommit` 回调，最后发送 `commit\n` 或 `abort\n` (git.ts)。
-   - 若为 creation 模式，等待子进程树静默 (`settleCreationTree`) (git.ts)。
-   - 返回 `GitCommandResult`，caller 决定非零退出码的处理策略 (git.ts)。
+   - Caller → `runGit(ctx, cwd, args, options, input?, creation?)` (git.ts L86)。
+   - `ctx.subprocess.spawn` 启动 git，注入安全环境变量与参数 (git.ts L94-L125)。
+   - 若为 `GitCommitProtocol`，通过 stdin pipe 发送 `prepare`，等待 `prepare: ok` 后执行 `beforeCommit` 回调，最后发送 `commit\n` 或 `abort\n` (git.ts L126-L146)。
+   - 若为 creation 模式，等待子进程树静默 (`settleCreationTree`) (git.ts L66, L150-L161)。
+   - 返回 `GitCommandResult`，caller 决定非零退出码的处理策略 (git.ts L183 `runGitChecked` 抛错)。
 
 2. **Worktree Creation & Verification**:
-   - `createDetachedWorktree` (git.ts) → `createWorktree` (worktree-creation.ts)。
-   - Inspect commonDir/parent identity → mkdir(target) → inspect rootIdentity → `saveEvidence` (worktree-creation.ts)。
-   - `worktree add --detach --no-checkout --lock` → inspect gitDir/gitIdentity/metadataFingerprint → `saveEvidence` (worktree-creation.ts)。
-   - `verifyIdentity` → sparse checkout handling → `checkout-index` → `unlock` (worktree-creation.ts)。
-   - 失败时：根据 `claimed`/`registered` 状态执行 rolledBack、条件性 rmdir 或全链路 quarantine+rollback (worktree-creation.ts)。
+   - `createDetachedWorktree` (git.ts L329) → `createWorktree` (worktree-creation.ts L17)。
+   - Inspect commonDir/parent identity → mkdir(target) → inspect rootIdentity → `saveEvidence` (worktree-creation.ts L30-L43)。
+   - `worktree add --detach --no-checkout --lock` → inspect gitDir/gitIdentity/metadataFingerprint → `saveEvidence` (L44-L49)。
+   - `verifyIdentity` → sparse checkout handling → `checkout-index` → `unlock` (L51-L69)。
+   - 失败时：根据 `claimed`/`registered` 状态执行 rolledBack、条件性 rmdir 或全链路 quarantine+rollback (L70-L123)。
 
 3. **Registry Read/Write**:
-   - `AtomicJsonCheckoutRegistry.read()` (registry.ts) → `readJsonFileSafe` (safe-file.ts)。
-   - 主文件 → .tmp 提升 → .bak 回退 (safe-file.ts)。
-   - 校验 `isRegistry` → 修复 oversized message → 迁移 v1→v2 → 返回或抛错 (registry.ts)。
-   - `write()` (registry.ts) → `writeJsonFileAtomic` (safe-file.ts)，含 .bak 备份与唯一 tmp rename。
+   - `AtomicJsonCheckoutRegistry.read()` (registry.ts L400) → `readJsonFileSafe` (safe-file.ts L113)。
+   - 主文件 → .tmp 提升 → .bak 回退 (safe-file.ts L113-L161)。
+   - 校验 `isRegistry` → 迁移 v1→v2 → 返回或抛错 (registry.ts L327-L410)。
+   - `write()` (registry.ts L412) → `writeJsonFileAtomic` (safe-file.ts L82)，含 .bak 备份与唯一 tmp rename。
 
 4. **Project Skills Carry**:
-   - `createDetachedWorktree` 校验本地无 Skill 变更 (git.ts)。
-   - `createWorktree` 完成后调用 `projectSkills.carry(skills, managedRoot)` (git.ts)。
-   - `carry` 流程：校验冲突 → `manifest.phase='copying'` → mkdir/writeFile → verify → `manifest.phase='ready'` + atomic rename (project-skills.ts)。
-   - `removeWorktree` 调用 `projectSkills.assertRemovable` 校验无变更后 `worktree remove` (git.ts)。
+   - `createDetachedWorktree` 校验本地无 Skill 变更 (git.ts L330-L333)。
+   - `createWorktree` 完成后调用 `projectSkills.carry(skills, managedRoot)` (git.ts L340)。
+   - `carry` 流程：校验冲突 → `manifest.phase='copying'` → mkdir/writeFile → verify → `manifest.phase='ready'` + atomic rename (project-skills.ts L125-L167)。
+   - `removeWorktree` 调用 `projectSkills.assertRemovable` 校验无变更后 `worktree remove` (git.ts L345-L351)。
 
 5. **Lookup Service Adaptation**:
-   - `createDshLookupPort` 动态获取 `ctx.get('workspaceRegistry')` 与 `ctx.get('sessions')` (lookup.ts)。
-   - `getSidebarMemberships` 并行查询 workspace list 与 session query headers，通过 `sameResolvedPath` 匹配 managedRoot (lookup.ts)。
-   - `getSession` 优先扫描 workspace sessionIds，fallback 到 live session header cwd (lookup.ts)。
+   - `createDshLookupPort` 动态获取 `ctx.get('workspaceRegistry')` 与 `ctx.get('sessions')` (lookup.ts L65-L72)。
+   - `getSidebarMemberships` 并行查询 workspace list 与 session query headers，通过 `sameResolvedPath` 匹配 managedRoot (lookup.ts L75-L96)。
+   - `getSession` 优先扫描 workspace sessionIds，fallback 到 live session header cwd (lookup.ts L97-L114)。
 
 ## Connections
 
@@ -309,5 +320,6 @@ tags: [adapters, git, registry, project-skills]
 ## Known Issues
 
 - **竞态保护复杂性**: `initial-commit.ts` 和 `project-skills.ts` 均依赖复杂的指纹校验和锁机制来防止竞态条件。若指纹计算逻辑（如 `identity` 或 `metadataFingerprint`）因文件系统元数据变化而失效，可能导致不必要的初始化拒绝或状态不一致。
-- **Windows 兼容性**: `safe-file.ts` 中的 `renameAtomicWithRetry` 和 `files.ts` 中的 `removeDirectoryTree` 针对 Windows 文件句柄竞争实现了重试逻辑，但在极端高负载下仍可能失败，需监控重试次数上限。
-- **注册表迁移**: `registry.ts` 的 `migrateLegacyRegistry` 将非终态 checkout 标记为 `recovery_required`，这可能需要人工干预或额外的自动化恢复流程，否则这些 checkout 将处于挂起状态。
+- **Windows 兼容性**: `safe-file.ts` 中的 `renameAtomicWithRetry` (L30) 和 `files.ts` 中的 `removeDirectoryTree` (L74) 针对 Windows 文件句柄竞争实现了重试逻辑，但在极端高负载下仍可能失败，需监控重试次数上限。
+- **注册表迁移**: `registry.ts` 的 `migrateLegacyRegistry` (L339) 将非终态 checkout 标记为 `recovery_required`，这可能需要人工干预或额外的自动化恢复流程，否则这些 checkout 将处于挂起状态。
+- **测试覆盖局限**: `tests/adapters-safe-file.test.ts` 仅验证 `safe-file.ts` 的读写恢复，其他适配器（如 git、registry 校验）缺乏单元测试，回归风险集中于集成环境。
