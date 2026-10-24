@@ -8,9 +8,6 @@ source_files:
   - src/session-target-context.ts
   - src/host-compat.ts
   - src/i18n/host.ts
-  - src/i18n/core.ts
-  - src/adapters/working-directory.ts
-  - src/i18n/host-messages.ts
 tags:
   - host
   - entry
@@ -25,13 +22,13 @@ tags:
 
 本文件涵盖的是「注册面」：模块契约 `SessionCheckoutModule`、配置模式 `Config`、挂载入口 `apply`、9 个模型工具、`/worktree` 命令族、会话目标上下文注入、宿主版本兼容探测，以及宿主语言（i18n）运行时。
 
-生命周期的关键语义（当前代码）：`worktree_create` 是 **in-place 创建**——worktree 所有权直接绑到当前会话并进入该 checkout（`src/tools.ts:101-132`），创建时即建好**会话分支**，Worktree 不再处于 detached HEAD（`src/tools.ts:101-103`）；`worktree_deliver` 的交付提交落在**会话自己的分支**上、不写 Local，并把分支名回传给调用方用于后续合并（`src/tools.ts:101-102`）。
+生命周期的关键语义（当前代码）：`worktree_create` 是 **in-place 创建**——worktree 所有权直接绑到当前会话并进入该 checkout（`src/tools.ts:101-166`），其中 `sourceSessionId = targetSessionId = sessionIdOf(exec.agent)`（`src/tools.ts:101-102`），创建时即建好**会话分支**（返回 `branch` 字段，`src/tools.ts:158`）；`worktree_deliver` 的交付提交落在**会话自己的分支**上、不写 Local，并把分支名回传给调用方用于后续合并（返回 `branch` 见 `src/tools.ts:497`，注释见 `src/tools.ts:101`；整体工具注册于 `src/tools.ts:101-202`）。
 
 ## Key Components
 
 ### 模块契约与类型 (src/index.ts)
 
-- **`SessionCheckoutError`** (`src/index.ts:41-54`)：领域错误基类，继承 `Error`；`readonly code: SessionCheckoutErrorCode`（`src/index.ts:42`），构造函数签名 `constructor(code: SessionCheckoutErrorCode, message: string)`（`src/index.ts:48`），并设置 `this.name = 'SessionCheckoutError'`（`src/index.ts:50`）。`message` 会被工具层逐字透出给用户（注释 `src/index.ts:41-44`）。
+- **`SessionCheckoutError`** (`src/index.ts:41-53`)：领域错误基类，继承 `Error`；`readonly code: SessionCheckoutErrorCode`（`src/index.ts:42`），构造函数签名 `constructor(code: SessionCheckoutErrorCode, message: string)`（`src/index.ts:48`），并设置 `this.name = 'SessionCheckoutError'`（`src/index.ts:50`）。`message` 会被工具层逐字透出给用户（注释 `src/index.ts:41-44`）。
 - **`SessionCheckoutReconcileSummary`** (`src/index.ts:55-61`)：启动收敛摘要接口，字段为 `recoveryRequiredCheckoutIds: string[]`、`orphanedCheckoutIds: string[]`、`dirtyOrphanedCheckoutIds: string[]`、`staleRootCheckoutIds: string[]`、`retainedCheckoutCount: number`。
 - **`ManageManagedWorktreeInput`** (`src/index.ts:63-71`)：管理输入接口。`checkoutId: string`、`expectedRevision: number`（CAS 校验）、`action: 'cleanup_retained' | 'retry_cleanup' | 'set_retention' | 'set_permanent' | 'clear_sidebar_badge' | 'discard'`（`src/index.ts:66`）、`retention?: Exclude<WorktreeRetentionMode, 'cleanup'>`、`permanent?: boolean`、`confirmDirty?: boolean`、`rollbackPreview?: boolean`。
 - **`ListManagedWorktreesInput`** (`src/index.ts:73-78`)：列表输入接口，`projectId?`、`needsAttention?`、`checkoutId?`、`includeDiagnostics?`。
@@ -39,7 +36,7 @@ tags:
 - **`MergeBranchForSessionInput`** (`src/index.ts:87-94`)：`sourceBranch: string`（本会话的 worktree 分支，forward 时合入 Local、reverse 时接收 Local HEAD）、`dryRun?: boolean`（`src/index.ts:91`，在一次性 detached worktree 中试合并，绝不碰 checkout）、`direction?: 'forward' | 'reverse'`（`src/index.ts:93`，reverse 时冲突现场留在 worktree）。
 - **`MarkReadyForReviewInput`** (`src/index.ts:96-103`)：`detailsMarkdown?`、`summary: string`、`validationStatus: WorktreeValidationStatus`、`validationSummary?`、`tests: WorktreeValidationItem[]`、`suggestedCommitMessage: string`。
 - **`IsolatedTargetLaunch`** (`src/index.ts:105-110`)：客户端创建权威隔离 Workspace/Session 的回执数据接口，字段 `targetSessionId: string`、`managedRoot: string`、`target: SessionTargetView`。
-- **`SessionCheckoutModule`** (`src/index.ts:112-202`)：模块向业务调用方暴露的完整核心接口（声明自 `src/index.ts:113`）。方法清单：
+- **`SessionCheckoutModule`** (`src/index.ts:113-202`)：模块向业务调用方暴露的完整核心接口（声明自 `src/index.ts:113`）。方法清单：
   - `inspect(sessionId: string): Promise<SessionTargetView>` (`src/index.ts:114`)
   - `runtimeContext(sessionId: string, cwd?: string): string` (`src/index.ts:120`)：同步注册表快照，用于回放稳定的模型运行时上下文；`cwd` 由宿主提供时决定是否仍需声明绝对路径规则。
   - `preflight?(sessionId, expectedRevision): Promise<WorktreeApplyPreflightView>` (`src/index.ts:122`)：只读同步预检，不改 Local / worktree / 注册表 / review 状态 / Git ref。
@@ -73,11 +70,11 @@ tags:
 
 ### 配置模式 (src/index.ts:244-293)
 
-`Config` 由 `@deepseek-ai/schemastery` 的 `z.object` 定义（`src/index.ts:244`）。`volatile<T>(schema)` (`src/index.ts:244-247`) 给 schema 注入 `meta.volatile = true`——harness 设置页读到该标记后会把字段投影到设置界面，编辑写入 `cordis.patch.yml` 而**不重挂插件**，值以 live 引用到达（注释 `src/index.ts:238`）。
+`Config` 由 `@deepseek-ai/schemastery` 的 `z.object` 定义（`src/index.ts:244`）。`volatile<T>(schema)` 函数定义在 `src/index.ts:244-247`，给 schema 注入 `meta.volatile = true`——harness 设置页读到该标记后会把字段投影到设置界面，编辑写入 `cordis.patch.yml` 而**不重挂插件**，值以 live 引用到达（注释 `src/index.ts:238`）。
 
 | 字段 | 行号 | volatile | 类型/默认值 | 说明 |
 | --- | --- | --- | --- | --- |
-| `stateDir` | `src/index.ts:251` | 否 | `z.string()` | 插件状态目录（注册表、disabled-hooks 根），默认 `$DSH_HOME/plugins/dsh-git-worktree`；被列为可选属性（注释 `src/index.ts:336-342`） |
+| `stateDir` | `src/index.ts:251` | 否 | `z.string()` | 插件状态目录（注册表、disabled-hooks 根），默认 `$DSH_HOME/plugins/dsh-git-worktree`；被列为可选属性（注释 `src/index.ts:336-341`） |
 | `gitTimeoutMs` | `src/index.ts:254` | 是 | `1_000..MAX_GIT_TIMEOUT_MS`，默认 `DEFAULT_GIT_TIMEOUT_MS` | 单个 git 操作超时 |
 | `worktreeAddTimeoutMs` | `src/index.ts:255` | 是 | 默认 `300_000` | `git worktree add` 超时 |
 | `autoDeliver` | `src/index.ts:262` | 是 | 默认 `true` | Agent 自主交付开关；Working 态指引模型走 `worktree_deliver`，不等人工验收 UI |
@@ -105,7 +102,7 @@ tags:
 - **`export * from './console-contract.js'`** (`src/index.ts:226`)：控制台契约类型随入口再导出。
 - **`name = 'git-worktree'`** (`src/index.ts:228`)。
 - **`inject`** (`src/index.ts:236`)：`{ tools: {}, commands: {}, subprocess: {}, loader: { await: false } }`。注释 `src/index.ts:229-235` 说明为何必须是具名导出：loader 从 `inject`/`apply` 具名导出读取插件元数据，裸函数导出会导致首次 `ctx.tools` 访问报 "cannot get property without inject"；`workingDirectory` 是可选服务（桌面壳挂载它，官方实验性 `create_worktree` bundle 也要求它），老宿主保持「只给指引」的行为，因为适配器是动态解析该服务。
-- **`volatile<T>(schema)`** (`src/index.ts:239-242`)：给 schema 注入 `meta.volatile = true` 的实现。
+- **`volatile<T>(schema)`** (`src/index.ts:239-242`)：给 schema 注入 `meta.volatile = true` 的实现（返回带 `meta.volatile = true` 的 schema）。
 
 ### apply() 装配序列 (src/index.ts:330-429)
 
@@ -135,20 +132,20 @@ tags:
 - **`parseWorktreeRetention(value)`** (`src/tools.ts:24-30`)：`undefined` → `DEFAULT_WORKTREE_RETENTION`；合法字符串原样返回；否则抛 `hostMessage('worktreeDeliverInvalidRetention', { p0: String(value) })` (`src/tools.ts:29`)。
 - **`sessionIdOf(agent)`** (`src/tools.ts:32-38`)：从 `agent.session.id` 取会话 id，缺失时抛 `worktreeToolsCanOnlyBeCalledInADSH` (`src/tools.ts:35`)。
 - **`renderJson(value)`** (`src/tools.ts:41-43`)：返回 `[{ type: 'text', text: JSON.stringify(value) }]`，模型与 keyed ToolView 共用同一份日志载荷。
-- **`leaveCheckoutBeforeRemoval(port, module, agent, checkoutId)`** (`src/tools.ts:51-66`)：`module.resolveRoots?.(checkoutId)` 取两侧边界（`src/tools.ts:51`），无则直接返回 `undefined`；否则 `port.leave(agent, roots.managedRoot, roots.localRoot)` (`src/tools.ts:60`)。失败时打 warn 并把 message 作为「无法恢复 cwd 的原因」返回（`src/tools.ts:51-54`），调用方必须据此中止删除。
-- **`enterCheckout(port, module, agent, checkoutId)`** (`src/tools.ts:76-91`)：先读注册表 `module.resolveRoots?.(checkoutId)?.managedRoot`，仅在拿不到时才回退 `module.resolveManagedRoot?.(checkoutId)`（`src/tools.ts:76-77`）——`resolveManagedRoot` 会在全局锁下跑完整 Git 校验，恢复中途的 checkout 或瞬态 git 错误不该把会话甩在 Worktree 之外（注释 `src/tools.ts:76-83`）。失败只 warn 并返回 `undefined`（`src/tools.ts:76-79`）。
+- **`leaveCheckoutBeforeRemoval(port, module, agent, checkoutId)`** (`src/tools.ts:51-66`)：`module.resolveRoots?.(checkoutId)` 取两侧边界（`src/tools.ts:51`），无则直接返回 `undefined`；否则 `port.leave(agent, roots.managedRoot, roots.localRoot)` (`src/tools.ts:60`)。失败时打 warn 并把 message 作为「无法恢复 cwd 的原因」返回（`src/tools.ts:51-53`），调用方必须据此中止删除。
+- **`enterCheckout(port, module, agent, checkoutId)`** (`src/tools.ts:76-91`)：先读注册表 `module.resolveRoots?.(checkoutId)?.managedRoot`，仅在拿不到时才回退 `module.resolveManagedRoot?.(checkoutId)`（`src/tools.ts:76-77`）——`resolveManagedRoot` 会在全局锁下跑完整 Git 校验，恢复中途的 checkout 或瞬态 git 错误不该把会话甩在 Worktree 之外（注释 `src/tools.ts:76-83`）。失败只 warn 并返回 `undefined`（`src/tools.ts:76-78`）。
 
 九个工具的注册位置、参数与返回：
 
-1. **`worktree_create`** (`src/tools.ts:101-167`)。参数 `topic?` (`src/tools.ts:104-107`)、`branch?` (`src/tools.ts:108-111`)。输出字段 `kind`/`checkoutId`/`targetSessionId`/`managedRoot`/`phase`/`currentOid`/`branch?`/`sourceSessionId`/`cwd?`/`cwdSelected` (`src/tools.ts:101-117`)。执行体 `src/tools.ts:101-132`：`sourceSessionId = targetSessionId = sessionIdOf(exec.agent)`（in-place 创建，`src/tools.ts:136-137`），清洗 `topic`/`branch` (`src/tools.ts:138-139`)，**必须传 `createOptions`（空对象也行）以触发 `bindTarget` 的 local→isolated 升级分支**（`src/tools.ts:140-144`，注释 `src/tools.ts:101-102`），随后 `module.createIsolatedTarget(...)` (`src/tools.ts:140`)，再 `enterCheckout` 让相对路径/文件工具/子进程都落在新 checkout 内（`src/tools.ts:148`）；返回里 `cwdSelected: cwd !== undefined` (`src/tools.ts:160`)，并回传会话分支 `branch` (`src/tools.ts:158`)。
-2. **`worktree_list`** (`src/tools.ts:204-260`)。无参数 (`src/tools.ts:204`)。输出 `{ kind: 'worktree_list', worktrees: [{ checkoutId, projectName, ownerSessionId, iteration, revision, state, phase, dirty, commitOid? }] }` (`src/tools.ts:204-230`)。执行体 `src/tools.ts:204-224`：调用 `module.listManagedWorktreesForSession(sessionId)` (`src/tools.ts:204`)；`commitOid` 用条件展开（`src/tools.ts:218`），注释 `src/tools.ts:204-206` 说明宿主把 `undefined` 判为「非无损 JSON」，而 `null` / `''` 又不携带提交语义。
+1. **`worktree_create`** (`src/tools.ts:101-166`)。参数 `topic?` (`src/tools.ts:104-107`)、`branch?` (`src/tools.ts:108-111`)。输出字段 `kind`/`checkoutId`/`targetSessionId`/`managedRoot`/`phase`/`currentOid`/`branch?`/`sourceSessionId`/`cwd?`/`cwdSelected` (`src/tools.ts:101-112`)。执行体 `src/tools.ts:101-133`：`sourceSessionId = targetSessionId = sessionIdOf(exec.agent)`（in-place 创建，`src/tools.ts:136-137`），清洗 `topic`/`branch` (`src/tools.ts:138-139`)，**必须传 `createOptions`（空对象也行）以触发 `bindTarget` 的 local→isolated 升级分支**（`src/tools.ts:140-144`，注释 `src/tools.ts:101-102`），随后 `module.createIsolatedTarget(...)` (`src/tools.ts:140`)，再 `enterCheckout` 让相对路径/文件工具/子进程都落在新 checkout 内（`src/tools.ts:148`）；返回里 `cwdSelected: cwd !== undefined` (`src/tools.ts:160`)，并回传会话分支 `branch` (`src/tools.ts:158`)。
+2. **`worktree_list`** (`src/tools.ts:204-260`)。无参数 (`src/tools.ts:169`)。输出 `{ kind: 'worktree_list', worktrees: [{ checkoutId, projectName, ownerSessionId, iteration, revision, state, phase, dirty, commitOid? }] }` (`src/tools.ts:204-230`)。执行体 `src/tools.ts:204-224`：调用 `module.listManagedWorktreesForSession(sessionId)` (`src/tools.ts:204`)，`commitOid` 用条件展开（`src/tools.ts:218`），注释 `src/tools.ts:204-206` 说明宿主把 `undefined` 判为「非无损 JSON」，而 `null` / `''` 又不携带提交语义。
 3. **`worktree_resume_revision`** (`src/tools.ts:227-272`)。无参数 (`src/tools.ts:227`)。执行体 `src/tools.ts:227-250`：先 `module.inspect(sessionId)` (`src/tools.ts:248`)，`delivery.state !== 'ready_for_review'` 时抛 `theCurrentWorktreeHasNoUnsyncedReviewToResume372` (`src/tools.ts:250`)，再 `module.resumeRevision(sessionId, current.revision, current.delivery.review.reviewId)` (`src/tools.ts:252-256`)，未回到 `working` 态则抛 `worktreeDidNotReturnToWorkingState` (`src/tools.ts:257-259`)，返回 `{ kind: 'worktree_revision_resumed', checkoutId, iteration, revision, phase, sessionId }` (`src/tools.ts:227-234`)。
-4. **`worktree_begin_next_iteration`** (`src/tools.ts:274-317`)。无参数 (`src/tools.ts:274`)。执行体 `src/tools.ts:274-294`：`module.beginNextIteration(sessionId, current.revision)` (`src/tools.ts:297`)，非 `working` 态抛错 (`src/tools.ts:298-300`)，随后 `enterCheckout` 重新进入重建出的 checkout（注释 `src/tools.ts:274-276`：上一轮迭代清理了 cwd，宿主已还原到原项目），返回 `{ kind: 'worktree_next_iteration_started', checkoutId, iteration, phase, currentOid, sessionId, cwd? }` (`src/tools.ts:274-282`)。
+4. **`worktree_begin_next_iteration`** (`src/tools.ts:274-317`)。无参数 (`src/tools.ts:274`)。执行体 `src/tools.ts:274-295`：`module.beginNextIteration(sessionId, current.revision)` (`src/tools.ts:297`)，非 `working` 态抛错 (`src/tools.ts:298-300`)，随后 `enterCheckout` 重新进入重建出的 checkout（注释 `src/tools.ts:274-275`：上一轮迭代清理了 cwd，宿主已还原到原项目），返回 `{ kind: 'worktree_next_iteration_started', checkoutId, iteration, phase, currentOid, sessionId, cwd? }` (`src/tools.ts:274-282`)。
 5. **`worktree_ready_for_review`** (`src/tools.ts:542-627`)。参数：`summary` (`src/tools.ts:322-326`，≤240 字符)、`details` (`src/tools.ts:327-330`，≤12000 字符)、`validationStatus`（枚举 `passed|failed|partial|not_run`，`src/tools.ts:331-335`）、`validationSummary` (`src/tools.ts:336-339`)、`tests`（数组，元素 `{ command, status: passed|failed|not_run, summary? }`，`src/tools.ts:340-352`）、`suggestedCommitMessage` (`src/tools.ts:353-357`)。执行体 `src/tools.ts:542-568`：`module.markReadyForReview(sessionId, {...})` (`src/tools.ts:377-388`)，非 `ready_for_review` 抛 `worktreeDidNotEnterAReviewableState` (`src/tools.ts:389-391`)，返回 `{ kind: 'worktree_ready_for_review', state, reviewId, revision, iteration, changedFiles }` (`src/tools.ts:542-549`)。
-6. **`worktree_deliver`** (`src/tools.ts:452-553`)。参数 `commitMessage?` (`src/tools.ts:452-455`)、`retention?`（枚举四种保留模式，`src/tools.ts:452-456`）、`report?` (`src/tools.ts:452-455`)。执行体 `src/tools.ts:452-508`：先 `module.inspect(sessionId)` (`src/tools.ts:450`)，`!module.isAutoDeliverEnabled()` 直接抛 `worktreeDeliverDisabledByAutoDeliver` (`src/tools.ts:452-453`)；允许的状态仅 `working` / `ready_for_review`，否则抛 `worktreeDeliverNotAllowedInState` (`src/tools.ts:455-457`)；`ready_for_review` 时自动带上 `expectedReviewId` 并在未给消息时回落 `review.suggestedCommitMessage` (`src/tools.ts:460-463`)；消息仍为空抛 `worktreeDeliverRequiresCommitMessage` (`src/tools.ts:465-466`)；交付可能删除 checkout，故先 `leaveCheckoutBeforeRemoval` 且失败即中止 (`src/tools.ts:470-473`)；然后 `module.operate({ sessionId, expectedRevision, action: 'finish', commitMessage, retention, ...(expectedReviewId ? { expectedReviewId } : {}) })` (`src/tools.ts:474-481`)。非 `finished` 时先 `enterCheckout` 把会话放回 checkout（注释 `src/tools.ts:482-486`：留在 Local 边界会让所有相对路径写入落到原仓库），再抛 `worktreeDeliverUnexpectedResult` (`src/tools.ts:490`)；成功返回 `{ kind: 'worktree_delivered', state, commitOid?, branch?, changedFiles, cleanup, push?: { status, message? }, report? }`（`src/tools.ts:452-462`）——其中 `branch` 即会话分支，注释 `src/tools.ts:452-453` 明确「交付提交落在会话分支上（Local 未被写），把分支名交回调用方用于后续合并」。
+6. **`worktree_deliver`** (`src/tools.ts:452-553`)。参数 `commitMessage?` (`src/tools.ts:452-455`)、`retention?`（枚举四种保留模式，`src/tools.ts:452-456`）、`report?` (`src/tools.ts:452-455`)。执行体 `src/tools.ts:452-508`：先 `module.inspect(sessionId)` (`src/tools.ts:450`)，`!module.isAutoDeliverEnabled()` 直接抛 `worktreeDeliverDisabledByAutoDeliver` (`src/tools.ts:452-454`)；允许的状态仅 `working` / `ready_for_review`，否则抛 `worktreeDeliverNotAllowedInState` (`src/tools.ts:452-455`)；`ready_for_review` 时自动带上 `expectedReviewId` 并在未给消息时回落 `review.suggestedCommitMessage` (`src/tools.ts:460-463`)；消息仍为空抛 `worktreeDeliverRequiresCommitMessage` (`src/tools.ts:452-454`)；交付可能删除 checkout，故先 `leaveCheckoutBeforeRemoval` 且失败即中止 (`src/tools.ts:470-473`)；然后 `module.operate({ sessionId, expectedRevision, action: 'finish', commitMessage, retention, ...(expectedReviewId ? { expectedReviewId } : {}) })` (`src/tools.ts:474-481`)。非 `finished` 时先 `enterCheckout` 把会话放回 checkout（注释 `src/tools.ts:452-453`：留在 Local 边界会让所有相对路径写入落到原仓库），再抛 `worktreeDeliverUnexpectedResult` (`src/tools.ts:490`)；成功返回 `{ kind: 'worktree_delivered', state, commitOid?, branch?, changedFiles, cleanup, push?: { status, message? }, report? }`（`src/tools.ts:452-462`）——其中 `branch` 即会话分支，注释 `src/tools.ts:452` 明确「交付提交落在会话分支上（Local 未被写），把分支名交回调用方用于后续合并」。
 7. **`worktree_cleanup`** (`src/tools.ts:533-583`)。参数 `checkoutId?` (`src/tools.ts:512`)、`expectedRevision?` (`src/tools.ts:513`)。执行体 `src/tools.ts:533-558`：`checkoutId` trim 后为空抛 `worktreeCleanupRequiresCheckoutId` (`src/tools.ts:535`)，`expectedRevision` 取 `Math.floor` 后非有限数抛 `worktreeCleanupRequiresExpectedRevision` (`src/tools.ts:534`、`src/tools.ts:536`)，先 `leaveCheckoutBeforeRemoval` (`src/tools.ts:538-541`)，再 `module.manageManagedWorktreeForSession(sessionId, { checkoutId, expectedRevision, action: 'cleanup_retained' })` (`src/tools.ts:542-546`)，返回 `{ kind: 'worktree_cleanup', checkoutId, state, phase, revision, cleanupMessage? }` (`src/tools.ts:533-540`)。
 8. **`worktree_prune_branches`** (`src/tools.ts:607-675`)。参数 `dryRun?` (`src/tools.ts:607`)、`olderThanDays?` (`src/tools.ts:565`)。执行体 `src/tools.ts:607-628`：仅当 `olderThanDays` 是有限正数才透传 `Math.floor` 取值（`src/tools.ts:607-612`），调用 `module.pruneMergedBranchesForSession(sessionId, { dryRun: args?.dryRun === true, ... })` (`src/tools.ts:608-613`)，返回 `{ kind: 'worktree_prune_branches', dryRun, headBranch?, pruned: [{name, oid}], skipped: [{name, oid, reason?}] }` (`src/tools.ts:607-617`)。
-9. **`worktree_merge`** (`src/tools.ts:671-693`)。参数 `sourceBranch?` (`src/tools.ts:634`)、`dryRun?` (`src/tools.ts:671`)、`direction?` (`src/tools.ts:636`)。执行体 `src/tools.ts:671-692`：`sourceBranch` trim 为空抛 `worktreeMergeSourceBranchRequired` (`src/tools.ts:671-672`)，`direction` 只接受 `'reverse'` / `'forward'` 否则 `undefined` (`src/tools.ts:673`)，调用 `module.mergeBranchForSession(...)` (`src/tools.ts:674`)；`result.type === 'failed'` 时抛 `result.reason || hostMessage('gitOperationFailedGit', { p0: 'merge', p1: sourceBranch })` (`src/tools.ts:675`)，否则返回 `{ kind: 'worktree_merge', direction, dryRun, sourceBranch, localBranch?, targetBranch?, type, mergedFiles?, conflictingFiles?, conflictDetails?, reason? }` (`src/tools.ts:671-683`)。
+9. **`worktree_merge`** (`src/tools.ts:671-693`)。参数 `sourceBranch?` (`src/tools.ts:634`)、`dryRun?` (`src/tools.ts:671`)、`direction?` (`src/tools.ts:636`)。执行体 `src/tools.ts:671-693`：`sourceBranch` trim 为空抛 `worktreeMergeSourceBranchRequired` (`src/tools.ts:672`)，`direction` 只接受 `'reverse'` / `'forward'` 否则 `undefined` (`src/tools.ts:673`)，调用 `module.mergeBranchForSession(...)` (`src/tools.ts:674`)；`result.type === 'failed'` 时抛 `result.reason || hostMessage('gitOperationFailedGit', { p0: 'merge', p1: sourceBranch })` (`src/tools.ts:675`)，否则返回 `{ kind: 'worktree_merge', direction, dryRun, sourceBranch, localBranch?, targetBranch?, type, mergedFiles?, conflictingFiles?, conflictDetails?, reason? }` (`src/tools.ts:671-684`)。
 
 全部工具的 `presentCall` 都返回 `{ card: 'generic', title: <hostRegistrationMessage key>, kind: 'other', rawInput: {} }`（如 `src/tools.ts:165`、`src/tools.ts:223`、`src/tools.ts:270`、`src/tools.ts:315`、`src/tools.ts:402`、`src/tools.ts:505`、`src/tools.ts:557`、`src/tools.ts:627`、`src/tools.ts:691`），标题文案由 i18n 注册表提供。
 
@@ -166,7 +163,7 @@ tags:
 - **`leaveCheckout(agent, checkoutId)`** (`src/commands.ts:51-61`)：`module.resolveRoots?.(checkoutId)` 后 `workingDirectory.leave(...)`，失败返回错误消息而非吞掉——注释 `src/commands.ts:49-50` 强调「离开失败必须中止删除」，否则会话 cwd 指向已不存在的目录。
 - **`enterCheckout(agent, checkoutId)`** (`src/commands.ts:62-72`)：与 tools 侧同构，先注册表后 `resolveManagedRoot` 回退；失败仅 warn 返回 `undefined`。
 
-命令注册：`ctx.commands.register({ name: 'worktree', description: hostRegistrationMessage('inspectAndExplicitlyAcceptManagedWorktreeDelivery'), input: { hint: ... }, handler })` (`src/commands.ts:73-227`)。`workingDirectory = createSessionWorkingDirectoryPort(ctx)` 在注册时构造一次（`src/commands.ts:77`），因为交付/丢弃可能删除 checkout，命令必须先退出（注释 `src/commands.ts:77-79`）。`handler` 把 `invocation.rawInput.trim().split(/\s+/u)` 切成 tokens，首 token 为 verb，缺省 `'status'`（`src/commands.ts:78-80`）。
+命令注册：`ctx.commands.register({ name: 'worktree', description: hostRegistrationMessage('inspectAndExplicitlyAcceptManagedWorktreeDelivery'), input: { hint: ... }, handler })` (`src/commands.ts:73-227`)。`workingDirectory = createSessionWorkingDirectoryPort(ctx)` 在注册时构造一次（`src/commands.ts:77`），因为交付/丢弃可能删除 checkout，命令必须先退出（注释 `src/commands.ts:77-79`）。`handler` 把 `invocation.rawInput.trim().split(/\s+/u)` 切成 tokens，首 token 为 verb，缺省 `'status'`（`src/commands.ts:77-78`）。
 
 动词分派（`src/commands.ts:83-222`）：
 
@@ -174,10 +171,10 @@ tags:
 - **`list`** (`src/commands.ts:87-96`)：`module.listManagedWorktreesForSession(sessionId)`；空则 `noManagedWorktreesVisibleToThisSession`，否则每行 `checkoutId  project.name  i<iteration>  <state>/<phase>  dirty=<bool>`。
 - **`continue`** (`src/commands.ts:97-109`)：非 `ready_for_review` 报 `theCurrentWorktreeHasNoUnsyncedReadyForReview`；否则 `module.resumeRevision(sessionId, current.revision, current.delivery.review.reviewId)`，回报恢复到的迭代号。
 - **`next`** (`src/commands.ts:110-120`)：`module.beginNextIteration(sessionId, current.revision)` 后 `enterCheckout` 重新进入（注释 `src/commands.ts:110`：重建的 checkout 再次成为会话 cwd）。
-- **`finalize [<reviewId> <revision>] [retention]`** (`src/commands.ts:123-161`)：`tokens[1]` 若不是合法 retention 即视为 reviewId (`src/commands.ts:123`)，据此决定 `expectedReviewId` / `parsedRevision` / `retention`（默认 `DEFAULT_WORKTREE_RETENTION`，`src/commands.ts:125`）；非法组合回 `usage()` (`src/commands.ts:126-128`)；要求当前态为 `ready_for_review` (`src/commands.ts:130-132`)；reviewId 与 revision 双 CAS 不匹配报「该 review 卡片已过期」(`src/commands.ts:133-138`)；先 `leaveCheckout`，失败即中止 (`src/commands.ts:139-142`)；再 `module.operate({ action: 'finish', sessionId, expectedRevision, commitMessage: target.delivery.review.suggestedCommitMessage, retention, ...expectedReviewId })` (`src/commands.ts:143-150`)。失败分支会 `enterCheckout` 把会话放回仍存在的 checkout (`src/commands.ts:153`)，冲突时回报冲突文件与 Local HEAD 短 oid (`src/commands.ts:123`)。
-- **`finish <message>`** (`src/commands.ts:33-52`)：`commitMessage = rawInput.slice(verb.length).trim()`，为空回 `usage()`；同样先 `leaveCheckout` 再 `module.operate({ action: 'finish', ... })`（不带 retention，走默认）。
-- **`discard`** (`src/commands.ts:180-200`)：`leaveCheckout` 后 `module.operate({ action: 'discard', sessionId, expectedRevision: target.revision, confirmDirty: true, ...(target.delivery?.state === 'preview_active' ? { rollbackPreview: true } : {}) })` (`src/commands.ts:186-192`)；非 `discarded` 时把会话送回 checkout (`src/commands.ts:194`)。
-- **`remove <checkoutId>`** (`src/commands.ts:33-51`)：缺参回 `usage()`；`module.listManagedWorktreesForSession(sessionId, { checkoutId })` 取作用域内摘要（无则 `noManagedWorktreeVisibleToThisSession`）；`leaveCheckout` 成功后 `module.manageManagedWorktreeForSession(sessionId, { checkoutId, expectedRevision: summary.revision, action: 'discard', confirmDirty: true, ...(summary.state === 'preview_active' ? { rollbackPreview: true } : {}) })` (`src/commands.ts:211-217`)。
+- **`finalize [<reviewId> <revision>] [retention]`** (`src/commands.ts:123-162`)：`tokens[1]` 若不是合法 retention 即视为 reviewId (`src/commands.ts:123`)，据此决定 `expectedReviewId` / `parsedRevision` / `retention`（默认 `DEFAULT_WORKTREE_RETENTION`，`src/commands.ts:125`）；非法组合回 `usage()` (`src/commands.ts:126-128`)；要求当前态为 `ready_for_review` (`src/commands.ts:130-132`)；reviewId 与 revision 双 CAS 不匹配报「该 review 卡片已过期」(`src/commands.ts:133-138`)；先 `leaveCheckout`，失败即中止 (`src/commands.ts:139-142`)；再 `module.operate({ action: 'finish', sessionId, expectedRevision, commitMessage: target.delivery.review.suggestedCommitMessage, retention, ...expectedReviewId })` (`src/commands.ts:143-150`)。失败分支会 `enterCheckout` 把会话放回仍存在的 checkout (`src/commands.ts:153`)，冲突时回报冲突文件与 Local HEAD 短 oid (`src/commands.ts:123`)。
+- **`finish <message>`** (`src/commands.ts:33-51`)：`commitMessage = rawInput.slice(verb.length).trim()`，为空回 `usage()`；同样先 `leaveCheckout` 再 `module.operate({ action: 'finish', ... })`（不带 retention，走默认）。
+- **`discard`** (`src/commands.ts:180-199`)：`leaveCheckout` 后 `module.operate({ action: 'discard', sessionId, expectedRevision: target.revision, confirmDirty: true, ...(target.delivery?.state === 'preview_active' ? { rollbackPreview: true } : {}) })` (`src/commands.ts:186-192`)；非 `discarded` 时把会话送回 checkout (`src/commands.ts:194`)。
+- **`remove <checkoutId>`** (`src/commands.ts:33-50`)：缺参回 `usage()`；`module.listManagedWorktreesForSession(sessionId, { checkoutId })` 取作用域内摘要（无则 `noManagedWorktreeVisibleToThisSession`）；`leaveCheckout` 成功后 `module.manageManagedWorktreeForSession(sessionId, { checkoutId, expectedRevision: summary.revision, action: 'discard', confirmDirty: true, ...(summary.state === 'preview_active' ? { rollbackPreview: true } : {}) })` (`src/commands.ts:211-217`)。
 - **`default`** (`src/commands.ts:220-221`)：`unknownVerb`（带 `JSON.stringify(verb)` 与 usage）。
 - 整体 `try/catch` (`src/commands.ts:223-225`)：任何异常折叠为 `{ kind: 'error', text: ... }`，命令面永不抛穿。
 
@@ -194,7 +191,7 @@ tags:
 - **`WorkspaceFlavorAnchorDiagnostic`** (`src/host-compat.ts:42-47`)：`kind: 'entry' | 'cwd' | 'plugin' | 'extra'`、`anchor: string`、`ok: boolean`、`version?: string`。
 - **`WorkspaceFlavorDiagnostics`** (`src/host-compat.ts:49-53`)：`{ flavor: WorkspaceClientFlavor; anchors: WorkspaceFlavorAnchorDiagnostic[] }`。
 - **`ANCHOR_KINDS`** (`src/host-compat.ts:54`)：`['entry', 'cwd', 'plugin']`。
-- **`workspaceFlavorDiagnostics(anchors = [process.argv[1], process.cwd(), import.meta.url])`** (`src/host-compat.ts:63-75`)：按顺序探测，记录每个探针（超出前三的归为 `extra`，`src/host-compat.ts:71`），**第一个**解析成功的锚点决定 flavor (`src/host-compat.ts:63`)，全失败则 `'unsupported'` (`src/host-compat.ts:63`)。注释 `src/host-compat.ts:63-69` 说明锚点顺序：在 `link:` 安装下插件自己的 `node_modules` 会遮住宿主树，所以运行入口脚本与 cwd 优先，插件路径只作最后手段。
+- **`workspaceFlavorDiagnostics(anchors = [process.argv[1], process.cwd(), import.meta.url])`** (`src/host-compat.ts:63-75`)：按顺序探测，记录每个探针（超出前三的归为 `extra`，`src/host-compat.ts:71`），**第一个**解析成功的锚点决定 flavor (`src/host-compat.ts:63`)，全失败则 `'unsupported'` (`src/host-compat.ts:63`)。注释 `src/host-compat.ts:63-68` 说明锚点顺序：在 `link:` 安装下插件自己的 `node_modules` 会遮住宿主树，所以运行入口脚本与 cwd 优先，插件路径只作最后手段。
 - **`hostWorkspaceClientFlavor()`** (`src/host-compat.ts:77-79`)：返回 `workspaceFlavorDiagnostics().flavor`，供 `apply` 传给 `mountWorkspaceProviderLifecycle`。
 
 ### 宿主语言运行时 (src/i18n/host.ts)
@@ -204,7 +201,7 @@ tags:
 - **`withHostLanguage(language, operation)`** (`src/i18n/host.ts:12-14`)：`languages.run(normalizeLanguage(language), operation)`。
 - **`languageFromSettings(ctx)`** (`src/i18n/host.ts:17-27`)：只读公开且属于 context 的 DSH settings 缝隙（注释 `src/i18n/host.ts:17`）——`ctx.get?.('settings').get?.('locale').preference` 经 `normalizeLanguage` 归一；异常回退 `'zh'` (`src/i18n/host.ts:17-20`)，因为可选服务/命名空间在组合或拆卸期可能缺席。
 - **`languageForInvocation(agent, fallbackContext)`** (`src/i18n/host.ts:30-33`)：优先 `agent.ctx`，避免作用域设置在不同用户间泄漏。
-- **`hostMessage`** (`src/i18n/host.ts:35-38`)：`Translator<typeof hostMessages>`，内部用 `createTranslator(hostMessages, currentHostLanguage())`（来自 `src/i18n/core.ts`，导入见 `src/i18n/host.ts:2`）并转发首个参数对象。
+- **`hostMessage`** (`src/i18n/host.ts:35-38`)：`Translator<typeof hostMessages>`，内部用 `createTranslator(hostMessages, currentHostLanguage())`（来自 `./core.js`，导入见 `src/i18n/host.ts:2`）并转发首个参数对象。
 
 ## Architecture
 
@@ -231,7 +228,7 @@ tags:
 
  维护面：384 ready → reconcile + enforceWorktreeKeepCount
          399 15min → cleanupExpiredRetained + enforceWorktreeKeepCount
-         407 60s 首跑 / 421 24h → autoPruneStaleMergedBranches(7d)
+         419 60s 首跑 / 421 24h → autoPruneStaleMergedBranches(7d)
  全部定时器 unref（406/420/422），423 ctx.effect 统一清理
 ```
 
@@ -259,9 +256,9 @@ tags:
 
 1. **`enableWorkspaceProvider` 的两处注释语义需对照代码**：`Config` 注释（`src/index.ts:244-249`）写「只有显式 `true` 才接管」，而 `apply` 的文档注释（`src/index.ts:244-252`）写「legacy 宿主 opt-in、modern 0.2.x 宿主自动接管，flag 在 modern 上仅 advisory」。代码实际行为由 `mountWorkspaceProviderLifecycle(..., { enabled: config.enableWorkspaceProvider === true })`（`src/index.ts:335`）与 `hostWorkspaceClientFlavor()` 共同决定，判定细节在 `workspace-provider-lifecycle.ts`（未在本文源码范围内）；读代码时不应只信 `Config` 注释。
 2. **`0.1.x` 未知版本与 `0.3+` 一律 `unsupported`**（`src/host-compat.ts:22`）。0.1.x 有三种 flavor 无法从版本号唯一定位，0.3+ 未经宿主源码验证；碰到未验证宿主时 `hostWorkspaceClientFlavor()` 返回 `unsupported`，Workspace 接管路径退化为不可用。
-3. **锚点探测在 `link:` 安装下会失真**：`workspaceFlavorDiagnostics` 的前两个锚点是 `process.argv[1]` 与 `process.cwd()`（`src/host-compat.ts:64`），插件路径只作最后手段（`src/host-compat.ts:63-69`）；若进程在这些锚点上解析到插件自己的 dev 依赖，读到的 `@deepseek-ai/dsh-agent` 版本是构建期版本而非宿主版本（注释 `src/host-compat.ts:63-69` 已警示）。`agentVersionFromAnchor` 的 `catch` 是静默的（`src/host-compat.ts:38`），失败只体现为该锚点 `ok: false`。
+3. **锚点探测在 `link:` 安装下会失真**：`workspaceFlavorDiagnostics` 的前两个锚点是 `process.argv[1]` 与 `process.cwd()`（`src/host-compat.ts:64`），插件路径只作最后手段（`src/host-compat.ts:63-69`）；若进程在这些锚点上解析到插件自己的 dev 依赖，读到的 `@deepseek-ai/dsh-agent` 版本是构建期版本而非宿主版本（注释 `src/host-compat.ts:63-68` 已警示）。`agentVersionFromAnchor` 的 `catch` 是静默的（`src/host-compat.ts:38`），失败只体现为该锚点 `ok: false`。
 4. **`enterCheckout` 失败是软失败**：`src/tools.ts:76-91` 与 `src/commands.ts:62-72` 都只 `console.warn` 并返回 `undefined`，`worktree_create` 的 `cwdSelected` 因此可能为 `false`（`src/tools.ts:160`），此时模型仍拿到「已创建」的回执但实际 cwd 未移动，后续相对路径写入会落到别处。相反，`leaveCheckout*`（`src/tools.ts:76-91`、`src/commands.ts:51-61`）失败是硬失败，必须中止删除。
-5. **`worktree_deliver` 被 `autoDeliver` 关闭时直接拒绝**（`src/tools.ts:8-10`），模型侧没有其他交付工具；此时只能走 `worktree_ready_for_review` + 人工验收条（模块注释 `src/tools.ts:8-16`、`src/commands.ts:3-7`）。Discard/Remove 也没有对应的模型工具，只有 `/worktree` 动词。
+5. **`worktree_deliver` 被 `autoDeliver` 关闭时直接拒绝**（`src/tools.ts:8-10`），模型侧没有其他交付工具；此时只能走 `worktree_ready_for_review` + 人工验收条（模块注释 `src/tools.ts:8-11`、`src/commands.ts:3-7`）。Discard/Remove 也没有对应的模型工具，只有 `/worktree` 动词。
 6. **配置文件/目录膨胀无自动回收**：`stateDir` 下的 `managed-checkouts.json`（`src/index.ts:351`）、`disabled-git-hooks`（`src/index.ts:338`）、`project-skills`（`src/index.ts:348`）、`sidebar-diag.ndjson`（`src/index.ts:375`）由插件自行创建；前两者没有清理路径，`sidebar-diag.ndjson` 的截断策略在 `WorktreeConsoleService` 内部（未在本文源码范围内）。
 7. **定时器依赖 `.unref?.()`**（`src/index.ts:423`、`src/index.ts:423`、`src/index.ts:423`）：在缺少该方法的运行时会残留句柄；`ctx.effect` 的清理体（`src/index.ts:423-428`）只是注销 `ready` 监听与清定时器，不清理 `WorktreeConsoleService` 已注册的 RPC 面（由该服务自身负责）。
-8. **`languageFromSettings` 与 `currentHostLanguage` 都默认 `'zh'`**（`src/i18n/host.ts:17-27`、`src/i18n/host.ts:8-10`）：宿主 language 服务缺失或异常时不会给出英文兜底，非中文宿主会看到中文文案。
+8. **`languageFromSettings` 与 `currentHostLanguage` 都默认 `'zh'`**（`src/i18n/host.ts:8-10`、`src/i18n/host.ts:17-27`）：宿主 language 服务缺失或异常时不会给出英文兜底，非中文宿主会看到中文文案。

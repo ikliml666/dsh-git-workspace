@@ -84,10 +84,10 @@ Client 侧是插件的浏览器运行时：把 Host 暴露的 Remote 服务适�
   - **返回对象**（行113‑153）实现 `WorktreeConsoleAdapter`（契约行723‑761）全部方法：`sidebarTopology`、`current`、`list`、`preflightCreate`、`createWithInitialCommit`、`create`、`initializeProject`、`inspect`、`reviewDiff`、`preflight`、`previewRecoveryPreflight`、`preparePreviewRecoveryAnalysis`、`createPreviewRecoveryHandoff`、`preview`、`checkpoint`、`resumeRevision`、`prepareReviewRegeneration`、`rollbackPreview`、`discard`、`finalize`、`finalizePreview`、`setRetention`、`setPermanent`、`retryCleanup`、`beginNextIteration`、`clearSidebarBadge`、`gitOverview`、`gitGraph`、`gitCreateBranch`、`gitSwitchBranch`、`gitPruneMergedBranches`、`gitListTags`、`gitCreateTag`、`gitDeleteTag`、`gitPushTag`、`listAbandoned`、`restoreAbandoned`。
 - **契约关键类型**（`src/console-contract.ts`）：
   - `WORKTREE_CONSOLE_TARGET_STATES`（行26‑40）与 `WorktreeConsoleTargetState`（行40）：目标状态联合类型。
-  - `WorktreeConsoleProjectionSource`（行52‑56）：字段 `kind`、`phase`、`deliveryState?`。
+  - `WorktreeConsoleProjectionSource`（行52‑56）：字段 `kind: 'local' | 'isolated'`、`phase: SessionCheckoutPhase`、`deliveryState?: WorktreeConsoleDeliveryState`。
   - `worktreeReachedDelivery`（行64‑73）与 `consoleStateFromDomain`（行76‑91）：状态投影函数。
-  - `WorktreeConsoleProject`（行93‑96）：字段 `id`、`name`。
-  - `WorktreeConsoleCapabilities`（行98‑118）：列举 create/open/inspect/discard/preflight/preview/checkpoint/resumeRevision/rollbackPreview/finalize/finalizePreview/setRetention/setPermanent/retryCleanup/beginNextIteration 等布尔能力。
+  - `WorktreeConsoleProject`（行93‑96）：字段 `id: string`、`name: string`。
+  - `WorktreeConsoleCapabilities`（行98‑118）：布尔能力字段 create/open/inspect/discard/preflight/preview/checkpoint/resumeRevision/rollbackPreview/finalize/finalizePreview/setRetention/setPermanent/retryCleanup/beginNextIteration。
   - `WorktreeConsoleTargetSummary`（行143‑173）：字段 `project`、`checkoutId`、`sourceSessionId`、`ownerSessionId`、`targetSessionId`、`iteration`、`revision`、`state`、`phase`、`dirty`、`currentOid`、`commitOid?`、`sourceBranch?`、`retention?`、`retainedAt?`、`expiresAt?`、`permanent?`、`cleanupMessage?`、`deliveryProof?`、`review?`、`checkpoints?`、`checkpointGeneration?`、`reviewSlot?`、`reviewSlotOwnerSessionId?`、`reviewSlotHolder?`、`previewRecovery?`、`capabilities`。
   - `WorktreeConsoleTargetDetails`（行176‑189）：扩展 `TargetSummary` 加 `managedRoot`、`sourceRoot`、`sourceOid`、`currentBranch`、`recoveryContinuation?`。
   - `WorktreeSidebarTask`（行220‑230）：字段 `checkoutId`、`ownerSessionId`、`sourceSessionId`、`iteration`、`revision`、`phase`、`state`、`sourceBranch`。
