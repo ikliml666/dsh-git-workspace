@@ -298,6 +298,31 @@ describe('Harness-native Session Target slots', () => {
     expect(fixture.calls.find(call => call.method === 'gitCreateTag')?.request).toMatchObject({ name: 'v1.0.0', target: undefined })
   })
 
+  test('远端无法查询时标签显示「推送状态未知」而不是误判未推送，且仍可推送', async () => {
+    const fixture = createWorktreeConsoleAdapterFixture()
+    invalidateBranchOverview('target-session')
+    fixture.adapter.gitListTags = vi.fn(async () => ({
+      ok: true,
+      value: {
+        root: '/fixture/project',
+        tags: [{ name: 'v9.9.9', oid: 'd'.repeat(40), commitOid: 'd'.repeat(40), annotated: false, message: null, pushed: null }],
+      },
+    }))
+    render(<TargetStatusAction sessionId="target-session" adapter={fixture.adapter} services={clientServices()} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Session Target：Worktree · 待验收' }))
+    fireEvent.click(await screen.findByText('管理标签'))
+    await screen.findByText('v9.9.9')
+
+    expect(screen.getByText('推送状态未知')).toBeTruthy()
+    expect(screen.queryByText('已推送')).toBeNull()
+
+    // Unknown is not "pushed": the push action must stay reachable.
+    fireEvent.click(screen.getByRole('button', { name: '推送' }))
+    await waitFor(() => expect(fixture.calls.some(call => call.method === 'gitPushTag')).toBe(true))
+    expect(fixture.calls.find(call => call.method === 'gitPushTag')?.request).toMatchObject({ sessionId: 'target-session', name: 'v9.9.9' })
+  })
+
   test('菜单「管理标签」打开标签弹层，创建附注标签后回到列表并显示附注徽章', async () => {
     const fixture = createWorktreeConsoleAdapterFixture()
     invalidateBranchOverview('target-session')

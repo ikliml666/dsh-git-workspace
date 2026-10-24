@@ -198,13 +198,14 @@ export function TagManagerModal({ open, onClose, adapter, sessionId, t, target }
           {loading && tags === null ? <span>{t("tag.loading")}</span> : null}
           {tags !== null && tags.length === 0 ? <span>{t("tag.empty")}</span> : null}
           {tags?.map(tag => (
-            <div className="dsh-wtc-tag-row" key={tag.name} data-tag-pushed={tag.pushed ? '' : undefined}>
+            <div className="dsh-wtc-tag-row" key={tag.name} data-tag-pushed={tag.pushed === true ? '' : undefined} data-tag-push-unknown={tag.pushed === null ? '' : undefined}>
               <span className="dsh-wtc-tag-name" title={tag.name}>{tag.name}</span>
               {tag.annotated ? <span className="dsh-wtc-tag-kind">{t("tag.kind.annotated")}</span> : null}
-              {tag.pushed ? <span className="dsh-wtc-tag-kind">{t("tag.kind.pushed")}</span> : null}
+              {tag.pushed === true ? <span className="dsh-wtc-tag-kind">{t("tag.kind.pushed")}</span> : null}
+              {tag.pushed === null ? <span className="dsh-wtc-tag-kind" title={t("tag.kind.push.unknown")}>{t("tag.kind.push.unknown")}</span> : null}
               {tag.message !== null ? <span className="dsh-wtc-tag-message" title={tag.message}>{tag.message}</span> : null}
               <span className="dsh-wtc-tag-actions">
-                {tag.pushed
+                {tag.pushed === true
                   ? null
                   : (
                     <button

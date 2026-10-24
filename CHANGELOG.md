@@ -10,6 +10,8 @@
   - 新增 Remote 方法 `gitListTags` / `gitCreateTag` / `gitDeleteTag` / `gitPushTag`（严格 descriptor + zod 校验，标签名走 `git check-ref-format` 同等规则），发布门禁方法面同步为 38 项。
   - 标签推送永不 force：本地创建成功而推送失败时仍保留标签并以提示报告失败原因；`gitPushTag` 单独推送失败返回 `git_error` 领域错误。
   - 提交图谱区分标签与分支：适配器装饰解析保留 `tag:` 标记，同名 tag 与 branch 不再合并为同一徽章，标签徽章以绿色 `⌗` 前缀渲染。
+  - 图谱内可直接打标签：每条提交悬停显示「在此提交打标签」，图谱底栏新增「管理标签」，从提交行进入时弹层顶部标注「将指向提交 <oid>」并把该 commit 作为 `target` 传给 `gitCreateTag`；从菜单或底栏进入则以 HEAD 为目标。
+  - 推送状态不再误报：`ls-remote` 失败（离线、无 `origin`）时标签推送状态记为未知并显示「推送状态未知」，不再静默判为未推送；未知状态下推送按钮保持可用。
 
 ### Changed
 

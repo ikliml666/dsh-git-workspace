@@ -542,8 +542,10 @@ export interface WorktreeConsoleGitTag {
   annotated: boolean
   /** Tag message for annotated tags; null for lightweight tags. */
   message: string | null
-  /** True when `origin` already has a tag of the same name. */
-  pushed: boolean
+  /** True when `origin` already has a tag of the same name; null when the
+   *  remote could not be queried (offline / no `origin`), which must not be
+   *  reported as "not pushed". */
+  pushed: boolean | null
 }
 
 export interface WorktreeConsoleGitTagListResponse {

@@ -69,8 +69,9 @@ export interface TagOverviewEntry {
   commitOid: string | null
   annotated: boolean
   message: string | null
-  /** True when `origin` already has a tag of the same name. */
-  pushed: boolean
+  /** True when `origin` already has a tag of the same name; null when the
+   *  remote could not be queried, so "not pushed" is never invented. */
+  pushed: boolean | null
 }
 
 /** One parsed `git log` row for the commit graph (lanes are computed client-side). */

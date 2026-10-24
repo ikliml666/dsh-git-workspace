@@ -579,7 +579,9 @@ export function createDshGitPort(ctx: Context, options: GitPortOptions): Session
           // Lightweight tags have no message: `contents:subject` would print the
           // commit subject, so only annotated tags keep a body.
           message: annotated && subject.trim() !== '' ? subject.trim() : null,
-          pushed: false,
+          // Unknown until `ls-remote` answers: being offline (or having no
+          // `origin`) must not be reported as "not pushed".
+          pushed: null as boolean | null,
         }
       }).filter(tag => tag.name !== '' && /^[0-9a-f]{40,64}$/iu.test(tag.oid))
       const remote = await runSessionGit(root, ['ls-remote', '--tags', 'origin'])

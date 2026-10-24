@@ -62,7 +62,7 @@ afterEach(async () => {
 })
 
 describe('Git tag port', () => {
-  it('creates a lightweight tag, lists it, and reports it as not pushed without a remote', async () => {
+  it('creates a lightweight tag and lists it with an unknown push state without a remote', async () => {
     const { repo, port } = await fixture()
 
     await port.createTag(repo, 'v1.0.0')
@@ -74,7 +74,9 @@ describe('Git tag port', () => {
     // A lightweight tag points straight at the commit, so both oids coincide.
     expect(tag.oid).toBe(tag.commitOid)
     expect(tag.message).toBeNull()
-    expect(tag.pushed).toBe(false)
+    // No `origin` exists, so the remote was never queried: reporting `false`
+    // here would claim "not pushed" for a repository that cannot push at all.
+    expect(tag.pushed).toBeNull()
     expect(git(repo, ['rev-parse', 'refs/tags/v1.0.0']).stdout.trim()).toBe(tag.commitOid)
   })
 

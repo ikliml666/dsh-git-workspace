@@ -1059,6 +1059,10 @@ export const clientMessages = {
     "zh": "在此提交打标签",
     "en": "Tag this commit"
   },
+  "tag.kind.push.unknown": {
+    "zh": "推送状态未知",
+    "en": "Push state unknown"
+  },
   "tag.push.on.create": {
     "zh": "创建后推送到 origin",
     "en": "Push to origin after creating"

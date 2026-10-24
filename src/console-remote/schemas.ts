@@ -428,7 +428,8 @@ const gitTagSchema = strict({
   commitOid: gitOidSchema.nullable(),
   annotated: booleanSchema,
   message: z.string().max(4000).nullable(),
-  pushed: booleanSchema,
+  // null = the remote could not be queried; never coerced to false.
+  pushed: booleanSchema.nullable(),
 })
 export const gitTagListResponseSchema: z.ZodType<WorktreeConsoleGitTagListResponse> = strict({
   root: z.string().min(1),
