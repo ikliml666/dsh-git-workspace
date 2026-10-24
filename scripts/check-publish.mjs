@@ -226,7 +226,13 @@ try {
 if (!clientExports || typeof clientExports.apply !== 'function' || !Array.isArray(clientExports.inject)) {
   fail('client bundle factory did not return apply + inject')
 }
-if (!clientExports.inject.includes('remoteAccess')) fail('client bundle must inject the official remoteAccess service')
+// The bundle deliberately filters `remoteAccess` out of its static inject: the
+// desktop profile loads this artifact through a junction that can point at a
+// 0.2.0-rc.2 Host, where a static declaration left the web boot permanently
+// pending ("waiting for service: remoteAccess" -> "14 entries did not
+// activate"). The managed proxy supplies a stub instead; `package.json` still
+// declares the package as a client dependency, enforced by the check above.
+if (clientExports.inject.includes('remoteAccess')) fail('client bundle entry must not statically inject remoteAccess: the 0.2.0-rc.2 Host has no such service and its web boot would hang waiting for it')
 if (!clientExports.inject.includes('remote')) fail('client bundle must inject the official Remote service before $mount')
 if (clientExports.inject.includes('remote.directoryPicker')) fail('client bundle entry must not wait for the directory-picker Remote: its provider entry waits for uiWorkspace, so requiring it here deadlocks the 0.2.x web boot')
 if (!clientSource.includes("'remote.directoryPicker'") && !clientSource.includes('"remote.directoryPicker"')) fail('client bundle must resolve the directory-picker lazily at call time through the managed context (deferred facade)')
