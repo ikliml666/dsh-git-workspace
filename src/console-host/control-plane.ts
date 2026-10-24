@@ -707,22 +707,29 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
 
     gitDeleteTag: request => outcome(async () => {
       const { root } = await projectRootFor(request.sessionId)
+      // Remote first: when the origin delete fails the local tag is still there,
+      // so the user can retry instead of losing the only remaining copy.
+      if (request.remote === true) {
+        if (options.git.deleteRemoteTag === undefined) return { tag: request.name, pushed: false, pushMessage: hostMessage('gitOperationFailedGit', { p0: 'push', p1: request.name }) }
+        const deleted = await options.git.deleteRemoteTag(root, request.name)
+        if (!deleted.ok) {
+          return { tag: request.name, pushed: false, pushMessage: deleted.message ?? hostMessage('gitOperationFailedGit', { p0: 'push', p1: request.name }) }
+        }
+      }
       if (options.git.deleteLocalTag === undefined) throw domainError('git_error', hostMessage('gitOperationFailedGit', { p0: 'tag -d', p1: request.name }))
       await options.git.deleteLocalTag(root, request.name)
-      if (request.remote !== true) return { tag: request.name }
-      if (options.git.deleteRemoteTag === undefined) return { tag: request.name, pushed: false, pushMessage: hostMessage('gitOperationFailedGit', { p0: 'push', p1: request.name }) }
-      const deleted = await options.git.deleteRemoteTag(root, request.name)
-      return deleted.ok
-        ? { tag: request.name, pushed: true }
-        : { tag: request.name, pushed: false, pushMessage: deleted.message ?? hostMessage('gitOperationFailedGit', { p0: 'push', p1: request.name }) }
+      return request.remote === true ? { tag: request.name, pushed: true } : { tag: request.name }
     }),
 
     gitPushTag: request => outcome(async () => {
       const { root } = await projectRootFor(request.sessionId)
       if (options.git.pushTag === undefined) throw domainError('git_error', hostMessage('gitOperationFailedGit', { p0: 'push', p1: request.name }))
       const pushed = await options.git.pushTag(root, request.name)
-      if (!pushed.ok) throw domainError('git_error', pushed.message ?? hostMessage('gitOperationFailedGit', { p0: 'push', p1: request.name }))
-      return { tag: request.name, pushed: true }
+      // Same soft-degrade channel as gitCreateTag's push step: a rejected push is
+      // a reportable outcome, not a failed mutation.
+      return pushed.ok
+        ? { tag: request.name, pushed: true }
+        : { tag: request.name, pushed: false, pushMessage: pushed.message ?? hostMessage('gitOperationFailedGit', { p0: 'push', p1: request.name }) }
     }),
 
     listAbandoned: sessionId => outcome(async () => {

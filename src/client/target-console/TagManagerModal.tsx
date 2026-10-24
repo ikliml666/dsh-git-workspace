@@ -129,6 +129,11 @@ export function TagManagerModal({ open, onClose, adapter, sessionId, t }: TagMan
       setError(outcome.error.message)
       return
     }
+    if (outcome.value.pushed === false) {
+      // A rejected push is a reportable outcome, not a failed mutation.
+      setError(outcome.value.pushMessage ?? t("tag.push.failed"))
+      return
+    }
     setNotice(t("tag.pushed", { p0: name }))
     void load()
   }

@@ -752,13 +752,15 @@ describe('Worktree Console Host control plane', () => {
     expect(result).toMatchObject({ ok: true, value: { tag: 'v1.0.0', pushed: false, pushMessage: 'no remote' } })
   })
 
-  it('reports a tag push failure as a domain error', async () => {
+  it('reports a tag push failure as a reportable outcome, not a failed mutation', async () => {
     const git = { ...gitDouble(), pushTag: vi.fn(async () => ({ ok: false, message: 'no remote' })) }
     const { control } = plane(readyRecord(), { git })
 
     const result = await control.gitPushTag({ sessionId: 'source-session', name: 'v1.0.0' })
 
-    expect(result).toMatchObject({ ok: false, error: { code: 'git_error', message: 'no remote' } })
+    // A rejected push leaves the local tag intact, so it matches the create-with-push
+    // channel instead of surfacing as a domain error.
+    expect(result).toMatchObject({ ok: true, value: { tag: 'v1.0.0', pushed: false, pushMessage: 'no remote' } })
   })
 
   it('deletes a tag locally and on origin when asked for both', async () => {
@@ -773,7 +775,22 @@ describe('Worktree Console Host control plane', () => {
 
     expect(git.deleteLocalTag).toHaveBeenCalledWith('/local', 'v1.0.0')
     expect(git.deleteRemoteTag).toHaveBeenCalledWith('/local', 'v1.0.0')
-    expect(result).toMatchObject({ ok: true, value: { tag: 'v1.0.0' } })
+    expect(result).toMatchObject({ ok: true, value: { tag: 'v1.0.0', pushed: true } })
+  })
+
+  it('keeps the local tag when the origin delete fails', async () => {
+    const git = {
+      ...gitDouble(),
+      deleteLocalTag: vi.fn(async () => undefined),
+      deleteRemoteTag: vi.fn(async () => ({ ok: false, message: 'no remote' })),
+    }
+    const { control } = plane(readyRecord(), { git })
+
+    const result = await control.gitDeleteTag({ sessionId: 'source-session', name: 'v1.0.0', remote: true })
+
+    // Origin is deleted first, so a failed remote delete never destroys the only copy.
+    expect(git.deleteLocalTag).not.toHaveBeenCalled()
+    expect(result).toMatchObject({ ok: true, value: { tag: 'v1.0.0', pushed: false, pushMessage: 'no remote' } })
   })
 
   it('observes list records in one module batch when the module supports batch observation', async () => {

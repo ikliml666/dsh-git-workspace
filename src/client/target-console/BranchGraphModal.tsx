@@ -273,7 +273,7 @@ export function BranchGraphModal({ open, onClose, adapter, sessionId, t, current
                       key={`${entry.tag ? 'tag' : 'ref'}:${entry.full}`}
                       className="dsh-wtc-graph-ref"
                       data-gitgraph-ref-tag={entry.tag ? '' : undefined}
-                      data-gitgraph-ref-current={entry.label === currentBranch || (currentBranch !== null && entry.full.split(' · ').includes(currentBranch)) ? '' : undefined}
+                      data-gitgraph-ref-current={!entry.tag && (entry.label === currentBranch || (currentBranch !== null && entry.full.split(' · ').includes(currentBranch))) ? '' : undefined}
                       title={entry.tag ? `tag: ${entry.full}` : entry.full}
                     >
                       {entry.label}
