@@ -419,6 +419,9 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
             if (event.key === 'Enter') {
               event.preventDefault()
               event.stopPropagation()
+              // Same gate as the menu rows: a switch already in flight must not
+              // be doubled by Enter, which has no disabled state of its own.
+              if (pendingAction !== null) return
               const first = visibleBranches.find(branch => !branch.isCurrent)
               if (first) void switchBranch(first.name)
             } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Tab') {
