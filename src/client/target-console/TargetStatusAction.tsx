@@ -67,6 +67,8 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
   const [prunePreview, setPrunePreview] = useState<WorktreeConsoleGitPruneResponse | null>(null)
   const [pruneLoading, setPruneLoading] = useState(false)
   const [pruneBusy, setPruneBusy] = useState(false)
+  const [branchQuery, setBranchQuery] = useState('')
+  const [switchNotice, setSwitchNotice] = useState<string | null>(null)
   const actionScope = useRef(0)
   const activeSession = useRef(sessionId)
   if (activeSession.current !== sessionId) {
@@ -101,6 +103,8 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
     setPrunePreview(null)
     setPruneLoading(false)
     setPruneBusy(false)
+    setBranchQuery('')
+    setSwitchNotice(null)
     return subscribeCurrent(adapter, sessionId, language, result => {
       if ('error' in result) {
         setError(result.error instanceof Error ? result.error.message : String(result.error))
@@ -168,6 +172,15 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
       // 省一次 invalidate+ensure 重取（4 个 git spawn + UI 闪回旧值）。
       const patched = cachedBranchOverview(sessionId)
       if (patched !== null) setOverview(patched)
+      // Git-graph-style switch feedback: the chip keeps the confirmed branch
+      // visible as a notice for a beat, so a fast close is not mistaken for
+      // a no-op.
+      if (active()) {
+        setSwitchNotice(t("branch.switch.success", { p0: branch }))
+        window.setTimeout(() => {
+          if (active()) setSwitchNotice(null)
+        }, 900)
+      }
       requestWorktreeReviewRefresh(sessionId)
     } catch (reason) {
       if (active()) setError(reason instanceof Error ? reason.message : String(reason))
@@ -370,13 +383,46 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
     if (leftCurrent !== rightCurrent) return leftCurrent - rightCurrent
     return left.name.localeCompare(right.name)
   })
-  const visibleBranches = sortedBranches.slice(0, MAX_BRANCH_ITEMS)
-  const hiddenBranchCount = sortedBranches.length - visibleBranches.length
+  // Git-graph-style picker: past the item cap the list stays reachable via a
+  // filter box instead of a dead "N more" line; an active query lifts the cap.
+  const query = branchQuery.trim().toLowerCase()
+  const matchedBranches = query === ''
+    ? sortedBranches
+    : sortedBranches.filter(branch => branch.name.toLowerCase().includes(query))
+  const showBranchSearch = sortedBranches.length > MAX_BRANCH_ITEMS
+  const visibleBranches = query === '' && showBranchSearch
+    ? matchedBranches.slice(0, MAX_BRANCH_ITEMS)
+    : matchedBranches
+  const hiddenBranchCount = query === '' ? sortedBranches.length - visibleBranches.length : 0
 
   const items: MenuEntry[] = [
     { id: 'summary', label: summary, disabled: true },
     { type: 'separator', id: 'summary-separator' },
     ...(overviewBranches.length > 0 && overview !== null ? [{ id: 'branches-title', label: <span className="dsh-wtc-branches-title">{t("branch.list.title")}{overview.dirtyCount > 0 ? <span className="dsh-wtc-branches-dirty">{t("branch.dirty.hint", { p0: overview.dirtyCount })}</span> : null}</span>, disabled: true } satisfies MenuEntry] : []),
+    ...(showBranchSearch ? [{ id: 'branch-search', disabled: true, label: (
+      <span className="dsh-wtc-branch-search">
+        <input
+          value={branchQuery}
+          placeholder={t("branch.search.placeholder")}
+          autoFocus
+          onChange={event => { setBranchQuery(event.target.value) }}
+          onKeyDown={event => {
+            // The box shares the menu card: keep Enter/arrows local so typing
+            // a filter and hitting Enter picks the first match instead of
+            // walking the list rows.
+            if (event.key === 'Enter') {
+              event.preventDefault()
+              event.stopPropagation()
+              const first = visibleBranches.find(branch => !branch.isCurrent)
+              if (first) void switchBranch(first.name)
+            } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Tab') {
+              event.stopPropagation()
+            }
+          }}
+        />
+      </span>
+    ) } satisfies MenuEntry] : []),
+    ...(query !== '' && matchedBranches.length === 0 ? [{ id: 'branch-search-empty', label: <span className="dsh-wtc-branches-more">{t("branch.search.empty")}</span>, disabled: true } satisfies MenuEntry] : []),
     ...visibleBranches.map(branch => ({
       id: `branch:${branch.name}`,
       icon: <ReviewIcon name="branch" />,
@@ -414,7 +460,7 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
         align="end"
         portal
         compact
-        onClose={() => setMenuOpen(false)}
+        onClose={() => { setMenuOpen(false); setBranchQuery('') }}
         items={items}
         footer={footer}
         onSelect={(id) => {
@@ -441,6 +487,7 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
             onClick={() => {
               if (menuOpen) {
                 setMenuOpen(false)
+                setBranchQuery('')
                 return
               }
               setMenuOpen(true)
@@ -460,6 +507,7 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
             {branchLabel !== null
               ? <span className="dsh-wtc-target-branch">{branchLabel}</span>
               : target ? <span className="dsh-wtc-target-branch">{triggerLabel}</span> : triggerLabel}
+            {switchNotice !== null ? <span className="dsh-wtc-switch-notice">{switchNotice}</span> : null}
             {expiry ? <span className="dsh-wtc-target-expiry">· {expiry}</span> : null}
             <ReviewIcon name="down" className="dsh-wtc-target-chevron" />
           </button>

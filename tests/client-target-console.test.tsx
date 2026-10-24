@@ -191,6 +191,63 @@ describe('Harness-native Session Target slots', () => {
     expect(await screen.findByText('本地分支')).toBeTruthy()
   })
 
+  test('分支超过 12 条时弹出搜索框，过滤列表并支持 Enter 切换首个匹配', async () => {
+    const fixture = createWorktreeConsoleAdapterFixture()
+    invalidateBranchOverview('target-session')
+    fixture.adapter.gitOverview = vi.fn(async () => ({
+      ok: true,
+      value: {
+        root: '/fixture/project',
+        branch: 'feat/session',
+        headOid: 'b'.repeat(40),
+        branches: [
+          { name: 'feat/session', oid: 'b'.repeat(40), isCurrent: true, upstream: null },
+          ...Array.from({ length: 14 }, (_, index) => ({
+            name: `feature/topic-${index}`,
+            oid: `${index}${'a'.repeat(39)}`,
+            isCurrent: false,
+            upstream: null,
+          })),
+        ],
+        dirtyCount: 0,
+      },
+    }))
+    render(<TargetStatusAction sessionId="target-session" adapter={fixture.adapter} services={clientServices()} />)
+
+    const trigger = await screen.findByRole('button', { name: 'Session Target：Worktree · 待验收' })
+    fireEvent.click(trigger)
+    await waitFor(() => expect(screen.getByText('本地分支')).toBeTruthy())
+    const search = await screen.findByPlaceholderText('搜索分支…')
+    expect(screen.getByText('feature/topic-13')).toBeTruthy()
+
+    fireEvent.change(search, { target: { value: 'topic-5' } })
+    await waitFor(() => expect(screen.queryByText('feature/topic-13')).toBeNull())
+    expect(screen.getByText('feature/topic-5')).toBeTruthy()
+    expect(screen.queryByText('无匹配分支')).toBeNull()
+
+    fireEvent.change(search, { target: { value: 'topic-5x' } })
+    await waitFor(() => expect(screen.getByText('无匹配分支')).toBeTruthy())
+
+    fireEvent.change(search, { target: { value: 'topic-5' } })
+    fireEvent.keyDown(search, { key: 'Enter' })
+    await waitFor(() =>
+      expect(fixture.calls.some(call => call.method === 'gitSwitchBranch')).toBe(true),
+    )
+    await waitFor(() => expect(screen.getByText('已切换到 feature/topic-5')).toBeTruthy())
+  })
+
+  test('分支不超过 12 条时不显示搜索框', async () => {
+    const fixture = createWorktreeConsoleAdapterFixture()
+    invalidateBranchOverview('target-session')
+    render(<TargetStatusAction sessionId="target-session" adapter={fixture.adapter} services={clientServices()} />)
+
+    const trigger = await screen.findByRole('button', { name: 'Session Target：Worktree · 待验收' })
+    fireEvent.click(trigger)
+    await waitFor(() => expect(screen.getByText('本地分支')).toBeTruthy())
+    expect(screen.queryByPlaceholderText('搜索分支…')).toBeNull()
+    expect(screen.getByText('main')).toBeTruthy()
+  })
+
   test('Header 切换 Session 时丢弃旧请求，避免跨 Session 注入路径与来源身份', async () => {
     const fixture = createWorktreeConsoleAdapterFixture()
     let resolveA!: (value: Awaited<ReturnType<typeof fixture.adapter.current>>) => void

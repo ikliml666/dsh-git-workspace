@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { WorktreeConsoleAdapter } from '../../console-contract.js'
 import type { WorktreeClientServices } from '../actions.js'
 import { TargetStatusAction } from './TargetStatusAction.js'
@@ -28,9 +28,44 @@ function resolvePortalRenderer(): PortalRenderer | null {
   return cachedPortalRenderer
 }
 
-function findHeroWorkspaceRow(): HTMLElement | null {
-  const row = window.document.querySelector<HTMLElement>('[class*="heroWorkspaceRow"]')
-  return row !== null && row.isConnected ? row : null
+function isHeroRow(element: Element | null): element is HTMLElement {
+  return element !== null
+    && element instanceof HTMLElement
+    && element.isConnected
+    && element.className.includes('heroWorkspaceRow')
+}
+
+/**
+ * Resolve the hero workspace row from the dock anchor instead of polling the
+ * document: the official hero row is the composerStack sibling right before
+ * the dock outlet, so walk the structure first (the git-graph lift pattern)
+ * and only fall back to a document query.
+ */
+function findHeroRowFrom(anchor: HTMLElement | null): HTMLElement | null {
+  if (anchor === null || !anchor.isConnected) return null
+  const outlet = anchor.parentElement
+  if (outlet !== null) {
+    // 1. Previous sibling of the dock outlet, walking up a bounded chain of
+    // wrapper spans the shell may add around the dock slot.
+    let node: HTMLElement | null = outlet
+    for (let depth = 0; depth < 4 && node !== null; depth += 1) {
+      const prev = node.previousElementSibling as HTMLElement | null
+      if (isHeroRow(prev)) return prev
+      node = node.parentElement
+    }
+    // 2. Query inside the composerStack ancestor.
+    const stack = outlet.closest('[class*="composerStack"], [class*="composerHero"]')
+    if (stack !== null) {
+      const rowInStack = stack.querySelector('[class*="heroWorkspaceRow"]')
+      if (isHeroRow(rowInStack)) return rowInStack
+    }
+  }
+  // 3. Fallback to any heroWorkspaceRow in the document.
+  if (typeof document !== 'undefined') {
+    const docRow = document.querySelector('[class*="heroWorkspaceRow"]')
+    if (isHeroRow(docRow)) return docRow
+  }
+  return null
 }
 
 export interface WorktreeHeroChipProps {
@@ -47,6 +82,7 @@ export interface WorktreeHeroChipProps {
  * picker — the same lift pattern the git-graph branch chip uses.
  */
 export function WorktreeHeroChip({ session, sessionId, adapter, services }: WorktreeHeroChipProps) {
+  const dockAnchor = useRef<HTMLSpanElement | null>(null)
   const [heroRow, setHeroRow] = useState<HTMLElement | null>(null)
   const targetSessionId = sessionId ?? session?.sessionId ?? null
   useEffect(() => {
@@ -54,26 +90,53 @@ export function WorktreeHeroChip({ session, sessionId, adapter, services }: Work
       setHeroRow(null)
       return
     }
-    setHeroRow(findHeroWorkspaceRow())
-    // ponytail: poll for a late-mounted hero row (blank shell renders it after
-    // us); MutationObserver would be the zero-latency upgrade if 10s misses.
+    // Zero-latency discovery: resolve from the dock anchor's structure and
+    // re-resolve on any nearby DOM change; a short bounded poll remains as
+    // the fallback for shells that mount the hero row outside the observed
+    // subtree (e.g. a different portal root).
+    let pollTimer: number | undefined
     let tries = 0
-    const timer = window.setInterval(() => {
-      const row = findHeroWorkspaceRow()
-      if (row !== null) {
-        setHeroRow(row)
-        window.clearInterval(timer)
-        return
+    const stopPolling = (): void => {
+      if (pollTimer !== undefined) {
+        window.clearInterval(pollTimer)
+        pollTimer = undefined
       }
+    }
+    const resolve = (): void => {
+      const row = findHeroRowFrom(dockAnchor.current)
+      setHeroRow(current => (current === row ? current : row))
+      if (row !== null) stopPolling()
+    }
+    resolve()
+    const observer = typeof MutationObserver === 'function'
+      ? new MutationObserver(resolve)
+      : null
+    const scope: ParentNode | null = dockAnchor.current?.parentElement
+      ?? (typeof document !== 'undefined' ? document.body : null)
+    if (observer !== null && scope !== null) {
+      observer.observe(scope, { childList: true, subtree: true })
+    }
+    pollTimer = window.setInterval(() => {
+      resolve()
       tries += 1
-      if (tries >= 40) window.clearInterval(timer)
-    }, 250)
-    return () => { window.clearInterval(timer) }
+      // Bounded fallback (4s): the observer owns discovery from here.
+      if (tries >= 8) stopPolling()
+    }, 500)
+    return () => {
+      observer?.disconnect()
+      stopPolling()
+    }
   }, [targetSessionId])
   const renderPortal = resolvePortalRenderer()
-  if (targetSessionId === null || heroRow === null || renderPortal === null || session?.blank === false) return null
-  return renderPortal(
-    <TargetStatusAction sessionId={targetSessionId} adapter={adapter} services={services} />,
-    heroRow,
+  if (targetSessionId === null || session?.blank === false) return null
+  return (
+    <span ref={dockAnchor} data-dsh-part="worktree-hero-anchor" style={{ display: 'contents' }}>
+      {heroRow !== null && renderPortal !== null
+        ? renderPortal(
+          <TargetStatusAction sessionId={targetSessionId} adapter={adapter} services={services} />,
+          heroRow,
+        )
+        : null}
+    </span>
   )
 }

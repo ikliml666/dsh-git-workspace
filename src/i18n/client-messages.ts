@@ -967,6 +967,18 @@ export const clientMessages = {
     "zh": "（{p0} 处未提交改动）",
     "en": "({p0} uncommitted changes)"
   },
+  "branch.search.placeholder": {
+    "zh": "搜索分支…",
+    "en": "Search branches…"
+  },
+  "branch.search.empty": {
+    "zh": "无匹配分支",
+    "en": "No matching branch"
+  },
+  "branch.switch.success": {
+    "zh": "已切换到 {p0}",
+    "en": "Switched to {p0}"
+  },
   "branch.session.badge": {
     "zh": "当前会话",
     "en": "session"
