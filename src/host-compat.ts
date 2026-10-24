@@ -10,10 +10,10 @@ export function workspaceClientFlavorForAgentVersion(version: string | undefined
   if (version === '0.1.7-rc.2') return 'next'
   if (version === '0.2.0-rc.2') return 'modern'
   // The modern derivative ships from the 0.2.1 source line, not the previous
-  // 0.2.0 line, so 0.2.1-rc.2 is the pinned modern release upstream.
+  // 0.2.0 line, so 0.2.1-rc.3 is the pinned modern release upstream.
   // Every service and slot the modern branch consumes (slots, sessions,
   // workspaces, locale, remote, layout, shortcuts; sidebar.workspaces and its
-  // sub-slots) is verified unchanged against the 0.2.1-rc.1 Host sources —
+  // sub-slots) is verified unchanged against the 0.2.1-rc.3 Host sources —
   // including every seam the decorated official Browser needs — so unpinned
   // 0.2.x agents resolve to the same verified generation instead of going
   // unsupported on every Host bump. 0.1.x maps to three different flavors and
