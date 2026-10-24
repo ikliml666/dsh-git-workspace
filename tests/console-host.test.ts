@@ -779,8 +779,8 @@ describe('Worktree Console Host control plane', () => {
   it('observes list records in one module batch when the module supports batch observation', async () => {
     const record = readyRecord()
     const { module, control } = plane(record)
-    const snapshot = { root: '/local', commonDir: '/git/common', gitDir: '/git/worktrees/one', branch: null, headOid: B, headRef: 'HEAD' }
-    const batch = vi.fn(async (checkoutIds: string[]) => checkoutIds.map(checkoutId => ({ managedRoot: '/local', snapshot, dirty: false })))
+    const snapshot = { root: '/managed', commonDir: '/git/common', gitDir: '/git/worktrees/one', branch: null, headOid: B, headRef: 'HEAD' }
+    const batch = vi.fn(async (checkoutIds: string[]) => checkoutIds.map(checkoutId => ({ managedRoot: '/managed', snapshot, dirty: false })))
     module.observeManagedCheckouts = batch
 
     const listed = await control.list({ sessionId: 'target-session' })

@@ -68,6 +68,7 @@ export function TagManagerModal({ open, onClose, adapter, sessionId, t }: TagMan
   const createTag = async (): Promise<void> => {
     const name = createName.trim()
     if (name === '' || busy !== null) return
+    const seq = requestSeq.current
     setBusy('create')
     setError(null)
     setNotice(null)
@@ -77,6 +78,8 @@ export function TagManagerModal({ open, onClose, adapter, sessionId, t }: TagMan
       message: createMessage.trim() === '' ? undefined : createMessage.trim(),
       push: pushOnCreate,
     })
+    // Closing the modal bumps requestSeq, so a late reply must not write state.
+    if (seq !== requestSeq.current) return
     setBusy(null)
     if (!outcome.ok) {
       setError(outcome.error.message)
@@ -95,10 +98,12 @@ export function TagManagerModal({ open, onClose, adapter, sessionId, t }: TagMan
 
   const deleteTag = async (name: string): Promise<void> => {
     if (busy !== null) return
+    const seq = requestSeq.current
     setBusy('delete')
     setError(null)
     setNotice(null)
     const outcome = await adapter.gitDeleteTag({ sessionId, name, remote: deleteRemote })
+    if (seq !== requestSeq.current) return
     setBusy(null)
     if (!outcome.ok) {
       setError(outcome.error.message)
@@ -113,10 +118,12 @@ export function TagManagerModal({ open, onClose, adapter, sessionId, t }: TagMan
 
   const pushTag = async (name: string): Promise<void> => {
     if (busy !== null) return
+    const seq = requestSeq.current
     setBusy('push')
     setError(null)
     setNotice(null)
     const outcome = await adapter.gitPushTag({ sessionId, name })
+    if (seq !== requestSeq.current) return
     setBusy(null)
     if (!outcome.ok) {
       setError(outcome.error.message)

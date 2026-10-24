@@ -73,7 +73,8 @@ export interface TagOverviewEntry {
   pushed: boolean
 }
 
-/** One parsed `git log` row for the commit graph (lanes are computed client-side). */export interface GraphLogCommit {
+/** One parsed `git log` row for the commit graph (lanes are computed client-side). */
+export interface GraphLogCommit {
   oid: string
   parents: string[]
   author: string
