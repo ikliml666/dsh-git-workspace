@@ -53,7 +53,7 @@ tags: [adapters, git, registry, project-skills]
   - `projectSkills?: ProjectSkillStore` (L47)：可选技能存储。
 
 #### 内部辅助函数与接口
-- `GitCommandResult` 接口 (L50-L56)：`code: number` (L51)，`stdout: string` (L52)，`stderr: string` (L53)，`quiescent?: boolean` (L55，仅当子进程服务确认整树静止时为 true)。
+- `GitCommandResult` 接口 (L50-L56)：字段 `code: number` (L51)，`stdout: string` (L52)，`stderr: string` (L53)，`quiescent?: boolean` (L55，仅当子进程服务确认整树静止时为 true)。
 - `parseDecoration(decoration)` (L63-L71)：解析 `%D` 装饰字符串，去除 `HEAD -> ` 与保留 `tag:` 标记。
 - `settleCreationTree(handle)` (L73-L86)：最多等 10s 确保子进程树退出，返回 boolean。
 - `runGit(ctx, cwd, args, options, input?, creation?, collectBytes?)` (L93-L188)：底层执行器。argv 含 `--no-pager`, `--no-optional-locks`, Windows 下 `core.longpaths=true` (L107), `core.quotePath=false`, `core.fsmonitor=false`, `core.hooksPath=` (L108-L110)；环境清除敏感 `GIT_*` 覆盖并强制 `GIT_OPTIONAL_LOCKS=0`, `GIT_TERMINAL_PROMPT=0`, `LC_ALL=C`, `LANG=C` (L121-L131)。`input` 为字符串或 `GitCommitProtocol` (L133-L154)。creation 模式等待树静默 (L157-L168)。
@@ -149,7 +149,7 @@ tags: [adapters, git, registry, project-skills]
 - `emptyRegistry()` (L17-L24)：返回 `{version:2, revision:0, sessionBindings:{}, managedCheckouts:{}}`。
 - 类型守卫（全部私有函数）：
   - `isRecord` L26-L28, `isStringArray` L30-L32, `isOid` L34-L36, `isBoundedText` L38-L40, `isSafeRelativePath` L42-L46
-  - `isTargetRef` L48-L53, `isSessionBinding` L55-L65, `isReview` L67-L85, `isPreviousReview` L87-L95, `isCheckpoint` L97-L114, `isPreviewReceipt` L116-L136, `isDelivery` L152-L191, `isJournal` L193-L250
+  - `isTargetRef` L48-L53, `isSessionBinding` L55-L65, `isReview` L67-L85, `isPreviousReview` L87-L95, `isCheckpoint` L97-L114, `isPreviewReceipt` L116-L136, `isDeliveryProof` L138-L150, `isDelivery` L152-L191, `isJournal` L193-L250
   - `safeRecoveryString` L252-L254, `safeRecoveryRevision` L256-L258, `safeConflictFile` L260-L264, `isRecoveryContinuation` L266-L290, `isManagedCheckout` L292-L325, `isRegistry` L327-L337
 - `migrateLegacyRegistry(value)` (L339-L394)：v1→v2，非 ready/discarded 阶段标记 `recovery_required`，delivery 置 `{state:'working', iteration:1}`。
 - 类 `AtomicJsonCheckoutRegistry` (L397-L415):
@@ -184,7 +184,7 @@ tags: [adapters, git, registry, project-skills]
 
 ### Initial Commit (`src/adapters/initial-commit.ts`)
 
-`GitCommitProtocol` 接口 (L8)：`prepare: string; beforeCommit(): Promise<void>` (L8)。
+`GitCommitProtocol` 接口 (L8)：字段 `prepare: string; beforeCommit(): Promise<void>` (L8)。
 `Run` 类型 L10。
 `initialCommitActions(inspect, run)` (L13-L118) 返回 `{ preflightInitialCommit, initializeEmptyRepository, initializeProject }`。
 - `stale` L14, `checked` L15-L19, `identity` L20-L24, `indexBytes` L25-L28
@@ -197,10 +197,10 @@ tags: [adapters, git, registry, project-skills]
 `project-skills.ts`:
 - `PROJECT_SKILL_ROOTS` L7：`['.dsh/skills', '.agents/skills', '.claude/skills']`
 - `MAX_FILES = 5000` L8, `MAX_BYTES = 64*1024*1024` L9
-- `Entry` 接口 L10：`path: string`, `hash: string`, `mode: number`
-- `Manifest` 接口 L11：`version: 1`, `root: string`, `identity: string`, `phase: 'copying' | 'ready'`, `files: Entry[]`, `directories?: string[]`
-- `SkillSnapshot` 接口 L12：`directories?: string[]`, `files: Array<Entry & {content: Buffer}>`
-- `CarriedSkillState` 接口 L13：`paths: string[]`, `fingerprint: string`, `modified: boolean`
+- `Entry` 接口 L10：字段 `path: string`, `hash: string`, `mode: number`
+- `Manifest` 接口 L11：字段 `version: 1`, `root: string`, `identity: string`, `phase: 'copying' | 'ready'`, `files: Entry[]`, `directories?: string[]`
+- `SkillSnapshot` 接口 L12：字段 `directories?: string[]`, `files: Array<Entry & {content: Buffer}>`
+- `CarriedSkillState` 接口 L13：字段 `paths: string[]`, `fingerprint: string`, `modified: boolean`
 - 函数：`digest` L14, `missing` L15, `failure` L16, `safePath` L17-L22, `identity` L23-L27, `inspectPath` L29-L39, `boundedRead` L40-L58, `assertSkillTree` L60-L70, `ownedSkillDirectories` L71-L73, `inventory` L74-L98
 - `ProjectSkillStore` 类 L101-L214:
   - `constructor(directory)` L102
@@ -216,15 +216,15 @@ tags: [adapters, git, registry, project-skills]
 - `trackedSkillPaths` L216-L223, `hasDeliverableStatus` L225-L235, `assertSkillPath` L237-L239
 
 `project-skill-io.ts`:
-- `SkillRead` L5：`path: string`, `maxBytes: number`
-- `SkillBytes` L6：`path: string`, `content: Buffer`, `mode: number`
+- `SkillRead` L5：字段 `path: string`, `maxBytes: number`
+- `SkillBytes` L6：字段 `path: string`, `content: Buffer`, `mode: number`
 - `checkRoot` L10-L15, `checkPath` L16-L36
 - `readSkillFiles` L38-L64 批量读，每次 `checkRoot`+`checkPath`+`O_NOFOLLOW`+stat 比对
 - `createSkillDirectories` L66-L73 通过 `.directory-check` 原子建目录
 - `createSkillFiles` L75-L88 `O_CREAT|O_EXCL` 写文件
 
 `project-skill-provider.ts`:
-- `NAME = 'worktree-project-claude'` L10, `Locator` L11：`root: string; candidate: SkillCandidate`
+- `NAME = 'worktree-project-claude'` L10, `Locator` L11：字段 `root: string; candidate: SkillCandidate`
 - `candidatePath` L14-L19 兼容 DSH 0.1/0.2
 - `managedSkillRoot(registry)` L22-L45 遍历 `managedCheckouts` phase==='ready' 验证 `.git` 双向链接
 - `ClaudeProjectSkillProvider` 类 L48-L119:
@@ -252,47 +252,21 @@ tags: [adapters, git, registry, project-skills]
 ## Architecture
 
 ```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          Plugin Apply / Host Entry                          │
-│                                  (cordis Context)                           │
-└──────────────────────────┬──────────────────────────────────────────────────┘
-                           │ ctx.get('workspaceRegistry'), ctx.get('sessions')
-                           ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         Adapter Layer (src/adapters/)                       │
-│                                                                             │
-│  ┌──────────────────┐   ┌──────────────────┐   ┌──────────────────────┐   │
-│  │ createDshGitPort │   │createNodeFilesPort│   │ AtomicJsonCheckoutRe │   │
-│  │ (git.ts)         │   │ (files.ts)       │   │ gistry (registry.ts) │   │
-│  │                  │   │                  │   │                      │   │
-│  │ - runGit/subproc │   │ - measureBytes   │   │ - read/write atomic  │   │
-│  │ - inspect/status │   │ - quarantine     │   │ - isRegistry/v2      │   │
-│  │ - merge/snapshot │   │ - identity CAS   │   │ - migrate v1→v2      │   │
-│  └────────┬─────────┘   └────────┬─────────┘   └──────────┬───────────┘   │
-│           │                      │                        │               │
-│  ┌────────▼─────────┐   ┌────────▼─────────┐   ┌──────────▼───────────┐   │
-│  │ createWorktree   │   │ writeJsonFile    │   │ createDshLookupPort  │   │
-│  │ (worktree-        │   │ Atomic /         │   │ (lookup.ts)          │   │
-│  │  creation.ts)    │   │  readJsonFileSafe│   │                      │   │
-│  │                  │   │ (safe-file.ts)   │   │ - getSidebarMembers  │   │
-│  │ - identity CAS   │   │                  │   │ - getSession/liveCwd │   │
-│  │ - rollback/move  │   │ - rename retry   │   │ - getProject         │   │
-│  │ - verifyUnmodif  │   │ - tmp/.bak recov │   └──────────────────────┘   │
-│  └──────────────────┘   └──────────────────┘                                │
-│                                                                             │
-│  ┌──────────────────────────────────────────────────────────────────────┐   │
-│  │                     Project Skills Integration                       │   │
-│  │                                                                      │   │
-│  │  ProjectSkillStore ◄──► ProjectSkillIO ◄──► ClaudeProjectSkillProv │   │
-│  │  (snapshot/carry/forget)  (atomic create/read)  (pool ≤32, rank 250)│   │
-│  └──────────────────────────────────────────────────────────────────────┘   │
-└──────────────────────────┬──────────────────────────────────────────────────┘
-                           │ SessionCheckoutDependencies (ports.ts)
-                           ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                   Session Checkout State Machine                            │
-│                   ([[session-checkout-module]])                             │
-└─────────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────┐
+│ Adapter Layer (src/adapters/)                                  │
+│                                                                │
+│  Git: createDshGitPort (git.ts) ──► runGit/subproc            │
+│  Files: createNodeFilesPort (files.ts) ──► CAS/quarantine     │
+│  Registry: AtomicJsonCheckoutRegistry (registry.ts)           │
+│  Lookup: createDshLookupPort (lookup.ts)                      │
+│  Worktree: createWorktree (worktree-creation.ts)              │
+│  SafeFile: writeJsonFileAtomic/readJsonFileSafe (safe-file.ts)│
+│  Skills: ProjectSkillStore+IO+Provider (project-skills*.ts)   │
+│                                                                │
+│  All feed into SessionCheckoutDependencies (ports.ts)         │
+└───────────────────────────────────┬────────────────────────────┘
+                                    ▼
+                       Session Checkout State Machine
 ```
 
 ## Data Flow

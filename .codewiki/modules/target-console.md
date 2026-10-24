@@ -39,41 +39,48 @@ tags: [client, target-console, polling, navigation, git-branch-ui]
 ### src/client/target-console/TargetStatusAction.tsx
 
 - **接口 `TargetStatusActionProps`** (L26-30)
-  - 字段：`sessionId: string` (L27); `adapter: WorktreeConsoleAdapter` (L28); `services: WorktreeClientServices` (L29)
+  - `sessionId: string` (L27)
+  - `adapter: WorktreeConsoleAdapter` (L28)
+  - `services: WorktreeClientServices` (L29)
 - **常量 `STATE_LABELS`** (L32-44)：接收 `ClientTranslator`，返回 11 种状态（local/creating/working/ready_for_review/preview_active/preview_detached/retained/cleanup_pending/recovery_required/delivered/discarded）的本地化标签映射。
 - **函数 `shortOid(value: string)`** (L46-48)：`unversioned` 原样返回，否则截取前 7 字符。
 - **组件 `TargetStatusAction`** (L51-650)
-  - Props 同上接口。
-  - 主要状态：`target` (L55), `loading` (L56), `error` (L57), `menuOpen` (L58), `managerOpen` (L59), `cleanupConfirmOpen` (L60), `pendingAction` (L61), `overview` (L62), `graphOpen` (L63), `createOpen/Name/Busy` (L64-66), `pruneOpen/Preview/Loading/Busy` (L67-70), `branchQuery` (L71), `switchNotice` (L72), `tagsOpen` (L73), `tagTarget` (L74-75), refs `actionScope/activeSession/mounted` (L76-82)。
-  - 挂载效果 (L84-87)：设置 `mounted` ref。
-  - 订阅效果 (L93-125)：依赖 `[adapter, language, sessionId]` 重置状态并调用 `subscribeCurrent`（current-polling.ts），结果写入 `target`（L118）或 `error`（L116, L121）。
-  - 状态计算 (L131-140)：依据 `target.state` 与分支名计算胶囊显示文案、过期时间与无障碍标签。
+  - 状态与 Refs：
+    - `t` (L52), `language` (L53)
+    - `target` (L55), `loading` (L56), `error` (L57), `menuOpen` (L58), `managerOpen` (L59), `cleanupConfirmOpen` (L60), `pendingAction` (L61), `overview` (L62), `graphOpen` (L63), `createOpen` (L64), `createName` (L65), `createBusy` (L66), `pruneOpen` (L67), `prunePreview` (L68), `pruneLoading` (L69), `pruneBusy` (L70), `branchQuery` (L71), `switchNotice` (L72), `tagsOpen` (L73), `tagTarget` (L74-75)
+    - `actionScope` ref (L76), `activeSession` ref (L77-81), `mounted` ref (L82)
+  - 效果：
+    - 挂载设置 `mounted` (L84-87)
+    - `refresh` 回调 (L89-91) 调用 `requestWorktreeReviewRefresh`
+    - 订阅效果 (L93-125) 依赖 `[adapter, language, sessionId]` 重置状态并调用 `subscribeCurrent`，结果写入 `target` (L118) 或 `error` (L116, L121)
+    - 注释明言挂载时不预取分支概览 (L127-129)
+  - 计算属性 (L131-140)：`state`, `stateLabel`, `branchLabel`, `triggerLabel`, `expiry`, `accessibleLabel`
   - 方法：
-    - `refresh` (L89-91)：调用 `requestWorktreeReviewRefresh(sessionId)`。
     - `reveal` (L142-148)：打开 `target.managedRoot` workspace 路径（调用 `services.workspaces.openPath`）。
     - `openSource` (L150-156)：跳转源会话（调用 `openExistingSession`）。
-    - `switchBranch` (L158-196)：调用 `adapter.gitSwitchBranch`，成功后用 `patchBranchOverview` 乐观更新缓存（L172-180），并 `requestWorktreeReviewRefresh`。
-    - `createBranch` (L198-227)：前端校验 `branchNameSchema`（L201），调用 `adapter.gitCreateBranch`，后 `invalidateBranchOverview` 并 `ensureBranchOverview` 重取（L218-221）。
-    - `openPrunePreview` (L229-252)：调用 `adapter.gitPruneMergedBranches(sessionId, true)` 预览（L237）。
-    - `confirmPrune` (L254-279)：调用 `adapter.gitPruneMergedBranches(sessionId, false)` 执行（L261），后失效缓存并重取（L270-273）。
-    - `retryCleanup` (L281-311)：调用 `adapter.retryCleanup`（L289），处理 `stale_target` 后刷新（L297）。
-    - `beginNextIteration` (L313-335)：调用 `adapter.beginNextIteration`（L321）。
-    - `discard` (L337-371)：调用 `adapter.discard`（L345），对 `preview_active` 或 `rollbackPreview` 传 `rollbackPreview: true`（L350-352）。
+    - `switchBranch` (L158-196)：调用 `adapter.gitSwitchBranch`，成功后用 `patchBranchOverview` 乐观更新缓存 (L172-180)，并 `requestWorktreeReviewRefresh`。
+    - `createBranch` (L198-227)：前端校验 `branchNameSchema` (L201)，调用 `adapter.gitCreateBranch`，后 `invalidateBranchOverview` 并 `ensureBranchOverview` 重取 (L218-221)。
+    - `openPrunePreview` (L229-252)：调用 `adapter.gitPruneMergedBranches(sessionId, true)` 预览 (L237)。
+    - `confirmPrune` (L254-279)：调用 `adapter.gitPruneMergedBranches(sessionId, false)` 执行 (L261)，后失效缓存并重取 (L270-273)。
+    - `retryCleanup` (L281-311)：调用 `adapter.retryCleanup` (L289)，处理 `stale_target` 后刷新 (L297)。
+    - `beginNextIteration` (L313-335)：调用 `adapter.beginNextIteration` (L321)。
+    - `discard` (L337-371)：调用 `adapter.discard` (L345)，对 `preview_active` 或 `rollbackPreview` 传 `rollbackPreview: true` (L350-352)。
   - 菜单项构建：`summary` (L373-381)；`MAX_BRANCH_ITEMS = 12` (L383)；分支排序与过滤 (L384-402)；`items` 数组 (L404-459) 涵盖 summary/分支列表/创建/修剪/标签/图/打开/源/迭代/管理；`footer` 数组 (L460-464) 涵盖 retry_cleanup 与 discard。
-  - 渲染：`<Menu>` 锚点按钮 `.dsh-wtc-target-chip` (L468-525)，以及子模态 `WorktreeManagerModal` (L527-537)、清理确认 `Modal` (L538-553)、`BranchGraphModal` (L554-563)、`TagManagerModal` (L564-571)、创建分支 `Modal` (L572-603)、修剪预览 `Modal` (L604-647)。
-  - 注意：挂载时不预取分支概览，注释明言避免无谓 git spawns (L127-129)。分支列表在首次展开时通过 `refreshBranchOverviewInBackground` 或 `ensureBranchOverview` 加载 (L507-514)。
+  - 渲染：`<Menu>` 锚点按钮 `.dsh-wtc-target-chip` (L468-525)，首次展开时通过 `refreshBranchOverviewInBackground` 或 `ensureBranchOverview` 加载分支列表 (L507-514)；子模态 `WorktreeManagerModal` (L527-537)、清理确认 `Modal` (L538-553)、`BranchGraphModal` (L554-563)、`TagManagerModal` (L564-571)、创建分支 `Modal` (L572-603)、修剪预览 `Modal` (L604-647)。
 
 ### src/client/target-console/WorktreeConsoleView.tsx
 
-- **接口 `WorktreeConsoleViewProps`** (L23-30)：`embedded?` (L24), `sessionId` (L25), `adapter` (L26), `services` (L27), `focusCheckoutId?` (L28), `onTargetChange?` (L29)。
+- **接口 `WorktreeConsoleViewProps`** (L23-30)
+  - `embedded?` (L24), `sessionId` (L25), `adapter` (L26), `services` (L27), `focusCheckoutId?` (L28), `onTargetChange?` (L29)
 - **常量 `STATE_LABELS`** (L32-44)：同 TargetStatusAction 的映射。
-- **接口 `ConsoleSnapshot`** (L46-50)：`sessionId: string` (L47), `current: WorktreeConsoleTargetDetails` (L48), `list: WorktreeConsoleListResponse` (L49)。
+- **接口 `ConsoleSnapshot`** (L46-50)
+  - `sessionId: string` (L47), `current: WorktreeConsoleTargetDetails` (L48), `list: WorktreeConsoleListResponse` (L49)
 - **函数 `errorText(error, t)`** (L52-59)：组合 `worktreeConsoleErrorMeta` 生成分类/恢复文案。
 - **函数 `retentionLabel(retention, t)`** (L61-65)：映射 `retain_24h`/`retain_3d`/`retain_manual`。
 - **组件 `TargetState`** (L67-76)：渲染状态圆点 + 标签。
 - **常量 `ATTENTION_RANK`** (L78-90)：状态优先级数值映射（recovery_required:0 至 discarded:10），用于列表排序。
 - **组件 `WorktreeConsoleView`** (L93-700)
-  - 状态/Refs：`snapshot` (L108), `abandoned` (L109), `notice` (L110), `loading` (L111), `error` (L112), `pendingAction` (L113), `confirmTarget` (L114), `createBranch` (L115), `knownBranches` (L116), `needsAttentionOnly` (L117), `includeDelivered` (L118), `confirmButton` (L119), 以及 `mounted/request/abandonedRequest/sessionGeneration` (L104-107) 等。
+  - 状态/Refs：`mounted` (L104), `request` (L105), `abandonedRequest` (L106), `sessionGeneration` (L107), `snapshot` (L108), `abandoned` (L109), `notice` (L110), `loading` (L111), `error` (L112), `pendingAction` (L113), `confirmTarget` (L114), `createBranch` (L115), `knownBranches` (L116), `needsAttentionOnly` (L117), `includeDelivered` (L118), `confirmButton` (L119), `visibleSnapshot` (L120), `currentSourceBranch` (L121)
   - 初始化效果 (L123-140)：`sessionId` 变更时重置状态并递增 `sessionGeneration`。
   - 方法：
     - `isActive` (L142-143)：校验 `mounted` 与 `sessionGeneration`。
@@ -101,14 +108,14 @@ tags: [client, target-console, polling, navigation, git-branch-ui]
 - **函数 `isHeroRow`** (L31-36)：校验元素为 HTMLElement、connected 且 className 包含 `heroWorkspaceRow`。
 - **函数 `findHeroRowFrom`** (L44-69)：从 dock anchor 的兄弟/祖先结构解析 hero 行（L46-62），fallback 到 `document.querySelector` (L64-66)。
 - **接口 `WorktreeHeroChipProps`** (L71-76)：`session?` (L72), `sessionId?` (L73), `adapter` (L74), `services` (L75)。
-- **组件 `WorktreeHeroChip`** (L84-141)
+- **组件 `WorktreeHeroChip`** (L84-142)
   - 逻辑：计算 `targetSessionId` (L87)，effect 中 (L88-129) 查找 hero 行并启动 `MutationObserver` (L111-118) 与 bounded poll (`window.setInterval` 500ms，tries >= 8 停止，即最多 4s，L119-124)；若 `renderPortal` 存在且 `heroRow` 非空且非 `session.blank === false` (L131) 则 portal `TargetStatusAction` (L132-141)。
 
 ### src/client/target-console/WorktreeReviewStatus.tsx
 
 - **接口 `WorktreeReviewStatusProps`** (L18-22)：`session: { sessionId: string }` (L19), `adapter` (L20), `services` (L21)。
 - **组件 `WorktreeReviewStatus`** (L25-184)
-  - 状态：`detailsOpen` (L28), `dismissed` (L30), `target` (L33), `error` (L34), `recovery` (L35), `detailPreflight` (L36) 等，refs `mounted/currentSessionId/sessionGeneration` (L38-41)。
+  - 状态：`detailsOpen` (L28), `dismissed` (L30), `sessionId` (L32), `target` (L33), `error` (L34), `recovery` (L35), `detailPreflight` (L36) 等，refs `mounted` (L38), `sessionGeneration` (L39), `currentSessionId` (L40-41)。
   - 效果：挂载调 `restoreWorktreeRecovery` (L52-54)；订阅 `subscribeCurrent` 并保持 target 单调 (L57-73)；`sessionId` 或 `reviewId` 变时关详情 (L37)。
   - 独立恢复卡 (L75-99)：当 `standaloneRecovery` 存在（recovery 匹配且 target 无 review 或 working）时渲染排队/发送/失败状态与重发按钮 (L94-96)。
   - 评审 Dock (L102-183)：仅当 target 有 review 且状态在白名单内 (`ready_for_review`/`preview_active`/`preview_detached`/`cleanup_pending`/`recovery_required`/`retained`) 才渲染；包含 `ReviewDetailsModal` (L143)、`ReviewActions` (L144-172, compact)、Dismiss 按钮（终态时，L173-181）。

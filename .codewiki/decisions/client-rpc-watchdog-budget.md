@@ -96,8 +96,8 @@ tags:
         *   `restoreAbandoned` (L152)
 
 *   **`WorktreeConsoleAdapter` 接口** (`src/console-contract.ts`, 行 723-761)：定义所有公开异步方法签名，均返回 `Promise<WorktreeConsoleOutcome<T>>`，部分方法可选（`preflightCreate?`, `createWithInitialCommit?`, `initializeProject?`, `listAbandoned?`, `restoreAbandoned?`）。
-*   **`WorktreeConsoleOutcome<T>`** (`src/console-contract.ts`, 行 673-675)：联合类型 `{ ok: true; value: T }` | `{ ok: false; error: WorktreeConsoleError }`。
-*   **`WorktreeConsoleError`** (`src/console-contract.ts`, 行 666-671)：字段 `code: WorktreeConsoleErrorCode`、`message: string`、`details?: Record<string, string | number | boolean | null>`、`continuation?: WorktreeConsoleContinuation`。
+*   **`WorktreeConsoleOutcome<T>`** (`src/console-contract.ts`, 行 673-675)：联合类型 `{ ok: true; value: T }` | `{ ok: false; error: WorktreeConsoleError }`。字段：`ok` (布尔字面量)，`value` (泛型 T，仅成功分支)，`error` (WorktreeConsoleError，仅失败分支)。
+*   **`WorktreeConsoleError`** (`src/console-contract.ts`, 行 666-671)：字段 `code: WorktreeConsoleErrorCode` (L667)、`message: string` (L668)、`details?: Record<string, string | number | boolean | null>` (L669)、`continuation?: WorktreeConsoleContinuation` (L670)。
 *   **`WORKTREE_CONSOLE_ERROR_CODES`** (`src/console-contract.ts`, 行 587-592)：错误代码常量数组，含 `'transport_unavailable'`、`'malformed_response'`、`'timeout'`。
 *   **`ERROR_META`** (`src/console-contract.ts`, 行 683-716)：映射各错误码到 `{ category, recovery, retryable }`，使用 `satisfies` 校验。
 
@@ -108,11 +108,11 @@ tags:
 | `malformed_response` | internal | none | false | L714 |
 
 *   **`WORKTREE_CONSOLE_DESCRIPTORS`** (`src/console-remote/descriptors.ts`, 行 94-243)：冻结的 `InvocationDescriptor` 数组，覆盖 `sidebarTopology`, `clientBootReport`, `current`, `list`, `gitOverview`, `gitGraph`, `preflightCreate`, `createWithInitialCommit`, `create`, `initProject`, `inspect`, `reviewDiff`, `preflight`, `previewRecoveryPreflight`, `preparePreviewRecoveryAnalysis`, `createPreviewRecoveryHandoff`, `preview`, `checkpoint`, `resumeRevision`, `prepareReviewRegeneration`, `rollbackPreview`, `discard`, `finalize`, `finalizePreview`, `setRetention`, `setPermanent`, `retryCleanup`, `beginNextIteration`, `clearSidebarBadge`, `gitCreateBranch`, `gitSwitchBranch`, `gitPruneMergedBranches`, `gitListTags`, `gitCreateTag`, `gitDeleteTag`, `gitPushTag`, `listAbandoned`, `restoreAbandoned`。
-*   **`strictCodec`** (`src/console-remote/descriptors.ts`, 行 52-56)：构造 `{ mode: 'strict', typeSymbol, create: () => schema, schema }` 的 TypertCodec。
-*   **`descriptor` 工厂** (`src/console-remote/descriptors.ts`, 行 76-92)：生成 `InvocationDescriptor`，自动注入 agent 参数与 `locale` 参数。
+*   **`strictCodec`** (`src/console-remote/descriptors.ts`, 行 52-56)：构造 `{ mode: 'strict', typeSymbol, create: () => schema, schema }` 的 TypertCodec。字段：`mode` (固定 `'strict'`)，`typeSymbol` (字符串)，`create` (返回 schema 的懒加载函数)，`schema` (Zod schema 实例)。
+*   **`descriptor` 工厂** (`src/console-remote/descriptors.ts`, 行 76-92)：生成 `InvocationDescriptor`，自动注入 agent 参数与 `locale` 参数。生成的 descriptor 字段：`id` (L84)，`service` (L85)，`namespace` (L86)，`method` (L87)，`invocation` (L88)，`parameters` (L89)，`result` (L90)。
 *   **Zod Schemas** (`src/console-remote/schemas.ts`)：
-    *   `outcomeSchema<T>` (行 221-226)：discriminatedUnion 包装成功/失败结果。
-    *   `consoleErrorSchema` (行 210-219)：错误严格结构，superRefine 确保仅 `apply_conflict` 可携带 `continuation`。
+    *   `outcomeSchema<T>` (行 221-226)：discriminatedUnion 包装成功/失败结果，对应 `WorktreeConsoleOutcome` 结构。
+    *   `consoleErrorSchema` (行 210-219)：错误严格结构，superRefine 确保仅 `apply_conflict` 可携带 `continuation`（行 215-218）。
     *   响应 Schema（如 `currentResponseSchema` 行 228, `listResponseSchema` 行 240, `mutationResponseSchema` 行 267-273, `previewRecoveryPreflightResponseSchema` 行 368 等）被 `descriptors.ts` 引用，供 adapter 严格解析。
 
 ## Architecture

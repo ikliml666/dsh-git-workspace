@@ -19,7 +19,7 @@ tags:
 
 该模块负责在宿主进程中暴露 Git Worktree 的控制平面，采用三层架构：客户端 UI（Worktree 卡片/验收界面）↔ strict Typert RPC（`gitWorktree` 服务）↔ 宿主控制面。控制面将状态机（[[session-checkout-module|Session Checkout Module]]）的领域能力投影为 UI 可用的读/写端点，并集中实现授权、并发守卫与 Git 操作封装。
 
-`src/console-host/service.ts` 中的 `WorktreeConsoleService` 类（L34）继承自 `TypertRemoteService`，在构造函数中调用 `super(hostContext, 'gitWorktree')`（L42）注册服务名。它不直接处理复杂 Git 逻辑，而是通过 `controlPlane` 实例（L37）协调底层操作，并通过 `registry` 维护工作树生命周期。所有对外接口均通过 `@Remote` 装饰器暴露，支持多语言本地化（`withHostLanguage`，L2、L55 等）和严格参数校验。
+`src/console-host/service.ts` 中的 `WorktreeConsoleService` 类（L34）继承自 `TypertRemoteService`，在构造函数中调用 `super(hostContext, 'gitWorktree')`（L42）注册服务名。它不直接处理复杂 Git 逻辑，而是通过 `controlPlane` 实例（L37）协调底层操作。所有对外接口均通过 `@Remote` 装饰器暴露，支持多语言本地化（`withHostLanguage`，L2、L55 等）和严格参数校验。
 
 核心职责包括：
 - **RPC 适配**：通过 `service.ts` 将内部逻辑包装为 Typert Remote 调用。
@@ -89,7 +89,7 @@ Typert RPC 服务层，继承自 `TypertRemoteService`（L34），充当网关�
 
 **接口与类型**:
 - `WorktreeConsoleControlPlaneOptions`（L68-76）：依赖注入配置，字段包括 `module: SessionCheckoutModule`、`lookup: SessionCheckoutLookupPort`、`files: SessionCheckoutFilesPort`、`registry: SessionCheckoutRegistryPort`、`git: SessionCheckoutGitPort`、`reviewDiff: WorktreeReviewDiffReader`、`createTargetSessionId?: () => string`。
-- `WorktreeConsoleControlPlane`（L78-116）：定义所有公开 API 方法签名，涵盖 `sidebarTopology`、`current`、`list`、`preflightCreate`、`createWithInitialCommit`、`create`、`initProject`、`inspect`、`reviewDiff`、`preflight`、`previewRecoveryPreflight`、`preparePreviewRecoveryAnalysis`、`createPreviewRecoveryHandoff`、`preview`、`checkpoint`、`resumeRevision`、`prepareReviewRegeneration`、`rollbackPreview`、`discard`、`finalize`、`finalizePreview`、`setRetention`、`setPermanent`、`retryCleanup`、`beginNextIteration`、`clearSidebarBadge`、`gitOverview`、`gitGraph`、`gitCreateBranch`、`gitSwitchBranch`、`gitPruneMergedBranches`、`listAbandoned`、`restoreAbandoned`。**注意 L110-113 新增了 `gitListTags`、`gitCreateTag`、`gitDeleteTag`、`gitPushTag` 签名，但 `service.ts` 中未暴露对应 RPC**。
+- `WorktreeConsoleControlPlane`（L78-116）：定义所有公开 API 方法签名，涵盖 `sidebarTopology`、`current`、`list`、`preflightCreate`、`createWithInitialCommit`、`create`、`initProject`、`inspect`、`reviewDiff`、`preflight`、`previewRecoveryPreflight`、`preparePreviewRecoveryAnalysis`、`createPreviewRecoveryHandoff`、`preview`、`checkpoint`、`resumeRevision`、`prepareReviewRegeneration`、`rollbackPreview`、`discard`、`finalize`、`finalizePreview`、`setRetention`、`setPermanent`、`retryCleanup`、`beginNextIteration`、`clearSidebarBadge`、`gitOverview`、`gitGraph`、`gitCreateBranch`、`gitSwitchBranch`、`gitPruneMergedBranches`、`listAbandoned`、`restoreAbandoned`，并在 L110-113 声明了 `gitListTags`、`gitCreateTag`、`gitDeleteTag`、`gitPushTag`。
 
 **工厂函数**:
 - `createWorktreeConsoleControlPlane(options)`（L203-1383）：返回 `WorktreeConsoleControlPlane` 实例。`createTargetSessionId` 默认 `randomUUID`（L204）。
@@ -125,15 +125,15 @@ Typert RPC 服务层，继承自 `TypertRemoteService`（L34），充当网关�
 **API 实现细节（返回对象的方法，行号对应实现起始）**:
 - `sidebarTopology`（L564-628）：聚合 managed checkouts，合并 membership，按 project 分组。
 - `current`（L630-636）：返回 caller target 或 details。
-- `gitOverview`（L638-651）：调用 `projectRootFor` 后取分支概览。
-- `gitGraph`（L653-658）：取 git log 图。
-- `gitCreateBranch`（L660-665）：创建本地分支。
-- `gitSwitchBranch`（L667-682）：切换分支，交付中禁止（L671-678）。
+- `gitOverview`（L638-651）：调用 `projectRootFor` 后取分支概览，返回 `root`、`branch`、头部 OID（源码 L647 字面标记为 `Capabilities headOid`，语义为响应字段 `headOid`）、`branches`、`dirtyCount`。
+- `gitGraph`（L653-658）：取 git log 图，若 `options.git.graphLog` 未定义则抛出 `git_error`（L655）。
+- `gitCreateBranch`（L660-665）：创建本地分支，若 `options.git.createLocalBranch` 未定义则抛出错误（L662）。
+- `gitSwitchBranch`（L667-682）：切换分支，交付中禁止（L671-678 遍历 registry 检查 `delivering`）。
 - `gitPruneMergedBranches`（L684-686）：调用模块修剪。
-- `gitListTags`（L688-694）：列出 Git 标签。
-- `gitCreateTag`（L696-706）：创建标签，支持推送（L701-705 软降级）。
-- `gitDeleteTag`（L708-722）：删除标签，远程优先（L712-718）。
-- `gitPushTag`（L724-733）：推送标签，软降级（L730-732）。
+- `gitListTags`（L688-694）：列出 Git 标签，若 `options.git.listTags` 未定义或返回 null 则抛出 `git_error`。
+- `gitCreateTag`（L696-706）：创建标签，支持推送（L701-705 软降级处理 `pushMessage`）。
+- `gitDeleteTag`（L708-722）：删除标签，远程优先（L712-718 先处理 `request.push` 远程删除再本地删除）。
+- `gitPushTag`（L724-733）：推送标签，软降级（L730-732 返回 `pushed: false` 和 `pushMessage`）。
 - `listAbandoned`（L735-737）：列出放弃快照。
 - `restoreAbandoned`（L739-743）：恢复放弃工作树。
 - `list`（L745-820）：列出工作树，支持批量 `observeManagedCheckouts` 优化（L773-781），失败降级逐条 observe（L795-799）。
@@ -159,14 +159,14 @@ Typert RPC 服务层，继承自 `TypertRemoteService`（L34），充当网关�
 - `setPermanent`（L1303-1312）：设置永久。
 - `retryCleanup`（L1314-1322）：重试清理。
 - `clearSidebarBadge`（L1324-1336）：清除徽章。
-- `beginNextIteration`（L1338-1382）：开始下次迭代，校验前置 `discarded`+`delivered`。
+- `beginNextIteration`（L1338-1382）：开始下次迭代，校验前置 `discarded`+`delivered`（L1346-1347）。
 
 ### src/console-host/errors.ts
 
 统一错误类型转换和 Outcome 包装器。
 
 - `domainError(code, message, continuation?)`（L5-11）：创建带 `code` 和可选 `continuation` 的 Error。
-- `consoleFailure(error)`（L13-41）：将未知 Error 转为 `WorktreeConsoleOutcome<never>`；若 code 在 `SESSION_CHECKOUT_ERROR_CODES` 中透传，否则转 `git_error`。L33 注释 `ponytail: local-only leak ceiling` 标明本地允许泄露原消息，远程需脱敏。
+- `consoleFailure(error)`（L13-41）：将未知 Error 转为 `WorktreeConsoleOutcome<never>`；若 code 在 `SESSION_CHECKOUT_ERROR_CODES` 中透传，否则转 `git_error`（L34-40）。L33 注释标明本地允许泄露原消息，远程需脱敏。
 - `failure<T>(code, message, details?, continuation?)`（L43-58）：直接构造失败 Outcome。
 - `outcome<T>(operation)`（L60-66）：核心包装器，成功 `{ok:true,value}`，失败调 `consoleFailure`。
 
@@ -179,35 +179,43 @@ Typert RPC 服务层，继承自 `TypertRemoteService`（L34），充当网关�
 - `deliveryProof(record, observed?)`（L36-55）：内部，构建交付证明。
 - `iteration(record)`（L57-59）：内部，取迭代号。
 - `capabilities(record, callerSessionId, ownerSessionAvailable?, linkedRead?)`（L61-98）：**导出**，返回能力对象，全部字段（布尔）：
-  - `create: false`（L82 硬编码禁用，创建只能从 Local 发起）
-  - `open: readAuthorized && active && (!linkedRead || ownerSessionAvailable)`
-  - `inspect: readAuthorized`
-  - `discard: (owner || sourceReservation) && active && !cleanup && !previewDetached`
-  - `preflight: owner && ready`
-  - `preview: owner && ready`
-  - `checkpoint: owner && (ready || previewActive)`
-  - `resumeRevision: owner && ready`
-  - `rollbackPreview: owner && (previewActive || previewDetached || previewRecovery)`
-  - `finalize: owner && ready`
-  - `finalizePreview: owner && (previewActive || previewDetached)`
-  - `setRetention: manageAuthorized && record.delivery.state === 'retained'`
-  - `setPermanent: manageAuthorized && active`
-  - `retryCleanup: manageAuthorized && cleanup`
-  - `beginNextIteration: owner && delivered`
+
+| 字段 | 表达式 / 值 | 行号 |
+| --- | --- | --- |
+| `create` | `false`（硬编码禁用，创建只能从 Local 发起） | L82 |
+| `open` | `readAuthorized && active && (!linkedRead || ownerSessionAvailable)` | L83 |
+| `inspect` | `readAuthorized` | L84 |
+| `discard` | `(owner || sourceReservation) && active && !cleanup && !previewDetached` | L85 |
+| `preflight` | `owner && ready` | L86 |
+| `preview` | `owner && ready` | L87 |
+| `checkpoint` | `owner && (ready || previewActive)` | L88 |
+| `resumeRevision` | `owner && ready` | L89 |
+| `rollbackPreview` | `owner && (previewActive || previewDetached || previewRecovery)` | L90 |
+| `finalize` | `owner && ready` | L91 |
+| `finalizePreview` | `owner && (previewActive || previewDetached)` | L92 |
+| `setRetention` | `manageAuthorized && record.delivery.state === 'retained'` | L93 |
+| `setPermanent` | `manageAuthorized && active` | L94 |
+| `retryCleanup` | `manageAuthorized && cleanup` | L95 |
+| `beginNextIteration` | `owner && delivered` | L96 |
+
 - `fallbackOid(record)`（L100-103）：内部，回退 OID 计算。
 - `sourceBranchFromRef(sourceRef)`（L105-107）：**导出**，从 `refs/heads/` 提取分支名。
 - `projectRecord(record, callerSessionId, observed?)`（L109-183）：**导出**，构建 `WorktreeConsoleTargetSummary`。
 - `projectDetails(record, callerSessionId, managedRoot, snapshot?, dirty?, ownerSessionAvailable?, linkedRead?, observedDeliveryProof?)`（L185-255）：**导出**，构建 `WorktreeConsoleTargetDetails`，继承 Summary 并补 `managedRoot`、`sourceRoot`、`sourceOid`、`currentBranch`，以及 owner 的 `recoveryContinuation` 展开。
-- `projectLocal(target, sessionId)`（L257-294）：**导出**，构建 Local 目标投影，Worktree 特定能力全 false，仅 `create`（若未版本化）、`open`、`inspect` 真。
+- `projectLocal(target, sessionId)`（L257-294）：**导出**，构建 Local 目标投影，Worktree 特定能力全 false，仅 `create`（若 `target.current.oid !== 'unversioned'` 则 true，L273）、`open`、`inspect` 真。
 
 ### src/console-host/review-diff.ts
 
 高效、安全地读取 Git 差异内容，用于 Code Review。
 
 **常量（导出）**:
-- `REVIEW_DIFF_MAX_FILES = 200`（L9）
-- `REVIEW_DIFF_MAX_PATCH_BYTES = 100 * 1024`（L10）
-- `REVIEW_DIFF_MAX_PAYLOAD_BYTES = 1024 * 1024`（L11）
+
+| 常量 | 值 | 行号 |
+| --- | --- | --- |
+| `REVIEW_DIFF_MAX_FILES` | `200` | L9 |
+| `REVIEW_DIFF_MAX_PATCH_BYTES` | `100 * 1024` | L10 |
+| `REVIEW_DIFF_MAX_PAYLOAD_BYTES` | `1024 * 1024` | L11 |
+| `REVIEW_DIFF_BATCH_SIZE` | `8`（内部批处理常量） | L184 |
 
 **接口/类（导出）**:
 - `ReviewDiffReadInput`（L13-19）：字段 `managedRoot`、`baseOid`、`reviewId`、`revision`、`changedFiles`。
@@ -216,7 +224,7 @@ Typert RPC 服务层，继承自 `TypertRemoteService`（L34），充当网关�
 - `createGitWorktreeReviewDiffReader(projectSkills?)`（L123-244）：工厂函数，返回 reader 对象。
 
 **内部辅助（非导出）**:
-- `GitOutput` 接口（L32-32）：字段 `stdout: Buffer`、`truncated: boolean`。
+- `GitOutput` 接口（L32）：字段 `stdout: Buffer`、`truncated: boolean`。
 - `git(cwd, args, env, maxBytes)`（L34-64）：spawn git 并截断输出。
 - `projectPath(value)`（L66-70）：校验项目相对路径安全。
 - `utf8Prefix(value, maxBytes)`（L72-78）：UTF-8 安全截断。
@@ -225,7 +233,7 @@ Typert RPC 服务层，继承自 `TypertRemoteService`（L34），充当网关�
 - `parseNameStatus(output)`（L90-113）：解析 `git diff --name-status -z`。
 - `sortedUnique(values)`（L115-117）：排序去重。
 - `changedPathSet(entries)`（L119-121）：收集变更路径集。
-- `read` 实现逻辑（L125-243）：建临时对象目录，用 `GIT_ALTERNATE_OBJECT_DIRECTORIES` 避免复制；`read-tree` 基线；技能追踪移除；`diff --cached --name-status` 取列表；校验一致性抛 `ReviewDiffStaleError`；分批并行（每批 8，常量 `REVIEW_DIFF_BATCH_SIZE = 8` 在 L184）取证 numstat 和 patch；总负载超 `MAX_PAYLOAD_BYTES` 时截断当前 patch 并停止。
+- `read` 实现逻辑（L125-243）：建临时对象目录，用 `GIT_ALTERNATE_OBJECT_DIRECTORIES` 避免复制；`read-tree` 基线；技能追踪移除；`diff --cached --name-status` 取列表；校验一致性抛 `ReviewDiffStaleError`；分批并行（每批 8，L184）取证 numstat 和 patch；总负载超 `MAX_PAYLOAD_BYTES` 时截断当前 patch 并停止。
 
 ## Architecture
 
@@ -250,7 +258,7 @@ Typert RPC 服务层，继承自 `TypertRemoteService`（L34），充当网关�
 
 1. **RPC 入口**：客户端发起 RPC 调用，`WorktreeConsoleService` 接收（如 `sidebarTopology` L53 起），通过 `withHostLanguage` 设置本地化上下文（L55 等）。
 2. **授权与验证**：控制面方法首先调用 `authorize`（L284）或 `linkedReadAccess`（L306）验证会话权限、项目匹配性和根目录一致性（`verifyCallerRoot` L238）。
-3. **并发守卫**：对于创建类操作，`withCreation`（L521）使用 `creating` Set 进行双重互斥（sessionKey + rootKey），防止竞态。
+3. **并发守卫**：对于创建类操作，`withCreation`（L521）使用 `creating` Set 进行双重互斥（sessionKey + rootKey，L522-532），防止竞态。
 4. **状态观察**：读操作（如 `list` L745、`current` L630）调用 `observe`（L366）获取最新 Git 状态，优先批量 `observeManagedCheckouts`（L773）失败降级逐条（L795）。
 5. **业务逻辑**：根据操作类型调用 `module.operate`（如 `checkpoint` L1021）或 `module.createIsolatedTarget`（L541）等执行实际工作树管理。
 6. **投影**：结果通过 `projection.ts` 函数（`projectRecord` L109、`projectDetails` L185、`capabilities` L61）转换为 UI 格式，包括能力计算和状态映射。
@@ -271,5 +279,5 @@ Typert RPC 服务层，继承自 `TypertRemoteService`（L34），充当网关�
 - **批量观察降级**：`list` 中 `observeManagedCheckouts` 若抛错则整批降级逐条 observe（L773-781），个别记录观察失败以无观察投影呈现（L795-799），后续 CAS 校验兜底。
 - **空仓库创建令牌限制**：`confirmations` Map 上限 500，TTL 5 分钟（L833-836），高并发空仓库初始化可能淘汰旧令牌。
 - **预览恢复能力禁用**：当 `projectReviewSlot` 检测到 `acceptanceHolder` 存在时，强制将 `capabilities` 中 `preview`/`checkpoint`/`finalize` 置 false（projection.ts L417），可能导致 UI 混淆。
-- **本地错误消息泄露**：`consoleFailure`（errors.ts L34-40）对非契约错误直接使用原 Error message，注释标明仅本地控制台允许，远程传输前需脱敏（ponytail 标记 L33）。
+- **本地错误消息泄露**：`consoleFailure`（errors.ts L34-40）对非契约错误直接使用原 Error message，注释标明仅本地控制台允许，远程传输前需脱敏（L33 标记）。
 - **标签管理 RPC 未暴露**：control-plane 实现了 `gitListTags`、`gitCreateTag`、`gitDeleteTag`、`gitPushTag`（L688-733），接口也已声明（L110-113），但 `service.ts` 中未提供对应的 `@Remote` 方法，宿主 RPC 面目前无法直接调用标签管理。
