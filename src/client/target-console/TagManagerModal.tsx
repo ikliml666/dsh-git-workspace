@@ -12,6 +12,8 @@ export interface TagManagerModalProps {
   adapter: WorktreeConsoleAdapter
   sessionId: string
   t: ClientTranslator
+  /** Commit/ref the next created tag points at; null (default) means HEAD. */
+  target?: string | null
 }
 
 type BusyAction = 'create' | 'delete' | 'push' | null
@@ -21,7 +23,7 @@ type BusyAction = 'create' | 'delete' | 'push' | null
  * mutation re-reads the list so the modal never shows a stale tag after a
  * create/delete/push (the git spawns are cheap and the list is small).
  */
-export function TagManagerModal({ open, onClose, adapter, sessionId, t }: TagManagerModalProps) {
+export function TagManagerModal({ open, onClose, adapter, sessionId, t, target }: TagManagerModalProps) {
   const [tags, setTags] = useState<WorktreeConsoleGitTag[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -76,6 +78,7 @@ export function TagManagerModal({ open, onClose, adapter, sessionId, t }: TagMan
       sessionId,
       name,
       message: createMessage.trim() === '' ? undefined : createMessage.trim(),
+      target: target ?? undefined,
       push: pushOnCreate,
     })
     // Closing the modal bumps requestSeq, so a late reply must not write state.
@@ -155,6 +158,9 @@ export function TagManagerModal({ open, onClose, adapter, sessionId, t }: TagMan
     >
       <div className="dsh-wtc-tag-manager">
         <div className="dsh-wtc-tag-create">
+          {target !== null && target !== undefined ? (
+            <div className="dsh-wtc-tag-target">{t("tag.target.hint", { p0: target.slice(0, 7) })}</div>
+          ) : null}
           <input
             className="dsh-wtc-create-branch-input"
             value={createName}

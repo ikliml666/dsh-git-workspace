@@ -151,6 +151,10 @@ export interface BranchGraphModalProps {
   sessionId: string
   t: ClientTranslator
   currentBranch: string | null
+  /** Open the tag manager pointing at this commit. */
+  onTagCommit?: (oid: string) => void
+  /** Open the tag manager without a target (HEAD). */
+  onManageTags?: () => void
 }
 
 function laneX(column: number): number {
@@ -168,7 +172,7 @@ function edgePath(edge: GraphEdge): string {
 }
 
 /** Repo-wide commit graph (git log --topo-order) with GitHub-style svg lane rendering. */
-export function BranchGraphModal({ open, onClose, adapter, sessionId, t, currentBranch }: BranchGraphModalProps) {
+export function BranchGraphModal({ open, onClose, adapter, sessionId, t, currentBranch, onTagCommit, onManageTags }: BranchGraphModalProps) {
   const [limit, setLimit] = useState(INITIAL_LIMIT)
   const [commits, setCommits] = useState<WorktreeConsoleGitGraphCommit[] | null>(null)
   const [lanes, setLanes] = useState<GraphRowLanes[] | null>(null)
@@ -213,6 +217,11 @@ export function BranchGraphModal({ open, onClose, adapter, sessionId, t, current
       className="dsh-wtc-graph-modal"
       footer={(
         <span className="dsh-wtc-graph-footer">
+          {onManageTags ? (
+            <button type="button" className="dsh-wtc-button" onClick={onManageTags}>
+              {t("tag.manager.title")}
+            </button>
+          ) : null}
           {hasMore ? (
             <button
               type="button"
@@ -281,6 +290,16 @@ export function BranchGraphModal({ open, onClose, adapter, sessionId, t, current
                   ))}
                   <span>{commit.author}</span>
                   <span>{formatTime(commit.authorTime, t)}</span>
+                  {onTagCommit ? (
+                    <button
+                      type="button"
+                      className="dsh-wtc-graph-tag-action"
+                      title={t("tag.graph.action")}
+                      onClick={() => onTagCommit(commit.oid)}
+                    >
+                      {t("tag.manager.title")}
+                    </button>
+                  ) : null}
                 </span>
               </span>
             </div>

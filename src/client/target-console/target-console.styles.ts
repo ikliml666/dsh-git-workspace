@@ -210,5 +210,14 @@ export const TARGET_CONSOLE_STYLES = String.raw`
 .dsh-wtc-tag-actions { flex:0 0 auto; display:flex; align-items:center; gap:4px; margin-left:auto; }
 .dsh-wtc-tag-confirm { display:grid; gap:8px; padding:10px; border:1px solid color-mix(in srgb, currentColor 18%, transparent); border-radius:8px; }
 .dsh-wtc-button-small { min-height:24px; padding:2px 8px; font-size:11px; }
+.dsh-wtc-tag-target { font-size:11px; color:color-mix(in srgb, currentColor 60%, transparent); font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.dsh-wtc-graph-tag-action {
+  flex:0 0 auto; min-height:20px; padding:0 6px; border:1px solid color-mix(in srgb, currentColor 20%, transparent);
+  border-radius:999px; background:transparent; color:color-mix(in srgb, currentColor 62%, transparent);
+  font-family:system-ui, sans-serif; font-size:10px; line-height:1; cursor:pointer; opacity:0;
+  transition:opacity .12s ease;
+}
+.dsh-wtc-graph-row:hover .dsh-wtc-graph-tag-action, .dsh-wtc-graph-tag-action:focus-visible { opacity:1; }
+.dsh-wtc-graph-tag-action:hover { color:var(--wtc-blue); border-color:var(--wtc-blue); }
 .dsh-wtc-graph-footer { display:flex; justify-content:center; gap:8px; }
 `

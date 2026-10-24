@@ -71,6 +71,8 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
   const [branchQuery, setBranchQuery] = useState('')
   const [switchNotice, setSwitchNotice] = useState<string | null>(null)
   const [tagsOpen, setTagsOpen] = useState(false)
+  /** Commit the next created tag points at; null means HEAD. */
+  const [tagTarget, setTagTarget] = useState<string | null>(null)
   const actionScope = useRef(0)
   const activeSession = useRef(sessionId)
   if (activeSession.current !== sessionId) {
@@ -106,6 +108,7 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
     setPruneLoading(false)
     setPruneBusy(false)
     setTagsOpen(false)
+    setTagTarget(null)
     setBranchQuery('')
     setSwitchNotice(null)
     return subscribeCurrent(adapter, sessionId, language, result => {
@@ -476,7 +479,7 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
           if (id === 'discard') { setMenuOpen(false); setCleanupConfirmOpen(true) }
           if (id === 'create_branch') { setMenuOpen(false); setCreateName(''); setError(null); setCreateOpen(true) }
           if (id === 'prune_branches') openPrunePreview()
-          if (id === 'manage_tags') { setMenuOpen(false); setTagsOpen(true) }
+          if (id === 'manage_tags') { setMenuOpen(false); setTagTarget(null); setTagsOpen(true) }
           if (id === 'graph') { setMenuOpen(false); setGraphOpen(true) }
           if (id.startsWith('branch:')) void switchBranch(id.slice('branch:'.length))
         }}
@@ -552,13 +555,16 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
         t={t}
         currentBranch={overview?.branch ?? target?.currentBranch ?? null}
         onClose={() => setGraphOpen(false)}
+        onTagCommit={(oid) => { setGraphOpen(false); setTagTarget(oid); setTagsOpen(true) }}
+        onManageTags={() => { setGraphOpen(false); setTagTarget(null); setTagsOpen(true) }}
       />
       <TagManagerModal
         open={tagsOpen}
         adapter={adapter}
         sessionId={sessionId}
         t={t}
-        onClose={() => setTagsOpen(false)}
+        target={tagTarget}
+        onClose={() => { setTagsOpen(false); setTagTarget(null) }}
       />
       <Modal
         open={createOpen}

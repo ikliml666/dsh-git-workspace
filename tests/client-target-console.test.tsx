@@ -248,6 +248,56 @@ describe('Harness-native Session Target slots', () => {
     expect(screen.getByText('main')).toBeTruthy()
   })
 
+  test('提交图谱里点某行的打标签按钮会把该 commit 作为 target 打开标签弹层', async () => {
+    const fixture = createWorktreeConsoleAdapterFixture()
+    invalidateBranchOverview('target-session')
+    const oid = 'a'.repeat(40)
+    fixture.adapter.gitGraph = vi.fn(async () => ({
+      ok: true,
+      value: {
+        root: '/fixture/project',
+        branch: 'target/current',
+        commits: [{ oid, parents: [], author: 'Tester', authorEmail: 't@example.com', authorTime: 1_700_000_000, subject: 'feat: something', refs: [] }],
+      },
+    }))
+    render(<TargetStatusAction sessionId="target-session" adapter={fixture.adapter} services={clientServices()} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Session Target：Worktree · 待验收' }))
+    fireEvent.click(await screen.findByText('查看提交图'))
+    await screen.findByText('feat: something')
+
+    fireEvent.click(screen.getByTitle('在此提交打标签'))
+    // The modal reports which commit the tag will point at.
+    expect(await screen.findByText(`将指向提交 ${oid.slice(0, 7)}`)).toBeTruthy()
+
+    fireEvent.change(screen.getByPlaceholderText('新标签名（如 v1.2.0）'), { target: { value: 'v2.0.0' } })
+    fireEvent.click(screen.getByRole('button', { name: '创建标签' }))
+
+    await waitFor(() => expect(fixture.calls.some(call => call.method === 'gitCreateTag')).toBe(true))
+    expect(fixture.calls.find(call => call.method === 'gitCreateTag')?.request).toMatchObject({ name: 'v2.0.0', target: oid })
+  })
+
+  test('提交图谱 footer 的「管理标签」以 HEAD 为目标打开弹层', async () => {
+    const fixture = createWorktreeConsoleAdapterFixture()
+    invalidateBranchOverview('target-session')
+    render(<TargetStatusAction sessionId="target-session" adapter={fixture.adapter} services={clientServices()} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Session Target：Worktree · 待验收' }))
+    fireEvent.click(await screen.findByText('查看提交图'))
+
+    // Footer entry carries no commit, so no target hint is rendered.
+    const footerEntry = await screen.findByRole('button', { name: '管理标签' })
+    fireEvent.click(footerEntry)
+    await screen.findByText('本地还没有标签。')
+    expect(screen.queryByText(/将指向提交/u)).toBeNull()
+
+    fireEvent.change(screen.getByPlaceholderText('新标签名（如 v1.2.0）'), { target: { value: 'v1.0.0' } })
+    fireEvent.click(screen.getByRole('button', { name: '创建标签' }))
+
+    await waitFor(() => expect(fixture.calls.some(call => call.method === 'gitCreateTag')).toBe(true))
+    expect(fixture.calls.find(call => call.method === 'gitCreateTag')?.request).toMatchObject({ name: 'v1.0.0', target: undefined })
+  })
+
   test('菜单「管理标签」打开标签弹层，创建附注标签后回到列表并显示附注徽章', async () => {
     const fixture = createWorktreeConsoleAdapterFixture()
     invalidateBranchOverview('target-session')

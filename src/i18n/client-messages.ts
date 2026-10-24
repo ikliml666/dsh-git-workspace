@@ -1047,6 +1047,18 @@ export const clientMessages = {
     "zh": "标签说明（留空则为轻量标签）",
     "en": "Tag message (empty for a lightweight tag)"
   },
+  "tag.target.hint": {
+    "zh": "将指向提交 {p0}",
+    "en": "Will point at commit {p0}"
+  },
+  "tag.target.head": {
+    "zh": "将指向当前 HEAD",
+    "en": "Will point at the current HEAD"
+  },
+  "tag.graph.action": {
+    "zh": "在此提交打标签",
+    "en": "Tag this commit"
+  },
   "tag.push.on.create": {
     "zh": "创建后推送到 origin",
     "en": "Push to origin after creating"
