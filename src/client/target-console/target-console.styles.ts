@@ -32,6 +32,7 @@ export const TARGET_CONSOLE_STYLES = String.raw`
 .dsh-wtc-menu-summary strong { font-size: 12px; color: inherit; }
 .dsh-wtc-menu-summary span { color: color-mix(in srgb, currentColor 64%, transparent); font-size: 11px; line-height: 1.35; }
 .dsh-wtc-menu-summary .dsh-wtc-menu-error { color: #c44747; }
+.dsh-wtc-tag-manager .dsh-wtc-menu-error { color: #c44747; font-size: 12px; }
 .dsh-wtc-target-dot, .dsh-wtc-state-dot {
   width: 7px;
   height: 7px;
