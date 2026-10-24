@@ -357,6 +357,39 @@ describe('Harness-native Session Target slots', () => {
     await waitFor(() => expect(screen.getByText(/already exists/u)).toBeTruthy())
   })
 
+  test('创建成功但推送失败时保留标签并报告失败原因', async () => {
+    const fixture = createWorktreeConsoleAdapterFixture()
+    invalidateBranchOverview('target-session')
+    fixture.adapter.gitCreateTag = vi.fn(async () => ({
+      ok: true,
+      value: { tag: 'v3.0.0', pushed: false, pushMessage: 'no remote configured' },
+    }))
+    // The reload after the create must surface the tag that now exists locally.
+    fixture.adapter.gitListTags = vi.fn()
+      .mockResolvedValueOnce({ ok: true, value: { root: '/fixture/project', tags: [] } })
+      .mockResolvedValue({
+        ok: true,
+        value: {
+          root: '/fixture/project',
+          tags: [{ name: 'v3.0.0', oid: 'c'.repeat(40), commitOid: 'b'.repeat(40), annotated: false, message: null, pushed: false }],
+        },
+      })
+    render(<TargetStatusAction sessionId="target-session" adapter={fixture.adapter} services={clientServices()} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Session Target：Worktree · 待验收' }))
+    fireEvent.click(await screen.findByText('管理标签'))
+    await screen.findByText('本地还没有标签。')
+
+    fireEvent.change(screen.getByPlaceholderText('新标签名（如 v1.2.0）'), { target: { value: 'v3.0.0' } })
+    fireEvent.click(screen.getByLabelText('创建后推送到 origin'))
+    fireEvent.click(screen.getByRole('button', { name: '创建标签' }))
+
+    await waitFor(() => expect(screen.getByText('no remote configured')).toBeTruthy())
+    // The tag exists locally, so the list must still show it.
+    await waitFor(() => expect(screen.getByText('v3.0.0')).toBeTruthy())
+    expect(screen.queryByText('已创建并推送标签 v3.0.0')).toBeNull()
+  })
+
   test('Header 切换 Session 时丢弃旧请求，避免跨 Session 注入路径与来源身份', async () => {
     const fixture = createWorktreeConsoleAdapterFixture()
     let resolveA!: (value: Awaited<ReturnType<typeof fixture.adapter.current>>) => void

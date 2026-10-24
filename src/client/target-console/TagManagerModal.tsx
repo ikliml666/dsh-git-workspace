@@ -37,7 +37,9 @@ export function TagManagerModal({ open, onClose, adapter, sessionId, t }: TagMan
   const load = useCallback(async (): Promise<void> => {
     const seq = ++requestSeq.current
     setLoading(true)
-    setError(null)
+    // Never clear `error` here: a create that succeeded locally while its push
+    // failed reports through `error`, and the reload that follows would erase
+    // that message before the user could read it.
     const outcome = await adapter.gitListTags(sessionId)
     if (seq !== requestSeq.current) return
     setLoading(false)
