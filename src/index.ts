@@ -118,6 +118,12 @@ export interface SessionCheckoutModule {
    * it decides whether the absolute-path rule still needs to be announced.
    */
   runtimeContext(sessionId: string, cwd?: string): string
+  /**
+   * Concurrent branch-race guard refresh: collects branch creation times for
+   * every known Local root into the cache runtimeContext reads synchronously.
+   * Fire-and-forget from the host interval; failures keep the prior snapshot.
+   */
+  refreshBranchRaceGuards?(): Promise<void>
   /** Read-only sync preflight; modifies no Local, worktree, registry, review state, or Git refs. */
   preflight?(sessionId: string, expectedRevision: number): Promise<WorktreeApplyPreflightView>
   /** Strictly read-only detached Preview recovery assessment and deterministic revalidation context. */
@@ -284,6 +290,15 @@ export const Config = z.object({
    */
   worktreeKeepCount: volatile(z.number().min(0).max(500).step(1).default(15)),
   /**
+   * Concurrent branch-race guard: when other live Sessions share the Local
+   * checkout and a new local branch appeared inside `branchRaceWindowMs`, the
+   * later-started Session's runtime context directs it to isolate through
+   * worktree_create before mutating. Default true.
+   */
+  branchRaceGuard: volatile(z.boolean().default(true)),
+  /** Detection window (ms) for `branchRaceGuard`. Default 30 minutes. */
+  branchRaceWindowMs: volatile(z.number().min(60_000).max(24 * 60 * 60 * 1000).default(30 * 60 * 1000)),
+  /**
    * Take over the official Workspace UI (ui-workspace). Only an explicit
    * `true` takes over: a takeover disables the official entry, which removes
    * its client package from the Host's client graph, so every package
@@ -298,6 +313,8 @@ interface LocalAdaptationConfig {
   worktreesRoot?: string | LiveValue<string | undefined>
   inheritLocalChanges?: boolean | LiveValue<boolean | undefined>
   worktreeKeepCount?: number | LiveValue<number | undefined>
+  branchRaceGuard?: boolean | LiveValue<boolean | undefined>
+  branchRaceWindowMs?: number | LiveValue<number | undefined>
   enableWorkspaceProvider?: boolean
 }
 
@@ -362,6 +379,8 @@ export async function apply(ctx: Context, config: { stateDir?: string } & GitTim
     autoPush: config.autoPush,
     inheritLocalChanges: config.inheritLocalChanges,
     worktreeKeepCount: config.worktreeKeepCount,
+    branchRaceGuard: config.branchRaceGuard,
+    branchRaceWindowMs: config.branchRaceWindowMs,
     ...(worktreesRoot ? { worktreesRoot } : {}),
   })
 

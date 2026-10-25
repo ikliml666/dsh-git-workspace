@@ -37,6 +37,7 @@ interface LiveSessionLike {
 
 interface SessionStoreLike {
   get(sessionId: string): LiveSessionLike | undefined
+  list?(): readonly { id?: unknown; header?: { readonly id?: unknown; readonly createdAt?: unknown; readonly cwd?: unknown } }[]
 }
 
 function isWorkspaceRegistryLike(value: unknown): value is WorkspaceRegistryLike {
@@ -93,6 +94,31 @@ export function createDshLookupPort(ctx: Context): SessionCheckoutLookupPort {
           ])],
         }
       })
+    },
+    listLiveSessions: () => {
+      // Creation order from the store; only header fields the guard needs.
+      // Structurally-unknown projections degrade to an empty list, which
+      // keeps the branch-race guard silent rather than guessing.
+      const store = sessions()
+      if (!store?.list) return []
+      try {
+        return store.list()
+          .map((session) => {
+            const header = session?.header
+            const id = typeof header?.id === 'string'
+              ? header.id
+              : (typeof session?.id === 'string' ? session.id : undefined)
+            if (!id) return undefined
+            return {
+              id,
+              ...(typeof header?.createdAt === 'number' ? { createdAt: header.createdAt } : {}),
+              ...(typeof header?.cwd === 'string' ? { cwd: header.cwd } : {}),
+            }
+          })
+          .filter((session): session is { id: string; createdAt?: number; cwd?: string } => session !== undefined)
+      } catch {
+        return []
+      }
     },
     getSession: (sessionId): SessionCheckoutSessionRecord | undefined => {
       const workspaces = registry()?.list() ?? []

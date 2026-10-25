@@ -15,6 +15,16 @@ export function registerSessionTargetContext(ctx: Context, module: SessionChecko
   // The snapshot needs the live cwd to tell whether this Session already stands
   // inside its checkout (worktree_create moved it) or still sits in Local.
   const workingDirectory = createSessionWorkingDirectoryPort(ctx)
+  // Branch-race guard cache: the runtimeContext text must stay synchronous,
+  // so the reflog probe runs on a background interval instead of inline.
+  if (typeof module.refreshBranchRaceGuards === 'function') {
+    ctx.effect(() => {
+      const timer = setInterval(() => {
+        void module.refreshBranchRaceGuards!().catch(() => undefined)
+      }, 45_000)
+      return () => clearInterval(timer)
+    })
+  }
   ctx.inject(['systemPrompt'], (scope: Context) => {
     scope.systemPrompt.context({
       name: 'git-worktree:session-target',

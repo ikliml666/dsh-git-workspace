@@ -72,6 +72,7 @@ import type {
   SessionCheckoutSessionRecord,
 } from './ports.js'
 import { liveConfigValue } from './ports.js'
+import { detectLocalBranchRace } from './concurrent-session-guard.js'
 
 /**
  * dsh-git-worktree session-checkout state machine, ported from Domi. It keeps
@@ -981,10 +982,92 @@ export function createSessionCheckoutModule(
     return dependencies.registry.read().sessionBindings[sessionId]
   }
 
+  // Concurrent branch-race guard: branch creation times are collected by the
+  // async refresh below (one reflog spawn per Local root) and read back
+  // synchronously here — the system-prompt contract forbids awaits. Keyed by
+  // Local root; missing entry simply keeps the guard silent.
+  const branchRaceCache = new Map<string, Record<string, number> | undefined>()
+  const branchRaceWindowMsDefault = 30 * 60 * 1000
+
+  async function refreshBranchRaceGuards(): Promise<void> {
+    if (liveConfigValue(dependencies.branchRaceGuard) === false) return
+    if (typeof dependencies.git.branchCreationTimes !== 'function') return
+    const registry = dependencies.registry.read()
+    const projectIds = new Set<string>()
+    for (const binding of Object.values(registry.sessionBindings)) projectIds.add(binding.projectId)
+    for (const record of Object.values(registry.managedCheckouts)) projectIds.add(record.projectId)
+    // Sessions without a binding yet are exactly the ones the guard protects:
+    // include their projects so a fresh checkout's reflog is probed too.
+    if (typeof dependencies.lookup.listLiveSessions === 'function') {
+      for (const session of dependencies.lookup.listLiveSessions()) {
+        const projectId = dependencies.lookup.getSession(session.id)?.projectId
+        if (projectId) projectIds.add(projectId)
+      }
+    }
+    for (const projectId of projectIds) {
+      const root = dependencies.lookup.getProject(projectId)?.root
+      if (!root) continue
+      try {
+        branchRaceCache.set(root, await dependencies.git.branchCreationTimes!(root))
+      } catch {
+        // A failed probe keeps the previous snapshot; the guard stays silent on hosts
+        // where reflog access is unavailable rather than blocking work on noise.
+      }
+    }
+  }
+
+  /**
+   * Race notice for a Session still standing in the Local boundary: another
+   * live Session shares the checkout and already created a fresh branch inside
+   * the window, so this later-started Session must isolate first. Empty string
+   * when the guard is off, unevaluable, or no race exists.
+   */
+  function branchRaceNotice(sessionId: string, registry: ReturnType<typeof dependencies.registry.read>): string {
+    if (liveConfigValue(dependencies.branchRaceGuard) === false) return ''
+    const sessions = typeof dependencies.lookup.listLiveSessions === 'function'
+      ? dependencies.lookup.listLiveSessions()
+      : []
+    if (sessions.length < 2) return ''
+    const projectId = registry.sessionBindings[sessionId]?.projectId
+      ?? dependencies.lookup.getSession(sessionId)?.projectId
+    const localRoot = projectId ? dependencies.lookup.getProject(projectId)?.root : undefined
+    if (!projectId || !localRoot) return ''
+    // Sessions that already isolated into a managed checkout are not racing
+    // in the Local boundary anymore.
+    const isolatedSessionIds = new Set(
+      Object.entries(registry.sessionBindings)
+        .filter(([, value]) => value.target.kind === 'isolated')
+        .map(([id]) => id),
+    )
+    const activeSessions = sessions.filter((session) => !isolatedSessionIds.has(session.id))
+    if (activeSessions.length < 2) return ''
+    const managedBranches = Object.values(registry.managedCheckouts)
+      .filter((record) => record.projectId === projectId && record.phase !== 'discarded' && record.sessionBranch)
+      .map((record) => branchNameOf(record.sessionBranch) ?? record.sessionBranch!)
+    const facts = detectLocalBranchRace({
+      sessions: activeSessions,
+      sessionId,
+      localRoot,
+      branchCreationTimes: branchRaceCache.get(localRoot),
+      now: Date.now(),
+      windowMs: liveConfigValue(dependencies.branchRaceWindowMs) ?? branchRaceWindowMsDefault,
+      managedBranches,
+    })
+    if (facts.status !== 'race_detected') return ''
+    return [
+      'Branch Race detected: another live Session in this same Local checkout created branch(es) '
+        + `${facts.recentBranchNames.slice(0, 3).join(', ')} inside the detection window.`,
+      'You appear to be the later-started Session. Do NOT create another branch in the Local checkout '
+        + '(no `git switch -c`, no `git checkout -b`, no direct commits onto Local).',
+      'Call worktree_create first to isolate this Session changes into a managed Worktree, then make all '
+        + 'changes there; if worktree_create is unavailable, ask the user which Session should own the Local checkout.',
+    ].join('\n')
+  }
+
   function runtimeContext(sessionId: string, cwd?: string): string {
     const registry = dependencies.registry.read()
     const binding = registry.sessionBindings[sessionId]
-    if (!binding) return ''
+    if (!binding) return branchRaceNotice(sessionId, registry)
     if (binding.target.kind === 'local') {
       const projectPreview = Object.values(registry.managedCheckouts)
         .filter((record) => record.projectId === binding.projectId && record.phase !== 'discarded')
@@ -1002,10 +1085,12 @@ export function createSessionCheckoutModule(
           || record.phase === 'recovery_required')
         .sort((left, right) => managedUpdatedAt(right) - managedUpdatedAt(left))[0]
       if (!pending) {
+        const raceNotice = branchRaceNotice(sessionId, registry)
         return [
           'Session Target: Local Checkout. No isolated target is active for this Session.',
           'Complete ordinary Local work in the current cwd and finish with an ordinary assistant reply.',
           'Do not call Worktree-only tools such as worktree_ready_for_review, worktree_resume_revision, or worktree_begin_next_iteration unless this Session first selects an Isolated Checkout.',
+          ...(raceNotice ? ['', raceNotice] : []),
         ].join('\n')
       }
       if (pending.delivery.state === 'preview_active') {
@@ -5076,6 +5161,7 @@ export function createSessionCheckoutModule(
   return {
     inspect: inspectAvailable,
     runtimeContext,
+    refreshBranchRaceGuards,
     preflight: (sessionId, expectedRevision) => withBindingLock(
       () => preflightTarget(sessionId, expectedRevision),
     ),

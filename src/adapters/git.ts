@@ -505,6 +505,26 @@ export function createDshGitPort(ctx: Context, options: GitPortOptions): Session
       }
       return times
     },
+    branchCreationTimes: async (root) => {
+      // One spawn over every branch reflog; `branch: Created from` entries are
+      // written exactly when a branch is born, so the first (oldest) entry per
+      // branch is its creation time. `--all` walks refs/heads/* reflogs only.
+      const result = await runSessionGit(root, [
+        'reflog', 'show', '--all', '--date=unix', '--format=%ct%x00%gd%x00%gs',
+      ])
+      if (result.code !== 0) return undefined
+      const times: Record<string, number> = {}
+      for (const line of result.stdout.split(/\r?\n/).filter(Boolean)) {
+        const [unix, refSelector = '', subject = ''] = line.split('\0')
+        if (!subject.startsWith('branch: Created from')) continue
+        const name = refSelector.replace(/^refs\/heads\//u, '').replace(/@\{\d+\}$/u, '')
+        const seconds = Number.parseInt(unix ?? '', 10)
+        if (!name || !Number.isFinite(seconds)) continue
+        const createdAt = seconds * 1000
+        if (times[name] === undefined || createdAt < times[name]!) times[name] = createdAt
+      }
+      return times
+    },
     deleteLocalBranch: async (root, name) => {
       const result = await runSessionGit(root, ['branch', '-d', name])
       if (result.code === 0) return { deleted: true }

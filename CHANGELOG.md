@@ -6,6 +6,12 @@
 
 ### Added
 
+- 并发会话分支竞态防护（2026-10-25）：检测同一 Local 检出边界下多个 live 会话并发、且检测窗口内有其他会话新建本地分支时，向后启动的会话注入 runtimeContext 提示——禁止 `git switch -c`/`git checkout -b`，要求先 `worktree_create` 隔离改动。
+  - 新增纯函数检测器 `src/concurrent-session-guard.ts`（`detectLocalBranchRace`，同步判定：更早启动的同边界会话 ≥1 且窗口内新建非受管分支 ≥1）。
+  - LookupPort 新增可选 `listLiveSessions`（harness sessions store 同步投影，结构守卫降级空）；GitPort 新增可选 `branchCreationTimes`（一次 `git reflog show --all` 解析每分支最早 `branch: Created from` 时间）。
+  - 模块新增公开 `refreshBranchRaceGuards()`（后台刷新各 Local root 缓存，45s 定时器在 session-target-context 注册），runtimeContext 在无 binding 与 Local 无 pending 两处接入；已隔离会话与受管分支排除在判定之外。
+  - 新增 volatile 配置 `branchRaceGuard`（默认 true）与 `branchRaceWindowMs`（默认 30 分钟）。
+
 - Git 标签管理（target-console 模块，2026-10-24）：分支菜单新增「管理标签」入口，弹层支持列出本地标签（附注/轻量、已推送状态、说明正文）、按名称创建轻量或附注标签、创建时可选同步推送到 `origin`、对未推送标签单独推送、删除前二次确认并可选同时删除 `origin` 上的同名标签。
   - 新增 Remote 方法 `gitListTags` / `gitCreateTag` / `gitDeleteTag` / `gitPushTag`（严格 descriptor + zod 校验，标签名走 `git check-ref-format` 同等规则），发布门禁方法面同步为 38 项。
   - 标签推送永不 force：本地创建成功而推送失败时仍保留标签并以提示报告失败原因；`gitPushTag` 单独推送失败返回 `git_error` 领域错误。
