@@ -346,7 +346,7 @@ describe('registerDecoratedWorkspaceSidebar (Mode B: official Workspace stays li
     // renderSlot only authorizes the declaring entry, so this mode must keep
     // the official entry rendering.
     expect(registry.registered.filter(entry => entry.descriptor.name === 'sidebar.workspaces')).toHaveLength(0)
-    expect(registry.injected).toContain('sidebar.workspaces.session.row.trailing')
+    expect(registry.injected).toContain('sidebar.session.row.trailing')
     expect(registry.injected).toContain('sidebar.workspaces.session.menu.item')
     const badge = registry.registered.find(entry => entry.descriptor.name === 'sidebar.session.row.trailing')
     expect(badge?.descriptor).toMatchObject({ name: 'sidebar.session.row.trailing', id: 'dsh-git-worktree-status' })

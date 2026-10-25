@@ -470,7 +470,11 @@ export function registerDecoratedWorkspaceSidebar(
   }
   refresh()
   window.addEventListener(WORKTREE_REVIEW_REFRESH_EVENT, refresh)
-  slots.inject('sidebar.workspaces.session.row.trailing', () => slots.register(
+  // The row-trailing seat is declared as `sidebar.session.row.trailing` by the
+  // WorkspaceBrowser entry — it is NOT namespaced under `sidebar.workspaces`.
+  // Injecting the namespaced guess waits forever for a declaration that never
+  // comes, so the callback would never run and the badge would never mount.
+  slots.inject('sidebar.session.row.trailing', () => slots.register(
     { name: 'sidebar.session.row.trailing', id: 'dsh-git-worktree-status', order: 500 },
     (props: OfficialSessionRowEntryProps) => <ClientI18nProvider locale={read('locale')}><WorktreeStatusBadgeEntry {...props} /></ClientI18nProvider>,
   ))
