@@ -158,6 +158,18 @@ export function decorateOfficialWorkspaceClient(source) {
     '\t\t\t\t\t\t\t\titems: sessionMenuItems,',
     '\t\t\t\t\t\t\t\titems: visibleSessionMenuItems,',
     'Managed session visible menu')
+  // The decorate path (official ui-workspace kept live) shadows the official
+  // `sidebar.workspaces` registration with a wrapper component, but that
+  // wrapper forwarded the projected `__dshGitWorktree` metadata to the
+  // OFFICIAL Browser, which has no row decoration and therefore rendered
+  // neither the branch icon nor the status badge. Exporting the derived
+  // Browser lets the shadow registration render this derivative directly, so
+  // the decoration finally has a consumer while the official entry — and every
+  // package injecting it — stays untouched.
+  derived = replaceExactlyOnce(derived,
+    '\t\texports.apply = apply;\n\t\texports.inject = inject;',
+    '\t\texports.apply = apply;\n\t\texports.inject = inject;\n\t\texports.WorkspaceBrowser = WorkspaceBrowser;',
+    'derived Browser export')
   return derived
 }
 
@@ -192,5 +204,6 @@ const official = ((require) => {${body}
 })
 export const apply = official.apply
 export const inject = official.inject
+export const WorkspaceBrowser = official.WorkspaceBrowser
 `
 }
