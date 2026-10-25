@@ -6,7 +6,7 @@
 
 ### Fixed
 
-- 装饰分支侧栏注册丢失子槽授权（2026-10-25）：影子注册 `sidebar.workspaces` 的 descriptor 此前未复制官方条目的 `children` 声明，派生 Browser 渲染 directoryFlow 子槽时崩溃 `TypeError: renderSlot is not a function`（0.2.x 宿主）。现在注册时透传 `official.children`，`SlotRegistryEntry` 类型补充 `children?` 字段。
+- 装饰分支侧栏 `renderSlot` 崩溃与注册冲突（2026-10-25，两次迭代）：影子注册的 `sidebar.workspaces` 条目拿不到宿主注入的 `renderSlot`（宿主只给声明了 `children` 的条目注入），派生 Browser 在 directoryFlow 与会话行渲染时崩溃 `TypeError: renderSlot is not a function`；直接透传 `official.children` 又会与仍在注册表里的官方条目冲突导致整个客户端挂载失败（已回滚）。最终方案：不再影子注册，**原位偷换官方条目的 `component` 引用**为我们的包装组件——官方条目保留自身 `children` 声明，宿主照常注入完整 props（含 renderSlot），派生 Browser 收到全部官方注入；卸载时还原原引用。条目被冻结时回退旧影子注册路径。
 
 ### Added
 
