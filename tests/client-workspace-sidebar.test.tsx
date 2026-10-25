@@ -13,6 +13,7 @@ import {
   registerDecoratedWorkspaceSidebar,
   registerManagedWorkspaceSidebar,
 } from '../src/client/workspace-sidebar/index.js'
+import { derivedBrowserCalls, resetDerivedBrowserCalls } from './official-workspace-client.mock.js'
 import { createWorktreeConsoleAdapterFixture } from './support/worktree-console.js'
 
 const localSession = 'local-session' as SessionId
@@ -381,14 +382,27 @@ describe('registerDecoratedWorkspaceSidebar (Mode B: official Workspace stays li
     expect(registry.registered.filter(entry => entry.descriptor.registrant === 'dsh-git-worktree')).toHaveLength(1)
   })
 
-  test('renders the projected sidebar through the shadowing entry', async () => {
+  test('renders the derived Browser through the shadowing entry so the decoration reaches a consumer', async () => {
+    resetDerivedBrowserCalls()
     const registry = fakeRegistry([{ component: InspectBrowser, options: { priority: 0 }, registrant: 'official-ui-workspace' }])
     const { ctx } = decorateCtx(registry.service)
     registerDecoratedWorkspaceSidebar(ctx, adapter())
     const Decorated = registry.registered[0]!.component as (props: WorkspaceBrowserProps) => unknown
     render(<Decorated {...browserProps()} />)
-    await waitFor(() => expect(screen.getByRole('button', { name: '修复验收卡' }).getAttribute('data-worktree-label')).toBe('Ready for review'))
-    expect(screen.getByText('demo')).toBeTruthy()
+    // The derived Browser renders, not the stock official component (which has
+    // no row decoration and would drop the Worktree icon/badge).
+    await waitFor(() => expect(screen.getByTestId('derived-browser-marker')).toBeTruthy())
+    // The projected decoration is handed to it: the owner Session carries
+    // `__dshGitWorktree`, and a Local Session does not.
+    const received = derivedBrowserCalls.at(-1) as unknown as WorkspaceBrowserProps
+    expect(received).toBeDefined()
+    await waitFor(() => {
+      const sessions = received.useSessions((value: SessionListState) => value.byId) as Record<string, { __dshGitWorktree?: { label?: string } }>
+      expect(sessions[ownerSession]?.__dshGitWorktree?.label).toBe('Ready for review')
+      expect(sessions[localSession]?.__dshGitWorktree).toBeUndefined()
+    })
+    const workspaces = received.useWorkspaces((value: WorkspaceListState) => value.items)
+    expect(workspaces.map(workspace => workspace.title)).toContain('demo')
   })
 
   test('mounts the clear-badge menu entry, clears a terminal badge, and refreshes the sidebar', async () => {

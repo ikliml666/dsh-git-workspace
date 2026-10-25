@@ -5,7 +5,7 @@ import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/c
 import type { WorkspaceId, WorkspaceSnapshot as WorkspaceListState } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { IconTrashOutlineRegular, MenuItemButton } from '@deepseek-ai/dsh-client-ui-primitives'
-import { apply as applyOfficialWorkspace } from 'virtual:dsh-official-workspace-client'
+import { apply as applyOfficialWorkspace, WorkspaceBrowser as DerivedWorkspaceBrowser } from 'virtual:dsh-official-workspace-client'
 import type { WorkspaceBrowserProps } from '@deepseek-ai/dsh-client-ui-workspace/client'
 import type { WorktreeConsoleAdapter, WorktreeSidebarTask, WorktreeSidebarTopologyResponse } from '../../console-contract.js'
 import { WORKTREE_REVIEW_REFRESH_EVENT } from '../review-console/status-events.js'
@@ -438,7 +438,16 @@ export function registerDecoratedWorkspaceSidebar(
       lowest === undefined || (entry.options.priority ?? 0) < (lowest.options.priority ?? 0) ? entry : lowest, undefined)
     if (!official || typeof official.component !== 'function') return
     decorated = true
-    const OfficialBrowser = official.component as ComponentType<WorkspaceBrowserProps>
+    // Render the DERIVED Browser, not the official component. The shadow
+    // registration forwards projected session/workspace metadata
+    // (`__dshGitWorktree`, `__dshGitWorktreeProtected`); the official Browser
+    // has no row decoration and silently drops both, so the Worktree icon,
+    // status badge, and workspace protection never appeared. The derivative is
+    // the same pinned Browser with those decorations compiled in, so the
+    // official entry stays live for every package that injects it.
+    const OfficialBrowser = (typeof DerivedWorkspaceBrowser === 'function'
+      ? DerivedWorkspaceBrowser
+      : official.component) as ComponentType<WorkspaceBrowserProps>
     const registerRawSlotEntry = (descriptor: Record<string, unknown>, component: ComponentType<any>): unknown =>
       slots.register(descriptor, component)
     const Decorated = (props: WorkspaceBrowserProps) => <ClientI18nProvider locale={read('locale')}><ManagedOfficialWorkspaceBrowser

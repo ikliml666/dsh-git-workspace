@@ -1,8 +1,17 @@
 declare module 'virtual:dsh-official-workspace-client' {
   import type { Context } from '@deepseek-ai/cordis'
+  import type { ComponentType } from 'react'
+  import type { WorkspaceBrowserProps } from '@deepseek-ai/dsh-client-ui-workspace/client'
 
   export const inject: string[]
   export function apply(ctx: Context): void
+  /**
+   * The decorated derivative of the official Browser. The decorate path
+   * shadows the official `sidebar.workspaces` registration, so it must render
+   * THIS component: the official one has no row decoration and drops the
+   * projected Worktree icon/badge.
+   */
+  export const WorkspaceBrowser: ComponentType<WorkspaceBrowserProps>
 }
 
 declare module 'virtual:dsh-official-workspace-client-alpha' {
