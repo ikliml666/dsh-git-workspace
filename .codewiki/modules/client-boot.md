@@ -53,7 +53,7 @@ Client 侧是插件的浏览器运行时：把 Host 暴露的 Remote 服务适�
 ### Remote Entry (`src/client/console-remote/index.ts`)
 
 - **重导出 `createWorktreeConsoleRemoteAdapter`**（行16）。
-- **`inject`**（行45-49）：继承官方 Workspace 的 inject 并过滤掉 `remote.directoryPicker` 与 `remoteAccess`（行46），额外声明 `slots` 与 `configForms`（行47-48），避免旧主机因静态声明缺失服务而挂起 Web 启动（行18-44 注释详述了原因，包括 `remoteAccess` 在 0.2.0-rc.2 会挂起，以及 picker 需要延迟解析）。
+- **`inject`**（行45-49）：继承官方 Workspace 的 inject 并过滤掉 `remote.directoryPicker` 与 `remoteAccess`（行46），额外声明 `slots` 与 `configForms`（行47-48），避免旧主机因静态声明缺失服务而挂起 Web 启动（行18-44 注释详述了原因）。
 - **接口 `ConsoleClientContext`**（行51-53）：扩展 `Context` 加 `remote: ClientRemote & { gitWorktree: GitWorktreeRemote }`。
 - **`declare module '@deepseek-ai/cordis'`**（行55-59）：为 `Context` 增加 `worktreeConsole: WorktreeConsoleAdapter`。
 - **`apply(ctx)`**（行62-206）：
@@ -252,7 +252,7 @@ Client 侧是插件的浏览器运行时：把 Host 暴露的 Remote 服务适�
 │   (proxy ctx takeover)           (sidebar:452,order500)│
 │       └──────────────┬───────────────┘                │
 │                      ▼                                │
-│ managedWorktreeDecoration(upstream.mjs:89)            │
+│ managedWorktreeDecoration(upstream.mjs:103)           │
 │ label=meta.label ?? i18n state → 徽章+title           │
 └──────────────────────────────────────────────────────┘
 ```
@@ -262,7 +262,7 @@ Client 侧是插件的浏览器运行时：把 Host 暴露的 Remote 服务适�
 1. **Initialization**：Host 调 `apply`（`console-remote/index.ts` 行62）；Remote contribution 挂载（行64），`WorktreeConsoleAdapter` 就绪并 `ctx.provide('worktreeConsole', adapter)`（行72）。
 2. **Topology Resolution**：`adapter.sidebarTopology()`（adapter.ts 行114，契约行727）返回 `workspaceClientFlavor` 与 `officialWorkspaceActive`（契约行242-244），决定走「接管」（`registerManagedWorkspaceSidebar` sidebar 行328）还是「装饰」（`registerDecoratedWorkspaceSidebar` sidebar 行452）。
 3. **Model Projection**：`projectManagedWorkspaceSidebar`（model.ts 行77）合并远程 task 与本地状态；`sidebarBadgeTasks`（model.ts 行48-70）行59 算出 `label`（含分支名）。
-4. **Decoration Render**：装饰层 `managedWorktreeDecoration`（由 `scripts/workspace-sidebar-upstream.mjs` 行89-104 注入）读取行节点 `__dshGitWorktree`（在 sidebar/index.tsx 行159-164 设置），优先用 `value.label`、缺失退回 i18n 状态文案，产出带 `title` 的徽章（样式见 styles.ts 行17-34）。
+4. **Decoration Render**：装饰层 `managedWorktreeDecoration`（由 `scripts/workspace-sidebar-upstream.mjs` 行103 注入）读取行节点 `__dshGitWorktree`（在 sidebar/index.tsx 行159-164 设置），优先用 `value.label`、缺失退回 i18n 状态文案，产出带 `title` 的徽章（样式见 styles.ts 行17-34）。
 5. **ToolView Interaction**：用户在 ToolView 的操作打到 Adapter，`invoke`（adapter.ts 行82）带超时与严格校验返回，再由 `parseCreateTool`（model.ts 行100）/`parseReviewTool`（model.ts 行152）解析成稳定模型渲染。
 
 ## Connections
