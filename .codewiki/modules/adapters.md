@@ -20,7 +20,7 @@ tags: [adapters, git, registry, project-skills]
 
 ## Overview
 
-`src/adapters/` 模块是 DSH（DeepSeek Session Harness）插件的核心基础设施层，将宿主能力适配为领域端口（定义于 `src/ports.ts`）。该层作为插件与底层系统（Git、文件系统、Workspace Registry）之间的隔离带，确保状态机逻辑不直接依赖具体的运行时服务。装配点在插件的 `apply()` 方法（参见 [[host-overview|Host Entry and Registration Surface]]）；领域消费方主要为 [[session-checkout-module|Session Checkout State Machine]]。
+`src/adapters/` 模块是 DSH（DeepSeek Session Harness）插件的核心基础设施层，将宿主能力适配为领域端口（定义于 `src/ports.ts`，本更新未直接包含其源码但被依赖）。该层作为插件与底层系统（Git、文件系统、Workspace Registry）之间的隔离带，确保状态机逻辑不直接依赖具体的运行时服务。装配点在插件的 `apply()` 方法；领域消费方主要为 Session Checkout 状态机。
 
 核心职责包括：
 1. **Git 操作抽象**：通过 `ctx.subprocess` 安全执行 Git 命令，处理超时、环境隔离与子进程树静默（`src/adapters/git.ts`），超时参数由 `src/adapters/git-options.ts` 管理。
@@ -46,6 +46,7 @@ tags: [adapters, git, registry, project-skills]
 `createDshGitPort(ctx, options)` (L249-L773) 构建并返回 `SessionCheckoutGitPort` 对象，最后通过 `Object.assign(port, initialCommitActions(port.inspect, runSessionGit))` 混入初始提交动作 (L772)。
 
 #### 常量与配置
+
 - `GIT_TERMINATION_GRACE_MS = 1_000` (L38)：终止宽限期。
 - `GIT_COLLECT_BYTES = 1 << 20` (L40)：单流收集输出上限 1MB。
 - `WIP_PATCH_COLLECT_BYTES = 16 << 20` (L42)：WIP patch 收集上限 16MB（应对 base85 膨胀）。
@@ -54,6 +55,7 @@ tags: [adapters, git, registry, project-skills]
   - `projectSkills?: ProjectSkillStore` (L47)：可选技能存储。
 
 #### 内部辅助函数与接口
+
 - `GitCommandResult` 接口 (L50-L56)：字段 `code: number` (L51)，`stdout: string` (L52)，`stderr: string` (L53)，`quiescent?: boolean` (L55，仅当子进程服务确认整树静止时为 true)。
 - `parseDecoration(decoration)` (L63-L71)：解析 `%D` 装饰字符串，去除 `HEAD -> ` 与保留 `tag:` 标记。
 - `settleCreationTree(handle)` (L73-L86)：最多等 10s 确保子进程树退出，返回 boolean。
@@ -63,10 +65,11 @@ tags: [adapters, git, registry, project-skills]
 - `assertArtifactName(artifactName)` (L206-L214)：校验每段符合 `^[A-Za-z0-9][A-Za-z0-9._-]*$`。
 - `internalArtifactRef(checkoutId, artifactName)` (L216-L219)：组合 ref。
 - `applyBaseRef(checkoutId)` (L221-L223)：返回 `internalArtifactRef(checkoutId, 'apply-base')`。
-- `abandonedSnapshotRef(checkoutId)` (L230-L233)：返回 `refs/dsh-worktree/abandoned/${checkoutId}`，调用 `assertArtifactName`。
+- `abandonedSnapshotRef(checkoutId)` (L230-L233)：返回 `refs/dsh-worktree/abandoned/${checkoutId}`，调用 `assertArtifactName` (L231)。
 - `hasGitMetadata(root)` (L235-L246)：向上遍历查找 `.git`。
 
 #### Port 方法实现（对象 L255-L771）
+
 - `inspect(root)` (L256-L322)：单次 `rev-parse` 取四行快径，回退处理 unborn/broken HEAD。
 - `findContainingWorktreeRoot(root)` (L323-L330)：`rev-parse --show-toplevel`。
 - `status(root)` (L331-L335)：`status --porcelain=v1 -z --untracked-files=all`，结合 `ProjectSkillStore.scope` 过滤。
@@ -84,7 +87,7 @@ tags: [adapters, git, registry, project-skills]
 - `attachWorktreeBranch(managedRoot, branchRef, headOid, expectedOldOid?)` (L405-L425)：仅更新 ref/HEAD，CAS 语义（expectedOldOid 为 null 时用全零）。
 - `pushBranch(root)` (L426-L442)：推送到上游，无分支/上游返回 `{ok:false, message}`。
 - `repairWorktreeLinks(repoCommonDir, managedRoot)` (L443-L448)：`worktree repair`。
-- `listWorktreeincludeFiles(localRoot, includeFile)` (L449-L468)：交集忽略文件与 `.worktreeinclude` 匹配，自动带入 `AGENTS.override.md`。
+- `listWorktreeincludeFiles(localRoot, includeFile)` (L449-L468)：交集忽略文件与 `.worktreeinclude` 匹配，自动带入 `AGENTS.override.md` (L466)。
 - `branchOverview(root)` (L469-L485)：返回分支列表与 dirtyCount。
 - `defaultBranch(root)` (L486-L493)：从 `origin/HEAD` 或 `init.defaultBranch` 解析。
 - `branchTipTimes(root)` (L494-L507)：返回分支名→提交时间映射。
@@ -98,8 +101,8 @@ tags: [adapters, git, registry, project-skills]
 - `deleteLocalTag(root, name)` (L632-L637)：`tag -d`。
 - `pushTag(root, name)` (L638-L643)：推标签，不强制。
 - `deleteRemoteTag(root, name)` (L644-L648)：`:refs/tags/<name>` 删除远端标签。
-- `mergeLocalBranch(root, source, options?)` (L649-L719)：支持 `dryRun` 临时 detached probe (L688-L708)，正式合并保留冲突 (L711-L718)。
-- `captureLocalWip(root)` (L720-L728)：`diff --binary HEAD` 收集上限 `WIP_PATCH_COLLECT_BYTES`。
+- `mergeLocalBranch(root, source, options?)` (L649-L719)：支持 `dryRun` 临时 detached probe (L686-L708)，正式合并保留冲突 (L711-L718)。
+- `captureLocalWip(root)` (L720-L728)：`diff --binary HEAD` 收集上限 `WIP_PATCH_COLLECT_BYTES` (L723)。
 - `applyWorktreePatch(root, patch)` (L729-L735)：`apply --binary`。
 - `listUntrackedFiles(root)` (L736-L740)：非 ignore 的 untracked。
 - `snapshotAbandonedWorktree(localRoot, managedRoot, checkoutId)` (L741-L761)：`add -A` + `write-tree` + `commit-tree` 固定身份。
@@ -115,7 +118,7 @@ tags: [adapters, git, registry, project-skills]
 - `inspectDirectoryIdentity(path)` (L37-L46)：返回 `{device: string, inode: string, birthtimeNs: string} | null` (L41-L45)。
 - `directoryIdentitiesEqual(left, right)` (L48-L50)：三字段全等。
 - `quarantineDirectoryTree(path, expectedIdentity, quarantinePath)` (L52-L72)：同父目录原子 rename 并校验身份。
-- `removeDirectoryTree(path)` (L74-L86)：异步递归删，Windows 重试 6 次。
+- `removeDirectoryTree(path)` (L74-L86)：异步递归删，Windows 重试 6 次 (L83)。
 
 端口方法（L90-L108）：
 - `exists`: L91 `existsSync`
@@ -153,7 +156,7 @@ tags: [adapters, git, registry, project-skills]
   - `isRecord` L26-L28, `isStringArray` L30-L32, `isOid` L34-L36, `isBoundedText` L38-L40, `isSafeRelativePath` L42-L46
   - `isTargetRef` L48-L53, `isSessionBinding` L55-L65, `isReview` L67-L85, `isPreviousReview` L87-L95, `isCheckpoint` L97-L114, `isPreviewReceipt` L116-L136, `isDeliveryProof` L138-L150, `isDelivery` L152-L191, `isJournal` L193-L250
   - `safeRecoveryString` L252-L254, `safeRecoveryRevision` L256-L258, `safeConflictFile` L260-L264, `isRecoveryContinuation` L266-L290, `isManagedCheckout` L292-L325, `isRegistry` L327-L337
-- `migrateLegacyRegistry(value)` (L339-L394)：v1→v2，非 ready/discarded 阶段标记 `recovery_required`，delivery 置 `{state:'working', iteration:1}`。
+- `migrateLegacyRegistry(value)` (L339-L394)：v1→v2，非 ready/discarded 阶段标记 `recovery_required`，delivery 置 `{state:'working', iteration:1}` (L382-L384)。
 - 类 `AtomicJsonCheckoutRegistry` (L397-L415):
   - `constructor(private readonly path: string)` L398
   - `read()` L400-L410：`readJsonFileSafe` → `isRegistry` 校验 → 尝试迁移 → 不存在返空 → 损坏抛 `SessionCheckoutError('registry_corrupt')`。

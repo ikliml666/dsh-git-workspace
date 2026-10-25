@@ -3,17 +3,13 @@ title: git spawn 预算与 list 延迟
 type: learning
 source_files:
   - src/adapters/git.ts
-  - src/adapters/git-options.ts
-  - src/adapters/worktree-creation.ts
-  - src/adapters/project-skills.ts
-  - src/adapters/initial-commit.ts
 tags: [performance, spawn-budget, git, list-latency]
 ---
 
 ## Overview
 
-- `ctx.subprocess.spawn` 的固定单价 ≈125ms（harness runner 启动税已由 harness 侧 `freshBuiltRunnerEntry` 从 ~358ms 修到 ~125ms）；list/current 的耗时几乎完全由 **spawn 次数 × 125ms** 解释。
-- 在当前 `src/adapters/git.ts` 中，`inspect` 方法（行 256-322）正常路径通过单次 `rev-parse` 组合调用（行 261-263）加上并行的 `symbolic-ref`（行 259），将原本需要 4 次 spawn 的 inspect 压减至 2 次 spawn。这直接降低了上层观察的基础开销。
+- `ctx.subprocess.spawn` 的固定单价约 125ms（harness runner 启动税）；list/current 的耗时几乎完全由 **spawn 次数 × 125ms** 解释。
+- 在当前 `src/adapters/git.ts` 中，`inspect` 方法（行 256-322）正常路径通过单次 `rev-parse` 组合调用（行 261-263）加上并行的 `symbolic-ref`（行 259），将原本需要多次 spawn 的 inspect 压减至 2 次 spawn。这直接降低了上层观察的基础开销。
 - 批量列表接口（如 `branchOverview` 行 469、`graphLog` 行 533、`listTags` 行 578、`branchCreationTimes` 行 508）通过单次 spawn 返回多记录，避免上层循环调用导致 N×spawn 预算爆炸，是原“批量观察”杠杆在 `git.ts` 层的彻底实现。
 - `releaseInternalArtifacts`（行 378-388）将原逐个 `update-ref -d` 的 1+N 次串行删除优化为单次 `update-ref --stdin` 事务（行 386），进一步压减了 Ref 清理的 spawn 预算。
 
@@ -36,7 +32,7 @@ tags: [performance, spawn-budget, git, list-latency]
 - 函数 `applyBaseRef` (行 221-223)：返回 apply-base 构件 ref。
 - 函数 `abandonedSnapshotRef` (行 230-233)：返回废弃快照 ref（位于 checkoutRefRoot 之外，避免随 checkout 丢弃）。
 - 函数 `hasGitMetadata` (行 235-246)：向上递归查找 `.git` 元数据判断是否为 git 仓库。
-- 函数 `createDshGitPort` (行 249-771)：构建并返回 `SessionCheckoutGitPort` 对象，内含全部 git 操作接口：
+- 函数 `createDshGitPort` (行 249-773)：构建并返回 `SessionCheckoutGitPort` 对象，内含全部 git 操作接口：
   - `inspect` (行 256-322)：单次 rev-parse 组合 + 并行 symbolic-ref，2 次 spawn 取仓库位置事实，含 unborn/broken HEAD 回退分支。
   - `findContainingWorktreeRoot` (行 323-330)：解析包含当前路径的 worktree 根目录。
   - `status` (行 331-335)：调用 `git status --porcelain=v1 -z` 并结合 ProjectSkillStore 判断脏状态。
@@ -101,7 +97,7 @@ tags: [performance, spawn-budget, git, list-latency]
 
 1. **合并（git.ts 层 inspect）**：`symbolic-ref --quiet HEAD` 作为并行 promise 提前发起（行 259），挂 `catch(() => undefined)` noop 防 unhandledRejection（行 260），随后单次 `rev-parse --show-toplevel --path-format=absolute --git-common-dir --absolute-git-dir HEAD^{commit}` 一次性取全部位置事实（行 261-263）。输出按参数顺序一行一值，`lines.length === 4`（行 266）即解析成功；行数 ≠4 即回退逐项读取（换行路径歧义，行 279-321）；unborn/broken HEAD 分类逻辑原样保留在回退分支（行 298-321）。
 
-2. **并行读（git.ts 层接口下沉）**：原 caller 层提前起 `statusPromise` 的逻辑，现由 `branchOverview`（行 469）内部通过 `Promise.all`（行 470-473）并行执行 `for-each-ref` 与 `status` 实现，将原本上层 3 次串行 reduce 为端口内的 2 次并行 spawn。
+2. **并行读（git.ts 层接口下沉）**：原 caller 层提前起 `statusPromise` 的逻辑，现由 `branchOverview`（行 469）内部通过 `Promise.all`（行 470-473）并行执行 `for-each-ref` 与 `status` 实现，将原本上层多次串行 reduce 为端口内的 2 次并行 spawn。
 
 3. **批量观察（单次 spawn 聚合）**：`branchOverview`（行 469）、`graphLog`（行 533）、`listTags`（行 578）、`branchCreationTimes`（行 508）等接口直接通过单次 `for-each-ref` / `log` / `reflog` 返回全量记录，彻底消除了原上层对 `inspect` 的 `Promise.all` 映射（即 N 次 spawn）。`releaseInternalArtifacts`（行 378-388）更使用单次 `update-ref --stdin` 事务（start/delete/commit）替代 1+N 次串行 `update-ref -d`，将 N 个 ref 清理压减至 1 次 spawn。
 
