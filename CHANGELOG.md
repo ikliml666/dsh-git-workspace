@@ -6,7 +6,7 @@
 
 ### Fixed
 
-- 装饰分支侧栏 `renderSlot` 崩溃与注册冲突（2026-10-25，两次迭代）：影子注册的 `sidebar.workspaces` 条目拿不到宿主注入的 `renderSlot`（宿主只给声明了 `children` 的条目注入），派生 Browser 在 directoryFlow 与会话行渲染时崩溃 `TypeError: renderSlot is not a function`；直接透传 `official.children` 又会与仍在注册表里的官方条目冲突导致整个客户端挂载失败（已回滚）。最终方案：不再影子注册，**原位偷换官方条目的 `component` 引用**为我们的包装组件——官方条目保留自身 `children` 声明，宿主照常注入完整 props（含 renderSlot），派生 Browser 收到全部官方注入；卸载时还原原引用。条目被冻结时回退旧影子注册路径。
+- 装饰分支侧栏 `renderSlot` 崩溃（2026-10-25，依据 harness 源码定案重写）：对照 `deepseek-harness` 的 `dsh-client-ui-slots` 源码确认三条硬约束——每个子槽只允许一个声明者（重复声明 `children` 直接抛错）、`renderSlot` 只授权给**声明该子槽的条目**（`SlotOwnershipError`）、崩溃条目会 abdicate 让位同 cell 下一条。因此此前三条路全部走不通：影子注册拿不到子槽授权（派生 Browser 一调 `renderSlot('sidebar.workspaces.directoryFlow')` 即崩）、透传 `official.children` 撞「one declarer per slot」、原位偷换 `entry.component` 破坏宿主渲染契约导致布局崩坏（后两者均已 revert）。最终方案：**放弃装饰 Browser 本体，改用宿主官方扩展点**——通过 `slots.inject` 向官方 Browser 已声明的 list 子槽注册条目：`sidebar.session.row.trailing` 注册行尾「状态 · 分支」徽章（`WorktreeStatusBadgeEntry`，无受管任务渲染为空），`sidebar.workspaces.session.menu.item` 注册「清除状态标签」菜单项（复用 `ClearSidebarBadgeMenuItem`）；这些条目由官方条目自己的 `renderSlot` 渲染，授权天然完好。decorate 模式自带 topology 拉取（含 `WORKTREE_REVIEW_REFRESH_EVENT` 刷新）驱动 `sharedTopology`，不再依赖 Browser 包装组件。影子注册、subscribe 等待、`entriesOfSlot` 扫描逻辑全部移除；`model.ts` 的 `currentTasks` 改为导出 `sidebarBadgeTasks`。验证：`tsc --noEmit` 0 诊断、`pnpm build` 通过（`lib/client.js` 1155.04 kB）、`pnpm test` 53 个测试文件 **734 passed / 4 skipped**；新增用例断言不再注册 `sidebar.workspaces`、两个子槽各注册一条、徽章按 owner/普通行与刷新事件正确渲染。真机（宿主重启后）验证待做。
 
 ### Added
 

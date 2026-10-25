@@ -13,7 +13,6 @@ import {
   registerDecoratedWorkspaceSidebar,
   registerManagedWorkspaceSidebar,
 } from '../src/client/workspace-sidebar/index.js'
-import { derivedBrowserCalls, resetDerivedBrowserCalls } from './official-workspace-client.mock.js'
 import { createWorktreeConsoleAdapterFixture } from './support/worktree-console.js'
 
 const localSession = 'local-session' as SessionId
@@ -312,33 +311,20 @@ test('renders Host-proven historical members under Local without giving them own
 })
 
 describe('registerDecoratedWorkspaceSidebar (Mode B: official Workspace stays live)', () => {
-  interface RegistryEntry {
-    component: unknown
-    options: { priority?: number }
-    registrant?: string
-  }
-
-  function fakeRegistry(initial: RegistryEntry[] = []) {
-    let entries = initial
-    const listeners = new Set<() => void>()
+  function fakeRegistry() {
     const registered: Array<{ descriptor: Record<string, unknown>; component: unknown }> = []
+    const injected: string[] = []
     const service = {
-      entriesOfSlot: (key: string): ReadonlyArray<RegistryEntry> => (key === 'sidebar.workspaces' ? entries : []),
       register: (descriptor: Record<string, unknown>, component: unknown) => {
         registered.push({ descriptor, component })
-        entries = [...entries, { component, options: { priority: descriptor.priority as number }, registrant: descriptor.registrant as string }]
-        for (const listener of listeners) listener()
-        return () => {
-          const last = registered.at(-1)
-          if (last !== undefined) registered.splice(registered.indexOf(last), 1)
-        }
+        return () => {}
       },
-      subscribe: (_key: string, listener: () => void) => {
-        listeners.add(listener)
-        return () => { listeners.delete(listener) }
+      inject: (name: string, callback: () => unknown) => {
+        injected.push(name)
+        callback()
       },
     }
-    return { service, registered, publish: () => { for (const listener of listeners) listener() } }
+    return { service, registered, injected }
   }
 
   function decorateCtx(service: unknown) {
@@ -352,57 +338,73 @@ describe('registerDecoratedWorkspaceSidebar (Mode B: official Workspace stays li
     return { ctx, effect }
   }
 
-  test('shadows an already-registered official Browser at a lower priority', () => {
-    const official = { component: InspectBrowser, options: { priority: 0 }, registrant: 'official-ui-workspace' }
-    const registry = fakeRegistry([official])
+  test('decorates through the official child seats instead of shadowing the Browser', () => {
+    const registry = fakeRegistry()
     const { ctx, effect } = decorateCtx(registry.service)
     registerDecoratedWorkspaceSidebar(ctx, adapter())
-    expect(registry.registered).toHaveLength(1)
-    const { descriptor, component } = registry.registered[0]!
-    expect(descriptor.name).toBe('sidebar.workspaces')
-    expect(descriptor.priority).toBe(-10)
-    expect(descriptor.registrant).toBe('dsh-git-worktree')
-    expect(component).not.toBe(InspectBrowser)
-    expect(typeof component).toBe('function')
-    // The decorate registration is released with the client fiber.
+    // Never touches the Browser cell: shadowing cannot re-declare children and
+    // renderSlot only authorizes the declaring entry, so this mode must keep
+    // the official entry rendering.
+    expect(registry.registered.filter(entry => entry.descriptor.name === 'sidebar.workspaces')).toHaveLength(0)
+    expect(registry.injected).toContain('sidebar.workspaces.session.row.trailing')
+    expect(registry.injected).toContain('sidebar.workspaces.session.menu.item')
+    const badge = registry.registered.find(entry => entry.descriptor.name === 'sidebar.session.row.trailing')
+    expect(badge?.descriptor).toMatchObject({ name: 'sidebar.session.row.trailing', id: 'dsh-git-worktree-status' })
+    const menu = registry.registered.find(entry => entry.descriptor.name === 'sidebar.workspaces.session.menu.item')
+    expect(menu?.descriptor).toMatchObject({ id: 'clear-sidebar-badge' })
+    // The topology feed is released with the client fiber.
     expect(effect).toHaveBeenCalledTimes(1)
     const disposer = effect.mock.calls[0]?.[0] as () => void
     expect(() => disposer()).not.toThrow()
   })
 
-  test('waits for the official registration and decorates exactly once', () => {
+  test('renders the worktree status badge for owner rows and nothing for ordinary rows', async () => {
     const registry = fakeRegistry()
     const { ctx } = decorateCtx(registry.service)
-    registerDecoratedWorkspaceSidebar(ctx, adapter())
-    expect(registry.registered.filter(entry => entry.descriptor.registrant === 'dsh-git-worktree')).toHaveLength(0)
-    registry.service.register({ name: 'sidebar.workspaces', priority: 0 }, InspectBrowser)
-    expect(registry.registered.filter(entry => entry.descriptor.registrant === 'dsh-git-worktree')).toHaveLength(1)
-    // Our own registration re-publishes the slot; the decorated flag keeps it single.
-    registry.publish()
-    expect(registry.registered.filter(entry => entry.descriptor.registrant === 'dsh-git-worktree')).toHaveLength(1)
+    const remote = adapter()
+    registerDecoratedWorkspaceSidebar(ctx, remote)
+    const badge = registry.registered.find(entry => entry.descriptor.name === 'sidebar.session.row.trailing')
+    expect(badge).toBeDefined()
+    const Badge = badge!.component as (props: { sessionId?: string }) => unknown
+
+    const owner = render(<Badge sessionId={ownerSession} />)
+    await waitFor(() => expect(owner.container.textContent).toContain('Ready for review'))
+    const badgeNode = owner.container.querySelector('[data-dsh-git-worktree-badge="ready_for_review"]')
+    expect(badgeNode?.getAttribute('title')).toBe('Ready for review')
+    owner.unmount()
+
+    const ordinary = render(<Badge sessionId={localSession} />)
+    expect(ordinary.container.textContent).toBe('')
+    ordinary.unmount()
+
+    // The review refresh event re-pulls the topology and updates the badge.
+    const owner2 = render(<Badge sessionId={ownerSession} />)
+    remote.sidebarTopology = vi.fn(async () => ({
+      ok: true as const,
+      value: {
+        projects: [{
+          project: { id: localWorkspace, name: 'demo' },
+          tasks: [{
+            checkoutId: 'checkout-1', ownerSessionId: ownerSession, sourceSessionId: localSession,
+            iteration: 1, revision: 4, phase: 'finalized' as const, state: 'finalized' as const,
+            sourceBranch: 'feat/demo',
+          }],
+        }],
+      },
+    }))
+    fireEvent(window, new CustomEvent(WORKTREE_REVIEW_REFRESH_EVENT, { detail: { sessionId: ownerSession } }))
+    await waitFor(() => expect(owner2.container.textContent).toContain('Completed · feat/demo'))
+    owner2.unmount()
   })
 
-  test('renders the derived Browser through the shadowing entry so the decoration reaches a consumer', async () => {
-    resetDerivedBrowserCalls()
-    const registry = fakeRegistry([{ component: InspectBrowser, options: { priority: 0 }, registrant: 'official-ui-workspace' }])
-    const { ctx } = decorateCtx(registry.service)
-    registerDecoratedWorkspaceSidebar(ctx, adapter())
-    const Decorated = registry.registered[0]!.component as (props: WorkspaceBrowserProps) => unknown
-    render(<Decorated {...browserProps()} />)
-    // The derived Browser renders, not the stock official component (which has
-    // no row decoration and would drop the Worktree icon/badge).
-    await waitFor(() => expect(screen.getByTestId('derived-browser-marker')).toBeTruthy())
-    // The projected decoration is handed to it: the owner Session carries
-    // `__dshGitWorktree`, and a Local Session does not.
-    const received = derivedBrowserCalls.at(-1) as unknown as WorkspaceBrowserProps
-    expect(received).toBeDefined()
-    await waitFor(() => {
-      const sessions = received.useSessions((value: SessionListState) => value.byId) as Record<string, { __dshGitWorktree?: { label?: string } }>
-      expect(sessions[ownerSession]?.__dshGitWorktree?.label).toBe('Ready for review')
-      expect(sessions[localSession]?.__dshGitWorktree).toBeUndefined()
-    })
-    const workspaces = received.useWorkspaces((value: WorkspaceListState) => value.items)
-    expect(workspaces.map(workspace => workspace.title)).toContain('demo')
+  test('fails loudly when the slot registry is unavailable', () => {
+    const { ctx } = decorateCtx(undefined)
+    expect(() => registerDecoratedWorkspaceSidebar(ctx, adapter())).toThrow(/slot registry/u)
+  })
+
+  test('fails loudly when the registry has no inject seam', () => {
+    const { ctx } = decorateCtx({ register: () => () => {} })
+    expect(() => registerDecoratedWorkspaceSidebar(ctx, adapter())).toThrow(/slot registry/u)
   })
 
   test('mounts the clear-badge menu entry, clears a terminal badge, and refreshes the sidebar', async () => {
@@ -459,10 +461,5 @@ describe('registerDecoratedWorkspaceSidebar (Mode B: official Workspace stays li
     }))
     entryView.unmount()
     view.unmount()
-  })
-
-  test('fails loudly when the slot registry is unavailable', () => {
-    const { ctx } = decorateCtx(undefined)
-    expect(() => registerDecoratedWorkspaceSidebar(ctx, adapter())).toThrow(/slot registry/u)
   })
 })
