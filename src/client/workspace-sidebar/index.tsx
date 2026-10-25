@@ -5,12 +5,12 @@ import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/c
 import type { WorkspaceId, WorkspaceSnapshot as WorkspaceListState } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { IconTrashOutlineRegular, MenuItemButton } from '@deepseek-ai/dsh-client-ui-primitives'
-import { apply as applyOfficialWorkspace, WorkspaceBrowser as DerivedWorkspaceBrowser } from 'virtual:dsh-official-workspace-client'
+import { apply as applyOfficialWorkspace } from 'virtual:dsh-official-workspace-client'
 import type { WorkspaceBrowserProps } from '@deepseek-ai/dsh-client-ui-workspace/client'
 import type { WorktreeConsoleAdapter, WorktreeSidebarTask, WorktreeSidebarTopologyResponse } from '../../console-contract.js'
 import { WORKTREE_REVIEW_REFRESH_EVENT } from '../review-console/status-events.js'
 import { selectedSessionId } from '../actions.js'
-import { projectManagedWorkspaceSidebar } from './model.js'
+import { projectManagedWorkspaceSidebar, sidebarBadgeTasks } from './model.js'
 
 const EMPTY_TOPOLOGY: WorktreeSidebarTopologyResponse = { projects: [] }
 // These official actions do not create another Session or change its Workspace
@@ -393,29 +393,61 @@ function registerClearSidebarBadgeEntry(
 }
 
 /** Structural view of the ui-slots registry service, limited to the decorate face. */
-interface SlotRegistryEntry {
-  component: unknown
-  options: { key?: string; id?: string; order?: number; label?: string; priority?: number }
-  select?: unknown
-  store?: unknown
-  inject?: unknown
-  locale?: string
-  registrant?: string
+interface SlotRegistryService {
+  register(descriptor: Record<string, unknown>, component: ComponentType<any>): unknown
+  inject(name: string, callback: () => unknown): unknown
 }
 
-interface SlotRegistryService {
-  entriesOfSlot(key: string): ReadonlyArray<SlotRegistryEntry>
-  register(descriptor: Record<string, unknown>, component: ComponentType<any>): unknown
-  subscribe(key: string, listener: () => void): () => void
+/** Props the official row hands to every `session.row.trailing` entry. */
+interface OfficialSessionRowEntryProps {
+  sessionId?: string
+}
+
+/**
+ * Inline row-trailing badge for Managed Worktree owner sessions: state label
+ * plus source branch (e.g. "进行中 · feat/x"). Rows without a managed task
+ * render nothing.
+ */
+function WorktreeStatusBadgeEntry({ sessionId }: OfficialSessionRowEntryProps) {
+  const t = useClientTranslator()
+  const topology = useSharedTopology()
+  const task = useMemo(() => (sessionId === undefined
+    ? undefined
+    : sidebarBadgeTasks(topology ?? EMPTY_TOPOLOGY, t)
+      .find(candidate => candidate.ownerSessionId === sessionId)), [topology, sessionId, t])
+  if (!task) return null
+  return <span
+    data-dsh-git-worktree-badge={task.state}
+    title={task.label}
+    style={{
+      display: 'inline-block',
+      maxWidth: '168px',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap',
+      verticalAlign: 'middle',
+      fontSize: '11px',
+      lineHeight: '16px',
+      padding: '0 6px',
+      borderRadius: '4px',
+      border: '1px solid var(--dsh-border, rgba(128,128,128,.4))',
+      color: 'var(--dsh-text-secondary, inherit)',
+      opacity: '.9',
+    }}
+  >{task.label}</span>
 }
 
 /**
  * Mode B: the official Workspace Client is live on this Host (takeover
  * disabled), so replaying the module apply would re-provide uiWorkspace and
- * collide with the already-registered service. Decorate instead: shadow the
- * official Browser registration at a lower priority — the registry's own
- * override mechanism, lowest priority renders — with the projected derivative.
- * The stock official module stays untouched and keeps every child slot.
+ * collide with the already-registered service. Decorate instead through the
+ * registry's own extension seams — list entries in the official Browser's
+ * declared child seats. Shadowing `sidebar.workspaces` itself is a dead end:
+ * the shadow entry can never re-declare the official children (one declarer
+ * per slot), and `renderSlot` authorizes only the declaring entry, so a
+ * derivative Browser crashes on its first child render. Child-seat entries
+ * render through the OFFICIAL entry's renderSlot, so the authorization is
+ * intact by construction.
  */
 export function registerDecoratedWorkspaceSidebar(
   ctx: SidebarRegistrationContext,
@@ -424,59 +456,29 @@ export function registerDecoratedWorkspaceSidebar(
   const read = (service: string): unknown =>
     typeof ctx.get === 'function' ? (ctx.get as (name: string) => unknown)(service) : undefined
   const slots = read('slots') as SlotRegistryService | undefined
-  if (!slots || typeof slots.entriesOfSlot !== 'function' || typeof slots.register !== 'function' || typeof slots.subscribe !== 'function') {
+  if (!slots || typeof slots.register !== 'function' || typeof slots.inject !== 'function') {
     throw new Error('The official Workspace is active but the slot registry is unavailable.')
   }
-  let disposed = false
-  let decorated = false
-  let disposeEntry: unknown
-  let unsubscribe: (() => void) | undefined
-  const attempt = (): void => {
-    if (disposed || decorated) return
-    const entries = slots.entriesOfSlot('sidebar.workspaces').filter(entry => entry.registrant !== 'dsh-git-worktree')
-    const official = entries.reduce<SlotRegistryEntry | undefined>((lowest, entry) =>
-      lowest === undefined || (entry.options.priority ?? 0) < (lowest.options.priority ?? 0) ? entry : lowest, undefined)
-    if (!official || typeof official.component !== 'function') return
-    decorated = true
-    // Render the DERIVED Browser, not the official component. The shadow
-    // registration forwards projected session/workspace metadata
-    // (`__dshGitWorktree`, `__dshGitWorktreeProtected`); the official Browser
-    // has no row decoration and silently drops both, so the Worktree icon,
-    // status badge, and workspace protection never appeared. The derivative is
-    // the same pinned Browser with those decorations compiled in, so the
-    // official entry stays live for every package that injects it.
-    const OfficialBrowser = (typeof DerivedWorkspaceBrowser === 'function'
-      ? DerivedWorkspaceBrowser
-      : official.component) as ComponentType<WorkspaceBrowserProps>
-    const registerRawSlotEntry = (descriptor: Record<string, unknown>, component: ComponentType<any>): unknown =>
-      slots.register(descriptor, component)
-    const Decorated = (props: WorkspaceBrowserProps) => <ClientI18nProvider locale={read('locale')}><ManagedOfficialWorkspaceBrowser
-      {...props}
-      adapter={adapter}
-      OfficialBrowser={OfficialBrowser}
-      registerSessionMenuEntry={registerRawSlotEntry}
-    /></ClientI18nProvider>
-    const options = official.options
-    disposeEntry = slots.register({
-      name: 'sidebar.workspaces',
-      priority: (options.priority ?? 0) - 10,
-      ...(options.key === undefined ? {} : { key: options.key }),
-      ...(options.id === undefined ? {} : { id: options.id }),
-      ...(options.order === undefined ? {} : { order: options.order }),
-      ...(options.label === undefined ? {} : { label: options.label }),
-      ...(official.select === undefined ? {} : { select: official.select }),
-      ...(official.store === undefined ? {} : { store: official.store }),
-      ...(official.inject === undefined ? {} : { inject: official.inject }),
-      ...(official.locale === undefined ? {} : { locale: official.locale }),
-      registrant: 'dsh-git-worktree',
-    }, Decorated)
+  // The Browser wrapper that normally feeds sharedTopology does not mount in
+  // this mode, so the slot-registered entries below need their own feed.
+  const refresh = (): void => {
+    void adapter.sidebarTopology().then(outcome => {
+      setSharedTopology(outcome.ok ? outcome.value : undefined)
+    }, () => {
+      setSharedTopology(undefined)
+    })
   }
-  attempt()
-  unsubscribe = slots.subscribe('sidebar.workspaces', attempt)
+  refresh()
+  window.addEventListener(WORKTREE_REVIEW_REFRESH_EVENT, refresh)
+  slots.inject('sidebar.workspaces.session.row.trailing', () => slots.register(
+    { name: 'sidebar.session.row.trailing', id: 'dsh-git-worktree-status', order: 500 },
+    (props: OfficialSessionRowEntryProps) => <ClientI18nProvider locale={read('locale')}><WorktreeStatusBadgeEntry {...props} /></ClientI18nProvider>,
+  ))
+  slots.inject('sidebar.workspaces.session.menu.item', () => registerClearSidebarBadgeEntry(
+    (descriptor, component) => slots.register(descriptor, component), adapter))
   const disposer = (): void => {
-    disposed = true
-    unsubscribe?.()
-    if (typeof disposeEntry === 'function') (disposeEntry as () => void)()
+    window.removeEventListener(WORKTREE_REVIEW_REFRESH_EVENT, refresh)
+    setSharedTopology(undefined)
   }
   if (typeof ctx.effect === 'function') (ctx.effect as (collect: () => unknown) => unknown)(() => disposer)
 }
