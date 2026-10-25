@@ -14,169 +14,175 @@ tags: [state-machine, checkout, recovery, retention, session-branch]
 
 # Session Checkout State Machine
 
-`createSessionCheckoutModule`（src/session-checkout-module.ts:235-5176）是插件核心：一套从 Domi 移植来的 session-checkout 状态机，保留 receipt-first Local Preview、回滚/finalize、项目验收槽、崩溃恢复与 fingerprint CAS，同时把所有权适配到 Harness 分离的 source Local Session 与 target owner Session。全部持久化状态落在 `ManagedCheckoutsRegistry`（version 2，src/ports.ts:521-526）。
+`createSessionCheckoutModule`（src/session-checkout-module.ts:236-5262）是插件核心：一套从 Domi 移植来的 session-checkout 状态机，保留 receipt-first Local Preview、回滚/finalize、项目验收槽、崩溃恢复与 fingerprint CAS，同时把所有权适配到 Harness 分离的 source Local Session 与 target owner Session。全部持久化状态落在 `ManagedCheckoutsRegistry`（version 2，src/ports.ts:533-538）。
 
-当前版本最关键的语义变化是**交付不再写回 Local**：每个受管 Worktree 在创建阶段就挂到属于自己会话的分支（`refs/heads/feat/sess-<会话>[--<主题>]`），`finish` 只在这条会话分支上提交，Local 的工作区、索引与 HEAD 全程不被读写；合并由 `mergeBranchForSession` 显式发起。为此模块新增了 `branchNameOf`（src/session-checkout-module.ts:231-233）、`attachSessionBranch`（743）、`ensureSessionBranch`（799）、`refuseLegacyLocalWrite`（1561）与 `explainApplyConflict`（1531）。同一语义已延伸到验收侧：`markReadyForReviewTarget`（1589）在 `inspectReview` 之前先 `ensureSessionBranch`，让验收指纹记录交付期真实的 HEAD 身份（详见「生命周期操作」）。
+当前版本最关键的语义变化是**交付不再写回 Local**：每个受管 Worktree 在创建阶段就挂到属于自己会话的分支（`refs/heads/feat/sess-<会话>[--<主题>]`），`finish` 只在这条会话分支上提交，Local 的工作区、索引与 HEAD 全程不被读写；合并由 `mergeBranchForSession` 显式发起。为此模块新增了 `branchNameOf`（src/session-checkout-module.ts:232-234）、`attachSessionBranch`（744）、`ensureSessionBranch`（800）、`refuseLegacyLocalWrite`（1646）与 `explainApplyConflict`（1616）。同一语义已延伸到验收侧：`markReadyForReviewTarget`（1674）在 `inspectReview` 之前先 `ensureSessionBranch`，让验收指纹记录交付期真实的 HEAD 身份（详见「生命周期操作」）。
 
 ## Overview
 
 模块管理「受管 Worktree」（Managed Worktree）的全生命周期：绑定会话、创建、检查点（Checkpoint）、预览（Preview）、Review、交付（Deliver/Finish）、保留（Retain）与清理（Cleanup）。三个机制贯穿始终：
 
-- **互斥**：所有变更操作经 `withBindingLock`（src/session-checkout-module.ts:1194）串行化；maintenance 模式允许只读 `inspect` 并发旁路，但必须先关闭旁路并排空已启动的 inspect。
-- **崩溃恢复**：`record.journal` 记录可重放的 receipt，`reconcile()`（1267）按 journal 的 step 把记录确定性收敛到 `ready` 或 `recovery_required`。
+- **互斥**：所有变更操作经 `withBindingLock`（src/session-checkout-module.ts:1279）串行化；maintenance 模式允许只读 `inspect` 并发旁路，但必须先关闭旁路并排空已启动的 inspect。
+- **崩溃恢复**：`record.journal` 记录可重放的 receipt，`reconcile()`（1352）按 journal 的 step 把记录确定性收敛到 `ready` 或 `recovery_required`。
 - **CAS / 指纹**：`revision`、`isolatedFingerprint`、`reviewId`、`generation` 共同构成乐观并发校验；Preview 用 receipt 记录写入前后的 Local 指纹，任何漂移都让预览进入 `preview_detached`。
 
 本地适配特性（相对 Domi 原版）：
 
-- **会话分支交付**：创建即挂分支，交付只提交会话分支（743、799、3244）。
-- **清理收敛超时**：`withCleanupTimeout`（106-124）给启动期清理/收敛加 120s 兜底，单条被占用的损坏记录不再卡死应用启动。
-- **自动推送**：Finish 成功后尽力推送**会话分支**（`pushLocalBranchBestEffort`，src/session-checkout-module.ts:127-138）；失败降级为「已跳过」备注。
-- **仓库移动修复**：`git worktree repair` 重连断链 Worktree（`repairStaleWorktreeLinks`，4703）。
+- **会话分支交付**：创建即挂分支，交付只提交会话分支（744、800、3329）。
+- **清理收敛超时**：`withCleanupTimeout`（107-125）给启动期清理/收敛加 120s 兜底，单条被占用的损坏记录不再卡死应用启动。
+- **自动推送**：Finish 成功后尽力推送**会话分支**（`pushLocalBranchBestEffort`，src/session-checkout-module.ts:128-140）；失败降级为「已跳过」备注。
+- **仓库移动修复**：`git worktree repair` 重连断链 Worktree（`repairStaleWorktreeLinks`，4788）。
 - **Worktree 根目录配置**：`worktreesRoot` + 主题命名（路径候选生成在 `createManagedWorktreePathCandidates`，src/managed-worktree-path.ts:132-175）。
-- **继承未提交修改**：`carryLocalWorkInProgress`（4675），仅当基点等于 Local HEAD 时生效（门控在 4999）。
-- **放弃快照**：带未提交内容放弃前固化快照（`operateDiscard` 3491）。
-- **常驻标记**：`permanent` 豁免保留期到期清理与 LRU 逐出（4408）。
+- **继承未提交修改**：`carryLocalWorkInProgress`（4760），仅当基点等于 Local HEAD 时生效（门控在 5084）。
+- **放弃快照**：带未提交内容放弃前固化快照（`operateDiscard` 3576，快照写入 3704-3719）。
+- **常驻标记**：`permanent` 豁免保留期到期清理与 LRU 逐出（4389-4404；豁免点 4470、4499）。
+- **并发分支竞态守卫**：`refreshBranchRaceGuards`（992）/`branchRaceNotice`（1025）检测同仓库内其他活跃会话新近创建的分支，命令后启动的会话先隔离。
 
 ## Key Components
 
 ### 模块级常量与工具函数（src/session-checkout-module.ts）
 
-- **`UNVERSIONED_OID` / `UNVERSIONED_REF`**（89-90）：未版本化项目的伪 OID 与伪 ref（`'unversioned'` / `'WORKING_TREE'`）。
-- **`RETENTION_24H_MS` / `RETENTION_3D_MS`**（91-92）：保留期时长。
-- **`CLEANUP_IDENTITY_CHANGED_MESSAGE`**（93）、**`CLEANUP_RESIDUE_MESSAGE`**（94）：清理被身份变更/残留证据挡住时的固定文案。
-- **`TRANSIENT_CLEANUP_RETRY_DELAYS_MS`**（95）：`[100, 300, 800]`。
-- **`CHECKOUT_CLEANUP_TIMEOUT_MS`**（104）：`120_000`，Windows 文件占用下防止清理无限挂起；注释（97-103）明确「不做取消」——超时后后台操作继续跑完，只保证启动收敛先走。
-- **`withCleanupTimeout(checkoutId, operation)`**（106-124）：`Promise.race` 实现的 120s 兜底超时，超时返回 `null` 并 `console.warn`。
-- **`pushLocalBranchBestEffort(push, localRoot)`**（127-138）：尽力推送，返回 `WorktreePushOutcome`，异常降级为 `{status:'failed', message}`。
-- **`cleanupReasonForMessage(message)`**（140-148）：把历史清理文案（zh/en 关键词成对匹配）映射回结构化 `WorktreeCleanupReason`，只兜底旧持久化记录。
-- **`persistedCleanupReason(delivery)`**（154-159）：优先读结构化 `cleanupReason`，否则回退文案映射。
-- **`isTransientCleanupError(error)`**（161-168）：识别 `EBUSY` / `EPERM` / `EACCES` / `ENOTEMPTY` 等瞬时错误（code 或 message）。
-- **`retryTransientCleanup(operation)`**（170-182）：按 `TRANSIENT_CLEANUP_RETRY_DELAYS_MS` 退避重试，最多 4 次尝试。
-- **`retentionExpiresAt(mode, retainedAt)`**（184-188）：保留到期时间戳；`retain_24h` → +24h、`retain_3d` → +3d、`retain_manual` → `null`。
-- **`pathForIdentity(path)`**（190-196）：realpath + 分隔符归一，仅用于身份比较；失败退回 `resolve` 结果。
-- **`pathsEqual(left, right)`**（198-204）：Windows 下大小写不敏感的 realpath 后比较。
-- **`resolvedPathsEqual(left, right)`**（207-213）：canonical 路径与 registry 原始路径比较，**不做 realpath**（注释 206），防止 Junction 冒充原目录。
-- **`pathIsWithin(candidate, root)`**（220-228）：判断 `candidate` 是 `root` 本身或嵌套其下（包含而非相等，Session 常 `cd` 进子目录）。
-- **`branchNameOf(ref)`**（231-233）：`refs/heads/x` → `x`；其他 ref（含 detached 的 `HEAD`）返回 `null`。会话分支名一律经它从 ref 取出。
+- **`UNVERSIONED_OID` / `UNVERSIONED_REF`**（90-91）：未版本化项目的伪 OID 与伪 ref（`'unversioned'` / `'WORKING_TREE'`）。
+- **`RETENTION_24H_MS` / `RETENTION_3D_MS`**（92-93）：保留期时长。
+- **`CLEANUP_IDENTITY_CHANGED_MESSAGE`**（94）、**`CLEANUP_RESIDUE_MESSAGE`**（95）：清理被身份变更/残留证据挡住时的固定文案。
+- **`TRANSIENT_CLEANUP_RETRY_DELAYS_MS`**（96）：`[100, 300, 800]`。
+- **`CHECKOUT_CLEANUP_TIMEOUT_MS`**（105）：`120_000`，Windows 文件占用下防止清理无限挂起；注释（98-104）明确「不做取消」——超时后后台操作继续跑完，只保证启动收敛先走。
+- **`withCleanupTimeout(checkoutId, operation)`**（107-125）：`Promise.race` 实现的 120s 兜底超时，超时返回 `null` 并 `console.warn`（117）。
+- **`pushLocalBranchBestEffort(push, localRoot)`**（127-139）：尽力推送，返回 `WorktreePushOutcome`，异常降级为 `{status:'failed', message}`。
+- **`cleanupReasonForMessage(message)`**（141-149）：把历史清理文案（zh/en 关键词成对匹配，注释 142-143）映射回结构化 `WorktreeCleanupReason`，只兜底旧持久化记录。
+- **`persistedCleanupReason(delivery)`**（155-160）：优先读结构化 `cleanupReason`，否则回退文案映射。
+- **`isTransientCleanupError(error)`**（162-169）：识别 `EBUSY` / `EPERM` / `EACCES` / `ENOTEMPTY` 等瞬时错误（code 或 message）。
+- **`retryTransientCleanup(operation)`**（171-183）：按 `TRANSIENT_CLEANUP_RETRY_DELAYS_MS` 退避重试，最多 4 次尝试。
+- **`retentionExpiresAt(mode, retainedAt)`**（185-189）：保留到期时间戳；`retain_24h` → +24h、`retain_3d` → +3d、`retain_manual` → `null`。
+- **`pathForIdentity(path)`**（191-197）：realpath + 分隔符归一，仅用于身份比较；失败退回 `resolve` 结果。
+- **`pathsEqual(left, right)`**（199-205）：Windows 下大小写不敏感的 realpath 后比较。
+- **`resolvedPathsEqual(left, right)`**（208-214）：canonical 路径与 registry 原始路径比较，**不做 realpath**（注释 207），防止 Junction 冒充原目录。
+- **`pathIsWithin(candidate, root)`**（221-229，文档 216-220）：判断 `candidate` 是 `root` 本身或嵌套其下（包含而非相等，Session 常 `cd` 进子目录）。
+- **`branchNameOf(ref)`**（232-234，文档 231）：`refs/heads/x` → `x`；其他 ref（含 detached 的 `HEAD`）返回 `null`。会话分支名一律经它从 ref 取出。
 
 ### 工厂内基础件（绑定/校验/视图）
 
-- **`requireSession(sessionId)`**（238）、**`resolveSessionProject(sessionId)`**（244，缺项目根时抛 `project_root_missing`，249-251）。
-- **`inspectLocal(binding)`**（255）：Local 目标视图；先挂 `statusPromise` 并 noop catch 防 rejection 冒泡（260-261）。
-- **`projectPreviousReview(record)`**（283-291）：保留 `reviewId`/`iteration`/`summary`/`suggestedCommitMessage`（**完整保留，不截断**），仅 `changedFiles.slice(0, 50)`（289）。
-- **`projectCheckpoint(record)`**（293-303）：checkpoint 记录 → 视图投影。
-- **`projectDelivery(record, commitInLocalHistory)`**（305-370）：按 `delivery.state` 投影 review/preview/proof/cleanup 视图；`cleanupMessage` 经 `hostPersistedCleanupMessage` 重译（343、356）。
-- **`bindingForManagedRecord(record)`**（372-385）：从托管记录合成绑定记录（持久化绑定不匹配时兜底）。
-- **`recoveryView(binding, record?, dirty)`**（387-410）：`phase` 为 `discarded` 时保持 `discarded`，否则 `recovery_required`。
-- **`validateCommittedLocalCheckout(binding, record)`**（412-434）、**`committedFollowupView(binding, record)`**（436-483）：commit 是权威交付事实，残余环境异常只影响 cleanup，不把会话降级（注释 470）；用 `git.isAncestor` 判 `commitInLocalHistory`（448-459，无法判定时为 `null`）。
-- **`saveCreationEvidence`**（485-494）、**`finishFailedCreation(sessionId, checkoutId, error, previous?)`**（496-519）、**`markRecoveryRequired(record)`**（521-536，revision/phase 双 CAS）。
-- **`checkpointHeadInvariantHolds(record, managedRoot, headOid)`**（550-584）：先结构校验（sequence 连续、checkpointId/reviewId 去重，559-568），再并行取证（`readInternalArtifact` + `isAncestor` 链，`Promise.all`，569-577），最后验证末位 checkpoint 是 `headOid` 祖先（583）。
-- **`validateManagedCheckoutDetailed(binding, record, requireCreateBase)`**（586-642）：多重身份判定——binding 四元组与 `managedRoot` 存在（591-597）、canonicalize 后 `pathsEqual(canonicalProjectRoot, canonicalLocalRoot)`（607）、`resolvedPathsEqual` 比较 canonical 与 registry 原始路径（621-623）、`pathsEqual` 比较 `snapshot.root`/`commonDir`/`gitDir`（624-628）；`requireCreateBase` 时要求 `headOid === baseOid`（629），否则校验检查点不变式（630）；`catch` 返回 `{status:'unavailable'}`（638-641），避免瞬时 Git/I/O 故障把健康 Worktree 判成 `recovery_required`。
-- **`validateManagedCheckout`**（644-651）：上面函数的薄包装，只取 valid。
-- **`directoryIdentitiesEqual`**（658-660）、**`hasCleanupRemovalReceipt`**（662-666）、**`hasLegacyCleanupResidueEvidence`**（668-675）、**`validateCleanupLocalIdentity`**（677-693）、**`validateDetachedCleanupResidue`**（695-733）：清理链的身份与残留取证。
-- **`attachSessionBranch({localRoot, managedRoot, sessionId, topic})`**（743-785）：把新建/重建的 Worktree 从 detached HEAD 挂到会话分支。端口缺 `attachWorktreeBranch` 时 `console.warn` 并返回 `null`（749-753，退回旧 detached 行为）；否则取 `inspect(managedRoot).headOid`（754-755），对 `createSessionBranchCandidates`（src/managed-worktree-path.ts:63-75）逐个候选拼 `refs/heads/${branch}`，先用 `resolveLocalBranchTip` 取该名现有 tip（760）。**同名分支已存在时不再无条件跳过**：若 `existing === headOid`，或 `existing` 是当前 HEAD 的祖先（`isAncestor`），则视为可复用，用 `attach(managedRoot, branchRef, headOid, existing)`（CAS 到该 old 值）挂上去并复验（761-775）；其余情况换下一个候选名——**绝不覆盖带别的提交的同名分支**。分支不存在时 `attach(managedRoot, branchRef, headOid, null)` 创建，同样复验后才返回 `{branch, branchRef}`（776-783）。
-- **`EnsureSessionBranchResult`**（787-789）：`{ok:true, record}` | `{ok:false, code, message}`。
-- **`ensureSessionBranch(record)`**（799-849）：交付前保证 Worktree 挂在自己的会话分支上。端口缺 `attachWorktreeBranch` 时 warn 并原样 `ok:true`（800-806）；`inspect` 失败 → `recovery_required`（807-810）；`record.sessionBranch` 已存在且 `headRef` 相符则直接 `ok`（811-813）；有记录但 HEAD 已离开（例如 checkpoint 把 HEAD 写成游离提交）→ attach 回记录值并复验（815-827），attach 失败**另建独立会话分支**（注释 825，绝不覆盖别人提交）；`attachSessionBranch` 返回 null → `git_operation_failed`（836-838）；成功后 `updateManagedCheckout` 同时把 `sessionBranch` 与 `sourceRef` 写成同一个 branch ref（839-844）；记录不存在 → `checkout_missing`。**历史记录（旧版本创建、detached、`sourceRef` 记的是 Local 当时所在分支——可能属于别的会话）不复用 `sourceRef` 作为交付目标**（注释 791-798），`sourceRef` 从此只作「分叉来源」展示。
-- **`validateCleanupQuarantine(record)`**（851-868）：校验隔离目录身份（目录名形如 `.dsh-wt-cleanup--<checkoutId 前 8 位>--<operationId>`，856-857）。
-- **`inspectIsolated(binding, persistRecovery = true)`**（870-978）：`discarded` + `delivered` 走 `committedFollowupView`（882-893）；`recovery_required` 且 `journal === null` 且目录仍在时，先用 `validateManagedCheckoutDetailed` 尝试修复回 `ready`（895-916）；只有 `invalid` 才持久化 recovery（942），瞬时 `unavailable` 允许下次重试（注释 941）；命中 `ready_for_review` 时计算 `reviewSlot`（947-954、971-976）。
-- **`getPersistedBinding(sessionId)`**（980-982）。
-- **`runtimeContext(sessionId, cwd?)`**（984-1125）：给模型的运行时指引。Local 分支按 pending 记录给出提示：无 pending → 普通 Local 工作（1004-1010）；`preview_active` → 只读（1011-1017）；`preview_detached` → 恢复（1018-1024）；pending 属于别的会话 → handoff pending（1028-1034）；属于本会话 → 回到该 checkout 工作（1035-1040）。Isolated 分支：`recovery_required`（1044-1046）、`discarded`+`delivered`（1051-1058）、`finalized`/`retained` 且 cwd 不在 `managedRoot`（1065-1080）时输出「允许在 Local 工作」等提示，消除「人在 Local 却禁止写 Local」矛盾；否则输出 Isolated Checkout 权威 cwd 与 write-guard 规则（1081-1124，cwd 不在 Worktree 内时追加绝对路径规则 1094-1099）。
-- **`resolveBinding(sessionId)`**（1127-1162）：`project_mismatch` / `target_unselected`；`discarded`+`delivered` 且 `workspace.root` 等于 `managedRoot` 时放行（1131-1158）。
-- **`withBindingLock(operation, {allowConcurrentInspect?})`**（1194-1229）：排他/维护锁队列；maintenance 退出时先置 `maintenance_draining` 并等待已启动 inspect 排空（1217-1224）。
-- **`inspectTarget`**（1231-1235）、**`inspectDuringMaintenance`**（1237-1247，只读不写 registry，注释 1241-1242）、**`inspectAvailable`**（1249-1265）。
-- **`reconcile()`**（1267-1514）：清 `discarded` 空壳 cwd 与空容器（1277-1287，注释 1278-1280）；回收 predecessor 记录中断的下一轮创建（1288-1316）；`finalized` 记录经 `withCleanupTimeout` 进 `cleanupFinalized`（1496-1502，注释 1499）；按 journal step 确定性收敛（checkpoint 恢复 1339-1417、preview planning 1418-1435、finalize/finish planning 1436-1450、artifacts_retained 1451-1465）；其余 `preparing`/`mutating` → `recovery_required`（1466-1475）；结尾 `cleanupExpiredRetained`（1503）。
-- **`operationError(code, message, target?)`**（1516-1522）。
-- **`explainApplyConflict({localRoot, conflictingFiles})`**（1531-1552）：把 `apply_conflict` 分类并给出 `resolveHint`——先 `listUntrackedFiles` 取未跟踪集，命中即 `untracked_conflict`（1541-1546）；否则 `git.status().dirty` → `local_dirty`（1547-1550）；否则 `content_conflict`（1551）。
-- **`refuseLegacyLocalWrite(record, binding)`**（1561-1573）：`if (!record.sessionBranch) return null`（1565）；否则旧的「写回 Local」操作一律返回 `operation_not_allowed`，并把 `inspectIsolated(binding)` 作为 target 指路 `worktree_deliver`。调用点：`operateApply`（2128）、`operatePreview`（2569）、`operateFinalizePreview`（3111）。
-- **`updateManagedCheckout(checkoutId, mutate)`**（1575-1587）：CAS 写 registry。
+- **`requireSession(sessionId)`**（239-243）、**`resolveSessionProject(sessionId)`**（245-254，缺项目根时抛 `project_root_missing`，250-252）。
+- **`inspectLocal(binding)`**（256-282）：Local 目标视图；先挂 `statusPromise` 并 noop catch 防 rejection 冒泡（261-262）。
+- **`projectPreviousReview(record)`**（284-292）：保留 `reviewId`/`iteration`/`summary`/`suggestedCommitMessage`（**完整保留，不截断**），仅 `changedFiles.slice(0, 50)`（290）。
+- **`projectCheckpoint(record)`**（294-304）：checkpoint 记录 → 视图投影。
+- **`projectDelivery(record, commitInLocalHistory)`**（306-371）：按 `delivery.state` 投影 review/preview/proof/cleanup 视图；`cleanupMessage` 经 `hostPersistedCleanupMessage` 重译（344、357）。
+- **`bindingForManagedRecord(record)`**（373-386）：从托管记录合成绑定记录（持久化绑定不匹配时兜底）。
+- **`recoveryView(binding, record?, dirty)`**（388-411）：`phase` 为 `discarded` 时保持 `discarded`，否则 `recovery_required`。
+- **`validateCommittedLocalCheckout(binding, record)`**（413-435）、**`committedFollowupView(binding, record)`**（437-484）：commit 是权威交付事实，残余环境异常只影响 cleanup，不把会话降级（注释 471）；用 `git.isAncestor` 判 `commitInLocalHistory`（450-460，无法判定时为 `null`）。
+- **`saveCreationEvidence`**（486-495）、**`finishFailedCreation(sessionId, checkoutId, error, previous?)`**（497-520）、**`markRecoveryRequired(record)`**（522-537，revision/phase 双 CAS 在 527）。
+- **`checkpointHeadInvariantHolds(record, managedRoot, headOid)`**（551-585）：先结构校验（sequence 连续、checkpointId/reviewId 去重，560-568），再并行取证（`readInternalArtifact` + `isAncestor` 链，`Promise.all`，570-578），最后验证末位 checkpoint 是 `headOid` 祖先（584）。
+- **`validateManagedCheckoutDetailed(binding, record, requireCreateBase)`**（587-643）：多重身份判定——binding 四元组与 `managedRoot` 存在（592-598）、canonicalize 后 `pathsEqual(canonicalProjectRoot, canonicalLocalRoot)`（607-608）、`resolvedPathsEqual` 比较 canonical 与 registry 原始路径（622-624）、`pathsEqual` 比较 `snapshot.root`/`commonDir`/`gitDir`（625-629）；`requireCreateBase` 时要求 `headOid === baseOid`（630），否则校验检查点不变式（631）；`catch` 返回 `{status:'unavailable'}`（639-642，注释 640），避免瞬时 Git/I/O 故障把健康 Worktree 判成 `recovery_required`。
+- **`validateManagedCheckout`**（645-652）：上面函数的薄包装，只取 valid。
+- **`directoryIdentitiesEqual`**（659-661）、**`hasCleanupRemovalReceipt`**（663-667）、**`hasLegacyCleanupResidueEvidence`**（669-676）、**`validateCleanupLocalIdentity`**（678-694）、**`validateDetachedCleanupResidue`**（696-734）：清理链的身份与残留取证。
+- **`attachSessionBranch({localRoot, managedRoot, sessionId, topic})`**（744-786，文档 736-743）：把新建/重建的 Worktree 从 detached HEAD 挂到会话分支。端口缺 `attachWorktreeBranch` 时 `console.warn` 并返回 `null`（750-754，退回旧 detached 行为）；否则取 `inspect(managedRoot).headOid`（755-756），对 `createSessionBranchCandidates`（src/managed-worktree-path.ts:63-75）逐个候选拼 `refs/heads/${branch}`，先用 `resolveLocalBranchTip` 取该名现有 tip（761）。**同名分支已存在时不再无条件跳过**：若 `existing === headOid`，或 `existing` 是当前 HEAD 的祖先（`isAncestor`），则视为可复用，用 `attach(managedRoot, branchRef, headOid, existing)`（CAS 到该 old 值）挂上去并复验（762-776）；其余情况换下一个候选名——**绝不覆盖带别的提交的同名分支**。分支不存在时 `attach(managedRoot, branchRef, headOid, null)` 创建，同样复验后才返回 `{branch, branchRef}`（777-783）。
+- **`EnsureSessionBranchResult`**（788-790）：`{ok:true, record}` | `{ok:false, code, message}`。
+- **`ensureSessionBranch(record)`**（800-850，文档 792-799）：交付前保证 Worktree 挂在自己的会话分支上。端口缺 `attachWorktreeBranch` 时 warn 并原样 `ok:true`（801-807）；`inspect` 失败 → `recovery_required`（808-811）；`record.sessionBranch` 已存在且 `headRef` 相符则直接 `ok`（812-814）；有记录但 HEAD 已离开（例如 checkpoint 把 HEAD 写成游离提交）→ attach 回记录值并复验（816-828），attach 失败**另建独立会话分支**（注释 826，绝不覆盖别人提交）；`attachSessionBranch` 返回 null → `git_operation_failed`（837-839）；成功后 `updateManagedCheckout` 同时把 `sessionBranch` 与 `sourceRef` 写成同一个 branch ref（840-845）；记录不存在 → `checkout_missing`。**历史记录（旧版本创建、detached、`sourceRef` 记的是 Local 当时所在分支——可能属于别的会话）不复用 `sourceRef` 作为交付目标**（注释 795-798），`sourceRef` 从此只作「分叉来源」展示。
+- **`validateCleanupQuarantine(record)`**（852-869）：校验隔离目录身份（目录名形如 `.dsh-wt-cleanup--<checkoutId 前 8 位>--<operationId>`，857）。
+- **`inspectIsolated(binding, persistRecovery = true)`**（871-979）：`discarded` + `delivered` 走 `committedFollowupView`（883-894）；`recovery_required` 且 `journal === null` 且目录仍在时，先用 `validateManagedCheckoutDetailed` 尝试修复回 `ready`（896-917）；只有 `invalid` 才持久化 recovery（943，注释 942），瞬时 `unavailable` 允许下次重试；命中 `ready_for_review` 时计算 `reviewSlot`（948-955、972-977）。
+- **`getPersistedBinding(sessionId)`**（981-983）。
+- **`branchRaceCache` / `branchRaceWindowMsDefault`**（989-990）：分支创建时间快照（keyed by Local root）与 30 分钟默认窗口（注释 985-988：system-prompt 契约禁止 await，快照由异步刷新写入、同步读取）。
+- **`refreshBranchRaceGuards()`**（992-1017）：`branchRaceGuard === false` 直接返回（993）；端口缺 `branchCreationTimes` 时静默（994）；从 sessionBindings、managedCheckouts 与 `listLiveSessions`（1001-1006）收集项目根，逐根探测 reflog 分支创建时间写入缓存（1007-1016）；探测失败保留上一份快照（1013-1015）。
+- **`branchRaceNotice(sessionId, registry)`**（1025-1065，文档 1019-1024）：守卫关闭或活跃会话 <2 返回空串（1026-1030）；排除已隔离的会话（1036-1043）；调 `detectLocalBranchRace`（1047-1055，窗口取 `branchRaceWindowMs` 配置，1053）；命中竞态时返回一段给模型的指引——后启动的会话**不得**在 Local 建分支/直接提交，必须先 `worktree_create` 隔离（1057-1064）。
+- **`runtimeContext(sessionId, cwd?)`**（1067-1210）：给模型的运行时指引。完全无绑定时只返回竞态通知（1069-1070）。Local 分支按 pending 记录给出提示：无 pending → 普通 Local 工作（1087-1095，末尾附 `branchRaceNotice`，1088-1093）；`preview_active` → 只读（1096-1102）；`preview_detached` → 恢复（1103-1109）；pending 属于别的会话 → handoff pending（1113-1119，注释 1110-1112）；属于本会话 → 回到该 checkout 工作（1120-1124）。Isolated 分支：`recovery_required`（1129-1131）、`discarded`+`delivered`（1136-1143，注释 1132-1135）、`finalized`/`retained` 且 cwd 不在 `managedRoot`（1150-1165，注释 1144-1149）时输出「允许在 Local 工作」等提示，消除「人在 Local 却禁止写 Local」矛盾；否则输出 Isolated Checkout 权威 cwd 与 write-guard 规则（1166-1209，cwd 不在 Worktree 内时追加绝对路径规则 1180-1184）。
+- **`resolveBinding(sessionId)`**（1212-1247）：`project_mismatch` / `target_unselected`（1246）；`discarded`+`delivered` 且 `workspace.root` 等于 `managedRoot` 时放行（1221-1236）。
+- **`BindingOperationMode`**（1249）与锁队列变量（1251-1259）；**`prepareMaintenanceReadySignal`**（1261-1263）、**`beginMaintenanceInspect`**（1265-1272）、**`finishMaintenanceInspect`**（1274-1277）。
+- **`withBindingLock(operation, {allowConcurrentInspect?})`**（1279-1314）：排他/维护锁队列；maintenance 退出时先置 `maintenance_draining` 并等待已启动 inspect 排空（1302-1309）。
+- **`inspectTarget`**（1316-1320）、**`inspectDuringMaintenance`**（1322-1332，只读不写 registry，注释 1326-1327）、**`inspectAvailable`**（1334-1350）。
+- **`reconcile()`**（1352-1599）：清 `discarded` 空壳 cwd 与空容器（1362-1372，注释 1363-1364）；回收 predecessor 记录中断的下一轮创建（1373-1401）；`finalized` 记录经 `withCleanupTimeout` 进 `cleanupFinalized`（1581-1587，注释 1584、调用 1585）；按 journal step 确定性收敛（finalize/finish `updating_ref`/`replacing_index` → `recovery_required` 1408-1423；checkpoint 恢复 1424-1502；preview planning 1503-1520，注释 1511；finalize/finish planning 1521-1535；artifacts_retained 1536-1550）；其余 `preparing`/`mutating` → `recovery_required`（1551-1560）；结尾 `cleanupExpiredRetained`（1588）。
+- **`operationError(code, message, target?)`**（1601-1607）。
+- **`explainApplyConflict({localRoot, conflictingFiles})`**（1616-1637，文档 1609-1615）：把 `apply_conflict` 分类并给出 `resolveHint`——先 `listUntrackedFiles` 取未跟踪集，命中即 `untracked_conflict`（1621-1631）；否则 `git.status().dirty` → `local_dirty`（1632-1634）；否则 `content_conflict`（1636）。
+- **`refuseLegacyLocalWrite(record, binding)`**（1646-1658，文档 1639-1645）：`if (!record.sessionBranch) return null`（1650）；否则旧的「写回 Local」操作一律返回 `operation_not_allowed`，并把 `inspectIsolated(binding)` 作为 target 指路 `worktree_deliver`。调用点：`operateApply`（2213-2214）、`operatePreview`（2654-2655）、`operateFinalizePreview`（3196-3197）。
+- **`updateManagedCheckout(checkoutId, mutate)`**（1660-1672）：CAS 写 registry。
 
 ### 生命周期操作
 
-- **`markReadyForReviewTarget(sessionId, input)`**（1589-1670）：owner + isolated 校验（1594-1596）；`summary`/`suggestedCommitMessage` trim 后非空且通过 `isValidCommitMessage`、`tests ≤ 20`（1597-1601）；长度上限 **summary ≤240、detailsMarkdown ≤12000、validationSummary ≤500、单条 test command/summary ≤500**（1602-1609）——**`suggestedCommitMessage` 没有长度上限**（只要求合法）；record 门（1610-1614）；`inspectIsolated` 后 phase 非 `ready` → `recovery_required`（1615-1618）；**先 `ensureSessionBranch`（1619-1624，历史记录在此补建分支，否则交付时 headRef 从 DETACHED 变会话分支导致指纹必被误判 `stale_isolated`，注释 1619-1621）**；`inspectReview` 用 `applyBaseOid ?? baseOid`（1625-1629）；写 `ready_for_review` delivery 含 `isolatedFingerprint`/`isolatedHeadOid`（1634-1668）。
-- **`operateCheckpoint`**（1672-1900）：`requestId` 幂等重放（1691-1706，`exactReplay` 才返回原 checkpoint）、`expectedGeneration` 64 位 hex CAS（1683、1713）、revision 双检（1707-1709、1724-1732）、`preview_active` 先 rollback（1734-1787）；journal `planning` → `updating_ref` 并 `retainInternalArtifact('checkpoints/<id>')`（1819-1844）；提交后 delivery 回 `working` 并追加 checkpoint 记录（1881-1892）。
-- **`resumeRevisionTarget`**（1902-1973）、**`prepareReviewRegenerationTarget`**（1975-2006）、**`preparePreviewRecoveryAnalysisTarget`**（2008-2042）、**`createPreviewRecoveryHandoffTarget`**（2044-2090）。
-- **`operateApply`**（2092-2249）：旧的「写回 Local」路径。开头插入 legacy 门（2128-2129）；冲突时用 `explainApplyConflict` 填充 `reason` + `resolveHint`（2147-2164）；`invalid_plan`/`stale_local`/`stale_isolated` 可证明未触碰 Local，恢复 `ready`（2229-2238）；成功更新 `applyBaseOid`（2241-2248）。
-- **`holdsProjectAcceptanceSlot`**（2251-2257）、**`findProjectAcceptanceHolder`**（2259-2269）、**`retainPreviewArtifacts`**（2271-2277，四个内部 ref）、**`releasePreviewArtifactsBestEffort`**（2279-2285）、**`previewArtifactsMatch`**（2287-2299）。
-- **`blockedPreviewRecovery`**（2301-2318）、**`canonicalJson`**（2320-2329，递归键排序并过滤 `undefined`）、**`sha256Facts`**（2331-2333）、**`recoveryGeneration`**（2335-2337）。
-- **`preflightPreviewRecoveryTarget`**（2339-2425）：`not_owner` → `checkout_unavailable` → `stale_target` → `not_preview_detached` → `checkout_unavailable` → `artifacts_missing` → `assessPreviewRecovery` → `git_error`；项目验收槽被占时 rollback/finalize 都置 `{status:'blocked', code:'project_acceptance_busy'}`（2378-2387）；facts 含 `receiptFingerprint`、`localFingerprint` 等（2388-2404），二次 CAS 后返回 `{status:'assessed', localModified:false, proof:{…, generation}}`（2419-2420）。
-- **`recoveryProofMatches(left, right)`**（2427-2431）、**`blockedPreflight`**（2433-2456）、**`preflightTarget(sessionId, expectedRevision)`**（2458-2536）：`applyEngine.preflight` 后按 `changedFiles` 空 → `already_in_local`、`localHeadOid !== baseOid` → `local_advanced`、否则 `ready`（2530-2534）。
-- **`operatePreview`**（2538-2688）：legacy 门（2569-2570）之后写 journal `planning`，`plan` 冲突则回 `ready` 并用 `explainApplyConflict` 返回 `apply_conflict`（2597-2614）；`beforeWrite` 内 `retainPreviewArtifacts` + delivery `preview_active` + journal `artifacts_retained`（2654-2664）；成功返回 `{status:'previewed'}`（2679-2687）。
-- **`detachPreviewAfterLocalDrift`**（2690-2727）：`preview_active` → `preview_detached`。
-- **`operateRollbackPreview`**（2729-2834）：detached 恢复需 `recoveryProofMatches` + `proof.rollback.status === 'safe'`（2750-2767）；成功按 `resumeRevision` 回 `working` 或 `ready_for_review`（2823-2831）。
-- **`retainFinalized(record, retention)`**（2836-2862）：`finalized` → `retained`，写 `retention`/`retainedAt`/`expiresAt`/`cleanup:'scheduled'`。
-- **`collectEmptyManagedContainer(managedGitRoot, excludedCheckoutId)`**（2868-2882）：worktree 移除后回收空项目容器（`removeEmptyDirectoryTree` 遇任何条目返回 false，绝不删用户字节，注释 2864-2867）。
-- **`cleanupFinalized(record, {allowLegacyResidue?})`**（2884-3068）：非 `finalized`/`retained` 直接 `directory_busy`（2913-2915）；`identity_changed` 直接复述（2916-2923）；`hasLegacyCleanupResidueEvidence` 且 `managedGitRoot` 仍在 → `detached_residue`（2924-2926）；`beginRemoval` 写 journal `{operation:'cleanup', step:'removing_worktree', managedDirectoryIdentity}`（2934-2956）；`quarantineAndRemove` 走 `.dsh-wt-cleanup--…` 隔离目录（2958-2988）；`removeWorktree` 后若目录仍在，转 `validateDetachedCleanupResidue` + 隔离链（3014-3018）；收尾 `collectEmptyManagedContainer`（3029）、`releaseApplyBaseBestEffort`（3030），并把记录写成 `phase:'discarded'` + `delivery.state:'delivered'`（3031-3046）；`catch` 打 `console.warn('[session-checkout] finalized Worktree cleanup failed:', error)`（3049），`finalized` 记 `cleanup:'pending'`、`retained` 记 `cleanup:'blocked'`（3056-3065）。
-- **`operateFinalizePreview`**（3071-3215）：`preview_detached` 时先验 `proof.finalize.status === 'safe'`（3092-3109），再走 legacy 门（3110-3112）；`applyEngine.finalize` 的 `beforeCommit` 写 journal `updating_ref` + `commitOid`（3135-3143）；成功写 `delivery.state:'finalized'` 与 `proof`（3166-3191），`retention !== 'cleanup'` 走 `retainFinalized`（3193-3204），否则 `cleanupFinalized`（3205）。
-- **`operateRetryCleanup`**（3217-3242）：仅 `finalized`/`retained` 可重试（3229-3231），`allowLegacyResidue: true`（3232）。
-- **`operateFinish`**（3244-3479）：见下节「会话分支交付链」。
-- **`releaseApplyBaseBestEffort(record)`**（3481-3489）：释放 apply base 与内部 artifact，失败只 `console.warn`（3486-3488）。
-- **`operateDiscard`**（3491-3655）：`preview_active` 需 `rollbackPreview` 或拒绝（3521-3528）；`recovery_required` 且目录已消失 → 直接 `discarded`（3557-3566）；`ready` 且目录连同 git 顶层都没了 → prune + 清台账（3567-3584，注释 3567-3569）；脏工作树或未交付 checkpoint 需 `confirmDirty`（3600、3603、3609-3614），并先 `snapshotAbandonedWorktree` 固化放弃快照（3619-3634），快照失败则中止放弃（数据保护优先，注释 3616-3618）；带 creation 证据的记录 → `recovery_unsafe`（3553-3555）。
-- **`operateRecover`**（3657-3719）：终态记录（`delivered`/`discarded`/`finalized`/`retained`）不允许被 Recover 复活（3673-3680，注释 3673-3674）；`journal.operation === 'create'` 且有 creation 证据 → `recovery_unsafe`（3681-3684）；有 journal 时先 `reconcile()` 收敛再判断（3685-3699，注释 3686-3687）；验证通过后写回 canonical 路径并转 `ready`（3709-3717）。
-- **`operateTarget`**（3721-3739）：按 `action` 分发（`apply`/`finish`/`preview`/`checkpoint`/`rollback_preview`/`finalize_preview`/`retry_cleanup`/`discard`/`recover`，3724-3732），`SessionCheckoutError` 转 `operationError`（3735-3738）。
+- **`markReadyForReviewTarget(sessionId, input)`**（1674-1755）：owner + isolated 校验（1679-1681）；`summary`/`suggestedCommitMessage` trim 后非空且通过 `isValidCommitMessage`、`tests ≤ 20`（1682-1686）；长度上限 **summary ≤240、detailsMarkdown ≤12000、validationSummary ≤500、单条 test command/summary ≤500**（1687-1694）——**`suggestedCommitMessage` 没有长度上限**（只要求合法）；record 门（1695-1699）；`inspectIsolated` 后 phase 非 `ready` → `recovery_required`（1700-1703）；**先 `ensureSessionBranch`（注释 1704-1706，调用 1707-1708；历史记录在此补建分支，否则交付时 headRef 从 DETACHED 变会话分支导致指纹必被误判 `stale_isolated`）**；`inspectReview` 用 `applyBaseOid ?? baseOid`（1710-1714）；写 `ready_for_review` delivery 含 `isolatedFingerprint`/`isolatedHeadOid`（1719-1753）。
+- **`operateCheckpoint`**（1757-1985）：`requestId` 幂等重放（1776-1791，`exactReplay` 才返回原 checkpoint）、`expectedGeneration` 64 位 hex CAS（1768、1798）、revision 双检（1792-1794、1809-1817）、`preview_active` 先 rollback（1819-1872）；journal `planning` → `updating_ref` 并 `retainInternalArtifact('checkpoints/<id>')`（1904-1929，retain 在 1927）；提交后 delivery 回 `working` 并追加 checkpoint 记录（1966-1977）。
+- **`resumeRevisionTarget`**（1987-2058）、**`prepareReviewRegenerationTarget`**（2060-2091）、**`preparePreviewRecoveryAnalysisTarget`**（2093-2127）、**`createPreviewRecoveryHandoffTarget`**（2129-2175）。
+- **`operateApply`**（2177-2334）：旧的「写回 Local」路径。开头插入 legacy 门（2213-2214）；冲突时用 `explainApplyConflict` 填充 `reason` + `resolveHint`（2232-2249，调用 2234）；`invalid_plan`/`stale_local`/`stale_isolated` 可证明未触碰 Local，恢复 `ready`（2314-2321，注释 2320）；成功更新 `applyBaseOid`（2326-2332）。
+- **`holdsProjectAcceptanceSlot`**（2336-2342）、**`findProjectAcceptanceHolder`**（2344-2354）、**`retainPreviewArtifacts`**（2356-2362，四个内部 ref）、**`releasePreviewArtifactsBestEffort`**（2364-2370）、**`previewArtifactsMatch`**（2372-2384）。
+- **`blockedPreviewRecovery`**（2386-2403）、**`canonicalJson`**（2405-2414，递归键排序并过滤 `undefined`）、**`sha256Facts`**（2416-2418）、**`recoveryGeneration`**（2420-2422）。
+- **`preflightPreviewRecoveryTarget`**（2424-2510）：`not_owner` → `checkout_unavailable` → `stale_target` → `not_preview_detached` → `checkout_unavailable` → `artifacts_missing` → `assessPreviewRecovery` → `git_error`；项目验收槽被占时 rollback/finalize 都置 `{status:'blocked', code:'project_acceptance_busy'}`（2463-2472）；facts 含 `receiptFingerprint`、`localFingerprint` 等（2473-2489），二次 CAS（2490-2499）与二次工件校验（2501-2503）后返回 `{status:'assessed', localModified:false, proof:{…, generation}}`（2504-2505）。
+- **`recoveryProofMatches(left, right)`**（2512-2516）、**`blockedPreflight`**（2518-2541）、**`preflightTarget(sessionId, expectedRevision)`**（2543-2621）：`applyEngine.preflight` 后按 `changedFiles` 空 → `already_in_local`、`localHeadOid !== baseOid` → `local_advanced`、否则 `ready`（2615-2620）。
+- **`operatePreview`**（2623-2773）：legacy 门（2654-2655）之后写 journal `planning`，`plan` 冲突则回 `ready` 并用 `explainApplyConflict` 返回 `apply_conflict`（2682-2699）；`beforeWrite` 内 `retainPreviewArtifacts` + delivery `preview_active` + journal `artifacts_retained`（2735-2750）；成功返回 `{status:'previewed'}`（2764-2772）。
+- **`detachPreviewAfterLocalDrift`**（2775-2812）：`preview_active` → `preview_detached`。
+- **`operateRollbackPreview`**（2814-2919）：detached 恢复需 `recoveryProofMatches` + `proof.rollback.status === 'safe'`（2835-2852）；成功按 `resumeRevision` 回 `working` 或 `ready_for_review`（2908-2918）。
+- **`retainFinalized(record, retention)`**（2921-2947）：`finalized` → `retained`，写 `retention`/`retainedAt`/`expiresAt`/`cleanup:'scheduled'`。
+- **`collectEmptyManagedContainer(managedGitRoot, excludedCheckoutId)`**（2953-2967，注释 2949-2952）：worktree 移除后回收空项目容器（`removeEmptyDirectoryTree` 遇任何条目返回 false，绝不删用户字节）。
+- **`cleanupFinalized(record, {allowLegacyResidue?})`**（2969-3153）：非 `finalized`/`retained` 直接 `directory_busy`（2998-3000）；`identity_changed` 直接复述（3001-3008）；`hasLegacyCleanupResidueEvidence` 且 `managedGitRoot` 仍在 → `detached_residue`（3009-3011）；`beginRemoval` 写 journal `{operation:'cleanup', step:'removing_worktree', managedDirectoryIdentity}`（3019-3041）；`quarantineAndRemove` 走 `.dsh-wt-cleanup--…` 隔离目录（3043-3073）；`removeWorktree` 后若目录仍在，转 `validateDetachedCleanupResidue` + 隔离链（3099-3103）；指纹不符 → `modified_after_finalize`（3091-3092）；收尾 `collectEmptyManagedContainer`（3114）、`releaseApplyBaseBestEffort`（3115），并把记录写成 `phase:'discarded'` + `delivery.state:'delivered'`（3116-3131）；`catch` 打 `console.warn('[session-checkout] finalized Worktree cleanup failed:', error)`（3134），`finalized` 记 `cleanup:'pending'`、`retained` 记 `cleanup:'blocked'`（3141-3150）。
+- **`operateFinalizePreview`**（3156-3300）：`preview_detached` 时先验 `proof.finalize.status === 'safe'`（3177-3194），再走 legacy 门（3196-3197）；`applyEngine.finalize` 的 `beforeCommit` 写 journal `updating_ref` + `commitOid`（3220-3228）；成功写 `delivery.state:'finalized'` 与 `proof`（3251-3276），`retention !== 'cleanup'` 走 `retainFinalized`（3278-3289），否则 `cleanupFinalized`（3290-3299）。
+- **`operateRetryCleanup`**（3302-3327）：仅 `finalized`/`retained` 可重试（3314-3316），`allowLegacyResidue: true`（3317）。
+- **`operateFinish`**（3329-3564）：见下节「会话分支交付链」。
+- **`releaseApplyBaseBestEffort(record)`**（3566-3574）：释放 apply base 与内部 artifact，失败只 `console.warn`（3572-3573）。
+- **`operateDiscard`**（3576-3740）：`preview_active` 需 `rollbackPreview` 或拒绝（3606-3613）；`recovery_required` 且目录已消失 → 直接 `discarded`（3642-3651）；`ready` 且目录连同 git 顶层都没了 → prune + 清台账（3652-3669，注释 3652-3654）；带 creation 证据的记录 → `recovery_unsafe`（3636-3640）；脏工作树或未交付 checkpoint 需 `confirmDirty`（3694-3699），并先 `snapshotAbandonedWorktree` 固化放弃快照（3701-3719，注释 3701-3703），快照失败则中止放弃（数据保护优先）。
+- **`operateRecover`**（3742-3804）：终态记录（`delivered`/`discarded`/`finalized`/`retained`）不允许被 Recover 复活（3758-3765，注释 3758-3759）；`journal.operation === 'create'` 且有 creation 证据 → `recovery_unsafe`（3766-3769）；有 journal 时先 `reconcile()` 收敛再判断（3770-3784，注释 3771-3772）；验证通过后写回 canonical 路径并转 `ready`（3794-3802）。
+- **`operateTarget`**（3806-3824）：按 `action` 分发（`apply`/`finish`/`preview`/`checkpoint`/`rollback_preview`/`finalize_preview`/`retry_cleanup`/`discard`/`recover`，3809-3817），`SessionCheckoutError` 转 `operationError`（3820-3823）。
 
-### 会话分支交付链（`operateFinish`，3244-3479）
+### 会话分支交付链（`operateFinish`，3329-3564）
 
-1. 身份与前置校验：owner（3248）→ 只接受 isolated（3251）→ `commitMessage` trim 非空（3254-3257）且通过 `isValidCommitMessage`（3259-3261，**无长度上限**，多行/Unicode 正文原样提交，见 tests/session-checkout-module.test.ts:442-451）→ `checkout_missing`（3262-3263）→ `stale_target`（3264-3266）→ `expectedReviewId` 不符 → `stale_target`（3267-3272）。
-2. **历史 wrote-to-Local 记录**（`record.applyBaseOid && (state === 'working' || state === 'ready_for_review')`，3273-3280）→ `operation_not_allowed`。
-3. 状态门：`phase !== 'ready'` 或 `preview_active`/`preview_detached` → `operation_not_allowed`（3281-3283）；项目验收槽被占 → `project_acceptance_busy`（3284-3291）；`inspectIsolated` 后 `phase` 非 `ready` → `recovery_required`（3293-3300）。
-4. 引擎能力探测：`reviewIsolated` / `commitIsolated` 缺失 → `operation_not_allowed('thisVersionCannotDeliverToASessionBranch')`（3301-3307；两者先 `.bind(engine)`，因为这些方法经 `this` 访问内部状态，注释 3301）。
-5. 写 journal `{operation:'finish', step:'committing_session_branch', baseOid: applyBaseOid}`（3309-3324）。
-6. **`ensureSessionBranch(mutating)`**（3335-3341，调用 799）；失败 → `restoreReady()` + 错误。`branchRef = deliverable.sessionBranch ?? null`（3343）。
-7. `reviewIsolated({isolatedPath: deliverable.managedRoot, baseOid: applyBaseOid})`（3345-3349）；`expectedReviewId` 下 reviewId/指纹/HEAD 任一不符 → 回 `working` + `stale_isolated`（3350-3368）。
-8. 沿用 `ready_for_review` 的 review，否则现造一个（3370-3388）。
-9. **`commitIsolated({isolatedPath, baseOid, commitMessage, branchRef})`**（3404-3413）；失败 → `restoreReady()`。
-10. 写 `delivery.state:'finalized'` 与 `proof`：`localBranch: branchNameOf(branchRef)`、`localHeadBefore/After` 等（3415-3445）。
-11. 自动 push：`(liveConfigValue(dependencies.autoPush) ?? true) && dependencies.git.pushBranch` → `pushLocalBranchBestEffort`（3449-3452；推的是**会话分支**，新分支通常无 upstream，注释 3447-3448）。
-12. 收尾：`retention !== 'cleanup'` 走 `retainFinalized`（3454-3466），否则 `cleanupFinalized`（3467）；两者都带 `branch`（3453）与 `push`。
+1. 身份与前置校验：owner（3333-3335）→ 只接受 isolated（3336-3338）→ `commitMessage` trim 非空（3339-3342）且通过 `isValidCommitMessage`（3344-3346，**无长度上限**，多行/Unicode 正文原样提交，见 tests/session-checkout-module.test.ts:442）→ `checkout_missing`（3347-3348）→ `stale_target`（3349-3351）→ `expectedReviewId` 不符 → `stale_target`（3352-3357）。
+2. **历史 wrote-to-Local 记录**（`record.applyBaseOid && (state === 'working' || state === 'ready_for_review')`，3359-3365，注释 3358）→ `operation_not_allowed`。
+3. 状态门：`phase !== 'ready'` 或 `preview_active`/`preview_detached` → `operation_not_allowed`（3366-3368）；项目验收槽被占 → `project_acceptance_busy`（3369-3376）；`inspectIsolated` 后 `phase` 非 `ready` → `recovery_required`（3378-3381）。
+4. 引擎能力探测：`reviewIsolated` / `commitIsolated` 缺失 → `operation_not_allowed('thisVersionCannotDeliverToASessionBranch')`（3386-3392；两者先 `.bind(engine)`，因为这些方法经 `this` 访问内部状态，注释 3386）。
+5. 写 journal `{operation:'finish', step:'committing_session_branch', baseOid: applyBaseOid}`（3394-3409）。
+6. **`ensureSessionBranch(mutating)`**（3422，注释 3420-3421，实现见 800）；失败 → `restoreReady()`（3411-3418）+ 错误。`branchRef = deliverable.sessionBranch ?? null`（3428）。
+7. `reviewIsolated({isolatedPath: deliverable.managedRoot, baseOid: applyBaseOid})`（3430-3434）；`expectedReviewId` 下 reviewId/指纹/HEAD 任一不符 → 回 `working` + `stale_isolated`（3435-3453）。
+8. 沿用 `ready_for_review` 的 review，否则现造一个（3455-3473），写 `delivery.state:'ready_for_review'`（3474-3487）。
+9. **`commitIsolated({isolatedPath, baseOid, commitMessage, branchRef})`**（3489-3494）；失败 → `restoreReady()`（3495-3498）。
+10. 写 `delivery.state:'finalized'` 与 `proof`：`localBranch: branchNameOf(branchRef)`、`localHeadBefore/After` 等（3500-3527）。
+11. 自动 push：`(liveConfigValue(dependencies.autoPush) ?? true) && dependencies.git.pushBranch` → `pushLocalBranchBestEffort`（3534-3537；推的是**会话分支**，新分支通常无 upstream，注释 3532-3533）。
+12. 收尾：`retention !== 'cleanup'` 走 `retainFinalized`（3539-3551），否则 `cleanupFinalized`（3552-3563）；两者都带 `branch`（3538）与 `push`。
 
 ### 清理资格、列表与管理
 
-- **`managedIteration`**（3741-3744）、**`managedUpdatedAt`**（3746-3754）。
-- **`summarizeManagedWorktree(record, includeDiagnostics = false)`**（3756-3847）：快速列表必须保守且不扫描 Git/磁盘（注释 3760）；`includeDiagnostics` 时才算 dirty、隔离/残留、`approximateBytes`（3764-3790）；`state` 由 `staleRoot` / `phase` / `delivery.state` 组合得出（3792-3809）；`canCleanup` 仅在诊断完成且非 dirty 时为 true（3845）。
-- **`cleanupBlocked(reason, message, revision)`**（3849-3851）、**`inspectCleanupForRecord(record)`**（3853-3907）：按 `delivery.state` 与指纹给出 `safe` / `retained` / `blocked` 及结构化原因；retention 窗口未过或 `retain_manual` → `retained`（3900-3905）。
-- **`inspectManagedWorktreeCleanup`**（3909-3921）、**`bulkCleanupManagedWorktrees`**（3923-3972，逐条 revision CAS 后 `cleanupFinalized`）、**`listManagedWorktrees`**（3974-3983）、**`listManagedWorktreesForSession`**（3985-3999）。
-- **`pruneMergedBranchesInRepo`**（4008-4073）：只删「已完全合并」的本地分支（tip 可达主干，注释 4021）；主干名从 `origin/HEAD` → `init.defaultBranch` 推断（4023-4025），合并基准优先主干、退回当前 HEAD（4026-4028）；`olderThanDays` 需 `branchTipTimes`，端口缺该能力时直接拒绝而非放宽（4031-4038）。
-- **`pruneMergedBranchesForSession`**（4075-4091）、**`autoPruneStaleMergedBranches`**（4098-4118，逐项目失败记为 skipped 条目，绝不抛出）。
-- **`mergeBranchForSession(sessionId, input)`**（4120-4196）：先注册 `record.sessionBranch`，再补各 Worktree 的当前分支（4144-4152）；来源分支等于 Local 当前分支直接 `invalid_input`（4153-4157）；**分支找不到时区分**「属于另一个会话 X 的分支」（`not_owner` 并指名 owner，4158-4175）；真实合并（非 dryRun）前检查项目验收槽（4180-4185）；`direction === 'reverse'` 把 Local 当前分支合进任务 worktree，冲突现场留在 worktree（4186-4193）。
-- **`listAbandonedWorktreeSnapshots`**（4198-4214）、**`restoreAbandonedWorktreeSnapshot`**（4216-4239）。
-- **`manageManagedWorktreeForSession`**（4241-4260）、**`manageManagedWorktree`**（4262-4339，`discard` / `set_retention` / `set_permanent` / `clear_sidebar_badge` / 清理 fall-through；`clear_sidebar_badge` 刻意不 bump revision，注释 4321-4323）。
-- **`observeManagedCheckout`**（4341-4347）、**`observeManagedCheckouts`**（4349-4352）、**`resolveManagedRoot`**（4354-4356）、**`resolveRoots`**（4358-4366，纯读 registry 不碰 Git）。
-- **`retryableCleanupBlock`**（4374-4378，注释 4368-4373：暂时性占用必须留在定期重试里）、**`cleanupExpiredRetained(now)`**（4380-4400）：只清 `cleanup:'scheduled'` 或 `directory_busy`/`quarantine_busy` 阻塞的到期记录，`permanent` 豁免，逐条经 `withCleanupTimeout`（4393）。
-- **`enforceWorktreeKeepCount()`**（4408-4430）：`permanent` 与进行中记录豁免（4413-4417），只逐出最旧的 `finalized`/`retained`；**必须走 `cleanupFinalized`**（4425）——不能复用 `operateDiscard`，它对 finalized/retained 一律返回 `operation_not_allowed`（注释 4422-4424）。
-- **`beginNextIterationTarget(sessionId, expectedRevision)`**（4432-4641）：要求 predecessor 已是 `discarded`+`delivered`（4450-4452）、owner 与 cwd 归属匹配（4460-4466，in-place 会话 rooted 在 Local 边界也放行，注释 4455-4459）、旧路径未复活（4467-4469）、Local 项目与 git 身份未变（4471-4487）；**迭代以「上一轮会话分支 tip」为 `iterationBaseOid`**（`branchNameOf(predecessor.sessionBranch) ?? branchNameOf(predecessor.sourceRef)` → `resolveLocalBranchTip`，4488-4496），解析不到才退回 `snapshot.headOid`；重建后 `attachSessionBranch` 重新挂会话分支并同步 `sourceRef`/`sessionBinding.sourceRef`（4577-4599）。
-- **`copyWorktreeincludeFiles`**（4647-4669）、**`carryLocalWorkInProgress`**（4675-4701）、**`repairStaleWorktreeLinks`**（4703-4736）。
-- **`bindTarget(sessionId, choice, createAttempt, requestStartedAt, sourceSessionId, createOptions)`**（4738-5074）：in-place 升级仅认 `createIsolatedTarget(sourceSessionId, sourceSessionId, options)` 调用形（4760-4764）；终态 replaced binding 复用（4765-4789）；支持 `createOptions.branch` 以指定本地分支 tip 为 `baseOid`（4838-4845）；路径候选（8/12/32 位身份，4848-4858）与容器信任校验（4869-4918，同名未知目录非空即拒绝、空目录回收重建；EPERM/EACCES 报 OS 错误而非笼统信任错误，4907-4913）；创建路径在 `createDetachedWorktree` 成功后立即 `attachSessionBranch`（4989-4996），`readyRecord` 同时写 `sessionBranch` 与 `sourceRef` 为同一个 branch ref（5002-5016），`binding.sourceRef` 同步（5017-5019）；基点等于 Local HEAD 且 `inheritLocalChanges !== false` 时 `carryLocalWorkInProgress`（4997-5001）；失败按 `WorktreeCreationFailure` / 残留是否清掉决定 `markRecoveryRequired` 还是重试一次（5025-5073）。
+- **`managedIteration`**（3826-3829）、**`managedUpdatedAt`**（3831-3839）。
+- **`summarizeManagedWorktree(record, includeDiagnostics = false)`**（3841-3932）：快速列表必须保守且不扫描 Git/磁盘（注释 3845）；`includeDiagnostics` 时才算 dirty、隔离/残留、`approximateBytes`（3849-3875）；`state` 由 `staleRoot` / `phase` / `delivery.state` 组合得出（3877-3894）；`canCleanup` 仅在诊断完成且非 dirty 时为 true（3930）。
+- **`cleanupBlocked(reason, message, revision)`**（3934-3936）、**`inspectCleanupForRecord(record)`**（3938-3992）：按 `delivery.state` 与指纹给出 `safe` / `retained` / `blocked` 及结构化原因；retention 窗口未过或 `retain_manual` → `retained`（3985-3990）；否则 `safe`（3991）。
+- **`inspectManagedWorktreeCleanup`**（3994-4006）、**`bulkCleanupManagedWorktrees`**（4008-4057，逐条 revision CAS 后 `cleanupFinalized`）、**`listManagedWorktrees`**（4059-4068）、**`listManagedWorktreesForSession`**（4070-4084）。
+- **`pruneMergedBranchesInRepo`**（4093-4158，文档 4086-4092）：只删「已完全合并」的本地分支（tip 可达主干，注释 4106-4107）；主干名从 `origin/HEAD` → `init.defaultBranch` 推断（4108-4110），合并基准优先主干、退回当前 HEAD（4111-4113）；`olderThanDays` 需 `branchTipTimes`，端口缺该能力时直接拒绝而非放宽（4116-4123）。
+- **`pruneMergedBranchesForSession`**（4160-4176）、**`autoPruneStaleMergedBranches`**（4183-4203，逐项目失败记为 skipped 条目，绝不抛出）。
+- **`mergeBranchForSession(sessionId, input)`**（4205-4281）：先注册 `record.sessionBranch`，再补各 Worktree 的当前分支（4229-4237）；来源分支等于 Local 当前分支直接 `invalid_input`（4240-4242）；**分支找不到时区分**「属于另一个会话 X 的分支」（`not_owner` 并指名 owner，4245-4259）；真实合并（非 dryRun）前检查项目验收槽（4262-4270，注释 4262-4264）；`direction === 'reverse'` 把 Local 当前分支合进任务 worktree，冲突现场留在 worktree（4271-4278，注释 4272）。
+- **`listAbandonedWorktreeSnapshots`**（4283-4299）、**`restoreAbandonedWorktreeSnapshot`**（4301-4324）。
+- **`manageManagedWorktreeForSession`**（4326-4345）、**`manageManagedWorktree`**（4347-4424，`discard` / `set_retention` / `set_permanent` / `clear_sidebar_badge` / 清理 fall-through；`clear_sidebar_badge` 刻意不 bump revision，注释 4406-4408）。
+- **`observeManagedCheckout`**（4426-4432）、**`observeManagedCheckouts`**（4434-4437）、**`resolveManagedRoot`**（4439-4441）、**`resolveRoots`**（4448-4451，纯读 registry 不碰 Git）。
+- **`retryableCleanupBlock`**（4459-4463，注释 4453-4458：暂时性占用必须留在定期重试里）、**`cleanupExpiredRetained(now)`**（4465-4485）：只清 `cleanup:'scheduled'` 或 `directory_busy`/`quarantine_busy` 阻塞的到期记录，`permanent` 豁免（4470），逐条经 `withCleanupTimeout`（4478）。
+- **`enforceWorktreeKeepCount()`**（4493-4515，文档 4487-4492）：`permanent` 与进行中记录豁免（4497-4502），只逐出最旧的 `finalized`/`retained`；**必须走 `cleanupFinalized`**（4510）——不能复用 `operateDiscard`，它对 finalized/retained 一律返回 `operation_not_allowed`（注释 4507-4509）。
+- **`beginNextIterationTarget(sessionId, expectedRevision)`**（4517-4726）：要求 predecessor 已是 `discarded`+`delivered`（4535-4537）、owner 与 cwd 归属匹配（4545-4551，in-place 会话 rooted 在 Local 边界也放行，注释 4540-4544）、旧路径未复活（4552-4554）、Local 项目与 git 身份未变（4556-4568）；**迭代以「上一轮会话分支 tip」为 `iterationBaseOid`**（`branchNameOf(predecessor.sessionBranch) ?? branchNameOf(predecessor.sourceRef)` → `resolveLocalBranchTip`，4576-4581，注释 4573-4575），解析不到才退回 `snapshot.headOid`；重建后 `attachSessionBranch` 重新挂会话分支并同步 `sourceRef`/`sessionBinding.sourceRef`（4660-4686）。
+- **`copyWorktreeincludeFiles`**（4732-4754）、**`carryLocalWorkInProgress`**（4760-4786）、**`repairStaleWorktreeLinks`**（4788-4821）。
+- **`bindTarget(sessionId, choice, createAttempt, requestStartedAt, sourceSessionId, createOptions)`**（4823-5159）：in-place 升级仅认 `createIsolatedTarget(sourceSessionId, sourceSessionId, options)` 调用形（4839-4849）；终态 replaced binding 复用（4850-4874）；支持 `createOptions.branch` 以指定本地分支 tip 为 `baseOid`（4923-4930）；路径候选（8/12/32 位身份，4933-4943，主题命名 4940-4942）与容器信任校验（4954-5003，同名未知目录非空即拒绝、空目录回收重建；EPERM/EACCES 报 OS 错误而非笼统信任错误，4992-4998）；创建路径在 `createDetachedWorktree` 成功后立即 `attachSessionBranch`（5076-5081），`readyRecord` 同时写 `sessionBranch` 与 `sourceRef` 为同一个 branch ref（5088-5101，注释 5093-5094），`binding.sourceRef` 同步（5102-5104）；基点等于 Local HEAD 且 `inheritLocalChanges !== false` 时 `carryLocalWorkInProgress`（5082-5086）；失败按 `WorktreeCreationFailure` / 残留是否清掉决定 `markRecoveryRequired` 还是重试一次（5110-5158）。
 
-### 工厂返回的公开接口（5076-5175）
+### 工厂返回的公开接口（5161-5261）
 
 | 成员 | 行号 | 说明 |
 | --- | --- | --- |
-| `inspect` | 5077 | → `inspectAvailable` |
-| `runtimeContext` | 5078 | 模型运行时指引 |
-| `preflight` | 5079-5081 | 加锁 → `preflightTarget` |
-| `preflightPreviewRecovery` | 5082-5085 | `allowConcurrentInspect: true` |
-| `runExclusiveSessionMutation` | 5086-5088 | 独占变更包装 |
-| `bind` | 5089-5092 | 加锁 → `bindTarget` |
-| `createIsolatedTarget` | 5093-5118 | in-place（targetSessionId === sourceSessionId，5096）与独立会话两种形态 |
-| `beginNextIteration` | 5119-5121 | 下一轮迭代 |
-| `resumeRevision` | 5122-5124 | 恢复编辑 Review |
-| `prepareReviewRegeneration` | 5125-5127 | `stale_isolated` 时重出 Review |
-| `preparePreviewRecoveryAnalysis` | 5128-5130 | 预览恢复分析 |
-| `createPreviewRecoveryHandoff` | 5131-5133 | 预览恢复移交 |
-| `markReadyForReview` | 5134-5136 | 标记 Review |
-| `operate` | 5137 | 操作分发 |
-| `isAutoDeliverEnabled` | 5138-5139 | 暴露 autoDeliver 实时取值 |
-| `listManagedWorktrees` / `listManagedWorktreesForSession` | 5140-5142 | 只读列表，不加全局锁 |
-| `pruneMergedBranchesForSession` / `autoPruneStaleMergedBranches` | 5143-5148 | 分支修剪 |
-| `mergeBranchForSession` | 5149-5151 | 合并会话分支 |
-| `listAbandonedWorktreeSnapshots` / `restoreAbandonedWorktreeSnapshot` | 5152-5155 | 放弃快照 |
-| `manageManagedWorktreeForSession` | 5156-5158 | 受限管理工作台 |
-| `inspectManagedWorktreeCleanup` | 5159 | 清理资格检查 |
-| `bulkCleanupManagedWorktrees` / `manageManagedWorktree` | 5160-5161 | 批量清理与管理工作台 |
-| `resolveManagedRoot` / `resolveRoots` | 5162-5163 | 路径解析 |
-| `observeManagedCheckout` / `observeManagedCheckouts` | 5164-5165 | 纯读观察 |
-| `cleanupExpiredRetained` / `enforceWorktreeKeepCount` | 5166-5173 | `allowConcurrentInspect: true` |
-| `reconcile` | 5174 | `allowConcurrentInspect: true` |
+| `inspect` | 5162 | → `inspectAvailable` |
+| `runtimeContext` | 5163 | 模型运行时指引 |
+| `refreshBranchRaceGuards` | 5164 | 异步刷新分支创建时间快照（竞态守卫数据源） |
+| `preflight` | 5165-5167 | 加锁 → `preflightTarget` |
+| `preflightPreviewRecovery` | 5168-5171 | `allowConcurrentInspect: true` |
+| `runExclusiveSessionMutation` | 5172-5174 | 独占变更包装 |
+| `bind` | 5175-5178 | 加锁 → `bindTarget` |
+| `createIsolatedTarget` | 5179-5204 | in-place（targetSessionId === sourceSessionId，5182）与独立会话两种形态 |
+| `beginNextIteration` | 5205-5207 | 下一轮迭代 |
+| `resumeRevision` | 5208-5210 | 恢复编辑 Review |
+| `prepareReviewRegeneration` | 5211-5213 | `stale_isolated` 时重出 Review |
+| `preparePreviewRecoveryAnalysis` | 5214-5216 | 预览恢复分析 |
+| `createPreviewRecoveryHandoff` | 5217-5219 | 预览恢复移交 |
+| `markReadyForReview` | 5220-5222 | 标记 Review |
+| `operate` | 5223 | 操作分发 |
+| `isAutoDeliverEnabled` | 5224-5225 | 暴露 autoDeliver 实时取值 |
+| `listManagedWorktrees` / `listManagedWorktreesForSession` | 5226-5228 | 只读列表，不加全局锁 |
+| `pruneMergedBranchesForSession` / `autoPruneStaleMergedBranches` | 5229-5234 | 分支修剪 |
+| `mergeBranchForSession` | 5235-5237 | 合并会话分支 |
+| `listAbandonedWorktreeSnapshots` / `restoreAbandonedWorktreeSnapshot` | 5238-5241 | 放弃快照 |
+| `manageManagedWorktreeForSession` | 5242-5244 | 受限管理工作台 |
+| `inspectManagedWorktreeCleanup` | 5245 | 清理资格检查 |
+| `bulkCleanupManagedWorktrees` / `manageManagedWorktree` | 5246-5247 | 批量清理与管理工作台 |
+| `resolveManagedRoot` / `resolveRoots` | 5248-5249 | 路径解析 |
+| `observeManagedCheckout` / `observeManagedCheckouts` | 5250-5251 | 纯读观察 |
+| `cleanupExpiredRetained` / `enforceWorktreeKeepCount` | 5252-5259 | `allowConcurrentInspect: true` |
+| `reconcile` | 5260 | `allowConcurrentInspect: true` |
 
 ### 类型定义（src/types.ts）
 
@@ -203,23 +209,23 @@ tags: [state-machine, checkout, recovery, retention, session-branch]
 
 ### 端口契约（src/ports.ts）
 
-- `SessionCheckoutSessionRecord`(21-26)、`SessionCheckoutProjectRecord`(28-32)、`SidebarDirectoryMembership`(34-38)、`SessionCheckoutLookupPort`(40-45)。
-- `GitCheckoutSnapshot`(47-54)：`root`、`commonDir`、`gitDir`、`branch`、`headOid`、`headRef`。
-- `BranchOverviewEntry`(57-62)、`TagOverviewEntry`(65-75, `name`/`oid`/`commitOid?`/`annotated`/`message?`/`pushed`)、`GraphLogCommit`(78-86)、`InitialCommitPreflight`(88-92)。
-- `SessionCheckoutGitPort`(94-209)：核心方法 `inspect`(104)/`findContainingWorktreeRoot`(105-106)/`status`(107)/`createDetachedWorktree`(108)/`attachWorktreeBranch?`(116, CAS 到 `expectedOldOid`)/`removeWorktree`(117-118)/`retainApplyBase`(119)/`releaseApplyBase`(120)/`retainInternalArtifact`(121)/`readInternalArtifact`(122-123)/`releaseInternalArtifacts`(124)/`isAncestor`(125-126)；本地适配可选方法 `resolveLocalBranchTip?`(102-103)、`listLocalBranches?`(100-101)、`listWorktreeincludeFiles?`(127)、`pushBranch?`(128-133)、`repairWorktreeLinks?`(134-139)、`pruneWorktrees?`(140-144)、`branchOverview?`(145-150)、`defaultBranch?`(151-155)、`branchTipTimes?`(156-160)、`deleteLocalBranch?`(161-162)、`mergeLocalBranch?`(163-168)、`graphLog?`(169-170)、`createLocalBranch?`(171-172)、`switchLocalBranch?`(173-174)、`listTags?`(175-180)、`createTag?`(181-182)、`deleteLocalTag?`(183-184)、`pushTag?`(185-189)、`deleteRemoteTag?`(190-191)、`captureLocalWip?`(192-196)、`applyWorktreePatch?`(197-198)、`listUntrackedFiles?`(199-200)、`snapshotAbandonedWorktree?`(201-206)、`restoreAbandonedSnapshot?`(207-208)。
-- `DirectoryIdentity`(211-215)：`device`/`inode`/`birthtimeNs`。
-- `SessionCheckoutFilesPort`(217-234)：`exists`/`canonicalize`/`inspectDirectoryIdentity`/`ensureDirectory`/`removeEmptyDirectoryTree`/`quarantineDirectoryTree`/`removeDirectoryTree`/`measureDirectoryBytes`/`readTextFile?`/`copyFile?`/`isSymbolicLink?`。
-- `SessionBindingRecord`(236-246)：`sessionId`、`projectId`、`projectName`、`target`、`ownerSessionId`、`inheritedFromSessionId?`、`sourceRef`、`sourceOid`、`revision`。
-- `WorktreeCreationEvidence`(253-265)：`root`、`rootIdentity`、`parentIdentity`、`commonDir`、`commonIdentity`、`lockReason`、`gitDir?`、`gitIdentity?`、`metadataFingerprint?`、`indexFingerprint?`、`quarantinePath?`。
-- `ManagedCheckoutCreateJournal`(267-271)、`ManagedCheckoutMutationJournal`(273-308, operation 枚举含 `cleanup`，step 枚举含会话分支交付专用的 `committing_session_branch`(278) 及 `cleanupQuarantinePath?`(307))、`ManagedCheckoutJournal`(310)。
-- `ManagedWorktreeCheckpointRecord`(312-329, 含幂等键 `requestId?`/`requestedRevision?`/`generation?`)、`ManagedWorktreePreviousReviewRecord`(331-338)、`ManagedWorktreeReviewRecord`(340-353)、`ManagedPreviewReceipt`(355-374, 含 `localWorkingTreeOid`/`localIndexTreeOid`/`previewWorkingTreeOid`/`isolatedSnapshotOid` 四个回滚锚点)、`ManagedDeliveryProof`(376-384)。
-- 恢复续传类型：`ManagedApplyConflictRecoveryContinuation`(386-394)、`ManagedReviewRegenerationContinuation`(396-401)、`ManagedPreviewRecoveryAnalysisContinuation`(403-410)、`ManagedPreviewRecoveryHandoffContinuation`(412-420)、`ManagedRecoveryContinuation`(422-424)。
-- `ManagedCheckoutDelivery`(428-464)：与 `WorktreeDeliveryView` 对应的持久化形态（finalized/retained 成员有 `cleanupMessage?` 但**未声明** `cleanupReason`）。
-- `ManagedCheckoutRecord`(466-519)：核心持久化记录——`checkoutId`、`predecessorCheckoutId?`(469)、`projectId`、`projectName`、`ownerSessionId`、`sourceSessionId?`(474)、`localRoot`、`managedRoot`、`managedGitRoot`、`gitCommonDir`、`gitDir`、`baseOid`、`applyBaseOid?`(485)、`previousReview?`、`checkpoints?`、`recoveryContinuation?`、`abandonedSnapshotOid?`/`abandonedSnapshotAt?`(493-494)、`permanent?`(496)、`sidebarBadgeClearedRevision?`(498)、`sourceRef`、`sessionBranch?`(507)、`sessionTopic?`(514)、`phase`、`delivery`、`journal`、`revision`。
-- `ManagedCheckoutsRegistry`(521-526)：`version: 2`、`revision`、`sessionBindings`、`managedCheckouts`。
-- `SessionCheckoutRegistryPort`(528-531)。
-- `LiveValue<T>`(534-536) 与 `liveConfigValue<T>`(538-544)。
-- `SessionCheckoutDependencies`(546-578)：聚合 lookup/git/files/registry/applyEngine/managedCheckoutsRoot/createCheckoutId 及可选 live 配置 `autoPush`(555)/`autoDeliver`(557)/`worktreesRoot`(563)/`inheritLocalChanges`(570)/`worktreeKeepCount`(577)。
+- `SessionCheckoutSessionRecord`(21-26)、`SessionCheckoutProjectRecord`(28-32)、`SidebarDirectoryMembership`(34-38)、`SessionCheckoutLookupPort`(40-51，含可选 `listLiveSessions?`(50)，竞态守卫据此枚举活跃会话)。
+- `GitCheckoutSnapshot`(53-60)：`root`、`commonDir`、`gitDir`、`branch`、`headOid`、`headRef`。
+- `BranchOverviewEntry`(63-68)、`TagOverviewEntry`(71-81, `name`/`oid`/`commitOid`/`annotated`/`message`/`pushed`)、`GraphLogCommit`(84-92)、`InitialCommitPreflight`(94-98)。
+- `SessionCheckoutGitPort`(100-221)：核心方法 `inspect`(110)/`findContainingWorktreeRoot`(112)/`status`(113)/`createDetachedWorktree`(114)/`attachWorktreeBranch?`(122，CAS 到 `expectedOldOid`，文档 115-121)/`removeWorktree`(124)/`retainApplyBase`(125)/`releaseApplyBase`(126)/`retainInternalArtifact`(127)/`readInternalArtifact`(129)/`releaseInternalArtifacts`(130)/`isAncestor`(132)；本地适配可选方法 `resolveLocalBranchTip?`(109)、`listLocalBranches?`(107)、`listWorktreeincludeFiles?`(133)、`pushBranch?`(139)、`repairWorktreeLinks?`(145)、`pruneWorktrees?`(150)、`branchOverview?`(156)、`defaultBranch?`(161)、`branchTipTimes?`(166)、`branchCreationTimes?`(172)、`deleteLocalBranch?`(174)、`mergeLocalBranch?`(180)、`graphLog?`(182)、`createLocalBranch?`(184)、`switchLocalBranch?`(186)、`listTags?`(192)、`createTag?`(194)、`deleteLocalTag?`(196)、`pushTag?`(201)、`deleteRemoteTag?`(203)、`captureLocalWip?`(208)、`applyWorktreePatch?`(210)、`listUntrackedFiles?`(212)、`snapshotAbandonedWorktree?`(218)、`restoreAbandonedSnapshot?`(220)。
+- `DirectoryIdentity`(223-227)：`device`/`inode`/`birthtimeNs`。
+- `SessionCheckoutFilesPort`(229-246)：`exists`/`canonicalize`/`inspectDirectoryIdentity`/`ensureDirectory`/`removeEmptyDirectoryTree`/`quarantineDirectoryTree`/`removeDirectoryTree`/`measureDirectoryBytes`/`readTextFile?`/`copyFile?`/`isSymbolicLink?`。
+- `SessionBindingRecord`(248-258)：`sessionId`、`projectId`、`projectName`、`target`、`ownerSessionId`、`inheritedFromSessionId?`、`sourceRef`、`sourceOid`、`revision`。
+- `WorktreeCreationEvidence`(265-277)：`root`、`rootIdentity`、`parentIdentity`、`commonDir`、`commonIdentity`、`lockReason`、`gitDir?`、`gitIdentity?`、`metadataFingerprint?`、`indexFingerprint?`、`quarantinePath?`。
+- `ManagedCheckoutCreateJournal`(279-283)、`ManagedCheckoutMutationJournal`(285-320, operation 枚举含 `cleanup`(286)，step 枚举含会话分支交付专用的 `committing_session_branch`(290) 及 `cleanupQuarantinePath?`(319))、`ManagedCheckoutJournal`(322)。
+- `ManagedWorktreeCheckpointRecord`(324-341, 幂等键 `requestId?`(329)/`requestedRevision?`(331)/`generation?`(332))、`ManagedWorktreePreviousReviewRecord`(343-350)、`ManagedWorktreeReviewRecord`(352-365)、`ManagedPreviewReceipt`(367-386, 含 `localWorkingTreeOid`(379)/`localIndexTreeOid`(380)/`previewWorkingTreeOid`(381)/`isolatedSnapshotOid`(382) 四个回滚锚点)、`ManagedDeliveryProof`(388-396)。
+- 恢复续传类型：`ManagedApplyConflictRecoveryContinuation`(398-406)、`ManagedReviewRegenerationContinuation`(408-413)、`ManagedPreviewRecoveryAnalysisContinuation`(415-422)、`ManagedPreviewRecoveryHandoffContinuation`(424-432)、`ManagedRecoveryContinuation`(434-438)。
+- `ManagedCheckoutDelivery`(440-476)：与 `WorktreeDeliveryView` 对应的持久化形态（finalized/retained 成员有 `cleanupMessage?` 但**未声明** `cleanupReason`）。
+- `ManagedCheckoutRecord`(478-531)：核心持久化记录——`checkoutId`、`predecessorCheckoutId?`(481)、`projectId`、`projectName`、`ownerSessionId`、`sourceSessionId?`(486)、`localRoot`、`managedRoot`、`managedGitRoot`、`gitCommonDir`、`gitDir`、`baseOid`、`applyBaseOid?`(497)、`previousReview?`、`checkpoints?`、`recoveryContinuation?`、`abandonedSnapshotOid?`/`abandonedSnapshotAt?`(505-506)、`permanent?`(508)、`sidebarBadgeClearedRevision?`(510)、`sourceRef`、`sessionBranch?`(519)、`sessionTopic?`(526)、`phase`、`delivery`、`journal`、`revision`。
+- `ManagedCheckoutsRegistry`(533-538)：`version: 2`、`revision`、`sessionBindings`、`managedCheckouts`。
+- `SessionCheckoutRegistryPort`(540-543)。
+- `LiveValue<T>`(545-548) 与 `liveConfigValue<T>`(550-556)。
+- `SessionCheckoutDependencies`(558-599)：聚合 lookup/git/files/registry/applyEngine/managedCheckoutsRoot/createCheckoutId 及可选 live 配置 `autoPush`(566-567)/`autoDeliver`(568-569)/`worktreesRoot`(570-575)/`inheritLocalChanges`(576-582)/`worktreeKeepCount`(583-589)/`branchRaceGuard`(590-596)/`branchRaceWindowMs`(597-598)。
 
 ### 支撑模块
 
@@ -245,36 +251,36 @@ tags: [state-machine, checkout, recovery, retention, session-branch]
 ## Architecture
 
 ```text
-┌────────────────────────────────────────────────────────────────────┐
-│       createSessionCheckoutModule (src/session-checkout-module.ts)  │
-│                                                                    │
-│  bind/create              operate*               list/manage/prune │
-│  bindTarget 4738          finish 3244            summarize 3756    │
-│  createIsolatedTarget     preview 2538           cleanup 检查 3909 │
-│   5093                                                            │
-│       └──────────► withBindingLock (1194) ◄───────────┘           │
-│               exclusive / maintenance / draining                  │
-│                          │                                        │
-│     ┌────────────┬───────┴───────┬──────────────┐                │
-│     ▼            ▼               ▼              ▼                │
-│  身份校验      applyEngine      registry v2    git port           │
-│  validate*     plan/preview/    读写 1575      ports.ts 94-209   │
-│  586-733       commitIsolated                                    │
-│                                                                    │
-│  会话分支层 attachSessionBranch(743) ensureSessionBranch(799)      │
-│  refuseLegacyLocalWrite(1561) ──► 交付只写 refs/heads/feat/…       │
-└────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│    createSessionCheckoutModule (src/session-checkout-module.ts)  │
+│                                                                  │
+│  bind/create           operate*             list/manage/prune    │
+│  bindTarget 4823       finish 3329          summarize 3841       │
+│  createIsolatedTarget  preview 2623         cleanup 检查 3994    │
+│   5179                                                           │
+│      └─────────► withBindingLock (1279) ◄──────────┘             │
+│           exclusive / maintenance / draining                     │
+│                        │                                         │
+│    ┌───────────┬────────┴──────┬─────────────┐                    │
+│    ▼           ▼               ▼             ▼                    │
+│ 身份校验    applyEngine      registry v2    git port              │
+│ validate*   plan/preview/    读写 1660      ports.ts 100-221      │
+│ 587-734     commitIsolated                                       │
+│                                                                  │
+│ 会话分支层 attachSessionBranch(744) / ensureSessionBranch(800)   │
+│ refuseLegacyLocalWrite(1646) ──► 交付只写 refs/heads/feat/…      │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ## Data Flow
 
-1. **绑定与创建**：`bind` / `createIsolatedTarget` 经 `bindTarget`（4738）解析项目与 git 快照、生成路径候选、写入 `preparing` 记录与 binding、`createDetachedWorktree` 后复验 git 身份，随后立即 `attachSessionBranch`（743）把 Worktree 挂到 `feat/sess-<会话>[--<主题>]`，`sessionBranch` 与 `sourceRef` 同写该 ref，记录转 `ready`。
-2. **编辑与检查点**：改动只发生在 Worktree。`checkpoint`（`operateCheckpoint` 1672）用 `requestId` 幂等 + `expectedGeneration` CAS，在 `refs/…/checkpoints/<id>` 上留证，提交后回 `working`。
-3. **Review 与 Preview**：`markReadyForReviewTarget`（1589）先 `ensureSessionBranch` 再固化 review 指纹（1619-1629）；`operatePreview`（2538）在 receipt 保护下把改动写进 Local，`beforeWrite` 内先留工件再置 `preview_active`。Local 一旦漂移，预览进入 `preview_detached`（2690），需要 `preflightPreviewRecoveryTarget`（2339）生成的 proof 才能继续。
-4. **交付（只写会话分支）**：`operateFinish`（3244）先 `ensureSessionBranch`（799），再 `reviewIsolated` + `commitIsolated(branchRef)`，`proof.localBranch` 记会话分支名，自动 push 也推会话分支，Local 的三个面全程不读写。旧的 `operateApply` / `operatePreview` / `operateFinalizePreview` 在存在 `sessionBranch` 时被 `refuseLegacyLocalWrite`（1561）拒绝并指向 `worktree_deliver`。
-5. **合并**：`mergeBranchForSession`（4120）先认 `record.sessionBranch`，拒绝把 Local 自身分支当来源，并区分「别的会话的分支」；真实合并前检查项目验收槽，冲突现场留给用户解决。
-6. **保留与清理**：`finalized` 可 `retain_*` 冻结环境（默认 `retain_24h`，src/types.ts:39），或直接 `cleanupFinalized`（2884）删除目录；目录身份不符/交付后又有改动会被挡成 `identity_changed` / `modified_after_finalize`；到期由 `cleanupExpiredRetained`（4380）、总量由 `enforceWorktreeKeepCount`（4408）收口。
-7. **崩溃恢复**：启动或显式 `recover` 时 `reconcile()`（1267）按 journal step 前进或回退；finish 的 `committing_session_branch` step 落入通用 `mutating` 分支（1466-1475），被视作可能已产生提交，收敛为 `recovery_required` 而不是草率回 `ready`。
+1. **绑定与创建**：`bind` / `createIsolatedTarget` 经 `bindTarget`（4823）解析项目与 git 快照、生成路径候选、写入 `preparing` 记录与 binding、`createDetachedWorktree` 后复验 git 身份，随后立即 `attachSessionBranch`（744）把 Worktree 挂到 `feat/sess-<会话>[--<主题>]`，`sessionBranch` 与 `sourceRef` 同写该 ref，记录转 `ready`。
+2. **编辑与检查点**：改动只发生在 Worktree。`checkpoint`（`operateCheckpoint` 1757）用 `requestId` 幂等 + `expectedGeneration` CAS，在 `refs/…/checkpoints/<id>` 上留证，提交后回 `working`。
+3. **Review 与 Preview**：`markReadyForReviewTarget`（1674）先 `ensureSessionBranch` 再固化 review 指纹（1707-1714）；`operatePreview`（2623）在 receipt 保护下把改动写进 Local，`beforeWrite` 内先留工件再置 `preview_active`。Local 一旦漂移，预览进入 `preview_detached`（2775），需要 `preflightPreviewRecoveryTarget`（2424）生成的 proof 才能继续。
+4. **交付（只写会话分支）**：`operateFinish`（3329）先 `ensureSessionBranch`（800），再 `reviewIsolated` + `commitIsolated(branchRef)`，`proof.localBranch` 记会话分支名，自动 push 也推会话分支，Local 的三个面全程不读写。旧的 `operateApply` / `operatePreview` / `operateFinalizePreview` 在存在 `sessionBranch` 时被 `refuseLegacyLocalWrite`（1646）拒绝并指向 `worktree_deliver`。
+5. **合并**：`mergeBranchForSession`（4205）先认 `record.sessionBranch`，拒绝把 Local 自身分支当来源，并区分「别的会话的分支」；真实合并前检查项目验收槽，冲突现场留给用户解决。
+6. **保留与清理**：`finalized` 可 `retain_*` 冻结环境（默认 `retain_24h`，src/types.ts:39），或直接 `cleanupFinalized`（2969）删除目录；目录身份不符/交付后又有改动会被挡成 `identity_changed` / `modified_after_finalize`；到期由 `cleanupExpiredRetained`（4465）、总量由 `enforceWorktreeKeepCount`（4493）收口。
+7. **崩溃恢复**：启动或显式 `recover` 时 `reconcile()`（1352）按 journal step 前进或回退；finish 的 `committing_session_branch` step 落入通用 `mutating` 分支（1551-1560），被视作可能已产生提交，收敛为 `recovery_required` 而不是草率回 `ready`。
 
 ## Connections
 
@@ -284,16 +290,18 @@ tags: [state-machine, checkout, recovery, retention, session-branch]
 - [[git-port]]：`SessionCheckoutGitPort` 适配器，`attachWorktreeBranch` / `resolveLocalBranchTip` / `mergeLocalBranch` 是会话分支语义的底层支点。
 - [[file-port]]：`SessionCheckoutFilesPort`，目录身份、隔离与删除能力。
 - [[session-management]]：`lookup` 端口提供会话与项目记录，决定 owner 与 cwd 归属判定。
+- [[concurrent-session-guard]]：`detectLocalBranchRace`（src/session-checkout-module.ts:75 引入）实现分支竞态判定，供 `branchRaceNotice` 消费。
 - [[host-messages]]：所有面向用户的文案键与持久化清理文案的映射表。
 
 ## Known Issues
 
-- **detached 兼容残留**：端口不实现 `attachWorktreeBranch` 时，`attachSessionBranch`（749-753）与 `ensureSessionBranch`（800-806）都只 warn 并退回旧行为，此时 `record.sessionBranch` 永不写入。
-- **历史记录仍可写 Local**：`refuseLegacyLocalWrite`（1561-1573）只对存在 `sessionBranch` 的记录生效（1565），因此旧版本创建、无会话分支的记录仍可走 `operateApply` / `operatePreview` / `operateFinalizePreview` 写回 Local；`operateFinish`（3273-3280）与 `operateDiscard`（3514-3520）对这类 wrote-to-Local 中间态另有显式拒绝。
-- **迭代基点会退化**：`beginNextIterationTarget`（4432）用 `resolveLocalBranchTip` 找上一轮会话分支 tip（4491-4496），找不到（分支被删/改名）就退回 Local 的 `headOid`，上一轮内容会在迭代链上断开——源码注释（4488-4490）已点明这一点。
-- **`operateFinish` 重读记录只校验 phase**：`ensureSessionBranch` 之前那次 registry 重读只判 `phase !== 'ready'`（3297-3300），不再比 `revision`，并发窗口依赖 `withBindingLock`（1194）与 `updateManagedCheckout`（1575）的 CAS 兜底。
-- **清理失败原因被折叠**：`cleanupFinalized`（2884）的 `catch`（3048-3067）把所有异常降级成 `quarantine_busy` / `directory_busy` 的 `pending`/`blocked`，不区分底层错误类型，只能靠 `console.warn('[session-checkout] finalized Worktree cleanup failed:', error)`（3049）定位。
-- **清理超时不做取消**：`withCleanupTimeout`（106-124）只让启动收敛先走（超时返回 `null`），后台操作继续跑完；`withBindingLock` 保证同进程重试串行、台账写入安全（注释 100-103）。若实际挂起普遍超过 2min，需要给 files/git ports 加 AbortSignal。
-- **`retain_24h` 是默认值**：调用方未显式给 `retention` 时（`DEFAULT_WORKTREE_RETENTION`，src/types.ts:39；使用点 3126、3446）冻结环境会留一天，磁盘占用与 `approximateBytes` 会持续到到期清理。
-- **旧写回校验仍在**：`inspectCleanupForRecord`（3853）在 `commitOid + proof` 时仍用 `validateCommittedLocalCheckout` + `isAncestor` 验证交付提交在 Local 历史里（3862-3871），这是写回语义的遗留；会话分支交付的提交不在 Local 历史中，该分支逻辑对这类记录不再成立。
-- **双轨记录共存**：`ManagedCheckoutDelivery`（src/ports.ts:428-464）的 finalized/retained 成员未声明 `cleanupReason`，但 `cleanupFinalized` 的 `block()`（2889-2912）运行时会写入该字段；视图类型 `WorktreeDeliveryView`（src/types.ts:104-126）已声明它。`persistedCleanupReason`（154-159）读不到结构化字段时回退文案匹配，新旧记录在同一份台账里语义不完全一致。
+- **detached 兼容残留**：端口不实现 `attachWorktreeBranch` 时，`attachSessionBranch`（750-754）与 `ensureSessionBranch`（801-807）都只 warn 并退回旧行为，此时 `record.sessionBranch` 永不写入。
+- **历史记录仍可写 Local**：`refuseLegacyLocalWrite`（1646-1658）只对存在 `sessionBranch` 的记录生效（1650），因此旧版本创建、无会话分支的记录仍可走 `operateApply` / `operatePreview` / `operateFinalizePreview` 写回 Local；`operateFinish`（3359-3365）与 `operateDiscard`（3599-3605）对这类 wrote-to-Local 中间态另有显式拒绝。
+- **迭代基点会退化**：`beginNextIterationTarget`（4517）用 `resolveLocalBranchTip` 找上一轮会话分支 tip（4576-4581），找不到（分支被删/改名）就退回 Local 的 `headOid`，上一轮内容会在迭代链上断开——源码注释（4573-4575）已点明这一点。
+- **`operateFinish` 重读记录只校验 phase**：`ensureSessionBranch` 之前那次 registry 重读只判 `phase !== 'ready'`（3378-3385），不再比 `revision`，并发窗口依赖 `withBindingLock`（1279）与 `updateManagedCheckout`（1660）的 CAS 兜底。
+- **清理失败原因被折叠**：`cleanupFinalized`（2969）的 `catch`（3133-3152）把所有异常降级成 `quarantine_busy` / `directory_busy` 的 `pending`/`blocked`，不区分底层错误类型，只能靠 `console.warn('[session-checkout] finalized Worktree cleanup failed:', error)`（3134）定位。
+- **清理超时不做取消**：`withCleanupTimeout`（107-125）只让启动收敛先走（超时返回 `null`），后台操作继续跑完；`withBindingLock` 保证同进程重试串行、台账写入安全（注释 100-103）。若实际挂起普遍超过 2min，需要给 files/git ports 加 AbortSignal。
+- **`retain_24h` 是默认值**：调用方未显式给 `retention` 时（`DEFAULT_WORKTREE_RETENTION`，src/types.ts:39；使用点 3278、3531）冻结环境会留一天，磁盘占用与 `approximateBytes` 会持续到到期清理。
+- **旧写回校验仍在**：`inspectCleanupForRecord`（3938）在 `commitOid + proof` 时仍用 `validateCommittedLocalCheckout` + `isAncestor` 验证交付提交在 Local 历史里（3947-3956），这是写回语义的遗留；会话分支交付的提交不在 Local 历史中，该分支逻辑对这类记录不再成立。
+- **双轨记录共存**：`ManagedCheckoutDelivery`（src/ports.ts:440-476）的 finalized/retained 成员未声明 `cleanupReason`，但 `cleanupFinalized` 的 `block()`（2973-2997）与 `catch`（3141-3150）运行时会写入该字段；视图类型 `WorktreeDeliveryView`（src/types.ts:104-126）已声明它。`persistedCleanupReason`（155-160）读不到结构化字段时回退文案匹配，新旧记录在同一份台账里语义不完全一致。
+- **分支竞态守卫静默降级**：`refreshBranchRaceGuards`（992）探测失败时保留旧快照（1013-1015），端口缺 `branchCreationTimes` 时守卫整体静默（994）；`branchRaceNotice`（1025）在这些环境下永远返回空串，不产生任何提示——守卫是尽力而为，不是硬保证。

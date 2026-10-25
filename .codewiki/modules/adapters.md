@@ -13,6 +13,7 @@ source_files:
   - src/adapters/project-skills.ts
   - src/adapters/project-skill-io.ts
   - src/adapters/project-skill-provider.ts
+  - src/ports.ts
   - tests/adapters-safe-file.test.ts
 tags: [adapters, git, registry, project-skills]
 ---
@@ -38,11 +39,11 @@ tags: [adapters, git, registry, project-skills]
 - `DEFAULT_WORKTREE_ADD_TIMEOUT_MS = 5 * 60_000` (L9)：worktree add 默认超时（5 分钟）。
 - `MAX_GIT_TIMEOUT_MS = 60 * 60_000` (L10)：超时上限。
 - `validateGitTimeouts(options)` (L12-L19)：校验两个超时字段为 1000~MAX_GIT_TIMEOUT_MS 间的整数，否则抛 `RangeError`。
-- `gitTimeoutMs(args, options)` (L21-L27)：按命令返回超时；`args[0]==='worktree' && args[1]==='add'` 用 `worktreeAddTimeoutMs` 或默认 (L24)；`args[1]==='remove'` 固定 5 分钟 (L25)；其他用 `gitTimeoutMs` 或默认 (L26)。
+- `gitTimeoutMs(args, options)` (L21-L27)：按命令返回超时；`args[0]==='worktree' && args[1]==='add'` 用 `worktreeAddTimeoutMs` 或默认 (L24)；`args[0]==='worktree' && args[1]==='remove'` 固定 5 分钟 (L25)；其他用 `gitTimeoutMs` 或默认 (L26)。
 
 ### Git Port (`src/adapters/git.ts`)
 
-`createDshGitPort(ctx, options)` (L249-L752) 构建并返回 `SessionCheckoutGitPort` 对象，最后通过 `Object.assign(port, initialCommitActions(port.inspect, runSessionGit))` 混入初始提交动作 (L752)。
+`createDshGitPort(ctx, options)` (L249-L773) 构建并返回 `SessionCheckoutGitPort` 对象，最后通过 `Object.assign(port, initialCommitActions(port.inspect, runSessionGit))` 混入初始提交动作 (L772)。
 
 #### 常量与配置
 - `GIT_TERMINATION_GRACE_MS = 1_000` (L38)：终止宽限期。
@@ -65,7 +66,7 @@ tags: [adapters, git, registry, project-skills]
 - `abandonedSnapshotRef(checkoutId)` (L230-L233)：返回 `refs/dsh-worktree/abandoned/${checkoutId}`，调用 `assertArtifactName`。
 - `hasGitMetadata(root)` (L235-L246)：向上遍历查找 `.git`。
 
-#### Port 方法实现（对象 L255-L751）
+#### Port 方法实现（对象 L255-L771）
 - `inspect(root)` (L256-L322)：单次 `rev-parse` 取四行快径，回退处理 unborn/broken HEAD。
 - `findContainingWorktreeRoot(root)` (L323-L330)：`rev-parse --show-toplevel`。
 - `status(root)` (L331-L335)：`status --porcelain=v1 -z --untracked-files=all`，结合 `ProjectSkillStore.scope` 过滤。
@@ -87,21 +88,22 @@ tags: [adapters, git, registry, project-skills]
 - `branchOverview(root)` (L469-L485)：返回分支列表与 dirtyCount。
 - `defaultBranch(root)` (L486-L493)：从 `origin/HEAD` 或 `init.defaultBranch` 解析。
 - `branchTipTimes(root)` (L494-L507)：返回分支名→提交时间映射。
-- `deleteLocalBranch(root, name)` (L508-L512)：`branch -d`，返回 `{deleted, reason?}`。
-- `graphLog(root, limit)` (L513-L535)：解析 `%H%x00%P...` 记录。
-- `createLocalBranch(root, name)` (L536-L545)：`check-ref-format` 后 `branch name HEAD`。
-- `switchLocalBranch(root, branch)` (L546-L557)：处理 worktree 占用错误。
-- `listTags(root)` (L558-L595)：列出标签及是否已被 origin 推送。
-- `createTag(root, name, options)` (L596-L611)：校验名后建轻量或注解标签。
-- `deleteLocalTag(root, name)` (L612-L617)：`tag -d`。
-- `pushTag(root, name)` (L618-L623)：推标签，不强制。
-- `deleteRemoteTag(root, name)` (L624-L628)：`:refs/tags/<name>` 删除远端标签。
-- `mergeLocalBranch(root, source, options?)` (L629-L699)：支持 `dryRun` 临时 detached probe (L666-L688)，正式合并保留冲突 (L691-L698)。
-- `captureLocalWip(root)` (L700-L708)：`diff --binary HEAD` 收集上限 `WIP_PATCH_COLLECT_BYTES`。
-- `applyWorktreePatch(root, patch)` (L709-L715)：`apply --binary`。
-- `listUntrackedFiles(root)` (L716-L720)：非 ignore 的 untracked。
-- `snapshotAbandonedWorktree(localRoot, managedRoot, checkoutId)` (L721-L741)：`add -A` + `write-tree` + `commit-tree` 固定身份。
-- `restoreAbandonedSnapshot(localRoot, checkoutId, snapshotOid)` (L742-L750)：创建分支并删除 abandoned ref。
+- `branchCreationTimes(root)` (L508-L527)：遍历 reflog 取 `branch: Created from` 最早时间。
+- `deleteLocalBranch(root, name)` (L528-L532)：`branch -d`，返回 `{deleted, reason?}`。
+- `graphLog(root, limit)` (L533-L555)：解析 `%H%x00%P...` 记录。
+- `createLocalBranch(root, name)` (L556-L565)：`check-ref-format` 后 `branch name HEAD`。
+- `switchLocalBranch(root, branch)` (L566-L577)：处理 worktree 占用错误。
+- `listTags(root)` (L578-L615)：列出标签及是否已被 origin 推送。
+- `createTag(root, name, options)` (L616-L631)：校验名后建轻量或注解标签。
+- `deleteLocalTag(root, name)` (L632-L637)：`tag -d`。
+- `pushTag(root, name)` (L638-L643)：推标签，不强制。
+- `deleteRemoteTag(root, name)` (L644-L648)：`:refs/tags/<name>` 删除远端标签。
+- `mergeLocalBranch(root, source, options?)` (L649-L719)：支持 `dryRun` 临时 detached probe (L688-L708)，正式合并保留冲突 (L711-L718)。
+- `captureLocalWip(root)` (L720-L728)：`diff --binary HEAD` 收集上限 `WIP_PATCH_COLLECT_BYTES`。
+- `applyWorktreePatch(root, patch)` (L729-L735)：`apply --binary`。
+- `listUntrackedFiles(root)` (L736-L740)：非 ignore 的 untracked。
+- `snapshotAbandonedWorktree(localRoot, managedRoot, checkoutId)` (L741-L761)：`add -A` + `write-tree` + `commit-tree` 固定身份。
+- `restoreAbandonedSnapshot(localRoot, checkoutId, snapshotOid)` (L762-L770)：创建分支并删除 abandoned ref。
 
 ### Files Port (`src/adapters/files.ts`)
 
@@ -110,7 +112,7 @@ tags: [adapters, git, registry, project-skills]
 辅助函数：
 - `measureDirectoryBytes(path)` (L16-L24)：递归计算字节，忽略符号链接。
 - `removeEmptyDirectoryTree(path)` (L26-L35)：同步删空目录树。
-- `inspectDirectoryIdentity(path)` (L37-L46)：返回 `{device, inode, birthtimeNs}` 或 null。
+- `inspectDirectoryIdentity(path)` (L37-L46)：返回 `{device: string, inode: string, birthtimeNs: string} | null` (L41-L45)。
 - `directoryIdentitiesEqual(left, right)` (L48-L50)：三字段全等。
 - `quarantineDirectoryTree(path, expectedIdentity, quarantinePath)` (L52-L72)：同父目录原子 rename 并校验身份。
 - `removeDirectoryTree(path)` (L74-L86)：异步递归删，Windows 重试 6 次。
@@ -159,19 +161,20 @@ tags: [adapters, git, registry, project-skills]
 
 ### Lookup (`src/adapters/lookup.ts`)
 
-`createDshLookupPort(ctx)` (L64-L121) 适配 Harness 服务为 `SessionCheckoutLookupPort`。
+`createDshLookupPort(ctx)` (L65-L147) 适配 Harness 服务为 `SessionCheckoutLookupPort`。
 
-- 接口 `WorkspaceLike` L19-L24（字段 `id`, `path`, `title`, `sessionIds`），`WorkspaceRegistryLike` L26-L32（方法 `list`, `get`, `resolveByPath`, `create`, `delete`），`LiveSessionLike` L34-L36（`header?.cwd`），`SessionStoreLike` L38-L40（`get`）。
-- `isWorkspaceRegistryLike` L42-L47, `isSessionStoreLike` L49-L53, `sameResolvedPath` L55-L61。
-- `getSidebarMemberships(managedRoots)` L75-L96：结合 `registry()?.list()` 与 `sessionQuery.listSessions()` 头 cwd 匹配。
-- `getSession(sessionId)` L97-L114：先扫 workspace sessionIds，未果则用 `sessions().get(sessionId).header.cwd` 恢复。
-- `getProject(projectId)` L115-L120：返回 `{id, name:title, root:path}`。
+- 接口 `WorkspaceLike` L19-L24（字段 `id: string`, `path: string`, `title: string`, `sessionIds: readonly string[]`），`WorkspaceRegistryLike` L26-L32（方法 `list(): WorkspaceLike[]`, `get(id: string): WorkspaceLike | undefined`, `resolveByPath(path): Promise<WorkspaceLike | undefined>`, `create(path, title?): Promise<WorkspaceLike>`, `delete(id): Promise<boolean>`），`LiveSessionLike` L34-L36（`header?: { readonly cwd?: unknown }`），`SessionStoreLike` L38-L40（`get(sessionId): LiveSessionLike | undefined`, `list?(): readonly { id?; header? }[]`）。
+- `isWorkspaceRegistryLike` L43-L48, `isSessionStoreLike` L50-L53, `sameResolvedPath` L56-L62。
+- `getSidebarMemberships(managedRoots)` L76-L97：结合 `registry()?.list()` 与 `sessionQuery.listSessions()` 头 cwd 匹配。
+- `listLiveSessions()` L98-L122：从 `sessions().list()` 提取 `{id, createdAt?, cwd?}` 数组。
+- `getSession(sessionId)` L123-L140：先扫 workspace sessionIds，未果则用 `sessions().get(sessionId).header.cwd` 恢复。
+- `getProject(projectId)` L141-L146：返回 `{id, name:title, root:path}`。
 
 ### Worktree Creation (`src/adapters/worktree-creation.ts`)
 
 `createWorktree(localRoot, target, baseOid, run, saveEvidence?)` (L17-L124) 严格身份核验与回滚。
 
-- 类型 `Result` L9, `Run` L10, `files = createNodeFilesPort()` L11, `samePath` L12-L13, `sameIdentity` L14。
+- 类型 `Result = { code: number; stdout: string; stderr: string; quiescent?: boolean }` L9, `Run = (cwd, args, creating?) => Promise<Result>` L10, `files = createNodeFilesPort()` L11, `samePath` L12-L13, `sameIdentity` L14。
 - 阶段①（L29-L69）：验 commonDir/parent 身份 → `mkdir` claimed → 存 evidence → `worktree add --detach --no-checkout --lock` → 验 gitDir 身份与 metadataFingerprint → `verifyIdentity` → sparse 分支 `reset --hard` 或 `read-tree`+`checkout-index` → 再 `verifyIdentity` → `unlock`。
 - 阶段②失败处理（L70-L123）：
   - `!claimed` → `WorktreeCreationFailure(message, true)` L72
@@ -184,8 +187,8 @@ tags: [adapters, git, registry, project-skills]
 
 ### Initial Commit (`src/adapters/initial-commit.ts`)
 
-`GitCommitProtocol` 接口 (L8)：字段 `prepare: string; beforeCommit(): Promise<void>` (L8)。
-`Run` 类型 L10。
+`GitCommitProtocol` 接口 (L8)：字段 `prepare: string; beforeCommit(): Promise<void>`。
+`Run` 类型 L10：`(root, args, input?) => Promise<{ code: number; stdout: string; stderr: string }>`。
 `initialCommitActions(inspect, run)` (L13-L118) 返回 `{ preflightInitialCommit, initializeEmptyRepository, initializeProject }`。
 - `stale` L14, `checked` L15-L19, `identity` L20-L24, `indexBytes` L25-L28
 - `preflightInitialCommit(root)` L29-L47：返回 `ready`/`files`/`empty`(带 fingerprint)
@@ -195,12 +198,12 @@ tags: [adapters, git, registry, project-skills]
 ### Project Skills (`src/adapters/project-skills.ts`, `project-skill-io.ts`, `project-skill-provider.ts`)
 
 `project-skills.ts`:
-- `PROJECT_SKILL_ROOTS` L7：`['.dsh/skills', '.agents/skills', '.claude/skills']`
-- `MAX_FILES = 5000` L8, `MAX_BYTES = 64*1024*1024` L9
-- `Entry` 接口 L10：字段 `path: string`, `hash: string`, `mode: number`
-- `Manifest` 接口 L11：字段 `version: 1`, `root: string`, `identity: string`, `phase: 'copying' | 'ready'`, `files: Entry[]`, `directories?: string[]`
-- `SkillSnapshot` 接口 L12：字段 `directories?: string[]`, `files: Array<Entry & {content: Buffer}>`
-- `CarriedSkillState` 接口 L13：字段 `paths: string[]`, `fingerprint: string`, `modified: boolean`
+- `PROJECT_SKILL_ROOTS = ['.dsh/skills', '.agents/skills', '.claude/skills']` L7
+- `MAX_FILES = 5000` L8, `MAX_BYTES = 64 * 1024 * 1024` L9
+- `Entry` 接口 L10：字段 `path: string; hash: string; mode: number`
+- `Manifest` 接口 L11：字段 `version: 1; root: string; identity: string; phase: 'copying' | 'ready'; files: Entry[]; directories?: string[]`
+- `SkillSnapshot` 接口 L12：字段 `directories?: string[]; files: Array<Entry & { content: Buffer }>`
+- `CarriedSkillState` 接口 L13：字段 `paths: string[]; fingerprint: string; modified: boolean`
 - 函数：`digest` L14, `missing` L15, `failure` L16, `safePath` L17-L22, `identity` L23-L27, `inspectPath` L29-L39, `boundedRead` L40-L58, `assertSkillTree` L60-L70, `ownedSkillDirectories` L71-L73, `inventory` L74-L98
 - `ProjectSkillStore` 类 L101-L214:
   - `constructor(directory)` L102
@@ -216,19 +219,19 @@ tags: [adapters, git, registry, project-skills]
 - `trackedSkillPaths` L216-L223, `hasDeliverableStatus` L225-L235, `assertSkillPath` L237-L239
 
 `project-skill-io.ts`:
-- `SkillRead` L5：字段 `path: string`, `maxBytes: number`
-- `SkillBytes` L6：字段 `path: string`, `content: Buffer`, `mode: number`
+- `SkillRead` 接口 L5：字段 `path: string; maxBytes: number`
+- `SkillBytes` 接口 L6：字段 `path: string; content: Buffer; mode: number`
 - `checkRoot` L10-L15, `checkPath` L16-L36
 - `readSkillFiles` L38-L64 批量读，每次 `checkRoot`+`checkPath`+`O_NOFOLLOW`+stat 比对
 - `createSkillDirectories` L66-L73 通过 `.directory-check` 原子建目录
 - `createSkillFiles` L75-L88 `O_CREAT|O_EXCL` 写文件
 
 `project-skill-provider.ts`:
-- `NAME = 'worktree-project-claude'` L10, `Locator` L11：字段 `root: string; candidate: SkillCandidate`
+- `NAME = 'worktree-project-claude'` L10, `Locator` 接口 L11：字段 `root: string; candidate: SkillCandidate`
 - `candidatePath` L14-L19 兼容 DSH 0.1/0.2
 - `managedSkillRoot(registry)` L22-L45 遍历 `managedCheckouts` phase==='ready' 验证 `.git` 双向链接
 - `ClaudeProjectSkillProvider` 类 L48-L119:
-  - `name` L49, `providers` Map L50, `operations` L51, `disposed` L52
+  - `name = NAME` L49, `providers` Map L50, `operations` L51, `disposed` L52
   - `run` L53-L57 序列化操作
   - `constructor(ctx, control, resolveRoot)` L58-L59
   - `provider(root)` L60-L74 实例池≤32
@@ -299,8 +302,8 @@ tags: [adapters, git, registry, project-skills]
 
 5. **Lookup Service Adaptation**:
    - `createDshLookupPort` 动态获取 `ctx.get('workspaceRegistry')` 与 `ctx.get('sessions')` (lookup.ts L65-L72)。
-   - `getSidebarMemberships` 并行查询 workspace list 与 session query headers，通过 `sameResolvedPath` 匹配 managedRoot (lookup.ts L75-L96)。
-   - `getSession` 优先扫描 workspace sessionIds，fallback 到 live session header cwd (lookup.ts L97-L114)。
+   - `getSidebarMemberships` 并行查询 workspace list 与 session query headers，通过 `sameResolvedPath` 匹配 managedRoot (lookup.ts L76-L97)。
+   - `getSession` 优先扫描 workspace sessionIds，fallback 到 live session header cwd (lookup.ts L123-L140)。
 
 ## Connections
 
