@@ -63,12 +63,15 @@ function renderRow(Row: ComponentType<Record<string, unknown>>, state?: TaskStat
 
 describe.each(variants)('$name sidebar Worktree state presentation', variant => {
   const Row = loadRow(variant.source())
-  test.each([false, true])('hides the working badge but keeps identity and native runtime status (running: %s)', running => {
+  test.each([false, true])('shows the working badge alongside identity and native runtime status (running: %s)', running => {
     const { row, container } = renderRow(Row, 'working', running)
-    expect(row.querySelector('.dsh-git-worktree-sidebar-badge')).toBeNull()
+    // Upstream 594298b hid the working badge; this fork shows it, because a
+    // running task is exactly when the row needs to say what it is doing.
+    const badge = row.querySelector('.dsh-git-worktree-sidebar-badge')
+    expect(badge?.getAttribute('data-worktree-state')).toBe('working')
+    expect(badge?.textContent).toBe('进行中')
     expect(row.querySelector('[data-icon^="IconBranchOutline"]')).not.toBeNull()
     expect(row.textContent).toContain('原有会话标题')
-    expect(row.textContent).not.toContain('进行中')
     const ordinary = renderRow(Row, undefined, running)
     expect(row.querySelector('[data-official-state]')?.getAttribute('data-official-state'))
       .toBe(ordinary.row.querySelector('[data-official-state]')?.getAttribute('data-official-state'))
@@ -78,7 +81,7 @@ describe.each(variants)('$name sidebar Worktree state presentation', variant => 
     if (variant.name === 'modern') expect(container.querySelector('[data-hover-content]')?.textContent).toContain('进行中')
     else expect(row.querySelector('[title="进行中"]')).not.toBeNull()
   })
-  test.each(Object.keys(labels).filter(state => state !== 'working') as TaskState[])('keeps the %s badge unchanged', state => {
+  test.each(Object.keys(labels) as TaskState[])('keeps the %s badge unchanged', state => {
     const { row } = renderRow(Row, state)
     const badge = row.querySelector('.dsh-git-worktree-sidebar-badge')!
     expect(badge?.getAttribute('data-worktree-state')).toBe(state)

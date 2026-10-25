@@ -18,9 +18,15 @@
 - 修复侧边栏工作区行不显示 Worktree 标签（workspace-sidebar 模块，2026-10-25）：decorate 模式（官方 Workspace 保持活跃，`enableWorkspaceProvider` 为 `false`）下，影子注册包裹的是**官方** Browser 组件，而官方组件不认识插件投影注入的 `__dshGitWorktree` / `__dshGitWorktreeProtected` 字段，也没有分支图标与状态徽章类名，导致投影数据无人消费 —— 会话行只剩标题，Worktree 图标与「待验收 / 已完成」等标签全部静默丢失（`working` 状态按上游 594298b 的设计本就只留图标）。
   - 改为渲染派生的 `WorkspaceBrowser`（`scripts/workspace-sidebar-upstream.mjs` 逐处 seam 改写官方 client 得到的同版本浏览器，装饰读取已编译在内），并让派生模块导出该组件；官方槽位条目与其全部注入方仍原样存活。
   - 不改 `enableWorkspaceProvider`：把该 flag 置 `true` 会走禁用官方条目的接管路径，正是 2026-10-17 两次桌面崩溃的成因（同一条件表达式在 host apply 与 renderer 审计两处求值相反 → `uiWorkspace` 无人提供、17 个下游条目 pending），故 5312227 已将其降级为硬开关。
-  - 验证：`typecheck` 0 诊断、`build` 通过（`lib/client.js` 1154.89 kB）、`check:publish` 全部通过、`pnpm test` 52 个测试文件 **722 passed / 4 skipped**。新增用例断言渲染的是派生 Browser 且 owner Session 收到 `__dshGitWorktree` 装饰、Local Session 没有；把修复回退后该用例失败、恢复后通过。
+  - 验证：`typecheck` 0 诊断、`build` 通过（`lib/client.js` 1154.77 kB）、`check:publish` 全部通过、`pnpm test` 52 个测试文件 **725 passed / 4 skipped**。新增用例断言渲染的是派生 Browser 且 owner Session 收到 `__dshGitWorktree` 装饰、Local Session 没有；把修复回退后该用例失败、恢复后通过。
 
 ### Changed
+
+- 侧边栏进行中行显示状态徽章（workspace-sidebar 模块，2026-10-25）：撤销上游 594298b「隐藏 working 文字 badge」的行为，`working` 状态与其他状态一致显示「进行中」徽章（有分支名时为「进行中 · <分支名>」）。理由：任务运行中恰是会话行最需要说明自己在做什么的时刻，只留一个 16px 分支图标让用户无法从侧栏判断任务状态。
+  - 三个变体的派生改写同步放开条件：`scripts/workspace-sidebar-upstream.mjs` 的 `ManagedWorktreeIdentity` 去掉 `decoration.state !== "working" &&`，`scripts/workspace-sidebar-upstream-next.mjs` 与 `-alpha.mjs` 的行内徽章同理。
+  - 上游回归用例 `tests/client-workspace-sidebar-status.test.tsx` 改为断言「working 也显示徽章」（原本断言 `toBeNull()`），并把 `keeps the %s badge unchanged` 的遍历范围从「除 working 外全部状态」扩到全部状态；回退该改动后 modern 变体 3 条用例失败，恢复后 30 条全通过。
+  - 样式不变：`.dsh-git-worktree-sidebar-badge[data-worktree-state="working"]` 仍用 `--dsw-alias-state-business-primary` 配色，与图标同色。
+  - 验证：`typecheck` 0 诊断、`build` 通过（`lib/client.js` 1154.77 kB，产物中已无 `decoration.state !== "working"` 条件）、`pnpm test` 52 个测试文件 **725 passed / 4 skipped**。
 
 - 适配 DSH `0.2.1-rc.3`（基线适配，2026-10-24）：插件版本升至 `0.12.0`，DSH devDependencies 精确锁定 `0.2.1-rc.3`（核心 peer 的 caret 范围 `^0.2.1-rc.1` 已覆盖该版本，locale peer 精确清单追加 `|| 0.2.1-rc.3`），`minimumReleaseAgeExclude` 同步覆盖 rc.3 精确锁定依赖。官方 Workspace Browser 派生门禁版本与编译后 Client SHA-256 对齐 rc.3（`9c2c17a6…6544`，232824 字节），`src/host-compat.ts` 的 modern generation 注释与 `tests/host-compat.test.ts` 的 flavor 映射补充 rc.3，locale peer 精确清单追加 `|| 0.2.1-rc.3`。rc.2→rc.3 的实际源码差异集中在官方 Workspace Client 的预会话草稿语义（`whenDraftExists` 取代 `clearPreviousDraft` 布尔、空白 Session 复用按 `agentPreset` 过滤、`openWorkspaceSession` 分支合并），插件装饰的 9 个接缝全部存活，无需改动装饰逻辑；插件自身未调用受影响的新签名，`agentPreset` 仍按既有 Host 默认路径透传。
   - 验证（Windows x64，Node 24.19.0，pnpm 12.5.1，Cordis 4.0.5 / loader 1.0.6 / include 1.0.10 / schemastery 3.18.5，TypeScript 5.9.3 / Vitest 2.1.9 / tsdown 0.17.4）：`typecheck` 0 诊断、`build` 通过（`lib/client.js` 1154.72 kB）、`check:sidebar-version` 通过（ui-workspace 0.2.1-rc.3 + 0.1.6-alpha.2 + 0.1.7-rc.2 三路 SHA-256、locale 0.2.1-rc.3）、`check:publish` 全部通过（13 Host singleton、12 导出目标、38 项 strict Remote 方法）、`pnpm test` 52 个测试文件 **722 passed / 4 skipped**，其中 focused lifecycle 27 passed。
