@@ -352,10 +352,29 @@ describe('registerDecoratedWorkspaceSidebar (Mode B: official Workspace stays li
     return { ctx, effect }
   }
 
-  test('shadows an already-registered official Browser at a lower priority', () => {
+  test('swaps the official entry component in place and restores it on dispose', () => {
     const official = { component: InspectBrowser, options: { priority: 0 }, registrant: 'official-ui-workspace' }
     const registry = fakeRegistry([official])
     const { ctx, effect } = decorateCtx(registry.service)
+    registerDecoratedWorkspaceSidebar(ctx, adapter())
+    // Preferred decorate path: no extra registration; the official entry's
+    // component reference is swapped for the wrapper, which keeps the entry's
+    // own children declaration so the Host injects the real renderSlot.
+    expect(registry.registered).toHaveLength(0)
+    expect(official.component).not.toBe(InspectBrowser)
+    expect((official.component as { __dshGitWorktreeDecorated?: true }).__dshGitWorktreeDecorated).toBe(true)
+    // The swap is released with the client fiber.
+    expect(effect).toHaveBeenCalledTimes(1)
+    const collect = effect.mock.calls[0]?.[0] as () => () => void
+    const disposer = collect()
+    expect(() => disposer()).not.toThrow()
+    expect(official.component).toBe(InspectBrowser)
+  })
+
+  test('falls back to a shadow registration when the official entry is frozen', () => {
+    const official = Object.freeze({ component: InspectBrowser, options: Object.freeze({ priority: 0 }), registrant: 'official-ui-workspace' })
+    const registry = fakeRegistry([official])
+    const { ctx } = decorateCtx(registry.service)
     registerDecoratedWorkspaceSidebar(ctx, adapter())
     expect(registry.registered).toHaveLength(1)
     const { descriptor, component } = registry.registered[0]!
@@ -363,31 +382,32 @@ describe('registerDecoratedWorkspaceSidebar (Mode B: official Workspace stays li
     expect(descriptor.priority).toBe(-10)
     expect(descriptor.registrant).toBe('dsh-git-worktree')
     expect(component).not.toBe(InspectBrowser)
-    expect(typeof component).toBe('function')
-    // The decorate registration is released with the client fiber.
-    expect(effect).toHaveBeenCalledTimes(1)
-    const disposer = effect.mock.calls[0]?.[0] as () => void
-    expect(() => disposer()).not.toThrow()
   })
 
   test('waits for the official registration and decorates exactly once', () => {
     const registry = fakeRegistry()
     const { ctx } = decorateCtx(registry.service)
     registerDecoratedWorkspaceSidebar(ctx, adapter())
-    expect(registry.registered.filter(entry => entry.descriptor.registrant === 'dsh-git-worktree')).toHaveLength(0)
+    expect(registry.registered).toHaveLength(0)
     registry.service.register({ name: 'sidebar.workspaces', priority: 0 }, InspectBrowser)
-    expect(registry.registered.filter(entry => entry.descriptor.registrant === 'dsh-git-worktree')).toHaveLength(1)
-    // Our own registration re-publishes the slot; the decorated flag keeps it single.
+    expect(registry.registered).toHaveLength(1)
+    const decorated = registry.service.entriesOfSlot('sidebar.workspaces')
+      .find(entry => entry.component !== InspectBrowser)
+    expect(decorated).toBeDefined()
+    expect((decorated!.component as { __dshGitWorktreeDecorated?: true }).__dshGitWorktreeDecorated).toBe(true)
+    // The registry re-publishing the slot does not wrap it a second time.
     registry.publish()
-    expect(registry.registered.filter(entry => entry.descriptor.registrant === 'dsh-git-worktree')).toHaveLength(1)
+    expect(registry.registered).toHaveLength(1)
+    expect((decorated!.component as { __dshGitWorktreeDecorated?: true }).__dshGitWorktreeDecorated).toBe(true)
   })
 
-  test('renders the derived Browser through the shadowing entry so the decoration reaches a consumer', async () => {
+  test('renders the derived Browser through the swapped official entry so the decoration reaches a consumer', async () => {
     resetDerivedBrowserCalls()
-    const registry = fakeRegistry([{ component: InspectBrowser, options: { priority: 0 }, registrant: 'official-ui-workspace' }])
+    const official = { component: InspectBrowser, options: { priority: 0 }, registrant: 'official-ui-workspace' }
+    const registry = fakeRegistry([official])
     const { ctx } = decorateCtx(registry.service)
     registerDecoratedWorkspaceSidebar(ctx, adapter())
-    const Decorated = registry.registered[0]!.component as (props: WorkspaceBrowserProps) => unknown
+    const Decorated = official.component as (props: WorkspaceBrowserProps) => unknown
     render(<Decorated {...browserProps()} />)
     // The derived Browser renders, not the stock official component (which has
     // no row decoration and would drop the Worktree icon/badge).

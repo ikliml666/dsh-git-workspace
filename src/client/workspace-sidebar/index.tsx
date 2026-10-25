@@ -429,6 +429,8 @@ export function registerDecoratedWorkspaceSidebar(
   }
   let disposed = false
   let decorated = false
+  let mutateApplied = false
+  let mutateTarget: { entry: SlotRegistryEntry; original: unknown } | undefined
   let disposeEntry: unknown
   let unsubscribe: (() => void) | undefined
   const attempt = (): void => {
@@ -437,14 +439,19 @@ export function registerDecoratedWorkspaceSidebar(
     const official = entries.reduce<SlotRegistryEntry | undefined>((lowest, entry) =>
       lowest === undefined || (entry.options.priority ?? 0) < (lowest.options.priority ?? 0) ? entry : lowest, undefined)
     if (!official || typeof official.component !== 'function') return
+    // Skip an entry we already decorated in place: after the component swap
+    // the registry still reports the same official entry, now wrapping ours.
+    if ((official.component as { __dshGitWorktreeDecorated?: true }).__dshGitWorktreeDecorated === true) {
+      decorated = true
+      mutateApplied = true
+      return
+    }
     decorated = true
-    // Render the DERIVED Browser, not the official component. The shadow
-    // registration forwards projected session/workspace metadata
-    // (`__dshGitWorktree`, `__dshGitWorktreeProtected`); the official Browser
-    // has no row decoration and silently drops both, so the Worktree icon,
-    // status badge, and workspace protection never appeared. The derivative is
-    // the same pinned Browser with those decorations compiled in, so the
-    // official entry stays live for every package that injects it.
+    // Render the DERIVED Browser, not the official component. The official
+    // Browser has no row decoration and silently drops `__dshGitWorktree`, so
+    // the Worktree icon, status badge, and workspace protection never appear.
+    // The derivative is the same pinned Browser with those decorations
+    // compiled in.
     const OfficialBrowser = (typeof DerivedWorkspaceBrowser === 'function'
       ? DerivedWorkspaceBrowser
       : official.component) as ComponentType<WorkspaceBrowserProps>
@@ -456,6 +463,26 @@ export function registerDecoratedWorkspaceSidebar(
       OfficialBrowser={OfficialBrowser}
       registerSessionMenuEntry={registerRawSlotEntry}
     /></ClientI18nProvider>
+    // Preferred path: swap the official entry's component reference in place.
+    // The entry keeps its own `children` declaration, so the Host keeps
+    // injecting the real `renderSlot` (and every other entry inject) into the
+    // component it renders — the derivative Browser receives the complete
+    // official props. A shadow registration cannot reproduce this: redeclaring
+    // the child slots collides with the live official entry, while omitting
+    // them leaves the derivative without `renderSlot` (crashes in
+    // WorkspacePickFlow and SessionNodeItem).
+    const original = official.component
+    ;(Decorated as unknown as { __dshGitWorktreeDecorated?: true }).__dshGitWorktreeDecorated = true
+    try {
+      official.component = Decorated
+      mutateApplied = true
+      mutateTarget = { entry: official, original }
+      return
+    } catch {
+      // Frozen/readonly entry (registry internals vary): fall back to the
+      // shadow registration below, which renders the derivative at a lower
+      // priority but cannot receive `renderSlot`.
+    }
     const options = official.options
     disposeEntry = slots.register({
       name: 'sidebar.workspaces',
@@ -476,6 +503,12 @@ export function registerDecoratedWorkspaceSidebar(
   const disposer = (): void => {
     disposed = true
     unsubscribe?.()
+    if (mutateApplied && mutateTarget !== undefined) {
+      try {
+        mutateTarget.entry.component = mutateTarget.original
+      } catch { /* The entry was frozen; the swap never happened. */ }
+      return
+    }
     if (typeof disposeEntry === 'function') (disposeEntry as () => void)()
   }
   if (typeof ctx.effect === 'function') (ctx.effect as (collect: () => unknown) => unknown)(() => disposer)
