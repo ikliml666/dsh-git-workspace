@@ -13,6 +13,13 @@
   - 图谱内可直接打标签：每条提交悬停显示「在此提交打标签」，图谱底栏新增「管理标签」，从提交行进入时弹层顶部标注「将指向提交 <oid>」并把该 commit 作为 `target` 传给 `gitCreateTag`；从菜单或底栏进入则以 HEAD 为目标。
   - 推送状态不再误报：`ls-remote` 失败（离线、无 `origin`）时标签推送状态记为未知并显示「推送状态未知」，不再静默判为未推送；未知状态下推送按钮保持可用。
 
+### Fixed
+
+- 修复侧边栏工作区行不显示 Worktree 标签（workspace-sidebar 模块，2026-10-25）：decorate 模式（官方 Workspace 保持活跃，`enableWorkspaceProvider` 为 `false`）下，影子注册包裹的是**官方** Browser 组件，而官方组件不认识插件投影注入的 `__dshGitWorktree` / `__dshGitWorktreeProtected` 字段，也没有分支图标与状态徽章类名，导致投影数据无人消费 —— 会话行只剩标题，Worktree 图标与「待验收 / 已完成」等标签全部静默丢失（`working` 状态按上游 594298b 的设计本就只留图标）。
+  - 改为渲染派生的 `WorkspaceBrowser`（`scripts/workspace-sidebar-upstream.mjs` 逐处 seam 改写官方 client 得到的同版本浏览器，装饰读取已编译在内），并让派生模块导出该组件；官方槽位条目与其全部注入方仍原样存活。
+  - 不改 `enableWorkspaceProvider`：把该 flag 置 `true` 会走禁用官方条目的接管路径，正是 2026-10-17 两次桌面崩溃的成因（同一条件表达式在 host apply 与 renderer 审计两处求值相反 → `uiWorkspace` 无人提供、17 个下游条目 pending），故 5312227 已将其降级为硬开关。
+  - 验证：`typecheck` 0 诊断、`build` 通过（`lib/client.js` 1154.89 kB）、`check:publish` 全部通过、`pnpm test` 52 个测试文件 **722 passed / 4 skipped**。新增用例断言渲染的是派生 Browser 且 owner Session 收到 `__dshGitWorktree` 装饰、Local Session 没有；把修复回退后该用例失败、恢复后通过。
+
 ### Changed
 
 - 适配 DSH `0.2.1-rc.3`（基线适配，2026-10-24）：插件版本升至 `0.12.0`，DSH devDependencies 精确锁定 `0.2.1-rc.3`（核心 peer 的 caret 范围 `^0.2.1-rc.1` 已覆盖该版本，locale peer 精确清单追加 `|| 0.2.1-rc.3`），`minimumReleaseAgeExclude` 同步覆盖 rc.3 精确锁定依赖。官方 Workspace Browser 派生门禁版本与编译后 Client SHA-256 对齐 rc.3（`9c2c17a6…6544`，232824 字节），`src/host-compat.ts` 的 modern generation 注释与 `tests/host-compat.test.ts` 的 flavor 映射补充 rc.3，locale peer 精确清单追加 `|| 0.2.1-rc.3`。rc.2→rc.3 的实际源码差异集中在官方 Workspace Client 的预会话草稿语义（`whenDraftExists` 取代 `clearPreviousDraft` 布尔、空白 Session 复用按 `agentPreset` 过滤、`openWorkspaceSession` 分支合并），插件装饰的 9 个接缝全部存活，无需改动装饰逻辑；插件自身未调用受影响的新签名，`agentPreset` 仍按既有 Host 默认路径透传。
