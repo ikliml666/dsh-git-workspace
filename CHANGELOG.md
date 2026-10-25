@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- 装饰分支侧栏注册丢失子槽授权（2026-10-25）：影子注册 `sidebar.workspaces` 的 descriptor 此前未复制官方条目的 `children` 声明，派生 Browser 渲染 directoryFlow 子槽时崩溃 `TypeError: renderSlot is not a function`（0.2.x 宿主）。现在注册时透传 `official.children`，`SlotRegistryEntry` 类型补充 `children?` 字段。
+
 ### Added
 
 - 并发会话分支竞态防护（2026-10-25）：检测同一 Local 检出边界下多个 live 会话并发、且检测窗口内有其他会话新建本地分支时，向后启动的会话注入 runtimeContext 提示——禁止 `git switch -c`/`git checkout -b`，要求先 `worktree_create` 隔离改动。
