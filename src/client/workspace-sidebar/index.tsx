@@ -400,6 +400,7 @@ interface SlotRegistryEntry {
   store?: unknown
   inject?: unknown
   locale?: string
+  children?: unknown
   registrant?: string
 }
 
@@ -468,6 +469,11 @@ export function registerDecoratedWorkspaceSidebar(
       ...(official.store === undefined ? {} : { store: official.store }),
       ...(official.inject === undefined ? {} : { inject: official.inject }),
       ...(official.locale === undefined ? {} : { locale: official.locale }),
+      // The wrapper cannot inherit the official entry's child-slot
+      // authorization: without repeating `children` the derived Browser loses
+      // the renderSlot seat and its directory-flow child crashes with
+      // "renderSlot is not a function".
+      ...(official.children === undefined ? {} : { children: official.children }),
       registrant: 'dsh-git-worktree',
     }, Decorated)
   }
