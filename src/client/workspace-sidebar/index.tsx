@@ -431,7 +431,7 @@ const ROW_SEATS = ['sidebar.session.row.leading', 'sidebar.session.row.hover'] a
  * which mirror upstream's palette for the same state names.
  */
 function WorktreeIdentity(
-  { state, label, chip }: { state: string; label: string; chip: boolean },
+  { state, stateLabel, label, chip }: { state: string; stateLabel: string; label: string; chip: boolean },
 ) {
   return <>
     <span
@@ -447,17 +447,19 @@ function WorktreeIdentity(
         className="dsh-git-worktree-sidebar-badge"
         data-worktree-state={state}
         title={label}
-      >{label}</span>
+      >{stateLabel}</span>
       : null}
   </>
 }
 
 /**
  * Inline row decoration for Managed Worktree owner sessions, matching the
- * upstream takeover rendering: a branch glyph in the leading seat (7px-style
- * dot replaced — the glyph is 16px and already fits the seat) and the glyph
- * plus the state chip in the hover card. Rows without a managed task render
- * nothing.
+ * upstream takeover rendering: the branch glyph followed by the state chip.
+ * Upstream injects that pair straight into the row, between the leading seat
+ * and the title; Mode B cannot re-render the row, so both seats available to it
+ * (`sidebar.session.row.leading`, `sidebar.session.row.hover`) render the same
+ * pair and styles.ts relaxes the leading seat's fixed 16px width for it.
+ * Rows without a managed task render nothing.
  */
 function WorktreeStatusBadgeEntry({ sessionId, seat }: RowSeatProps) {
   const t = useClientTranslator()
@@ -467,10 +469,14 @@ function WorktreeStatusBadgeEntry({ sessionId, seat }: RowSeatProps) {
     : sidebarBadgeTasks(topology ?? EMPTY_TOPOLOGY, t)
       .find(candidate => candidate.ownerSessionId === sessionId)), [topology, sessionId, t])
   if (!task) return null
+  // Both seats render the upstream identity mark: branch glyph + state chip.
+  // The seat's fixed 16px width is relaxed for our decoration in styles.ts, so
+  // the row-leading seat shows the same pill the takeover path renders inline.
   return <WorktreeIdentity
     state={task.state}
+    stateLabel={task.stateLabel}
     label={task.label}
-    chip={seat !== 'sidebar.session.row.leading'}
+    chip
   />
 }
 

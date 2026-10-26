@@ -23,6 +23,9 @@ export interface SidebarSessionSummary {
 export interface ProjectedManagedTask extends WorktreeSidebarTask {
   projectId: string
   projectName: string
+  /** State words only — what the row chip shows (upstream renders the bare state). */
+  stateLabel: string
+  /** State words plus the source branch — tooltip/aria text, never the chip. */
   label: string
 }
 
@@ -57,6 +60,7 @@ export function sidebarBadgeTasks(topology: WorktreeSidebarTopologyResponse, t: 
         projectId: project.project.id,
         projectName: project.project.name,
         label: task.sourceBranch ? `${stateLabel} · ${task.sourceBranch}` : stateLabel,
+        stateLabel,
       }
       const previous = byOwner.get(task.ownerSessionId)
       if (!previous

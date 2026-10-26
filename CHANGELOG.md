@@ -6,6 +6,14 @@
 
 ### Fixed
 
+- 侧栏行内胶囊不显示、只剩一个分支图标（2026-10-26，座位宽度解禁）：上一轮把行首装饰对齐成「分支图标」后，用户截图显示行内只有图标、没有上游那种「图标 + 状态文字胶囊」。根因是**结构性**的：Mode B（decorate）只能往官方已声明的子座位注册条目，而行首座位 `sidebar.session.row.leading` 在官方 CSS 里是写死的 16px 盒（`._3rK6Ta_slot{width:16px;flex:none}`），胶囊一旦放进去就被裁掉。上游之所以能显示胶囊，是因为它用 takeover 路径**接管并改写官方行组件**，把图标+胶囊直接插在行内 title 之前（`scripts/workspace-sidebar-upstream.mjs` 的 `ManagedWorktreeIdentity` seam），而这条路径需要禁用官方 `ui-workspace` 条目（上一轮开它出过事故）。
+  - `src/client/workspace-sidebar/index.tsx`：`WorktreeStatusBadgeEntry` 不再按座位区分（原 `chip={seat !== 'sidebar.session.row.leading'}` 正是「行内没胶囊」的直接原因），两个座位都渲染完整的图标+胶囊。
+  - `src/client/styles.ts`：新增 `[role="treeitem"] > span:has(.dsh-git-worktree-sidebar-icon)`——只把**含本插件装饰的那一个座位**放开为 `flex:0 1 auto; width:auto; min-width:16px; max-width:55%; overflow:hidden`（未装饰的座位保持官方 16px，不影响其它插件）；并让座位内的胶囊 `flex:0 1 auto; min-width:0` 以便在座位内按省略号收缩。删除原先「悬停时隐藏胶囊」的规则——胶囊在行首座位、与行尾 hover 操作不抢位，隐藏只会让胶囊闪烁。
+  - `src/client/workspace-sidebar/model.ts`：`ProjectedManagedTask` 增加 `stateLabel`（纯状态词，如「待验收」），`label` 保留「状态词 · 分支名」仅用于 `title`/`aria-label`。
+  - **胶囊只显示状态词、不显示分支名**（用户要求「不要显示具体名字」）：`WorktreeIdentity` 的胶囊正文改用 `stateLabel`，分支名只留在 tooltip 里。
+  - 测试：`tests/client-workspace-sidebar.test.tsx` 断言行首座位也渲染胶囊且正文为纯状态词、分支名只在 `title`；`tests/client-workspace-sidebar-profile.test.ts` 的样式断言改为新规则（座位放开 + 胶囊可收缩）。
+  - 验证：`tsc --noEmit` 0 诊断；`npx tsdown` 通过（`lib/client.js` 1189.67 kB，产物含 `chip: true`）；`tests/client-workspace-sidebar.test.tsx` 13 passed、`tests/client-workspace-sidebar-profile.test.ts` 9 passed。
+
 - 顶部胶囊在非 Git 项目上显示刺眼的「不可用」（2026-10-26，真实错误码定案 + 语义修正）：宿主 18:02 重启后 `kind:"current"` 埋点终于生效，diag 里 322 条记录给出真相——`not_git_repository` 263 次**全部来自同一个会话**（其项目根是 `C:\Users\ik\.dsh`，本来就不是 Git 仓库），本项目会话 54 次 `current` 全部成功。即胶囊链路一直是正常的，「不可用」是普通文件夹的正常响应，但把它和真正的探测故障压成同一句话，让完全正常的会话看起来像坏了。
   - `src/client/target-console/TargetStatusAction.tsx`：新增 `notGitRepository = failure?.code === 'not_git_repository'`，状态推导改为 `target?.state ?? (loading ? 'loading' : notGitRepository ? 'not_git_repository' : 'error')`，标签走新文案「非 Git 项目」而不是 `t('unavailable')`；菜单在这种情况下只保留一个真正有意义的动作（初始化 Git 仓库），不再列出分支/标签/提交图这些注定失败的项；弹窗摘要改为解释性文案。
   - 新增 `initializeRepository()`：调用既有的 `adapter.initializeProject({ sourceSessionId })`（host 侧 `src/adapters/initial-commit.ts:104-117` 早已实现 `git init -b main` + `add -A` + 首次提交，此前只差 UI 入口），成功后 `requestWorktreeReviewRefresh` + `invalidateBranchOverview`，胶囊与侧栏徽章无需等 5s 轮询即可翻成真实 Local 目标；adapter 缺该方法时该菜单项禁用而不是点击报错。
