@@ -79,6 +79,28 @@ export interface WorktreeClientServices {
   }
 }
 
+/**
+ * Additional public Harness faces used only by the blank-session preparation
+ * flow: it archives/deletes the throwaway local session and toggles the
+ * composer's blocking block while the isolated session is being prepared.
+ */
+export interface PreSessionWorktreeServices extends WorktreeClientServices {
+  sessions: ClientSessions
+  workspaces: ClientWorkspaces & {
+    archiveSession(sessionId: string): Promise<void>
+    delete(workspaceId: string): Promise<void>
+  }
+  conversation: {
+    input: {
+      for(ctx: unknown): PreSessionInput
+    }
+    blocks: {
+      set(sessionId: string, block: { reason: string } | undefined): void
+      storeFor(sessionId: string): { getSnapshot(): { reason: string } | undefined }
+    }
+  }
+}
+
 /** Composer draft actions. Harness renamed the image-only API when adding general attachments. */
 export type PreSessionInput = {
   setDraft(text: string): void

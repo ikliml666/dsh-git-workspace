@@ -398,17 +398,51 @@ interface SlotRegistryService {
   inject(name: string, callback: () => unknown): unknown
 }
 
-/** Props the official row hands to every `session.row.trailing` entry. */
+/** Props the official row hands to every row-seat entry. */
 interface OfficialSessionRowEntryProps {
   sessionId?: string
 }
 
+/** Seat key, threaded through so one component serves both row seats. */
+interface RowSeatProps extends OfficialSessionRowEntryProps {
+  seat?: string
+}
+
 /**
- * Inline row-trailing badge for Managed Worktree owner sessions: state label
- * plus source branch (e.g. "进行中 · feat/x"). Rows without a managed task
- * render nothing.
+ * Row seats this plugin may decorate. The Host declares BOTH seats from its
+ * own `sidebar.workspaces` entry:
+ *   - `sidebar.session.row.leading` — a 16px slot before the row title,
+ *     rendered only when the row's primary status is idle (archived rows and
+ *     rows showing status dots leave it empty);
+ *   - `sidebar.session.row.hover` — the hover card body, mounted while the
+ *     row's popover is open.
+ * There is NO `sidebar.session.row.trailing` seat in DSH 0.2.x: injecting that
+ * name waits for a declaration that never arrives, so the callback never runs
+ * and the badge never mounts. Hence a dot in the narrow leading seat (a text
+ * chip there would be clipped) and the full text chip in the hover card.
  */
-function WorktreeStatusBadgeEntry({ sessionId }: OfficialSessionRowEntryProps) {
+const ROW_SEATS = ['sidebar.session.row.leading', 'sidebar.session.row.hover'] as const
+
+// Leading is a 7px dot: colour carries the state, the tooltip carries the words.
+const BADGE_DOT_COLOR: Record<string, string> = {
+  creating: 'var(--dsw-alias-state-business-primary, #4c8dff)',
+  working: 'var(--dsw-alias-state-business-primary, #4c8dff)',
+  ready_for_review: 'var(--dsw-alias-state-warning-primary, #f5a623)',
+  preview_active: 'var(--dsw-alias-state-success-primary, #35c46a)',
+  preview_detached: 'var(--dsw-alias-state-warning-primary, #f5a623)',
+  recovery_required: 'var(--dsw-alias-state-error-primary, #f5544c)',
+  retained: 'var(--dsw-alias-state-success-primary, #35c46a)',
+  cleanup_pending: 'var(--dsw-alias-state-warning-primary, #f5a623)',
+  delivered: 'var(--dsw-alias-state-success-primary, #35c46a)',
+  discarded: 'var(--dsw-alias-state-disabled-primary, #8a8a8a)',
+}
+
+/**
+ * Inline row badge for Managed Worktree owner sessions: a state dot in the
+ * leading seat, the state label plus source branch (e.g. "进行中 · feat/x") in
+ * the hover card. Rows without a managed task render nothing.
+ */
+function WorktreeStatusBadgeEntry({ sessionId, seat }: RowSeatProps) {
   const t = useClientTranslator()
   const topology = useSharedTopology()
   const task = useMemo(() => (sessionId === undefined
@@ -416,6 +450,21 @@ function WorktreeStatusBadgeEntry({ sessionId }: OfficialSessionRowEntryProps) {
     : sidebarBadgeTasks(topology ?? EMPTY_TOPOLOGY, t)
       .find(candidate => candidate.ownerSessionId === sessionId)), [topology, sessionId, t])
   if (!task) return null
+  if (seat === 'sidebar.session.row.leading') {
+    return <span
+      data-dsh-git-worktree-badge={task.state}
+      role="img"
+      aria-label={task.label}
+      title={task.label}
+      style={{
+        display: 'inline-block',
+        width: '7px',
+        height: '7px',
+        borderRadius: '50%',
+        background: BADGE_DOT_COLOR[task.state] ?? 'var(--dsw-alias-state-business-primary, #4c8dff)',
+      }}
+    />
+  }
   return <span
     data-dsh-git-worktree-badge={task.state}
     title={task.label}
@@ -470,14 +519,18 @@ export function registerDecoratedWorkspaceSidebar(
   }
   refresh()
   window.addEventListener(WORKTREE_REVIEW_REFRESH_EVENT, refresh)
-  // The row-trailing seat is declared as `sidebar.session.row.trailing` by the
-  // WorkspaceBrowser entry — it is NOT namespaced under `sidebar.workspaces`.
-  // Injecting the namespaced guess waits forever for a declaration that never
-  // comes, so the callback would never run and the badge would never mount.
-  slots.inject('sidebar.session.row.trailing', () => slots.register(
-    { name: 'sidebar.session.row.trailing', id: 'dsh-git-worktree-status', order: 500 },
-    (props: OfficialSessionRowEntryProps) => <ClientI18nProvider locale={read('locale')}><WorktreeStatusBadgeEntry {...props} /></ClientI18nProvider>,
-  ))
+  // The Host declares its row seats from the `sidebar.workspaces` entry:
+  // `sidebar.session.row.leading` (16px, idle rows only) and
+  // `sidebar.session.row.hover` (the hover popover body). A trailing seat does
+  // not exist in DSH 0.2.x — injecting it waits forever for a declaration that
+  // never comes, so the callback would never run and the badge never mounts.
+  // Register into every real seat instead.
+  for (const seat of ROW_SEATS) {
+    slots.inject(seat, () => slots.register(
+      { name: seat, id: 'dsh-git-worktree-status', order: 500 },
+      (props: OfficialSessionRowEntryProps) => <ClientI18nProvider locale={read('locale')}><WorktreeStatusBadgeEntry {...props} seat={seat} /></ClientI18nProvider>,
+    ))
+  }
   slots.inject('sidebar.workspaces.session.menu.item', () => registerClearSidebarBadgeEntry(
     (descriptor, component) => slots.register(descriptor, component), adapter))
   const disposer = (): void => {
