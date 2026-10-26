@@ -16,9 +16,9 @@ tags:
 
 ## Overview
 
-dsh-git-worktree 插件通过宿主 settings 服务将 `Config` schema 中标为 volatile 的字段投影为设置表单，写入 `cordis.patch.yml` 且通过 revision CAS 生效。宿主 settings `schema.ts` 读取 `meta.volatile`（见 `src/index.ts:244` 注释）。volatile 编辑**不重挂载插件**：`apply` 不重跑，配置值以 `LiveValue<T>`（即 `{ get(): T }`）形式到达（见 `src/ports.ts:551-553` 接口定义与 `src/ports.ts:551-556` 解包函数）。
+dsh-git-worktree 插件通过宿主 settings 服务将 `Config` schema 中标为 volatile 的字段投影为设置表单，写入 `cordis.patch.yml` 且通过 revision CAS 生效。宿主 settings `schema.ts` 读取 `meta.volatile`（见 `src/index.ts:244` 注释）。volatile 编辑**不重挂载插件**：`apply` 不重跑，配置值以 `LiveValue<T>`（即 `{ get(): T }`）形式到达（见 `src/ports.ts:560-562` 接口定义与 `src/ports.ts:559-565` 解包函数）。
 
-当前代码中 `Config` 共有 9 个 volatile 字段：`gitTimeoutMs` (src/index.ts:260)、`worktreeAddTimeoutMs` (src/index.ts:261)、`autoDeliver` (src/index.ts:268)、`autoPush` (src/index.ts:273)、`worktreesRoot` (src/index.ts:280)、`inheritLocalChanges` (src/index.ts:286)、`worktreeKeepCount` (src/index.ts:291)、`branchRaceGuard` (src/index.ts:298)、`branchRaceWindowMs` (src/index.ts:300)。客户端设置卡片（`WorktreeSettings` 接口，src/client/settings-card/worktree-settings-card.ts:17-23）仅编辑其中 5 个字段（`autoDeliver`、`autoPush`、`worktreesRoot`、`gitTimeoutMs`、`worktreeAddTimeoutMs`）。所有消费点通过 `liveConfigValue`（src/ports.ts:551-556）逐次解包，不做启动期归一。
+当前代码中 `Config` 共有 9 个 volatile 字段：`gitTimeoutMs` (src/index.ts:260)、`worktreeAddTimeoutMs` (src/index.ts:261)、`autoDeliver` (src/index.ts:268)、`autoPush` (src/index.ts:273)、`worktreesRoot` (src/index.ts:280)、`inheritLocalChanges` (src/index.ts:286)、`worktreeKeepCount` (src/index.ts:291)、`branchRaceGuard` (src/index.ts:298)、`branchRaceWindowMs` (src/index.ts:300)。客户端设置卡片（`WorktreeSettings` 接口，src/client/settings-card/worktree-settings-card.ts:17-23）仅编辑其中 5 个字段（`autoDeliver`、`autoPush`、`worktreesRoot`、`gitTimeoutMs`、`worktreeAddTimeoutMs`）。所有消费点通过 `liveConfigValue`（src/ports.ts:560-566）逐次解包，不做启动期归一。
 
 ## Key Components
 
@@ -41,16 +41,16 @@ dsh-git-worktree 插件通过宿主 settings 服务将 `Config` schema 中标为
 - `SessionCheckoutModule` 接口（行 113-208）中的 `isAutoDeliverEnabled(): boolean`（行 176）实时读取 volatile `autoDeliver` 值，工具层在其关闭时拒绝 model-driven delivery。
 
 ### src/ports.ts
-- `LiveValue<T>` 接口（行 546-548）：`{ get(): T }`，表示宿主注入的活引用。
-- `liveConfigValue<T>(value)`（行 551-556）：duck-type 解包函数，判断 `value.get` 是否为函数，是则调用否则原样返回；不依赖 cosmokit。
-- `SessionCheckoutDependencies` 接口（行 558-599）：域依赖集合。其中 volatile 字段放宽为 `T | LiveValue<T>`：
-  - `autoPush?`（行 567）
-  - `autoDeliver?`（行 569）
-  - `worktreesRoot?`（行 575）
-  - `inheritLocalChanges?`（行 582）
-  - `worktreeKeepCount?`（行 589）
-  - `branchRaceGuard?`（行 596）
-  - `branchRaceWindowMs?`（行 598）
+- `LiveValue<T>` 接口（行 555-557）：`{ get(): T }`，表示宿主注入的活引用。
+- `liveConfigValue<T>(value)`（行 559-565）：duck-type 解包函数，判断 `value.get` 是否为函数，是则调用否则原样返回；不依赖 cosmokit。
+- `SessionCheckoutDependencies` 接口（行 567-607）：域依赖集合。其中 volatile 字段放宽为 `T | LiveValue<T>`：
+  - `autoPush?`（行 576）
+  - `autoDeliver?`（行 578）
+  - `worktreesRoot?`（行 584）
+  - `inheritLocalChanges?`（行 591）
+  - `worktreeKeepCount?`（行 598）
+  - `branchRaceGuard?`（行 605）
+  - `branchRaceWindowMs?`（行 607）
 
 ### src/adapters/git-options.ts
 - `GitTimeoutOptions` 接口（行 3-6）：含 `gitTimeoutMs?` 与 `worktreeAddTimeoutMs?`，类型均为 `number | LiveValue<number | undefined>`。
@@ -101,7 +101,7 @@ dsh-git-worktree 插件通过宿主 settings 服务将 `Config` schema 中标为
 1. 用户在客户端设置卡片（`WorktreeSettingsCardController`，src/client/settings-card/worktree-settings-card.ts:39-70）编辑 5 个暴露字段，通过宿主 `configForms` 服务写入 `cordis.patch.yml`。
 2. 宿主 settings 机制读取 `Config` 中 `meta.volatile = true` 的字段（由 src/index.ts:245-248 的 `volatile` 助手设置），将其作为 `LiveValue<T>` 注入插件 `apply` 的配置参数，而非 plain 值。
 3. `apply`（src/index.ts:347-448）收到 `LocalAdaptationConfig` 与 `GitTimeoutOptions`，将 live 引用原样透传给域模块与 git 适配器（行 366、370-385）。
-4. 消费点每次使用配置时调用 `liveConfigValue`（src/ports.ts:551-556）解包：
+4. 消费点每次使用配置时调用 `liveConfigValue`（src/ports.ts:560-566）解包：
    - `gitTimeoutMs(args, options)`（src/adapters/git-options.ts:21-27）按命令类型解包超时。
    - `resolveWorktreesRootValue`（src/index.ts:321-324）解包并 `resolve` 绝对路径。
    - 域模块内部读取 `autoDeliver`/`autoPush`/`branchRaceGuard` 等决定是否自动交付、推送或启用并发分支竞态保护。
@@ -117,6 +117,6 @@ dsh-git-worktree 插件通过宿主 settings 服务将 `Config` schema 中标为
 ## Known Issues
 
 - **客户端卡片字段覆盖不全**：当前 `WorktreeSettings`（src/client/settings-card/worktree-settings-card.ts:17-23）仅暴露 `autoDeliver`、`autoPush`、`worktreesRoot`、`gitTimeoutMs`、`worktreeAddTimeoutMs` 五个 volatile 字段。其余四个 volatile 字段（`inheritLocalChanges`、`worktreeKeepCount`、`branchRaceGuard`、`branchRaceWindowMs`，定义于 src/index.ts:286,291,298,300）虽在 `Config` 中标 volatile 且模块内部支持热更新，但无设置页 UI 编辑入口，只能通过直接修改 `cordis.patch.yml` 生效。
-- **孤儿工作区自愈映射**：设置页暴露 `worktreesRoot` 后，改根目录可能留下旧根下的孤儿 worktree。无需新代码——`module.reconcile()`（`SessionCheckoutModule` 接口定义于 src/index.ts:113，启动时 `ctx.events.on('ready')` 于行 403-417 调用）已有孤儿检测（`SessionCheckoutReconcileSummary` 接口定义于行 55-61，含 `recoveryRequiredCheckoutIds`、`orphanedCheckoutIds`、`dirtyOrphanedCheckoutIds`、`staleRootCheckoutIds`、`retainedCheckoutCount`），路径候选解析本身也按当前值逐次进行（`resolveWorktreesRootValue` 定义于行 321-324，在 `apply` 中于行 359-362 包装为 live getter）。运维口径：换根目录后旧根目录可整目录手工删除，reconcile 会按当前配置把状态收敛到新根。
+- **孤儿工作区自愈映射**：设置页暴露 `worktreesRoot` 后，改根目录可能留下旧根下的孤儿 worktree。无需新代码——`module.reconcile()`（`SessionCheckoutModule` 接口定义于 src/index.ts:207，启动时 `ctx.events.on('ready')` 于行 403-417 调用）已有孤儿检测（`SessionCheckoutReconcileSummary` 接口定义于行 55-61，含 `recoveryRequiredCheckoutIds`、`orphanedCheckoutIds`、`dirtyOrphanedCheckoutIds`、`staleRootCheckoutIds`、`retainedCheckoutCount`），路径候选解析本身也按当前值逐次进行（`resolveWorktreesRootValue` 定义于行 321-324，在 `apply` 中于行 359-362 包装为 live getter）。运维口径：换根目录后旧根目录可整目录手工删除，reconcile 会按当前配置把状态收敛到新根。
 - **默认值归一时机**：`autoDeliver`/`autoPush` 的 `?? true` 归一从 apply 期移到消费期：未设置 = true 的语义不变（`Config` 里 `z.boolean().default(true)` 定义于行 268/273，live ref 解包后未定义则走默认）。`isAutoDeliverEnabled()` 模块方法（`SessionCheckoutModule` 接口 src/index.ts:176）实时读取 volatile 值，工具层在其关闭时拒绝 model-driven delivery（`registerTools` 于行 396 注册的工具会检查）。
 - **类型安全约束**：所有消费点必须逐次解包，新增消费点若忘记解包会在 typecheck 阶段被抓出（类型是显式联合 `T | LiveValue<T>`）。
