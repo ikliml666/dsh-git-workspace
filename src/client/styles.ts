@@ -32,11 +32,31 @@ export const WORKTREE_STYLES = String.raw`
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* Official rows exchange time for actions on hover. Yield the badge's width
-   only when a safe action container exists, leaving alpha's badge visible. */
-[role="treeitem"]:hover:has(> [class$="_rowActions"]) > .dsh-git-worktree-sidebar-badge {
-  display: none;
+/* The official row seat (sidebar.session.row.leading) is a fixed 16px box:
+   ._slot{width:16px;flex:none}. Mode B cannot re-render the row the way the
+   takeover does, so the glyph+chip pair lives INSIDE that seat; without this
+   rule the chip is clipped away and only the branch glyph survives — exactly
+   the "one icon instead of a pill" regression. Widening only the seat that
+   actually holds our decoration keeps the untouched seats at 16px. */
+[role="treeitem"] > span:has(.dsh-git-worktree-sidebar-icon) {
+  flex: 0 1 auto;
+  width: auto;
+  min-width: 16px;
+  /* Keep the title the row's primary content: the mark may take up to 55% of
+     the row, and the chip inside it ellipsizes beyond that. */
+  max-width: 55%;
+  overflow: hidden;
 }
+/* Inside that widened seat the chip must be allowed to shrink, otherwise its
+   own max-width wins and it overflows the seat into the title. */
+[role="treeitem"] > span > .dsh-git-worktree-sidebar-badge {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+/* Upstream keeps the identity mark visible while a row is hovered; the chip
+   lives in the row-leading seat, which never competes with the row's hover
+   actions (those sit at the far right). So there is no hover rule here: hiding
+   the chip on hover would make the pill flicker for no layout gain. */
 .dsh-git-worktree-sidebar-icon,
 .dsh-git-worktree-sidebar-badge[data-worktree-state="working"] {
   --dsh-wt-sidebar-accent: var(--dsw-alias-state-business-primary);

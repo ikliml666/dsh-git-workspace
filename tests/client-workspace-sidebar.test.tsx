@@ -400,7 +400,12 @@ describe('registerDecoratedWorkspaceSidebar (Mode B: official Workspace stays li
       },
     }))
     fireEvent(window, new CustomEvent(WORKTREE_REVIEW_REFRESH_EVENT, { detail: { sessionId: ownerSession } }))
-    await waitFor(() => expect(owner2.container.textContent).toContain('Completed · feat/demo'))
+    // The chip shows the state words only (upstream never prints the branch in
+    // the row); the branch stays in the tooltip so the row is not cluttered.
+    await waitFor(() => expect(owner2.container.textContent).toContain('Completed'))
+    expect(owner2.container.textContent).not.toContain('feat/demo')
+    expect(owner2.container.querySelector('.dsh-git-worktree-sidebar-icon')?.getAttribute('title'))
+      .toBe('Completed · feat/demo')
     owner2.unmount()
   })
 
@@ -415,11 +420,14 @@ describe('registerDecoratedWorkspaceSidebar (Mode B: official Workspace stays li
     const Leading = leading!.component as (props: { sessionId?: string; seat?: string }) => unknown
     const Hover = hover!.component as (props: { sessionId?: string; seat?: string }) => unknown
 
-    // The leading seat is 16px wide: the branch glyph carries the identity and
-    // the state words live in the tooltip, exactly like the upstream takeover.
+    // Upstream renders the identity mark (glyph + state chip) inline in the
+    // row, right before the title. Mode B cannot re-render the row, so the same
+    // pair is rendered inside the row's leading seat and styles.ts relaxes that
+    // seat's fixed 16px width for our decoration.
     const leadNode = render(<Leading sessionId={ownerSession} seat="sidebar.session.row.leading" />)
     await waitFor(() => expect(leadNode.container.querySelector('.dsh-git-worktree-sidebar-icon')).not.toBeNull())
-    expect(leadNode.container.querySelector('.dsh-git-worktree-sidebar-badge')).toBeNull()
+    expect(leadNode.container.querySelector('.dsh-git-worktree-sidebar-badge')?.textContent)
+      .toBe('Ready for review')
     expect(leadNode.container.querySelector('.dsh-git-worktree-sidebar-icon')?.getAttribute('title'))
       .toBe('Ready for review')
     leadNode.unmount()
