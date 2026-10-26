@@ -55,6 +55,8 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
   const [target, setTarget] = useState<WorktreeConsoleTargetDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  /** Why the last `current` probe failed; surfaced in the trigger tooltip. */
+  const [failure, setFailure] = useState<{ code: string; message: string } | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [managerOpen, setManagerOpen] = useState(false)
   const [cleanupConfirmOpen, setCleanupConfirmOpen] = useState(false)
@@ -94,6 +96,7 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
     setTarget(null)
     setLoading(true)
     setError(null)
+    setFailure(null)
     setMenuOpen(false)
     setManagerOpen(false)
     setCleanupConfirmOpen(false)
@@ -113,11 +116,18 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
     setSwitchNotice(null)
     return subscribeCurrent(adapter, sessionId, language, result => {
       if ('error' in result) {
-        setError(result.error instanceof Error ? result.error.message : String(result.error))
+        const message = result.error instanceof Error ? result.error.message : String(result.error)
+        setFailure({ code: 'client_error', message })
+        setError(message)
       } else if (result.outcome.ok) {
         setTarget(result.outcome.value.target)
+        setFailure(null)
         setError(null)
       } else {
+        // A failed probe leaves `target` null, so the chip can only fall back to
+        // t('unavailable'). Keep the code and message so the trigger's tooltip
+        // says WHY instead of making the user guess.
+        setFailure({ code: result.outcome.error.code, message: result.outcome.error.message })
         setError(result.outcome.error.message)
       }
       setLoading(false)
@@ -138,6 +148,11 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
     ? new Date(target.expiresAt).toLocaleDateString(language === 'en' ? 'en-US' : 'zh-CN')
     : null
   const accessibleLabel = expiry === null ? t("session.target.label", { target: triggerLabel }) : t("session.target.expires", { p0: triggerLabel, p1: expiry })
+  // When the probe failed the chip shows a bare "unavailable": put the real code
+  // and message in the tooltip so the failure is diagnosable from the UI itself.
+  const triggerTitle = failure === null
+    ? t("session.target.and.linked.worktrees")
+    : `${failure.code}: ${failure.message}`
 
   const reveal = (): void => {
     if (!target?.managedRoot) return
@@ -493,8 +508,8 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
             data-target-state={state}
             aria-expanded={menuOpen}
             aria-haspopup="menu"
-            aria-label={accessibleLabel}
-            title={t("session.target.and.linked.worktrees")}
+            aria-label={failure === null ? accessibleLabel : `${accessibleLabel} — ${triggerTitle}`}
+            title={triggerTitle}
             onClick={() => {
               if (menuOpen) {
                 setMenuOpen(false)

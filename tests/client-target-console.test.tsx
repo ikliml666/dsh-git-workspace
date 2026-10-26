@@ -135,6 +135,21 @@ function renderConsole(
 afterEach(() => cleanup())
 
 describe('Harness-native Session Target slots', () => {
+  // 回归：current 失败时 target 为 null，胶囊只能退化成 t('unavailable')。
+  // 若 tooltip 不带上真实 code/message，用户看到的永远是一个无从诊断的「不可用」。
+  test('current 失败时 tooltip 暴露真实错误码与消息', async () => {
+    const fixture = createWorktreeConsoleAdapterFixture()
+    fixture.adapter.current = vi.fn(async () => ({
+      ok: false as const,
+      error: { code: 'not_owner' as const, message: '这个会话不持有 Worktree 验收位' },
+    }))
+    render(<TargetStatusAction sessionId="target-session" adapter={fixture.adapter} services={clientServices()} />)
+
+    const trigger = await screen.findByRole('button', { name: /不可用/ })
+    await waitFor(() => expect(trigger.getAttribute('title')).toBe('not_owner: 这个会话不持有 Worktree 验收位'))
+    expect(trigger.getAttribute('aria-label')).toContain('not_owner: 这个会话不持有 Worktree 验收位')
+  })
+
   test.each([
     ['local', 'Worktree · Local'],
     ['working', 'Worktree · 修改中'],
