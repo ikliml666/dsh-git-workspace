@@ -6,6 +6,12 @@
 
 ### Fixed
 
+- 顶部胶囊「不可用」无从诊断（2026-10-26，证据链纠正 + 可观测性补齐）：排查过程中曾把「诊断日志里没有 `kind:"current"` 记录」当作「`current()` 从未被调用」的硬证据，据此推断 gateway 的 agent lookup 在方法调用前失败。**这条推断是错的**——`src/console-host/service.ts` 的 `current()` 当时根本没有埋点（`grep "kind: 'current'" lib/console-host/service.js` 结果为 0），日志里没有它是因为没人写，不是因为没被调用。据此放弃了一个高成本的错误方向（改 gateway 传参）。
+  - `src/console-host/service.ts` 的 `current()` 补上 `appendDiag({ kind: 'current', ok, agentId, code, message })`：胶囊挂载即会调一次 `current`，失败时的 `code`/`message` 直接落盘，可区分「会话未持验收位」「项目不匹配」「git 报错」三类。
+  - `src/client/target-console/TargetStatusAction.tsx` 新增 `failure` 状态，记录 `current` 失败的真实 `{ code, message }`；触发按钮的 `title` 与 `aria-label` 在失败时改为 `${code}: ${message}`，不再只显示一个无从诊断的「不可用」（`state='error'` 时 `target` 为 null，标签只能退化成 `t('unavailable')`）。
+  - 新增回归用例「current 失败时 tooltip 暴露真实错误码与消息」。
+  - 验证：`tsc --noEmit` 0 诊断；`pnpm build` 通过（`lib/client.js` 1184.59 kB，产物含 `kind: 'current'` 1 处、`triggerTitle` 3 处）；`tests/client-target-console.test.tsx` 72 passed。真机重启后读 `~/.dsh/plugins/dsh-git-worktree/sidebar-diag.ndjson` 的 `kind:"current"` 记录即可定位真实错误码。
+
 - 侧栏 Worktree 徽章始终不显示（2026-10-26，槽位事实纠正）：此前两次修复都把槽名改成 `sidebar.session.row.trailing`，但**该槽在 DSH 0.2.x 根本不存在**——用 `@electron/asar` 解包宿主 `app.asar` 统计字符串，`sidebar.session.row.trailing` 出现 **0** 次，官方 `sidebar.workspaces` 条目实际声明的是 `sidebar.session.row.leading`（行标题前的 16px 位，仅在行主状态为 idle 且不显示状态点时渲染）与 `sidebar.session.row.hover`（悬浮卡片正文，popover 打开时挂载）。`slots.inject` 等一个永不被声明的槽名，回调永不执行、徽章永不挂载，与真机现象完全一致。
   - 改为同时向两个真实槽位注册：`ROW_SEATS = ['sidebar.session.row.leading', 'sidebar.session.row.hover']`，同一组件按 `seat` 分派呈现——行首 16px 位渲染 7×7 状态圆点（颜色按 `BADGE_DOT_COLOR` 映射状态色，`aria-label`/`title` 承载完整文案；文字 chip 在 16px 里会被裁掉），hover 卡片渲染原有 168px 圆角「状态 · 分支」全文案 chip。
   - 「清除状态标签」菜单项仍注册在真实存在的 `sidebar.workspaces.session.menu.item`，不变。

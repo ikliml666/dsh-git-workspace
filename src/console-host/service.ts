@@ -72,8 +72,16 @@ export class WorktreeConsoleService extends TypertRemoteService {
   }
 
   @Remote
-  current(agent: Agent, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleCurrentResponse>> {
-    return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.current(agent.id))
+  async current(agent: Agent, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleCurrentResponse>> {
+    const outcome = await withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.current(agent.id))
+    // 顶部胶囊永远显示「不可用」时，唯一的现场证据就是这条：胶囊会立刻调一次
+    // current，失败时的 code/message 决定是会话未持验收位、项目不匹配还是 git 报错。
+    this.appendDiag({
+      kind: 'current', ts: Date.now(), ok: outcome.ok, agentId: agent.id,
+      code: outcome.ok ? undefined : outcome.error.code,
+      message: outcome.ok ? undefined : outcome.error.message,
+    })
+    return outcome
   }
 
   @Remote
