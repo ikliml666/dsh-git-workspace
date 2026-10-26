@@ -18,13 +18,13 @@ tags:
 
 dsh-git-worktree 插件通过宿主 settings 服务将 `Config` schema 中标为 volatile 的字段投影为设置表单，写入 `cordis.patch.yml` 且通过 revision CAS 生效。宿主 settings `schema.ts` 读取 `meta.volatile`（见 `src/index.ts:244` 注释）。volatile 编辑**不重挂载插件**：`apply` 不重跑，配置值以 `LiveValue<T>`（即 `{ get(): T }`）形式到达（见 `src/ports.ts:551-553` 接口定义与 `src/ports.ts:551-556` 解包函数）。
 
-当前代码中 `Config` 共有 9 个 volatile 字段：`gitTimeoutMs` (src/index.ts:260)、`worktreeAddTimeoutMs` (261)、`autoDeliver` (268)、`autoPush` (273)、`worktreesRoot` (280)、`inheritLocalChanges` (286)、`worktreeKeepCount` (291)、`branchRaceGuard` (298)、`branchRaceWindowMs` (300)。客户端设置卡片（`WorktreeSettings` 接口，src/client/settings-card/worktree-settings-card.ts:17-23）仅编辑其中 5 个字段（`autoDeliver`、`autoPush`、`worktreesRoot`、`gitTimeoutMs`、`worktreeAddTimeoutMs`）。所有消费点通过 `liveConfigValue`（src/ports.ts:551-556）逐次解包，不做启动期归一。
+当前代码中 `Config` 共有 9 个 volatile 字段：`gitTimeoutMs` (src/index.ts:260)、`worktreeAddTimeoutMs` (src/index.ts:261)、`autoDeliver` (src/index.ts:268)、`autoPush` (src/index.ts:273)、`worktreesRoot` (src/index.ts:280)、`inheritLocalChanges` (src/index.ts:286)、`worktreeKeepCount` (src/index.ts:291)、`branchRaceGuard` (src/index.ts:298)、`branchRaceWindowMs` (src/index.ts:300)。客户端设置卡片（`WorktreeSettings` 接口，src/client/settings-card/worktree-settings-card.ts:17-23）仅编辑其中 5 个字段（`autoDeliver`、`autoPush`、`worktreesRoot`、`gitTimeoutMs`、`worktreeAddTimeoutMs`）。所有消费点通过 `liveConfigValue`（src/ports.ts:551-556）逐次解包，不做启动期归一。
 
 ## Key Components
 
 ### src/index.ts
 - `volatile<T>(schema: T): T`（行 245-248）：助手函数，设 `schema.meta.volatile = true` 后返回，用于包装 Config 中的可变字段。
-- `Config`（行 250-308）：schemastery `z.object` 定义。非 volatile 字段：`stateDir`（行 257，启动期目录）、`enableWorkspaceProvider`（行 307，Workspace 接管开关）。volatile 字段（均通过 `volatile()` 包装）：
+- `Config`（行 250-308）：schemastery `z.object` 定义。非 volatile 字段：`stateDir`（行 257，启动期目录）、`enableWorkspaceProvider`（行 307，Workspace 接管开关，非 volatile）。volatile 字段（均通过 `volatile()` 包装）：
   - `gitTimeoutMs`（行 260）：`volatile(z.number().min(1_000).max(MAX_GIT_TIMEOUT_MS).step(1).default(DEFAULT_GIT_TIMEOUT_MS))`
   - `worktreeAddTimeoutMs`（行 261）：`volatile(z.number().min(1_000).max(MAX_GIT_TIMEOUT_MS).step(1).default(300_000))`
   - `autoDeliver`（行 268）：`volatile(z.boolean().default(true))`
@@ -56,19 +56,19 @@ dsh-git-worktree 插件通过宿主 settings 服务将 `Config` schema 中标为
 - `GitTimeoutOptions` 接口（行 3-6）：含 `gitTimeoutMs?` 与 `worktreeAddTimeoutMs?`，类型均为 `number | LiveValue<number | undefined>`。
 - 常量：`DEFAULT_GIT_TIMEOUT_MS = 120_000`（行 8）、`DEFAULT_WORKTREE_ADD_TIMEOUT_MS = 5 * 60_000`（行 9）、`MAX_GIT_TIMEOUT_MS = 60 * 60 * 1000`（行 10）。
 - `validateGitTimeouts(options)`（行 12-19）：校验时逐次解包 `liveConfigValue(options[key])` 确保整数且在 [1000, MAX] 内。
-- `gitTimeoutMs(args, options)`（行 21-27）：每次调用解包；`worktree add` 用 `worktreeAddTimeoutMs`（默认 5*60_000），`worktree remove` 硬编码 300000，其他用 `gitTimeoutMs`（默认 120_000）。设置页改超时对下一条命令即生效。
+- `gitTimeoutMs(args, options)`（行 21-27）：每次调用解包；`worktree add` 用 `worktreeAddTimeoutMs`（默认 300000），`worktree remove` 硬编码 300000，其他用 `gitTimeoutMs`（默认 120000）。设置页改超时对下一条命令即生效。
 
 ### src/client/settings-card/index.ts
 - `ConfigFormsService` 接口（行 19-22）：宿主配置表单服务抽象，含 `get<T>(ns)` 与 `whileServed(namespaces, callback)`。
 - `SlotsService` 接口（行 25-28）：宿主插槽服务抽象。
-- `mountSettingsCard(ctx)`（行 35-57）：fail-soft 探测 `configForms` 与 `slots`（行 39-41）；通过 `ctx.effect` 创建 `WorktreeSettingsCardController`（行 45-47）并在 `WORKTREE_SETTINGS_NS` 可用时注入 `plugins.bundle.config` 插槽挂载 `WorktreeSettingsCard` 组件（行 52-56）。
+- `mountSettingsCard(ctx)`（行 35-57）：fail-soft 探测 `configForms` 与 `slots`（行 39-41）；通过 `ctx.effect` 创建 `WorktreeSettingsCardController`（行 44-47）并在 `WORKTREE_SETTINGS_NS` 可用时注入 `plugins.bundle.config` 插槽挂载 `WorktreeSettingsCard` 组件（行 52-56）。
 
 ### src/client/settings-card/worktree-settings-card.ts
 - `WORKTREE_SETTINGS_NS = 'dsh-git-worktree'`（行 14）：配置命名空间常量。
 - `WorktreeSettings` 接口（行 17-23）：卡片编辑的 volatile 映射，仅含 5 字段：`autoDeliver?`、`autoPush?`、`worktreesRoot?`、`gitTimeoutMs?`、`worktreeAddTimeoutMs?`（**不含** `inheritLocalChanges`、`worktreeKeepCount`、`branchRaceGuard`、`branchRaceWindowMs`）。
 - `WorktreeSettingsCardState` 接口（行 26-32）：继承 `SettingsFormShell`，含上述 5 个 `SettingsFieldState` 字段。
 - `WorktreeSettingsCardFace` 接口（行 35-37）：继承 `SettingsFormActions`，含 `hooks: { worktreeCard: SnapshotStore<WorktreeSettingsCardState> }`。
-- `WorktreeSettingsCardController` 类（行 39-69）：
+- `WorktreeSettingsCardController` 类（行 39-70）：
   - 构造器（行 43-52）：用 `SettingsFormModel` 绑定 5 个 field（`settingsBooleanField('autoDeliver')`、`settingsBooleanField('autoPush')`、`settingsTextField('worktreesRoot')`、`settingsNumberField('gitTimeoutMs')`、`settingsNumberField('worktreeAddTimeoutMs')`）。
   - `projection()`（行 54-63）：返回 `WorktreeSettingsCardState`。
   - `inject()`（行 65-67）：返回 `WorktreeSettingsCardFace`。
@@ -98,7 +98,7 @@ dsh-git-worktree 插件通过宿主 settings 服务将 `Config` schema 中标为
 
 ## Data Flow
 
-1. 用户在客户端设置卡片（`WorktreeSettingsCardController`，src/client/settings-card/worktree-settings-card.ts:39-69）编辑 5 个暴露字段，通过宿主 `configForms` 服务写入 `cordis.patch.yml`。
+1. 用户在客户端设置卡片（`WorktreeSettingsCardController`，src/client/settings-card/worktree-settings-card.ts:39-70）编辑 5 个暴露字段，通过宿主 `configForms` 服务写入 `cordis.patch.yml`。
 2. 宿主 settings 机制读取 `Config` 中 `meta.volatile = true` 的字段（由 src/index.ts:245-248 的 `volatile` 助手设置），将其作为 `LiveValue<T>` 注入插件 `apply` 的配置参数，而非 plain 值。
 3. `apply`（src/index.ts:347-448）收到 `LocalAdaptationConfig` 与 `GitTimeoutOptions`，将 live 引用原样透传给域模块与 git 适配器（行 366、370-385）。
 4. 消费点每次使用配置时调用 `liveConfigValue`（src/ports.ts:551-556）解包：

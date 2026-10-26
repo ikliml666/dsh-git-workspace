@@ -46,7 +46,7 @@ Typert RPC 服务层，继承自 `TypertRemoteService`（L34），充当网关�
 **公开 RPC 方法（均使用 `@Remote` 装饰，行号对应方法声明起始行）**:
 - `sidebarTopology(locale?)`（L53-66）：返回侧边栏拓扑，附加 `workspaceClientFlavor` 和 `officialWorkspaceActive`，并记录诊断。
 - `clientBootReport(report)`（L68-72）：接收客户端启动报告，仅记录诊断并返回 `true`。
-- `current(agent, locale?)`（L74-77）：获取当前工作区状态。
+- `current(agent, locale?)`（L74-77）：获取当前工作区状态，注入诊断面包屑。
 - `list(agent, needsAttention?, includeDelivered?, locale?)`（L79-82）：列出工作区。
 - `preflightCreate(agent, locale?)`（L84-87）：创建前预检。
 - `createWithInitialCommit(agent, confirmationToken, locale?)`（L89-92）：带初始提交创建。
@@ -81,7 +81,7 @@ Typert RPC 服务层，继承自 `TypertRemoteService`（L34），充当网关�
 
 **国际化处理模式**:
 - 所有对外暴露的 RPC 方法均包裹在 `withHostLanguage` 中（如 L55）。
-- 语言优先级：传入的 `locale` > `agent.ctx` 中的设置 > `this.hostContext` 中的设置（通过 `languageFromSettings` 获取，L76 等）。
+- 语言优先级：传入的 `locale` > `agent.ctx` 中的设置 > `this.hostContext` 中的设置（通过 `languageFromSettings` 获取，L77 等）。
 
 ### src/console-host/control-plane.ts
 
@@ -125,14 +125,14 @@ Typert RPC 服务层，继承自 `TypertRemoteService`（L34），充当网关�
 **API 实现细节（返回对象的方法，行号对应实现起始）**:
 - `sidebarTopology`（L564-628）：聚合 managed checkouts，合并 membership，按 project 分组。
 - `current`（L630-636）：返回 caller target 或 details。
-- `gitOverview`（L638-651）：调用 `projectRootFor` 后取分支概览，返回 `root`、`branch`、头部 OID（源码 L647 字面标记为 `Capabilities headOid`，语义为响应字段 `headOid`）、`branches`、`dirtyCount`。
+- `gitOverview`（L638-651）：调用 `projectRootFor` 后取分支概览，返回 `root`、`branch`、`headOid`、`branches`、`dirtyCount`。
 - `gitGraph`（L653-658）：取 git log 图，若 `options.git.graphLog` 未定义则抛出 `git_error`（L655）。
 - `gitCreateBranch`（L660-665）：创建本地分支，若 `options.git.createLocalBranch` 未定义则抛出错误（L662）。
 - `gitSwitchBranch`（L667-682）：切换分支，交付中禁止（L671-678 遍历 registry 检查 `delivering`）。
 - `gitPruneMergedBranches`（L684-686）：调用模块修剪。
 - `gitListTags`（L688-694）：列出 Git 标签，若 `options.git.listTags` 未定义或返回 null 则抛出 `git_error`。
 - `gitCreateTag`（L696-706）：创建标签，支持推送（L701-705 软降级处理 `pushMessage`）。
-- `gitDeleteTag`（L708-722）：删除标签，远程优先（L712-718 先处理 `request.push` 远程删除再本地删除）。
+- `gitDeleteTag`（L708-722）：删除标签，远程优先（L712-718 先处理 `request.remote` 远程删除再本地删除）。
 - `gitPushTag`（L724-733）：推送标签，软降级（L730-732 返回 `pushed: false` 和 `pushMessage`）。
 - `listAbandoned`（L735-737）：列出放弃快照。
 - `restoreAbandoned`（L739-743）：恢复放弃工作树。
@@ -270,11 +270,12 @@ Typert RPC 服务层，继承自 `TypertRemoteService`（L34），充当网关�
 - [[host-overview|Host Entry and Registration Surface]]：宿主入口与注册机制，此处 `TypertRemoteService` 子类由 Gateway 解析 `agentId` 前挂载（service.ts L33 注释）。
 - [[adapters|Adapter Layer]]：Git 适配器（`SessionCheckoutGitPort`）和文件系统适配器（`SessionCheckoutFilesPort`），在 control-plane.ts L71-73 注入。
 - [[i18n-host|Host i18n]]：`withHostLanguage`、`languageFromSettings`、`hostMessage` 来自 `../i18n/host.js`，用于多语言消息。
+- [[console-contract|Console Contract]]：类型定义如 `WorktreeConsoleOutcome`、各类 Response 来自 `../console-contract.js`，被 service.ts 与 control-plane.ts 广泛引用。
 
 ## Known Issues
 
 - **诊断隔离**：`appendDiag`（service.ts L46-51）静默捕获异常（L50 `catch { /* best effort */ }`），诊断写入失败不可见，但确保不破坏 RPC 表面。
-- **语言回退**：若 `agent.ctx` 与 `hostContext` 均未设语言，`languageFromSettings`（service.ts L76 等）提供默认，具体行为依赖 `../i18n/host.js`。
+- **语言回退**：若 `agent.ctx` 与 `hostContext` 均未设语言，`languageFromSettings`（service.ts L77 等）提供默认，具体行为依赖 `../i18n/host.js`。
 - **错误传播差异**：`reviewDiff`/`finalize`/`finalizePreview`（control-plane.ts L864、L1203、L1247）未使用 `outcome` 包装，而是内部 try/catch 返回 `failure` 或 `consoleFailure`，其余方法多用 `outcome` 包裹；未统一。
 - **批量观察降级**：`list` 中 `observeManagedCheckouts` 若抛错则整批降级逐条 observe（L773-781），个别记录观察失败以无观察投影呈现（L795-799），后续 CAS 校验兜底。
 - **空仓库创建令牌限制**：`confirmations` Map 上限 500，TTL 5 分钟（L833-836），高并发空仓库初始化可能淘汰旧令牌。
