@@ -48,6 +48,8 @@ export const TARGET_CONSOLE_STYLES = String.raw`
 .dsh-wtc-target-chip[data-target-state="cleanup_pending"] { --wtc-state: #c47a1c; }
 .dsh-wtc-target-chip[data-target-state="recovery_required"],
 .dsh-wtc-target-chip[data-target-state="error"] { --wtc-state: #c94747; }
+/* Not a Git repository is not a failure: neutral grey, no alarm colour. */
+.dsh-wtc-target-chip[data-target-state="not_git_repository"] { --wtc-state: #7a7a7a; opacity: .82; }
 .dsh-wtc-target-chip[data-target-state="delivered"],
 .dsh-wtc-target-chip[data-target-state="discarded"] { opacity: .66; }
 .dsh-wtc-target-expiry { color: color-mix(in srgb, currentColor 62%, transparent); font-weight: 520; }

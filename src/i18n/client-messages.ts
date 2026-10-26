@@ -919,6 +919,26 @@ export const clientMessages = {
     "zh": "不可用",
     "en": "Unavailable"
   },
+  "not.a.git.repository": {
+    "zh": "非 Git 项目",
+    "en": "Not a Git project"
+  },
+  "initialize.git.repository": {
+    "zh": "初始化 Git 仓库…",
+    "en": "Initialize Git repository…"
+  },
+  "initialize.git.repository.description": {
+    "zh": "当前项目目录还不是 Git 仓库。初始化会执行 git init 并创建首次提交，之后才能开 Worktree 会话。",
+    "en": "This project directory is not a Git repository yet. Initializing runs git init and creates the first commit, after which Worktree sessions become available."
+  },
+  "initialize.git.repository.confirm": {
+    "zh": "初始化",
+    "en": "Initialize"
+  },
+  "initialize.git.repository.done": {
+    "zh": "已初始化 Git 仓库",
+    "en": "Git repository initialized"
+  },
   "session.target.expires": {
     "zh": "Session Target：{p0}，到期 {p1}",
     "en": "Session Target: {p0}, expires {p1}"

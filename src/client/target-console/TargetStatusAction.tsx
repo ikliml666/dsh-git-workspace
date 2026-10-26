@@ -75,6 +75,9 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
   const [tagsOpen, setTagsOpen] = useState(false)
   /** Commit the next created tag points at; null means HEAD. */
   const [tagTarget, setTagTarget] = useState<string | null>(null)
+  /** `git init` + first-commit confirmation for a non-Git project directory. */
+  const [initializeOpen, setInitializeOpen] = useState(false)
+  const [initializeBusy, setInitializeBusy] = useState(false)
   const actionScope = useRef(0)
   const activeSession = useRef(sessionId)
   if (activeSession.current !== sessionId) {
@@ -138,8 +141,18 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
   // session, and `gitOverview` costs 3 git spawns the user never asked for.
   // The popover loads it on first expand instead (see the trigger's onClick).
 
-  const state = target?.state ?? (loading ? 'loading' : 'error')
-  const stateLabel = state === 'loading' ? t("loading") : state === 'error' ? t("unavailable") : STATE_LABELS(t)[state]
+  // A project directory that is not a Git repository is a normal, expected
+  // answer — every plain folder produces it. Collapsing it into the same bare
+  // "unavailable" as a real probe failure made the chip look broken on exactly
+  // the sessions where nothing is wrong, so it gets its own label and an
+  // explicit way out (initialize the repository).
+  const notGitRepository = failure?.code === 'not_git_repository'
+  const state = target?.state ?? (loading ? 'loading' : notGitRepository ? 'not_git_repository' : 'error')
+  const stateLabel = state === 'loading'
+    ? t("loading")
+    : state === 'not_git_repository'
+      ? t("not.a.git.repository")
+      : state === 'error' ? t("unavailable") : STATE_LABELS(t)[state]
   // Git-graph-style chip: the branch name is the primary label; the worktree
   // state only fills in when no branch is known (loading/error/detached).
   const branchLabel = target?.currentBranch?.trim() ? target.currentBranch : null
@@ -238,6 +251,36 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
       if (active()) setError(reason instanceof Error ? reason.message : String(reason))
     } finally {
       if (active()) setCreateBusy(false)
+    }
+  }
+
+  const initializeRepository = async (): Promise<void> => {
+    if (initializeBusy) return
+    if (typeof adapter.initializeProject !== 'function') {
+      setError(t("unavailable"))
+      return
+    }
+    const scope = actionScope.current
+    const active = () => mounted.current && scope === actionScope.current
+    setInitializeBusy(true)
+    setError(null)
+    try {
+      const outcome = await adapter.initializeProject({ sourceSessionId: sessionId })
+      if (!active()) return
+      if (!outcome.ok) {
+        setError(outcome.error.message)
+        return
+      }
+      setInitializeOpen(false)
+      // Re-probe: the capsule must flip from "not a Git project" to the real
+      // Local target without waiting for the 5s poll, and every dependent
+      // entry (sidebar badge, review dock) needs the same invalidate.
+      requestWorktreeReviewRefresh(sessionId)
+      invalidateBranchOverview(sessionId)
+    } catch (reason) {
+      if (active()) setError(reason instanceof Error ? reason.message : String(reason))
+    } finally {
+      if (active()) setInitializeBusy(false)
     }
   }
 
@@ -393,6 +436,12 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
       {expiry ? <span>{t("retained.until")} {expiry}</span> : null}
       {error ? <span className="dsh-wtc-menu-error">{error}</span> : null}
     </span>
+  ) : notGitRepository ? (
+    <span className="dsh-wtc-menu-summary">
+      <strong>{t("not.a.git.repository")}</strong>
+      <span>{t("initialize.git.repository.description")}</span>
+      {error ? <span className="dsh-wtc-menu-error">{error}</span> : null}
+    </span>
   ) : error ?? triggerLabel
 
   const MAX_BRANCH_ITEMS = 12
@@ -416,7 +465,13 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
     : matchedBranches
   const hiddenBranchCount = query === '' ? sortedBranches.length - visibleBranches.length : 0
 
-  const items: MenuEntry[] = [
+  // A non-Git project has no branches, tags or review target to act on: offering
+  // those rows would just fail on click. Its only real action is the conversion.
+  const items: MenuEntry[] = notGitRepository ? [
+    { id: 'summary', label: summary, disabled: true },
+    { type: 'separator', id: 'summary-separator' },
+    { id: 'initialize', icon: <ReviewIcon name="create" />, label: t("initialize.git.repository"), disabled: initializeBusy || typeof adapter.initializeProject !== 'function' },
+  ] : [
     { id: 'summary', label: summary, disabled: true },
     { type: 'separator', id: 'summary-separator' },
     ...(overviewBranches.length > 0 && overview !== null ? [{ id: 'branches-title', label: <span className="dsh-wtc-branches-title">{t("branch.list.title")}{overview.dirtyCount > 0 ? <span className="dsh-wtc-branches-dirty">{t("branch.dirty.hint", { p0: overview.dirtyCount })}</span> : null}</span>, disabled: true } satisfies MenuEntry] : []),
@@ -499,6 +554,7 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
           if (id === 'prune_branches') openPrunePreview()
           if (id === 'manage_tags') { setMenuOpen(false); setTagTarget(null); setTagsOpen(true) }
           if (id === 'graph') { setMenuOpen(false); setGraphOpen(true) }
+          if (id === 'initialize') { setMenuOpen(false); setError(null); setInitializeOpen(true) }
           if (id.startsWith('branch:')) void switchBranch(id.slice('branch:'.length))
         }}
         anchor={(
@@ -566,6 +622,23 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
           </span>
         )}
       />
+      <Modal
+        open={initializeOpen}
+        onClose={() => { if (!initializeBusy) setInitializeOpen(false) }}
+        title={t("initialize.git.repository")}
+        closeLabel={t("cancel")}
+        description={t("initialize.git.repository.description")}
+        footer={(
+          <span className="dsh-wtc-confirm-actions">
+            <button type="button" className="dsh-wtc-button" disabled={initializeBusy} onClick={() => setInitializeOpen(false)}>{t("cancel")}</button>
+            <button type="button" className="dsh-wtc-button dsh-wtc-primary" disabled={initializeBusy} onClick={() => { void initializeRepository() }}>
+              {initializeBusy ? t("processing") : t("initialize.git.repository.confirm")}
+            </button>
+          </span>
+        )}
+      >
+        {error ? <span className="dsh-wtc-menu-error">{error}</span> : null}
+      </Modal>
       <BranchGraphModal
         open={graphOpen}
         adapter={adapter}
