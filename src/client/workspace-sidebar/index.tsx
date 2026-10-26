@@ -4,7 +4,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { WorkspaceId, WorkspaceSnapshot as WorkspaceListState } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import { IconTrashOutlineRegular, MenuItemButton } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconBranchOutlineRegular, IconTrashOutlineRegular, MenuItemButton } from '@deepseek-ai/dsh-client-ui-primitives'
 import { apply as applyOfficialWorkspace } from 'virtual:dsh-official-workspace-client'
 import type { WorkspaceBrowserProps } from '@deepseek-ai/dsh-client-ui-workspace/client'
 import type { WorktreeConsoleAdapter, WorktreeSidebarTask, WorktreeSidebarTopologyResponse } from '../../console-contract.js'
@@ -418,29 +418,46 @@ interface RowSeatProps extends OfficialSessionRowEntryProps {
  *     row's popover is open.
  * There is NO `sidebar.session.row.trailing` seat in DSH 0.2.x: injecting that
  * name waits for a declaration that never arrives, so the callback never runs
- * and the badge never mounts. Hence a dot in the narrow leading seat (a text
- * chip there would be clipped) and the full text chip in the hover card.
+ * and the badge never mounts. Hence the branch glyph (upstream's identity mark,
+ * 16px, fits the narrow leading seat) plus the state chip in the hover card.
  */
 const ROW_SEATS = ['sidebar.session.row.leading', 'sidebar.session.row.hover'] as const
 
-// Leading is a 7px dot: colour carries the state, the tooltip carries the words.
-const BADGE_DOT_COLOR: Record<string, string> = {
-  creating: 'var(--dsw-alias-state-business-primary, #4c8dff)',
-  working: 'var(--dsw-alias-state-business-primary, #4c8dff)',
-  ready_for_review: 'var(--dsw-alias-state-warning-primary, #f5a623)',
-  preview_active: 'var(--dsw-alias-state-success-primary, #35c46a)',
-  preview_detached: 'var(--dsw-alias-state-warning-primary, #f5a623)',
-  recovery_required: 'var(--dsw-alias-state-error-primary, #f5544c)',
-  retained: 'var(--dsw-alias-state-success-primary, #35c46a)',
-  cleanup_pending: 'var(--dsw-alias-state-warning-primary, #f5a623)',
-  delivered: 'var(--dsw-alias-state-success-primary, #35c46a)',
-  discarded: 'var(--dsw-alias-state-disabled-primary, #8a8a8a)',
+/**
+ * Upstream identity mark, reused verbatim so the decorated path looks like the
+ * takeover path: a branch glyph in the row's limited seat, and the same glyph
+ * plus the state chip inside the hover card. Colours come from the existing
+ * `.dsh-git-worktree-sidebar-icon[data-worktree-state]` rules in styles.ts,
+ * which mirror upstream's palette for the same state names.
+ */
+function WorktreeIdentity(
+  { state, label, chip }: { state: string; label: string; chip: boolean },
+) {
+  return <>
+    <span
+      className="dsh-git-worktree-sidebar-icon"
+      data-dsh-git-worktree-badge={state}
+      data-worktree-state={state}
+      role="img"
+      aria-label={label}
+      title={label}
+    ><IconBranchOutlineRegular /></span>
+    {chip
+      ? <span
+        className="dsh-git-worktree-sidebar-badge"
+        data-worktree-state={state}
+        title={label}
+      >{label}</span>
+      : null}
+  </>
 }
 
 /**
- * Inline row badge for Managed Worktree owner sessions: a state dot in the
- * leading seat, the state label plus source branch (e.g. "进行中 · feat/x") in
- * the hover card. Rows without a managed task render nothing.
+ * Inline row decoration for Managed Worktree owner sessions, matching the
+ * upstream takeover rendering: a branch glyph in the leading seat (7px-style
+ * dot replaced — the glyph is 16px and already fits the seat) and the glyph
+ * plus the state chip in the hover card. Rows without a managed task render
+ * nothing.
  */
 function WorktreeStatusBadgeEntry({ sessionId, seat }: RowSeatProps) {
   const t = useClientTranslator()
@@ -450,40 +467,11 @@ function WorktreeStatusBadgeEntry({ sessionId, seat }: RowSeatProps) {
     : sidebarBadgeTasks(topology ?? EMPTY_TOPOLOGY, t)
       .find(candidate => candidate.ownerSessionId === sessionId)), [topology, sessionId, t])
   if (!task) return null
-  if (seat === 'sidebar.session.row.leading') {
-    return <span
-      data-dsh-git-worktree-badge={task.state}
-      role="img"
-      aria-label={task.label}
-      title={task.label}
-      style={{
-        display: 'inline-block',
-        width: '7px',
-        height: '7px',
-        borderRadius: '50%',
-        background: BADGE_DOT_COLOR[task.state] ?? 'var(--dsw-alias-state-business-primary, #4c8dff)',
-      }}
-    />
-  }
-  return <span
-    data-dsh-git-worktree-badge={task.state}
-    title={task.label}
-    style={{
-      display: 'inline-block',
-      maxWidth: '168px',
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-      whiteSpace: 'nowrap',
-      verticalAlign: 'middle',
-      fontSize: '11px',
-      lineHeight: '16px',
-      padding: '0 6px',
-      borderRadius: '4px',
-      border: '1px solid var(--dsh-border, rgba(128,128,128,.4))',
-      color: 'var(--dsh-text-secondary, inherit)',
-      opacity: '.9',
-    }}
-  >{task.label}</span>
+  return <WorktreeIdentity
+    state={task.state}
+    label={task.label}
+    chip={seat !== 'sidebar.session.row.leading'}
+  />
 }
 
 /**

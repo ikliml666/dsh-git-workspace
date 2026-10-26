@@ -71,6 +71,11 @@ export function IconTrashOutlineRegular() {
   return <svg data-icon="trash-outline" />
 }
 
+/** Narrow test double for the Harness platform outline branch icon. */
+export function IconBranchOutlineRegular() {
+  return <svg data-icon="branch-outline" />
+}
+
 /** Narrow test double for the Harness platform Modal used by Client fixtures. */
 export function Modal({
   open,
