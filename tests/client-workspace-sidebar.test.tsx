@@ -346,10 +346,14 @@ describe('registerDecoratedWorkspaceSidebar (Mode B: official Workspace stays li
     // renderSlot only authorizes the declaring entry, so this mode must keep
     // the official entry rendering.
     expect(registry.registered.filter(entry => entry.descriptor.name === 'sidebar.workspaces')).toHaveLength(0)
-    expect(registry.injected).toContain('sidebar.session.row.trailing')
+    // DSH 0.2.x declares only these two Session-row seats; `row.trailing` is
+    // not part of the official contract and never gets a declaration.
+    expect(registry.injected).toContain('sidebar.session.row.leading')
+    expect(registry.injected).toContain('sidebar.session.row.hover')
+    expect(registry.injected).not.toContain('sidebar.session.row.trailing')
     expect(registry.injected).toContain('sidebar.workspaces.session.menu.item')
-    const badge = registry.registered.find(entry => entry.descriptor.name === 'sidebar.session.row.trailing')
-    expect(badge?.descriptor).toMatchObject({ name: 'sidebar.session.row.trailing', id: 'dsh-git-worktree-status' })
+    const badge = registry.registered.find(entry => entry.descriptor.name === 'sidebar.session.row.leading')
+    expect(badge?.descriptor).toMatchObject({ name: 'sidebar.session.row.leading', id: 'dsh-git-worktree-status' })
     const menu = registry.registered.find(entry => entry.descriptor.name === 'sidebar.workspaces.session.menu.item')
     expect(menu?.descriptor).toMatchObject({ id: 'clear-sidebar-badge' })
     // The topology feed is released with the client fiber.
@@ -363,7 +367,7 @@ describe('registerDecoratedWorkspaceSidebar (Mode B: official Workspace stays li
     const { ctx } = decorateCtx(registry.service)
     const remote = adapter()
     registerDecoratedWorkspaceSidebar(ctx, remote)
-    const badge = registry.registered.find(entry => entry.descriptor.name === 'sidebar.session.row.trailing')
+    const badge = registry.registered.find(entry => entry.descriptor.name === 'sidebar.session.row.hover')
     expect(badge).toBeDefined()
     const Badge = badge!.component as (props: { sessionId?: string }) => unknown
 
