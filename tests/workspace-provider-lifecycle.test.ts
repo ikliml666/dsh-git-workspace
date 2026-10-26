@@ -121,16 +121,26 @@ describe('Workspace provider lifecycle (real Cordis Loader and Web module regist
     expect(ctx.get('worktreeWorkspaceProvider')).toBeUndefined()
   })
 
-  test('takeover is opt-in: an enabled Worktree entry without enableWorkspaceProvider keeps the official Workspace', async () => {
+  test('an explicit false keeps the official Workspace even on an enabled Worktree entry', async () => {
     const { ctx, graph } = await boot(entries(false), false, undefined, undefined, false, 'legacy', false)
     expect(graph()).toContain(OFFICIAL)
     expect(ctx.get('worktreeWorkspaceProvider')).toBeUndefined()
   })
 
-  test('takeover stays opt-in on modern hosts: enableWorkspaceProvider is not advisory', async () => {
+  test('an explicit false keeps the official Workspace on modern hosts too', async () => {
     const { ctx, graph } = await boot(entries(false), false, undefined, undefined, false, 'modern', false)
     expect(graph()).toContain(OFFICIAL)
     expect(ctx.get('worktreeWorkspaceProvider')).toBeUndefined()
+  })
+
+  test('enableWorkspaceProvider defaults to takeover, matching the upstream design', async () => {
+    // The managed-workspace projection and its guarded Session actions only
+    // exist on the takeover branch, so the plugin ships takeover-on. Read the
+    // real schema rather than a copy: a silent flip back to `false` would put
+    // every install on the reduced decorated path again.
+    const { Config } = await import('../src/index.js')
+    const parsed = Config({}) as { enableWorkspaceProvider?: boolean }
+    expect(parsed.enableWorkspaceProvider).toBe(true)
   })
 
   test('the modern auto-takeover does not resurrect a user-disabled Worktree entry', async () => {

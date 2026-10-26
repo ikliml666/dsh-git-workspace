@@ -72,8 +72,26 @@ export class WorktreeConsoleService extends TypertRemoteService {
   }
 
   @Remote
-  current(agent: Agent, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleCurrentResponse>> {
-    return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.current(agent.id))
+  async current(agent: Agent, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleCurrentResponse>> {
+    const outcome = await withHostLanguage(
+      locale ?? languageFromSettings(agent.ctx ?? this.hostContext),
+      () => this.controlPlane.current(agent.id),
+    )
+    // The capsule turns any non-ok outcome into the bare 「不可用」 label, which
+    // tells nobody why. Every failure of this endpoint is therefore breadcrumbed
+    // with its domain error code (and whether the Session is bound at all), so
+    // `sidebar-diag.ndjson` alone is enough to separate not_owner /
+    // project_mismatch / git_error / target_unselected without a debugger.
+    this.appendDiag({
+      kind: 'current',
+      ts: Date.now(),
+      session: agent.id,
+      ok: outcome.ok,
+      ...(outcome.ok
+        ? { state: outcome.value.target.state, phase: outcome.value.target.phase, checkoutId: outcome.value.target.checkoutId }
+        : { code: outcome.error.code, message: outcome.error.message }),
+    })
+    return outcome
   }
 
   @Remote
