@@ -1131,11 +1131,38 @@ describe('Worktree Console Host control plane', () => {
     // the Workspace project root is always the Local path. Authorizing against
     // the project root rejected every owner call with `project_mismatch`, so
     // the top capsule reported a failure for a perfectly healthy checkout.
-    const lookup = lookupDouble()
-    lookup.getSessionCwd = vi.fn(sessionId => sessionId === 'target-session' ? '/managed' : '/local')
+    //
+    // The fixture MUST be `ownerLocalLookup()`: with `lookupDouble()` the
+    // project root of the owner Session is already `/managed`, which equals
+    // `expectedRoot`, so this assertion would pass with or without the fix and
+    // prove nothing.
+    const lookup = ownerLocalLookup()
+    lookup.getSessionCwd = vi.fn(sessionId => sessionId === 'target-session' ? '/managed' : undefined)
     const { control } = plane(readyRecord(), { lookup })
     const result = await control.inspect('target-session', 'checkout-1')
     expect(result).toMatchObject({ ok: true, value: { target: { state: 'ready_for_review' } } })
+  })
+
+  it('still fails closed when the owner live cwd matches neither managedRoot nor the Local root', async () => {
+    const lookup = ownerLocalLookup()
+    lookup.getSessionCwd = vi.fn(() => '/somewhere-else')
+    const { module, control } = plane(readyRecord(), { lookup })
+    const result = await control.inspect('target-session', 'checkout-1')
+    expect(result).toMatchObject({ ok: false, error: { code: 'project_mismatch' } })
+    expect(module.resolveManagedRoot).not.toHaveBeenCalled()
+  })
+
+  it('never lifts the Workspace-root gate for a source Session that sits in the Local checkout', async () => {
+    // The live-cwd evidence is owner-only. A source Session is SUPPOSED to run
+    // at the Local boundary, so accepting its cwd would hand it the owner's
+    // managedRoot without ever proving the Workspace identity.
+    const lookup = lookupDouble()
+    lookup.getProject = vi.fn(projectId => ({ id: projectId, name: 'Project', root: '/elsewhere' }))
+    lookup.getSessionCwd = vi.fn(sessionId => sessionId === 'source-session' ? '/local' : undefined)
+    const { module, control } = plane(readyRecord(), { lookup })
+    const result = await control.inspect('source-session', 'checkout-1')
+    expect(result).toMatchObject({ ok: false, error: { code: 'project_mismatch' } })
+    expect(module.resolveManagedRoot).not.toHaveBeenCalled()
   })
 
   it('keeps a delivered Worktree readable for its owner after cleanup removed the environment', async () => {

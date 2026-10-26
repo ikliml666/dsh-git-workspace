@@ -131,7 +131,7 @@ Console 状态由 domain facts 单向投影，不创建第二套持久状态机�
 | current | 精确 Session | lookup 与持久项目一致 | 当前 binding | read-only identity check |
 | list | 精确 Session | 同一 project/source/canonical localRoot 关联组 | source、owner target；兄弟仅只读投影 | 无 mutation 授权复用 |
 | create | source Session | canonical Git project | source 必须 Local | Host 分配 target ID；幂等/并发锁 |
-| inspect | caller Session | checkout 属于已证明的关联组；目标 root identity 重验 | owner/source、同源 linked target 只读，或当前 Ready owner 的精确 slot holder 窄只读 | 返回当次 revision；Client 再验 cwd |
+| inspect | caller Session | checkout 属于已证明的关联组；目标 root identity 重验（owner 以 live cwd 对 `managedRoot`，source 仍以 Workspace root 为门） | owner/source、同源 linked target 只读，或当前 Ready owner 的精确 slot holder 窄只读 | 返回当次 revision；Client 再验 cwd |
 | reviewDiff | owner/source 规则由 Backend 明确；默认 owner | 同上 | review 必须仍为当前 | revision + reviewId + fingerprint/head |
 | preflight/preview | isolated owner | Local acceptance project 与 target project 一致 | 仅 owner；busy 时 preflight 仍只读可用，preview/finalize 关闭 | revision + reviewId + isolated fingerprint/head + Local CAS；写前强制重检 |
 | checkpoint | isolated owner | 精确 managed Worktree；active Preview 额外绑定 receipt 的 canonical Local boundary | 仅 exact owner；Manager 无 mutation 控件 | revision + reviewId + Host generation + requestId + slot + isolated fingerprint/head；Preview rollback 与 Worktree commit 在同一 Host lock 中执行，写后复验 |

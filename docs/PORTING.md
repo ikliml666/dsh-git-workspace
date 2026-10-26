@@ -27,7 +27,9 @@ workspaces.create({ path: managedRoot })
 → sessions.open(targetSessionId)
 ```
 
-When that target Session invokes the plugin, its current Workspace may have a different Workspace ID from the original Local Workspace. The module accepts it only if the Workspace root canonicalizes to the recorded `managedRoot`; otherwise it raises `project_mismatch`.
+When that target Session invokes the plugin, its current Workspace may have a different Workspace ID from the original Local Workspace. The Workspace project record still roots at the Local checkout, so it cannot serve as the owner's identity proof: the owner Session's **live cwd** is its immutable worktree root while the task runs. The module therefore authorizes the owner against `ctx.sessions.get(sessionId).header.cwd`, accepting it when it canonicalizes to the recorded `managedRoot` (or, once delivery has settled, to the Local root); otherwise it raises `project_mismatch`.
+
+That live-cwd evidence is **owner-only**. A source Session legitimately runs at the Local boundary, so its cwd proves nothing about the Worktree identity — source Sessions keep the stricter Workspace-root gate and are never handed the owner's `managedRoot` on cwd evidence alone.
 
 After cleanup removes that immutable cwd, Harness deliberately filters the Session from `Workspace.sessionIds` because the header path no longer resolves. The conversation and live `Session` still exist, however, and its header cwd remains immutable. The lookup adapter therefore uses the normal Workspace projection first, then permits one narrow fallback for a currently live Session: `ctx.sessions.get(sessionId).header.cwd` must lexically match exactly one registered Workspace path. Cold/unknown Sessions, missing cwd, mismatched paths, and ambiguous registrations still fail closed. Once the next Worktree is recreated, the original Workspace path is valid again without changing the Session header.
 
