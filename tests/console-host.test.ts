@@ -1126,6 +1126,18 @@ describe('Worktree Console Host control plane', () => {
     expect(module.resolveManagedRoot).not.toHaveBeenCalled()
   })
 
+  it('authorizes the owner through its live immutable cwd, not the Workspace Local root', async () => {
+    // A managed owner Session's cwd IS its worktree root while the task runs;
+    // the Workspace project root is always the Local path. Authorizing against
+    // the project root rejected every owner call with `project_mismatch`, so
+    // the top capsule reported a failure for a perfectly healthy checkout.
+    const lookup = lookupDouble()
+    lookup.getSessionCwd = vi.fn(sessionId => sessionId === 'target-session' ? '/managed' : '/local')
+    const { control } = plane(readyRecord(), { lookup })
+    const result = await control.inspect('target-session', 'checkout-1')
+    expect(result).toMatchObject({ ok: true, value: { target: { state: 'ready_for_review' } } })
+  })
+
   it('keeps a delivered Worktree readable for its owner after cleanup removed the environment', async () => {
     const delivered = readyRecord()
     delivered.phase = 'discarded'

@@ -138,6 +138,13 @@ export function createDshLookupPort(ctx: Context): SessionCheckoutLookupPort {
         ? { id: sessionId, projectId: matches[0]!.id }
         : undefined
     },
+    getSessionCwd: (sessionId): string | undefined => {
+      // The live header's cwd is the Session's REAL working directory: for a
+      // managed owner Session that is its immutable worktree root, not the
+      // Workspace's Local path.
+      const liveCwd = sessions()?.get(sessionId)?.header?.cwd
+      return typeof liveCwd === 'string' ? liveCwd : undefined
+    },
     getProject: (projectId): SessionCheckoutProjectRecord | undefined => {
       const workspace = registry()?.get(projectId)
       return workspace

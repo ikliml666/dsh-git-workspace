@@ -260,6 +260,20 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
       // still active while delivery already retained) cannot slip through the
       // Local-boundary bypass.
       && (record.phase === 'discarded' || record.phase === 'finalized' || record.phase === 'retained')
+    // The owner Session's LIVE cwd is its immutable worktree root while the
+    // task runs, while the Workspace project record still points at the Local
+    // checkout. Authorizing only against `project.root` therefore rejected
+    // every owner call with `project_mismatch`, and the top capsule reported a
+    // failure for a perfectly healthy managed checkout. When the host exposes
+    // a live cwd, accept it as the primary proof; the workspace-root checks
+    // below stay in place as the fallback for Sessions without one.
+    const liveCwd = options.lookup.getSessionCwd?.(sessionId)
+    if (liveCwd !== undefined && options.files.exists(liveCwd)) {
+      const callerRoot = await options.files.canonicalize(liveCwd)
+      const settledOwnerCwd = ownerDeliverySettled
+        && sameLocalRoot(callerRoot, await options.files.canonicalize(record.localRoot))
+      if (settledOwnerCwd || sameLocalRoot(callerRoot, await options.files.canonicalize(expectedRoot))) return
+    }
     const missingOwnerCwd = ownerDeliverySettled
       && !options.files.exists(project.root)
       && sameLocalRoot(resolve(project.root), resolve(expectedRoot))
