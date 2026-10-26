@@ -20,7 +20,7 @@ tags: [adapters, git, registry, project-skills]
 
 ## Overview
 
-`src/adapters/` 模块是 DSH（DeepSeek Session Harness）插件 `dsh-git-worktree` 的核心基础设施层，将宿主能力适配为领域端口（端口接口定义于 `src/ports.ts`，本次已随源码提供并文档化于下方）。该层作为插件与底层系统（Git、文件系统、Workspace Registry、Harness 会话服务、Project Skills 文件系统）之间的隔离带，确保状态机逻辑不直接依赖具体的运行时服务。装配点在插件的 `apply()` 方法；领域消费方主要为 Session Checkout 状态机与 Apply 引擎。
+`src/adapters/` 模块是 DSH（DeepSeek Session Harness）插件 `dsh-git-worktree` 的核心基础设施层，将宿主能力适配为领域端口（端口接口定义于 `src/ports.ts`）。该层作为插件与底层系统（Git、文件系统、Workspace Registry、Harness 会话服务、Project Skills 文件系统）之间的隔离带，确保状态机逻辑不直接依赖具体的运行时服务。装配点在插件的 `apply()` 方法；领域消费方主要为 Session Checkout 状态机与 Apply 引擎。
 
 核心职责包括：
 1. **Git 操作抽象**：通过 `ctx.subprocess` 安全执行 Git 命令，处理超时、环境隔离与子进程树静默（`src/adapters/git.ts`），超时参数由 `src/adapters/git-options.ts` 管理。
@@ -44,9 +44,9 @@ tags: [adapters, git, registry, project-skills]
 
 ### Git Port (`src/adapters/git.ts`)
 
-模块文档 (L6-L24) 说明：通过 `ctx.subprocess` 运行 git，禁用钩子、无可选锁、无终端提示、C locale、Windows 下 worktree 移除 5 分钟硬上限；内部 ref 使用 `refs/dsh-worktree/session-checkouts/<key>` 命名空间。
+模块文档 (L6-L24) 说明：通过 `ctx.subprocess` 运行 git，禁用钩子、无可选锁、无终端提示、C locale、Windows 下 worktree 移除 5 分钟硬上限；内部 ref 使用 `refs/dsh-worktree/session-checkouts/<key>` 命名空间；明确偏离官方实验性 worktree 服务（L15-L22）。
 
-`createDshGitPort(ctx, options)` (L249-L772) 构建并返回 `SessionCheckoutGitPort` 对象，最后通过 `Object.assign(port, initialCommitActions(port.inspect, runSessionGit))` (L772) 混入初始提交动作。
+`createDshGitPort(ctx, options)` (L249-L773) 构建并返回 `SessionCheckoutGitPort` 对象，最后通过 `Object.assign(port, initialCommitActions(port.inspect, runSessionGit))` (L772) 混入初始提交动作。
 
 #### 常量与配置
 
@@ -61,7 +61,7 @@ tags: [adapters, git, registry, project-skills]
 
 - `GitCommandResult` 接口 (L50-L56)：字段 `code: number` (L51)，`stdout: string` (L52)，`stderr: string` (L53)，`quiescent?: boolean` (L55，仅当子进程服务确认整树静止时为 true)。
 - `parseDecoration(decoration)` (L63-L71)：解析 `%D` 装饰字符串，去 `HEAD` 裸项、去 `HEAD -> ` 前缀、保留 `tag:` 标记 (L68)，空白返回 `[]` (L64)。
-- `settleCreationTree(handle)` (L73-L86)：最多等 10s 确保子进程树退出，返回 boolean (L73-L86)。
+- `settleCreationTree(handle)` (L73-L86)：最多等 10s 确保子进程树退出，返回 boolean。
 - `runGit(ctx, cwd, args, options, input?, creation?, collectBytes?)` (L93-L188)：底层执行器。argv 含 `git --no-pager --no-optional-locks`、Windows 下 `-c core.longpaths=true` (L107)、`core.quotePath=false`、`core.fsmonitor=false`、`core.hooksPath=` (L108-L110)；环境清除敏感 `GIT_*` 覆盖并强制 `GIT_OPTIONAL_LOCKS=0`、`GIT_TERMINAL_PROMPT=0`、`LC_ALL=C`、`LANG=C` (L121-L131)。`input` 为字符串或 `GitCommitProtocol`（L133-L154，协议模式等待 `prepare: ok` 后调 `beforeCommit()` 再发 `commit\n`/`abort\n`）。creation 模式等待树静默 (L157-L168)。超时/信号返回 `code:-1` 及本地化消息 (L177-L179)。
 - `runGitChecked(ctx, cwd, args, options)` (L190-L199)：包装 `runGit`，非零退出抛 `SessionCheckoutError('git_operation_failed', ...)` (L193-L196)。
 - `checkoutRefRoot(checkoutId)` (L201-L204)：SHA-256 前 24 字符生成 `refs/dsh-worktree/session-checkouts/<key>`。
@@ -160,22 +160,23 @@ tags: [adapters, git, registry, project-skills]
   - `isTargetRef` L48-L53 (`unselected`/`local`/`isolated`), `isSessionBinding` L55-L65, `isReview` L67-L85, `isPreviousReview` L87-L95, `isCheckpoint` L97-L114, `isPreviewReceipt` L116-L136, `isDeliveryProof` L138-L150, `isDelivery` L152-L191 (按 `state` 分发校验 `working`/`ready_for_review`/`preview_active`/`preview_detached`/`finalized`/`retained`/`delivered`), `isJournal` L193-L250 (校验 `create` 操作的 `creation` 证据与 `apply`/`preview` 等 7 种操作与 7 种 step)
   - `safeRecoveryString` L252-L254, `safeRecoveryRevision` L256-L258, `safeConflictFile` L260-L264, `isRecoveryContinuation` L266-L290 (4 种 kind), `isManagedCheckout` L292-L325 (含 `checkpoints` 序列/唯一性校验 L308-L317), `isRegistry` L327-L337 (version===2 严格校验)
 - `migrateLegacyRegistry(value)` (L339-L394)：v1→v2，非 `ready`/`discarded` 阶段标记 `recovery_required` (L366-L368)，delivery 置 `{state:'working', iteration:1}` (L383)，revision 按是否保持原阶段递增 (L385)。
-- 类 `AtomicJsonCheckoutRegistry` (L397-L415):
+- 类 `AtomicJsonCheckoutRegistry` (L397-L416):
   - `constructor(private readonly path: string)` L398
   - `read()` L400-L410：`readJsonFileSafe` → `isRegistry` 校验 → 尝试 `migrateLegacyRegistry` 并写回 → 不存在返空 → 损坏抛 `SessionCheckoutError('registry_corrupt', ...)` (L409)。
   - `write(registry)` L412-L415：`mkdirSync(dirname, recursive)` + `writeJsonFileAtomic` (L414)。
 
 ### Lookup (`src/adapters/lookup.ts`)
 
-`createDshLookupPort(ctx)` (L65-L154) 适配 Harness 服务为 `SessionCheckoutLookupPort`（模块文档 L1-L12）。
+`createDshLookupPort(ctx)` (L65-L165) 适配 Harness 服务为 `SessionCheckoutLookupPort`（模块文档 L1-L12）。
 
 - 接口 `WorkspaceLike` L19-L24（字段 `id: string`, `path: string`, `title: string`, `sessionIds: readonly string[]`），`WorkspaceRegistryLike` L26-L32（方法 `list()`, `get(id)`, `resolveByPath(path)`, `create(path, title?)`, `delete(id)`），`LiveSessionLike` L34-L36（`header?: { readonly cwd?: unknown }`），`SessionStoreLike` L38-L40（`get(sessionId)`, `list?()`）。
 - `isWorkspaceRegistryLike` L43-L48, `isSessionStoreLike` L50-L53, `sameResolvedPath` L56-L62（Windows 忽略大小写）。
-- `getSidebarMemberships(managedRoots)` L76-L97：结合 `registry()?.list()` 与 `ctx.get('sessionQuery').listSessions()` 头 cwd 匹配 (L79-L93)。
-- `listLiveSessions()` L98-L122：从 `sessions().list()` 提取 `{id, createdAt?, cwd?}` 数组，异常返 `[]` (L119-L120)。
-- `getSession(sessionId)` L123-L140：先扫 workspace sessionIds，未果则用 `sessions().get(sessionId).header.cwd` 恢复单工作区匹配 (L134-L138)。
-- `getSessionCwd(sessionId)` L141-L147：返回 live header 的 cwd（owner Session 的 immutabe worktree root）。
-- `getProject(projectId)` L148-L153：返回 `{id, name:title, root:path}`。
+- `liveHeaderCwd` 辅助 L81-L84。
+- `getSidebarMemberships(managedRoots)` L87-L108：结合 `registry()?.list()` 与 `ctx.get('sessionQuery').listSessions()` 头 cwd 匹配 (L95-L103)。
+- `listLiveSessions()` L109-L133：从 `sessions().list()` 提取 `{id, createdAt?, cwd?}` 数组，异常返 `[]` (L130-L132)。
+- `getSession(sessionId)` L134-L151：先扫 workspace sessionIds，未果则用 `sessions().get(sessionId).header.cwd` 恢复单工作区匹配 (L145-L150)。
+- `getSessionCwd(sessionId)` L152-L157：返回 live header 的 cwd（owner Session 的 immutable worktree root）。
+- `getProject(projectId)` L158-L163：返回 `{id, name:title, root:path}`。
 
 ### Worktree Creation (`src/adapters/worktree-creation.ts`)
 
@@ -196,7 +197,7 @@ tags: [adapters, git, registry, project-skills]
 
 `GitCommitProtocol` 接口 (L8)：字段 `prepare: string; beforeCommit(): Promise<void>`。
 `Run` 类型 L10：`(root, args, input?) => Promise<{ code: number; stdout: string; stderr: string }>`。
-`initialCommitActions(inspect, run)` (L13-L118) 返回 `{ preflightInitialCommit, initializeEmptyRepository, initializeProject }`。
+`initialCommitActions(inspect, run)` (L13-L119) 返回 `{ preflightInitialCommit, initializeEmptyRepository, initializeProject }`。
 
 - `stale()` L14 返回 `SessionCheckoutError('stale_local', ...)`；`checked` L15-L19 包装 run 非零抛 `initialCommitFailed`；`identity` L20-L24 取 dev:ino:birthtimeNs（可选含 mtimeNs/ctimeNs）；`indexBytes` L25-L28 读 index 文件 base64。
 - `preflightInitialCommit(root)` L29-L47：返回 `ready`(headOid!=='unborn') / `files`(有文件或 index) / `empty`(带 fingerprint SHA-256) (L39-L46)。
@@ -260,7 +261,7 @@ tags: [adapters, git, registry, project-skills]
 - `SidebarDirectoryMembership` (L34-L38)：`managedRoot: string`, `workspaceIds: string[]`, `sessionIds: string[]`。
 - `SessionCheckoutLookupPort` (L40-L60)：方法 `getSidebarMemberships?`, `getSession`, `getProject`, `getSessionCwd?`, `listLiveSessions?`。
 - `GitCheckoutSnapshot` (L62-L69)：`root`, `commonDir`, `gitDir`, `branch: string | null`, `headOid`, `headRef`。
-- `BranchOverviewEntry` (L71-L77)：`name`, `oid`, `isCurrent`, `upstream: string | null`。
+- `BranchOverviewEntry` (L72-L77)：`name`, `oid`, `isCurrent`, `upstream: string | null`。
 - `TagOverviewEntry` (L79-L90)：`name`, `oid`, `commitOid: string | null`, `annotated`, `message: string | null`, `pushed: boolean | null`。
 - `GraphLogCommit` (L92-L101)：`oid`, `parents: string[]`, `author`, `authorTime: number`, `refs: string[]`, `subject`。
 - `InitialCommitPreflight` (L103-L107)：`kind: 'ready' | 'empty' | 'files'`, `fingerprint`, `snapshot`。
@@ -297,7 +298,7 @@ tags: [adapters, git, registry, project-skills]
 │  SafeFile: writeJsonFileAtomic/readJsonFileSafe (safe-file.ts) │
 │  Registry: AtomicJsonCheckoutRegistry (registry.ts)           │
 │  Lookup: createDshLookupPort (lookup.ts)                      │
-│  Worktree: createWorktree (worktree-creation.ts)              │
+│  Worktree: createWorktree (worktree-creation.ts)             │
 │  InitCommit: initialCommitActions (initial-commit.ts)         │
 │  Skills: ProjectSkillStore+IO+Provider (project-skills*.ts)   │
 │                                                                │
@@ -337,8 +338,8 @@ tags: [adapters, git, registry, project-skills]
 
 5. **Lookup Service Adaptation**:
    - `createDshLookupPort` 动态获取 `ctx.get('workspaceRegistry')` 与 `ctx.get('sessions')` (lookup.ts L66-L72)。
-   - `getSidebarMemberships` 并行查询 workspace list 与 session query headers，通过 `sameResolvedPath` 匹配 managedRoot (lookup.ts L76-L97)。
-   - `getSession` 优先扫描 workspace sessionIds，fallback 到 live session header cwd (lookup.ts L123-L140)。
+   - `getSidebarMemberships` 并行查询 workspace list 与 session query headers，通过 `sameResolvedPath` 匹配 managedRoot (lookup.ts L87-L108)。
+   - `getSession` 优先扫描 workspace sessionIds，fallback 到 live session header cwd (lookup.ts L134-L151)。
 
 ## Connections
 
