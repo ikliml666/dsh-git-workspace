@@ -71,6 +71,17 @@ export function createDshLookupPort(ctx: Context): SessionCheckoutLookupPort {
     const candidate: unknown = ctx.get('sessions')
     return isSessionStoreLike(candidate) ? candidate : undefined
   }
+  /**
+   * The live header's cwd, read through one narrow helper. Three call sites
+   * need it (listLiveSessions, the getSession recovery branch, and
+   * getSessionCwd) and each used to repeat the same
+   * `sessions()?.get(id)?.header?.cwd` shape, which invites the guards to drift
+   * apart. Non-string and absent values collapse to `undefined` here.
+   */
+  const liveHeaderCwd = (sessionId: string): string | undefined => {
+    const liveCwd = sessions()?.get(sessionId)?.header?.cwd
+    return typeof liveCwd === 'string' ? liveCwd : undefined
+  }
 
   return {
     getSidebarMemberships: async (managedRoots) => {
@@ -131,8 +142,8 @@ export function createDshLookupPort(ctx: Context): SessionCheckoutLookupPort {
       // Harness filters Workspace.sessionIds when an immutable cwd no longer
       // resolves. A cleaned delivered Session can still be live and retain that
       // exact cwd in its header, so recover only this authenticated live case.
-      const liveCwd = sessions()?.get(sessionId)?.header?.cwd
-      if (typeof liveCwd !== 'string') return undefined
+      const liveCwd = liveHeaderCwd(sessionId)
+      if (liveCwd === undefined) return undefined
       const matches = workspaces.filter(workspace => sameResolvedPath(workspace.path, liveCwd))
       return matches.length === 1
         ? { id: sessionId, projectId: matches[0]!.id }
@@ -142,8 +153,7 @@ export function createDshLookupPort(ctx: Context): SessionCheckoutLookupPort {
       // The live header's cwd is the Session's REAL working directory: for a
       // managed owner Session that is its immutable worktree root, not the
       // Workspace's Local path.
-      const liveCwd = sessions()?.get(sessionId)?.header?.cwd
-      return typeof liveCwd === 'string' ? liveCwd : undefined
+      return liveHeaderCwd(sessionId)
     },
     getProject: (projectId): SessionCheckoutProjectRecord | undefined => {
       const workspace = registry()?.get(projectId)

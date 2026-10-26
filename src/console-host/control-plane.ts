@@ -260,19 +260,36 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
       // still active while delivery already retained) cannot slip through the
       // Local-boundary bypass.
       && (record.phase === 'discarded' || record.phase === 'finalized' || record.phase === 'retained')
+    // Canonicalizing a path is a realpath syscall; this gate can ask for the
+    // same path up to four times (live cwd, expectedRoot, record.localRoot,
+    // project.root). Memoize so each distinct path costs at most one IO.
+    const canonicalCache = new Map<string, Promise<string>>()
+    const canonical = (path: string): Promise<string> => {
+      const cached = canonicalCache.get(path)
+      if (cached !== undefined) return cached
+      const computed = options.files.canonicalize(path)
+      canonicalCache.set(path, computed)
+      return computed
+    }
     // The owner Session's LIVE cwd is its immutable worktree root while the
     // task runs, while the Workspace project record still points at the Local
     // checkout. Authorizing only against `project.root` therefore rejected
     // every owner call with `project_mismatch`, and the top capsule reported a
-    // failure for a perfectly healthy managed checkout. When the host exposes
-    // a live cwd, accept it as the primary proof; the workspace-root checks
-    // below stay in place as the fallback for Sessions without one.
-    const liveCwd = options.lookup.getSessionCwd?.(sessionId)
-    if (liveCwd !== undefined && options.files.exists(liveCwd)) {
-      const callerRoot = await options.files.canonicalize(liveCwd)
-      const settledOwnerCwd = ownerDeliverySettled
-        && sameLocalRoot(callerRoot, await options.files.canonicalize(record.localRoot))
-      if (settledOwnerCwd || sameLocalRoot(callerRoot, await options.files.canonicalize(expectedRoot))) return
+    // failure for a perfectly healthy managed checkout.
+    //
+    // This evidence speaks ONLY for the owner: a live cwd equal to `localRoot`
+    // proves nothing about a source Session, whose whole point is to run at the
+    // Local boundary. Applying it to `expectedRoot` would have accepted any
+    // same-project source Session parked in the Local checkout and handed it
+    // the owner's `managedRoot`, so the identity is checked explicitly here and
+    // source Sessions keep the Workspace-root gate below.
+    if (record.ownerSessionId === sessionId) {
+      const liveCwd = options.lookup.getSessionCwd?.(sessionId)
+      if (liveCwd !== undefined && options.files.exists(liveCwd)) {
+        const callerRoot = await canonical(liveCwd)
+        if (sameLocalRoot(callerRoot, await canonical(expectedRoot))) return
+        if (ownerDeliverySettled && sameLocalRoot(callerRoot, await canonical(record.localRoot))) return
+      }
     }
     const missingOwnerCwd = ownerDeliverySettled
       && !options.files.exists(project.root)
@@ -281,14 +298,14 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
     if (!options.files.exists(project.root)) {
       throw domainError('project_mismatch', hostMessage('theCurrentSessionWorkspaceCannotBeProvenToBelong'))
     }
-    const workspaceRoot = await options.files.canonicalize(project.root)
+    const workspaceRoot = await canonical(project.root)
     // After delivery the owner Session's cwd is back at Local whether the frozen
     // environment is still on disk (retained / finalized) or already removed
     // (cleanup success writes phase discarded + delivery delivered), so it can
     // never match managedRoot again. For that settled case the Local checkout is
     // the authorization boundary — the task is over, its history stays readable.
     const settledOwner = ownerDeliverySettled
-      && sameLocalRoot(workspaceRoot, await options.files.canonicalize(record.localRoot))
+      && sameLocalRoot(workspaceRoot, await canonical(record.localRoot))
     if (settledOwner) return
     if (!sameLocalRoot(workspaceRoot, expectedRoot)) {
       throw domainError('project_mismatch', hostMessage('theCurrentSessionCwdDoesNotMatchTheWorktree'))
