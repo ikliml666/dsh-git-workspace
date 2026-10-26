@@ -6,6 +6,15 @@
 
 ### Fixed
 
+- 顶部胶囊在非 Git 项目上显示刺眼的「不可用」（2026-10-26，真实错误码定案 + 语义修正）：宿主 18:02 重启后 `kind:"current"` 埋点终于生效，diag 里 322 条记录给出真相——`not_git_repository` 263 次**全部来自同一个会话**（其项目根是 `C:\Users\ik\.dsh`，本来就不是 Git 仓库），本项目会话 54 次 `current` 全部成功。即胶囊链路一直是正常的，「不可用」是普通文件夹的正常响应，但把它和真正的探测故障压成同一句话，让完全正常的会话看起来像坏了。
+  - `src/client/target-console/TargetStatusAction.tsx`：新增 `notGitRepository = failure?.code === 'not_git_repository'`，状态推导改为 `target?.state ?? (loading ? 'loading' : notGitRepository ? 'not_git_repository' : 'error')`，标签走新文案「非 Git 项目」而不是 `t('unavailable')`；菜单在这种情况下只保留一个真正有意义的动作（初始化 Git 仓库），不再列出分支/标签/提交图这些注定失败的项；弹窗摘要改为解释性文案。
+  - 新增 `initializeRepository()`：调用既有的 `adapter.initializeProject({ sourceSessionId })`（host 侧 `src/adapters/initial-commit.ts:104-117` 早已实现 `git init -b main` + `add -A` + 首次提交，此前只差 UI 入口），成功后 `requestWorktreeReviewRefresh` + `invalidateBranchOverview`，胶囊与侧栏徽章无需等 5s 轮询即可翻成真实 Local 目标；adapter 缺该方法时该菜单项禁用而不是点击报错。
+  - 新增确认弹窗（复用既有 `Modal` + `.dsh-wtc-confirm-actions`），文案强调会执行 `git init` 并创建首次提交。
+  - `src/client/target-console/target-console.styles.ts`：`[data-target-state="not_git_repository"]` 用中性灰 `#7a7a7a`（非失败态不该用告警红）。
+  - `src/i18n/client-messages.ts` 补 5 条文案（`not.a.git.repository`、`initialize.git.repository{,.description,.confirm,.done}`）。
+  - `tests/support/worktree-console.ts` 补 `initializeProject` 假实现（此前 fixture 缺这个方法）；`tests/client-target-console.test.tsx` 新增 2 个用例：非 Git 项目显示专用文案且 `title` 带真实 code/message、菜单只留初始化动作且确认后以正确 `sourceSessionId` 调用。
+  - 验证：`tsc --noEmit` 0 诊断；`npx tsdown` 通过（`lib/client.js` 1188.56 kB，产物 `not_git_repository` 8 处、`initializeProject` 4 处、`非 Git 项目` 1 处、`initialize.git.repository` 9 处）；`tests/client-target-console.test.tsx` 74 passed。
+
 - 侧栏行首装饰与上游不一致（2026-10-26，对齐上游 identity mark）：装饰路径的 `sidebar.session.row.leading` 位置此前渲染一个 7×7 状态圆点，而上游（takeover 路径）在行首渲染的是**分支图标** + 悬停卡片里的「状态文字胶囊」，两者观感差距明显（用户多轮指出「只有一个蓝点，和上游 GitHub 展示的不符」）。
   - `src/client/workspace-sidebar/index.tsx` 抽出 `WorktreeIdentity`（分支图标 `<span className="dsh-git-worktree-sidebar-icon" data-worktree-state>` + 可选 `<span className="dsh-git-worktree-sidebar-badge">` 文字胶囊），行首座位只渲染图标（16px 恰好放下，文字胶囊会被裁），悬停卡片座位同时渲染图标与胶囊；删除 `BADGE_DOT_COLOR` 与内联圆点/胶囊样式。
   - 复用 `styles.ts` 里既有的 `.dsh-git-worktree-sidebar-icon/-badge[data-worktree-state]` 配色（这套样式本来就是照上游写的，此前没被 Mode B 用上）；图标来自官方 `@deepseek-ai/dsh-client-ui-primitives` 的 `IconBranchOutlineRegular`，`src/client/harness-platform.d.ts` 补声明、`tests/support/ui-primitives.tsx` 补测试替身。

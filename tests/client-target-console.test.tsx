@@ -167,8 +167,43 @@ describe('Harness-native Session Target slots', () => {
     await waitFor(() => expect(screen.getByText(label)).toBeTruthy())
   })
 
-  test('registers the exact Header action, reads props.sessionId, and disposes it', async () => {
+  // 非 Git 项目是常态（任何普通文件夹都会得到这个码），它不该和真正的探测
+  // 故障共用同一句「不可用」，否则胶囊在完全正常的会话上看起来就是坏的。
+  test('非 Git 项目显示专用文案而不是「不可用」，并给出初始化入口', async () => {
     const fixture = createWorktreeConsoleAdapterFixture()
+    fixture.adapter.current = vi.fn(async () => ({
+      ok: false as const,
+      error: { code: 'not_git_repository' as const, message: '当前 Session 项目不是可用的 Git Worktree' },
+    }))
+    render(<TargetStatusAction sessionId="target-session" adapter={fixture.adapter} services={clientServices()} />)
+
+    const trigger = await screen.findByRole('button', { name: /非 Git 项目/ })
+    expect(trigger.textContent).not.toContain('不可用')
+    expect(trigger.getAttribute('data-target-state')).toBe('not_git_repository')
+    expect(trigger.getAttribute('title')).toBe('not_git_repository: 当前 Session 项目不是可用的 Git Worktree')
+  })
+
+  test('非 Git 项目的菜单只保留初始化动作，确认后调用 initializeProject', async () => {
+    const fixture = createWorktreeConsoleAdapterFixture()
+    fixture.adapter.current = vi.fn(async () => ({
+      ok: false as const,
+      error: { code: 'not_git_repository' as const, message: '当前 Session 项目不是可用的 Git Worktree' },
+    }))
+    render(<TargetStatusAction sessionId="target-session" adapter={fixture.adapter} services={clientServices()} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /非 Git 项目/ }))
+    // 没有分支 / 标签 / 提交图这些在非 Git 目录里注定失败的项。
+    expect(screen.queryByText('新建分支')).toBeNull()
+    expect(screen.queryByText('提交图')).toBeNull()
+
+    fireEvent.click(screen.getByText('初始化 Git 仓库…'))
+    fireEvent.click(await screen.findByRole('button', { name: '初始化' }))
+    await waitFor(() => expect(fixture.calls.some(call => call.method === 'initializeProject')).toBe(true))
+    expect(fixture.calls.find(call => call.method === 'initializeProject')?.request)
+      .toEqual({ sourceSessionId: 'target-session' })
+  })
+
+  test('registers the exact Header action, reads props.sessionId, and disposes it', async () => {    const fixture = createWorktreeConsoleAdapterFixture()
     fixture.adapter.current = vi.fn(async request => ({ ok: true, value: { target: localTarget() } }))
     const slots = new SlotsDouble()
 

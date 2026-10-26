@@ -185,6 +185,10 @@ export function createWorktreeConsoleAdapterFixture(stateful = false): WorktreeC
       record('create', request)
       return outcome({ target, targetSessionId: target.ownerSessionId, managedRoot: target.managedRoot! })
     },
+    async initializeProject(request: { sourceSessionId: string }): Promise<WorktreeConsoleOutcome<boolean>> {
+      record('initializeProject', request)
+      return outcome(true)
+    },
     async inspect(request: WorktreeConsoleInspectRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleInspectResponse>> {
       record('inspect', request)
       return outcome({ target })
