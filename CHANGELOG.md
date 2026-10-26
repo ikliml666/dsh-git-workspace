@@ -6,6 +6,13 @@
 
 ### Fixed
 
+- 托管 Worktree 会话的顶部胶囊与整条 Console 链路全部报错（2026-10-26，owner 授权边界纠正）：在真实 Worktree 里跑测试时发现，**凡是 owner 会话自己的调用一律失败**——`worktree_inspect`、`current`、顶部胶囊的状态探测、复审面板全部拿不到目标。根因在授权函数 `verifyCallerRoot`（`src/console-host/control-plane.ts`）：它只用 `getSession → getProject → project.root` 判断调用者根目录，而 Workspace 项目记录的 root **永远是 Local 路径**；托管 owner 会话实际运行时的 cwd 是它的不可变 worktree 目录（`.../worktrees/<project>/<topic>/`），两者必然不等，于是每次调用都被判 `project_mismatch`。本轮做端到端验证时 `worktree_create` 成功、紧接着的 `worktree_inspect` 就撞上这个错。
+  - `src/ports.ts`：`SessionCheckoutLookupPort` 新增可选 `getSessionCwd(sessionId)`。**刻意不复用 `getSession`**——那个方法的契约是「导航用的 Workspace 归属投影」（`tests/lookup.test.ts` 断言它只返回 `{id, projectId}`），把 cwd 塞进去会污染授权证据与展示投影的边界（第一版就是这么写的，两个 lookup 用例立刻红了）。
+  - `src/adapters/lookup.ts`：实现 `getSessionCwd`，直接读 harness sessions store 里 live session 的 `header.cwd`（宿主未提供 sessions 服务时返回 undefined，行为退回原样）。
+  - `src/console-host/control-plane.ts` `verifyCallerRoot`：当 live cwd 存在且目录真实存在时，把它作为**主判据**——cwd 等于 record 的 `managedRoot` 即放行；交付终态（`ownerDeliverySettled`）下 cwd 已回 Local，则与 `record.localRoot` 比对放行。**原有全部检查一律保留**（无 live cwd 的宿主、`project.root` 缺失、worktree 已清理等分支逻辑不变），因此这是一条「宿主给得出 cwd 就更准」的增强，不是替换。
+  - 新增回归用例「authorizes the owner through its live immutable cwd, not the Workspace Local root」：夹具里 `getSessionCwd('target-session')` 返回 `/managed`，断言 `inspect` 得到 `ok: true` 且 target 是 `ready_for_review`（修复前此用例必然拿到 `project_mismatch`）。
+  - 验证：`tsc --noEmit` 0 诊断；`tests/console-host.test.ts` 55 passed、`tests/lookup.test.ts` 4 passed；全量 `npx vitest run` 见下方汇报。
+
 - 侧栏行内胶囊不显示、只剩一个分支图标（2026-10-26，座位宽度解禁）：上一轮把行首装饰对齐成「分支图标」后，用户截图显示行内只有图标、没有上游那种「图标 + 状态文字胶囊」。根因是**结构性**的：Mode B（decorate）只能往官方已声明的子座位注册条目，而行首座位 `sidebar.session.row.leading` 在官方 CSS 里是写死的 16px 盒（`._3rK6Ta_slot{width:16px;flex:none}`），胶囊一旦放进去就被裁掉。上游之所以能显示胶囊，是因为它用 takeover 路径**接管并改写官方行组件**，把图标+胶囊直接插在行内 title 之前（`scripts/workspace-sidebar-upstream.mjs` 的 `ManagedWorktreeIdentity` seam），而这条路径需要禁用官方 `ui-workspace` 条目（上一轮开它出过事故）。
   - `src/client/workspace-sidebar/index.tsx`：`WorktreeStatusBadgeEntry` 不再按座位区分（原 `chip={seat !== 'sidebar.session.row.leading'}` 正是「行内没胶囊」的直接原因），两个座位都渲染完整的图标+胶囊。
   - `src/client/styles.ts`：新增 `[role="treeitem"] > span:has(.dsh-git-worktree-sidebar-icon)`——只把**含本插件装饰的那一个座位**放开为 `flex:0 1 auto; width:auto; min-width:16px; max-width:55%; overflow:hidden`（未装饰的座位保持官方 16px，不影响其它插件）；并让座位内的胶囊 `flex:0 1 auto; min-width:0` 以便在座位内按省略号收缩。删除原先「悬停时隐藏胶囊」的规则——胶囊在行首座位、与行尾 hover 操作不抢位，隐藏只会让胶囊闪烁。

@@ -43,6 +43,15 @@ export interface SessionCheckoutLookupPort {
   getSession(sessionId: string): SessionCheckoutSessionRecord | undefined
   getProject(projectId: string): SessionCheckoutProjectRecord | undefined
   /**
+   * The Session's LIVE working directory, when the host exposes one. A managed
+   * owner Session's cwd IS its immutable worktree root while the task runs,
+   * whereas `getProject().root` is always the Local checkout — authorizing only
+   * against the project root rejects every owner call with `project_mismatch`.
+   * Kept separate from `getSession` so the navigation record stays free of
+   * authorization evidence. Missing on hosts without the sessions service.
+   */
+  getSessionCwd?(sessionId: string): string | undefined
+  /**
    * Local adaptation: live sessions from the harness sessions store (creation
    * order, header createdAt/cwd). Missing on hosts without the service; the
    * concurrent branch-race guard then stays silent rather than guessing.
