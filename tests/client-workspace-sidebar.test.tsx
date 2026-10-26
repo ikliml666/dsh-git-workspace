@@ -404,6 +404,35 @@ describe('registerDecoratedWorkspaceSidebar (Mode B: official Workspace stays li
     owner2.unmount()
   })
 
+  test('mirrors the upstream identity mark in both row seats', async () => {
+    const registry = fakeRegistry()
+    const { ctx } = decorateCtx(registry.service)
+    registerDecoratedWorkspaceSidebar(ctx, adapter())
+    const leading = registry.registered.find(entry => entry.descriptor.name === 'sidebar.session.row.leading')
+    const hover = registry.registered.find(entry => entry.descriptor.name === 'sidebar.session.row.hover')
+    expect(leading).toBeDefined()
+    expect(hover).toBeDefined()
+    const Leading = leading!.component as (props: { sessionId?: string; seat?: string }) => unknown
+    const Hover = hover!.component as (props: { sessionId?: string; seat?: string }) => unknown
+
+    // The leading seat is 16px wide: the branch glyph carries the identity and
+    // the state words live in the tooltip, exactly like the upstream takeover.
+    const leadNode = render(<Leading sessionId={ownerSession} seat="sidebar.session.row.leading" />)
+    await waitFor(() => expect(leadNode.container.querySelector('.dsh-git-worktree-sidebar-icon')).not.toBeNull())
+    expect(leadNode.container.querySelector('.dsh-git-worktree-sidebar-badge')).toBeNull()
+    expect(leadNode.container.querySelector('.dsh-git-worktree-sidebar-icon')?.getAttribute('title'))
+      .toBe('Ready for review')
+    leadNode.unmount()
+
+    // The hover card has room for the glyph AND the state chip.
+    const hoverNode = render(<Hover sessionId={ownerSession} seat="sidebar.session.row.hover" />)
+    await waitFor(() => expect(hoverNode.container.textContent).toContain('Ready for review'))
+    expect(hoverNode.container.querySelector('.dsh-git-worktree-sidebar-icon')).not.toBeNull()
+    expect(hoverNode.container.querySelector('.dsh-git-worktree-sidebar-badge')?.textContent)
+      .toBe('Ready for review')
+    hoverNode.unmount()
+  })
+
   test('fails loudly when the slot registry is unavailable', () => {
     const { ctx } = decorateCtx(undefined)
     expect(() => registerDecoratedWorkspaceSidebar(ctx, adapter())).toThrow(/slot registry/u)

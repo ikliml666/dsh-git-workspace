@@ -74,4 +74,5 @@ declare module '@deepseek-ai/dsh-client-ui-primitives' {
   }>
 
   export const IconTrashOutlineRegular: ComponentType<Record<string, never>>
+  export const IconBranchOutlineRegular: ComponentType<Record<string, never>>
 }

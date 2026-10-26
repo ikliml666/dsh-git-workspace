@@ -6,6 +6,12 @@
 
 ### Fixed
 
+- 侧栏行首装饰与上游不一致（2026-10-26，对齐上游 identity mark）：装饰路径的 `sidebar.session.row.leading` 位置此前渲染一个 7×7 状态圆点，而上游（takeover 路径）在行首渲染的是**分支图标** + 悬停卡片里的「状态文字胶囊」，两者观感差距明显（用户多轮指出「只有一个蓝点，和上游 GitHub 展示的不符」）。
+  - `src/client/workspace-sidebar/index.tsx` 抽出 `WorktreeIdentity`（分支图标 `<span className="dsh-git-worktree-sidebar-icon" data-worktree-state>` + 可选 `<span className="dsh-git-worktree-sidebar-badge">` 文字胶囊），行首座位只渲染图标（16px 恰好放下，文字胶囊会被裁），悬停卡片座位同时渲染图标与胶囊；删除 `BADGE_DOT_COLOR` 与内联圆点/胶囊样式。
+  - 复用 `styles.ts` 里既有的 `.dsh-git-worktree-sidebar-icon/-badge[data-worktree-state]` 配色（这套样式本来就是照上游写的，此前没被 Mode B 用上）；图标来自官方 `@deepseek-ai/dsh-client-ui-primitives` 的 `IconBranchOutlineRegular`，`src/client/harness-platform.d.ts` 补声明、`tests/support/ui-primitives.tsx` 补测试替身。
+  - 新增回归用例「mirrors the upstream identity mark in both row seats」：断言行首座位只有图标且 `title` 为状态文案、无文字胶囊，悬停座位图标+胶囊并存。
+  - 验证：`tsc --noEmit` 0 诊断；`pnpm build` 通过（`lib/client.js` 1184.28 kB）；`tests/client-workspace-sidebar.test.tsx` 13 passed。
+
 - 顶部胶囊「不可用」无从诊断（2026-10-26，证据链纠正 + 可观测性补齐）：排查过程中曾把「诊断日志里没有 `kind:"current"` 记录」当作「`current()` 从未被调用」的硬证据，据此推断 gateway 的 agent lookup 在方法调用前失败。**这条推断是错的**——`src/console-host/service.ts` 的 `current()` 当时根本没有埋点（`grep "kind: 'current'" lib/console-host/service.js` 结果为 0），日志里没有它是因为没人写，不是因为没被调用。据此放弃了一个高成本的错误方向（改 gateway 传参）。
   - `src/console-host/service.ts` 的 `current()` 补上 `appendDiag({ kind: 'current', ok, agentId, code, message })`：胶囊挂载即会调一次 `current`，失败时的 `code`/`message` 直接落盘，可区分「会话未持验收位」「项目不匹配」「git 报错」三类。
   - `src/client/target-console/TargetStatusAction.tsx` 新增 `failure` 状态，记录 `current` 失败的真实 `{ code, message }`；触发按钮的 `title` 与 `aria-label` 在失败时改为 `${code}: ${message}`，不再只显示一个无从诊断的「不可用」（`state='error'` 时 `target` 为 null，标签只能退化成 `t('unavailable')`）。
