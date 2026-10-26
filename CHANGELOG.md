@@ -4,19 +4,6 @@
 
 ## [Unreleased]
 
-### Changed
-
-- 按上游 `wloops/dsh-git-worktree` 蓝本恢复 takeover 路线（2026-10-26）：`enableWorkspaceProvider` 默认值由 `false` 改为 `true`。理由是从 0.2.x 起官方 Workspace 通过「声明子槽」渲染，decorate 分支只能包住官方 Browser 却拿不到子槽授权（`sidebar.session.row.trailing` 在 0.2.1-rc.3 根本不存在），受管投影、分组汇聚与受保护会话动作只在 takeover 分支存在——上游同样是 takeover-only（`src/workspace-provider-lifecycle.ts` 里没有这个开关）。显式传 `false` 仍可退回官方 Workspace + 精简装饰能力。验证：`tests/workspace-provider-lifecycle.test.ts` 28 passed（新增「默认值即接管」用例，直接解析真实 `Config` schema），全量 `npx vitest run` 54 文件 **776 passed / 4 skipped**，`pnpm build` 通过（`lib/client.js` 1185.02 kB）。
-
-### Fixed
-
-- 顶部 Session Target 胶囊只显示「不可用」而无法定位断点（2026-10-26，target-console 模块）：`TargetStatusAction` 把所有观察失败折叠成同一个 `t("unavailable")`——「这个会话本来就没隔离」「Gateway `agent` lookup 被拒」「git 出错」在界面上一模一样，无法自证。现在把失败一起记录为 `{ code, message }`（`setFailure`）：胶囊标签追加领域错误码（如 `不可用 · not_owner`）、按钮 `title` 直接是服务端原始 message、`data-target-failure` 属性供排查、菜单摘要顶部以等宽字展示 code + message；`current-polling` 抛出的传输错误归为 `client_request_failed`。样式新增 `.dsh-wtc-target-chip[data-target-failure] .dsh-wtc-target-branch`（等宽、11px、560）。验证：新增用例「观察失败时胶囊直接给出错误码，不再退化成无信息的『不可用』」通过（断言文本含 `不可用 · not_owner`、`data-target-failure`、`title` 为原始 message、菜单含 message），`tests/client-target-console.test.tsx` 72 passed，全量 776 passed / 4 skipped。
-- 侧栏 Worktree 状态徽章挂在 0.2.1-rc.3 宿主不存在的槽上（2026-10-26，workspace-sidebar 模块）：上一版把徽章 inject 到 `sidebar.workspaces.session.row.trailing`（后又改为 `sidebar.session.row.trailing`）。实测 asar（`C:/Users/ik/AppData/Local/Programs/DeepSeek Harness/resources/app.asar`）中 `sidebar.session.row.trailing` 字符串出现 **0 次**：该代宿主只有 `sidebar.session.row.leading` 与 `sidebar.session.row.hover` 两个行内槽，`inject` 等一个永不被声明的槽使回调永不执行、徽章永不挂载。改为同时向这两个真实槽注册：`leading`（官方仅在行状态 idle 且非归档非空白时渲染的 16px 位）画 7×7 状态圆点（`BADGE_DOT_COLOR` 按 state 映射 `var(--dsh-*)`），`hover`（悬浮卡片内）保留 168px 圆角标签全文案；`sidebar.workspaces.session.menu.item` 的「清除状态标签」菜单项保持不变。验证：`tests/client-workspace-sidebar.test.tsx` 12 passed（断言 inject 了 leading 与 hover、且**不含** trailing），全量 776 passed / 4 skipped，`pnpm build` 通过。
-
-### Added
-
-- 移植上游「空白会话 Worktree 开关」（2026-10-26，pre-session 模块）：新增 `src/client/pre-session/{PreSessionWorktreeToggle.tsx, controller.ts, harness-input.ts, index.tsx}`（4 文件 511 行），经 `conversation.input.left`（id `worktree-pre-session`, order 40）在 composer 左侧渲染开关，按 `composerPhase` 区分 blank/engaging/active；确认前零副作用，确认后才创建 target 并把未发送的文字/图片交接进独立 Session。`src/client/index.tsx` 在 adapter 存在时调用 `registerPreSessionWorktree`。验证：`tests/client-pre-session.test.tsx` 通过，全量 776 passed / 4 skipped。
-
 ### Fixed
 
 - 行尾徽章不显示（2026-10-25）：`registerDecoratedWorkspaceSidebar` 里 `slots.inject` 的等待槽名误写成不存在的 `sidebar.workspaces.session.row.trailing`——官方 Browser 声明的行尾子槽真名是 `sidebar.session.row.trailing`（无 `workspaces` 层级），inject 等一个永不被声明的槽导致注册回调静默永不执行、徽章永不挂载。修正为正确槽名并补注释；对应测试断言同步修正。验证：`tsc --noEmit` 0 诊断、`pnpm build` 通过（`lib/client.js` 1155.03 kB，产物含 `slots.inject("sidebar.session.row.trailing")`）、`tests/client-workspace-sidebar.test.tsx` 12 passed；全量 53 文件此前 733 passed / 1 failed，唯一失败正是编码了错误槽名的旧断言。

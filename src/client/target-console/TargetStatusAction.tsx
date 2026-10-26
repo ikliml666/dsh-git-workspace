@@ -55,12 +55,6 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
   const [target, setTarget] = useState<WorktreeConsoleTargetDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  // The capsule used to collapse every failure into a bare 「不可用」, which is
-  // unfalsifiable from the outside: a Session that is simply not isolated, a
-  // Gateway lookup rejection and a git fault all looked identical. The domain
-  // code (and the transport failure's own name) now rides along, so the chip
-  // itself says which link of the chain broke.
-  const [failure, setFailure] = useState<{ code: string; message: string } | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [managerOpen, setManagerOpen] = useState(false)
   const [cleanupConfirmOpen, setCleanupConfirmOpen] = useState(false)
@@ -100,7 +94,6 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
     setTarget(null)
     setLoading(true)
     setError(null)
-    setFailure(null)
     setMenuOpen(false)
     setManagerOpen(false)
     setCleanupConfirmOpen(false)
@@ -120,16 +113,12 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
     setSwitchNotice(null)
     return subscribeCurrent(adapter, sessionId, language, result => {
       if ('error' in result) {
-        const message = result.error instanceof Error ? result.error.message : String(result.error)
-        setError(message)
-        setFailure({ code: 'client_request_failed', message })
+        setError(result.error instanceof Error ? result.error.message : String(result.error))
       } else if (result.outcome.ok) {
         setTarget(result.outcome.value.target)
         setError(null)
-        setFailure(null)
       } else {
         setError(result.outcome.error.message)
-        setFailure({ code: result.outcome.error.code, message: result.outcome.error.message })
       }
       setLoading(false)
     })
@@ -144,22 +133,11 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
   // Git-graph-style chip: the branch name is the primary label; the worktree
   // state only fills in when no branch is known (loading/error/detached).
   const branchLabel = target?.currentBranch?.trim() ? target.currentBranch : null
-  // A failed observation is labelled with its own code instead of the shared
-  // 「不可用」: `target_unselected` means "this Session is not isolated" (the
-  // normal state of an ordinary Session), while `gateway/lookup-*`,
-  // `transport_unavailable` and `malformed_response` mean the call never
-  // reached the Host — completely different repairs.
-  const failureLabel = failure === null ? null : `${stateLabel} · ${failure.code}`
-  const triggerLabel = branchLabel ?? (target ? t("worktree.state.prefix", { p0: stateLabel }) : failureLabel ?? stateLabel)
+  const triggerLabel = branchLabel ?? (target ? t("worktree.state.prefix", { p0: stateLabel }) : stateLabel)
   const expiry = target?.state === 'retained' && target.expiresAt
     ? new Date(target.expiresAt).toLocaleDateString(language === 'en' ? 'en-US' : 'zh-CN')
     : null
   const accessibleLabel = expiry === null ? t("session.target.label", { target: triggerLabel }) : t("session.target.expires", { p0: triggerLabel, p1: expiry })
-  // Hovering the chip is the fastest way to read the full reason without
-  // opening the menu (a toast would be lost the moment the pointer moves).
-  const chipTitle = failure === null
-    ? t("session.target.and.linked.worktrees")
-    : failure.message
 
   const reveal = (): void => {
     if (!target?.managedRoot) return
@@ -400,16 +378,7 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
       {expiry ? <span>{t("retained.until")} {expiry}</span> : null}
       {error ? <span className="dsh-wtc-menu-error">{error}</span> : null}
     </span>
-  ) : failure !== null
-    // No target at all: the observation itself failed, so the menu leads with
-    // the machine-readable code and keeps the raw message underneath.
-    ? (
-      <span className="dsh-wtc-menu-summary">
-        <strong className="dsh-wtc-menu-error">{stateLabel} · {failure.code}</strong>
-        <span className="dsh-wtc-menu-error">{failure.message}</span>
-      </span>
-    )
-    : error ?? triggerLabel
+  ) : error ?? triggerLabel
 
   const MAX_BRANCH_ITEMS = 12
   const overviewBranches = overview?.branches ?? []
@@ -522,11 +491,10 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
             type="button"
             className="dsh-wtc-target-chip"
             data-target-state={state}
-            data-target-failure={failure?.code}
             aria-expanded={menuOpen}
             aria-haspopup="menu"
             aria-label={accessibleLabel}
-            title={chipTitle}
+            title={t("session.target.and.linked.worktrees")}
             onClick={() => {
               if (menuOpen) {
                 setMenuOpen(false)
@@ -549,7 +517,7 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
             <ReviewIcon name={target?.state === 'local' ? 'local' : 'branch'} className="dsh-wtc-target-kind" />
             {branchLabel !== null
               ? <span className="dsh-wtc-target-branch">{branchLabel}</span>
-              : target ? <span className="dsh-wtc-target-branch">{triggerLabel}</span> : <span className="dsh-wtc-target-branch">{triggerLabel}</span>}
+              : target ? <span className="dsh-wtc-target-branch">{triggerLabel}</span> : triggerLabel}
             {switchNotice !== null ? <span className="dsh-wtc-switch-notice">{switchNotice}</span> : null}
             {expiry ? <span className="dsh-wtc-target-expiry">· {expiry}</span> : null}
             <ReviewIcon name="down" className="dsh-wtc-target-chevron" />

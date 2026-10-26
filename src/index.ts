@@ -299,17 +299,12 @@ export const Config = z.object({
   /** Detection window (ms) for `branchRaceGuard`. Default 30 minutes. */
   branchRaceWindowMs: volatile(z.number().min(60_000).max(24 * 60 * 60 * 1000).default(30 * 60 * 1000)),
   /**
-   * Take over the official Workspace UI (ui-workspace) so this plugin renders
-   * the sidebar itself. Defaults to `true`, matching the upstream design: the
-   * managed-workspace projection, its grouping/aggregation and the guarded
-   * Session actions only exist on the takeover branch, and the decorated
-   * branch cannot reach them (it has to wrap the official Browser, which the
-   * 0.2.x generation renders through declared child slots). A takeover
-   * disables the official entry, which removes its client package from the
-   * Host client graph; set this to `false` to keep the official Workspace and
-   * accept the reduced (decorated) feature set instead.
+   * Take over the official Workspace UI (ui-workspace). Only an explicit
+   * `true` takes over: a takeover disables the official entry, which removes
+   * its client package from the Host's client graph, so every package
+   * importing it loses its bundle.
    */
-  enableWorkspaceProvider: z.boolean().default(true),
+  enableWorkspaceProvider: z.boolean().default(false),
 })
 
 interface LocalAdaptationConfig {

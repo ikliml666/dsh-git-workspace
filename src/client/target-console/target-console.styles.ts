@@ -51,9 +51,6 @@ export const TARGET_CONSOLE_STYLES = String.raw`
 .dsh-wtc-target-chip[data-target-state="delivered"],
 .dsh-wtc-target-chip[data-target-state="discarded"] { opacity: .66; }
 .dsh-wtc-target-expiry { color: color-mix(in srgb, currentColor 62%, transparent); font-weight: 520; }
-/* A failed observation names its own code next to the state, so the label stays
-   monospaced-cheap to read and does not reflow once a target arrives. */
-.dsh-wtc-target-chip[data-target-failure] .dsh-wtc-target-branch { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; font-weight: 560; }
 
 .dsh-wtc-console {
   --wtc-ink: color-mix(in srgb, currentColor 94%, transparent);

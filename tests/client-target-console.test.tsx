@@ -1613,25 +1613,3 @@ test('列表过滤开关把 needsAttention/includeDelivered 传给 list 适配�
   fireEvent.click(screen.getByRole('checkbox', { name: '包含已交付' }))
   await waitFor(() => expect(fixture.adapter.list).toHaveBeenCalledWith({ sessionId: 'source-session', needsAttention: true, includeDelivered: true }))
 })
-
-test('观察失败时胶囊直接给出错误码，不再退化成无信息的「不可用」', async () => {
-  const fixture = createWorktreeConsoleAdapterFixture()
-  // The Host rejected the observation before it reached the service: the exact
-  // shape a Gateway `agent` lookup failure takes (code + message, no target).
-  fixture.adapter.current = vi.fn(async () => ({
-    ok: false as const,
-    error: { code: 'not_owner' as const, message: 'This Session does not own an isolated target.' },
-  }))
-  render(<TargetStatusAction sessionId="target-session" adapter={fixture.adapter} services={clientServices()} />)
-
-  const trigger = await screen.findByRole('button', { name: /不可用/u })
-  // The chip names the broken link, so an unisolated Session and a Gateway
-  // rejection stop looking identical.
-  expect(trigger.textContent).toContain('不可用 · not_owner')
-  expect(trigger.getAttribute('data-target-failure')).toBe('not_owner')
-  // The full server message is one hover away, not buried behind a menu.
-  expect(trigger.getAttribute('title')).toBe('This Session does not own an isolated target.')
-
-  fireEvent.click(trigger)
-  await waitFor(() => expect(screen.getByRole('menu').textContent).toContain('This Session does not own an isolated target.'))
-})
