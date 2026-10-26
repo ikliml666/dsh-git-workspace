@@ -43,23 +43,23 @@ Client 侧是插件的浏览器运行时：把 Host 暴露的 Remote 服务适�
 - **常量 `WORKTREE_CONSOLE_ADAPTER_SERVICE`**（行18）：`'worktreeConsole'`，服务容器里的适配器键。
 - **接口 `ClientContextLike`**（行20-33）：字段 `get(name: string): unknown`、`effect(setup: () => void | (() => void), label?: string): void`、`slots: { inject(name: 'tool.call.toolview' | 'conversation.session.header.actions' | 'conversation.input.dock' | 'conversation.input.left', callback: () => unknown): void; register(descriptor: Record<string, unknown>, component: ComponentType<any>): unknown }`。
 - **`inject`**（行36）：`['slots', 'workspaces', 'sessions', 'conversation', 'connection', 'locale']`。
-- **`servicesOf(ctx)`**（行38-46）：取出并类型断言所需服务，返回对象字段：`locale`、`workspaces`、`sessions`、`uiWorkspace`（其中 `uiWorkspace` 来自 `ctx.get('uiWorkspace')`，行43）、`conversation`。
+- **`servicesOf(ctx)`**（行38-46）：取出并类型断言所需服务，返回对象字段：`locale`（行40）、`workspaces`（行41）、`sessions`（行42）、`uiWorkspace`（行43，来自 `ctx.get('uiWorkspace')`）、`conversation`（行44）。
 - **`apply(ctx, adapterOverride?)`**（行49-106）：
   - **Localized Slots Proxy**（行53-59）：包装 `ctx.slots.register`，自动为注册的 React 组件套 `ClientI18nProvider`（行55-56）。
-  - **Adapter Resolution**（行63-64）：优先 `adapterOverride`，否则 `ctx.get(WORKTREE_CONSOLE_ADAPTER_SERVICE)`。
-  - **Style Injection**（行69-77）：`ctx.effect` 内创建 `<style>`，标 `data-dsh-git-worktree`、`data-plugin`、`data-plugin-css`，注入 `WORKTREE_STYLES` 与 `TARGET_CONSOLE_STYLES`（行70-74），cleanup 时 `style.remove()`（行76）。
-  - **ToolView Registration**（行79-88）：定义 `CreateRow`/`ReviewRow`（行79-80），两次 `ctx.slots.inject('tool.call.toolview', …)`（行81-88），key 分别为 `worktree_create` 与 `worktree_ready_for_review`。
-  - **Target Console & PreSession**（行91-105）：仅当 `adapter !== undefined` 时调 `registerTargetConsole`（行92-96）与 `registerPreSessionWorktree`（行100-104）。
+  - **Adapter Resolution**（行63-64）：优先 `adapterOverride`，否则 `ctx.get(WORKTREE_CONSOLE_ADAPTER_SERVICE)`（行64）。
+  - **Style Injection**（行69-77）：`ctx.effect` 内创建 `<style>`，标 `data-dsh-git-worktree`（行71）、`data-plugin`（行72）、`data-plugin-css`（行73），注入 `WORKTREE_STYLES` 与 `TARGET_CONSOLE_STYLES`（行74），cleanup 时 `style.remove()`（行76）。
+  - **ToolView Registration**（行79-88）：定义 `CreateRow`/`ReviewRow`（行79-80），两次 `ctx.slots.inject('tool.call.toolview', …)`（行81-88），key 分别为 `worktree_create`（行82）与 `worktree_ready_for_review`（行86）。
+  - **Target Console & PreSession**（行91-105）：仅当 `adapter !== undefined` 时调 `registerTargetConsole`（行92-96）与 `registerPreSessionWorktree`（行100-104）；注释行97-99 说明空白会话切换「在 composer 左侧 dock 开始 Worktree」。
 
 ### Remote Entry (`src/client/console-remote/index.ts`)
 
 - **重导出 `createWorktreeConsoleRemoteAdapter`**（行16）。
-- **`inject`**（行45-49）：继承官方 Workspace 的 inject 并过滤掉 `remote.directoryPicker` 与 `remoteAccess`（行46），额外声明 `slots` 与 `configForms`（行47-48），避免旧主机因静态声明缺失服务而挂起 Web 启动（行18-44 注释详述了原因，包括 `remote.directoryPicker` 会死锁、`remoteAccess` 在 0.2.0-rc.2 主机缺失会导致永久 pending）。
+- **`inject`**（行45-49）：继承官方 Workspace 的 inject 并过滤掉 `remote.directoryPicker` 与 `remoteAccess`（行46），额外声明 `slots` 与 `configForms`（行47-48）；行18-44 注释详述原因：`remote.directoryPicker` 会死锁（行23-28）、`remoteAccess` 在 0.2.0-rc.2 主机缺失会导致永久 pending（行37-43）、`slots`/`configForms` 缺失会使设置卡片不挂载（行30-36）。
 - **接口 `ConsoleClientContext`**（行51-53）：扩展 `Context` 加 `remote: ClientRemote & { gitWorktree: GitWorktreeRemote }`。
 - **`declare module '@deepseek-ai/cordis'`**（行55-59）：为 `Context` 增加 `worktreeConsole: WorktreeConsoleAdapter`。
 - **`apply(ctx)`**（行62-206）：
   - **Remote Mount**（行63-66）：`ctx.remote.$mount(contribution)`（行64），记录耗时 `elapsedMountMs`（行65），`ctx.effect(() => disposeRemote)`（行66）。
-  - **Adapter Build**（行67-72）：取 `remote.gitWorktree`，`createWorktreeConsoleRemoteAdapter`，`ctx.provide('worktreeConsole', adapter)`（行72）。
+  - **Adapter Build**（行67-72）：取 `remote.gitWorktree`（行67），`createWorktreeConsoleRemoteAdapter(remote, getLanguage)`（行71），`ctx.provide('worktreeConsole', adapter)`（行72）。
   - **`mountSettingsCard`**（行73）。
   - **`mountTools`**（行75-81）：`workspaceCtx.inject(toolViewInject, child => applyToolViews(child, adapter))`（行78-80）——会话相关视图必须挂在 UI Workspace provider 之下。
   - **`reportBoot`**（行86-102）：调用 `remote.clientBootReport({ flavor: topology.ok ? String(topology.value.workspaceClientFlavor ?? 'missing') : 'unknown', branch, registered, detail?, elapsedMountMs, elapsedTopologyMs }, undefined)`（行91-95），尾部 locale 显式传 `undefined`；诊断尽力而为，catch 仅日志（行99-101）。
@@ -73,7 +73,7 @@ Client 侧是插件的浏览器运行时：把 Host 暴露的 Remote 服务适�
 ### Adapter Layer (`src/client/console-remote/adapter.ts` & `src/console-contract.ts`)
 
 - **超时档位**（行55-56）：`FAST_TIMEOUT_MS = 30_000`、`SLOW_TIMEOUT_MS = 180_000`。
-- **`FAST_METHODS`**（行59-64）：含 `sidebarTopology`、`current`、`inspect`、`previewRecoveryPreflight`、`gitOverview`、`gitGraph`、`listAbandoned`；其余落慢档（注释行57-58说明 `list`/`preflight`/`preflightCreate` 全量重算可能逼近30s放SLOW档，逻辑一致）。
+- **`FAST_METHODS`**（行59-64）：含 `sidebarTopology`、`current`、`inspect`、`previewRecoveryPreflight`、`gitOverview`、`gitGraph`、`listAbandoned`；其余落慢档（注释行57-58说明 `list`/`preflight`/`preflightCreate` 全量重算可能逼近30s放SLOW档）。
 - **辅助函数**：
   - `transport<T>`（行30-32）：返回 `transport_unavailable` 错误。
   - `malformed<T>`（行34-36）：返回 `malformed_response` 错误。
@@ -84,7 +84,7 @@ Client 侧是插件的浏览器运行时：把 Host 暴露的 Remote 服务适�
   - **`invoke<T>`**（行82-111）：`Promise.race` 超时（行88-93）；异常经 `isCodecRejection` 转 `malformed_response` 否则 `transport_unavailable`（行96）；校验 `carrier` 形状（行102）、`descriptor.result.mode === 'strict'`（行105）及 schema `.parse()`（行107）。
   - **返回对象**（行113-153）实现 `WorktreeConsoleAdapter`（契约行723-761）全部方法：`sidebarTopology`(114)、`current`(115)、`list`(116)、`preflightCreate`(117)、`createWithInitialCommit`(118)、`create`(119)、`initializeProject`(120)、`inspect`(121)、`reviewDiff`(122)、`preflight`(123)、`previewRecoveryPreflight`(124)、`preparePreviewRecoveryAnalysis`(125)、`createPreviewRecoveryHandoff`(126)、`preview`(127)、`checkpoint`(128)、`resumeRevision`(129-131)、`prepareReviewRegeneration`(132)、`rollbackPreview`(133)、`discard`(134)、`finalize`(135)、`finalizePreview`(136)、`setRetention`(137)、`setPermanent`(138)、`retryCleanup`(139)、`beginNextIteration`(140)、`clearSidebarBadge`(141)、`gitOverview`(142)、`gitGraph`(143)、`gitCreateBranch`(144)、`gitSwitchBranch`(145)、`gitPruneMergedBranches`(146)、`gitListTags`(147)、`gitCreateTag`(148)、`gitDeleteTag`(149)、`gitPushTag`(150)、`listAbandoned`(151)、`restoreAbandoned`(152)。
 - **契约关键类型**（`src/console-contract.ts`）：
-  - `WORKTREE_CONSOLE_TARGET_STATES`（行26-38）与 `WorktreeConsoleTargetState`（行40）：目标状态联合类型。
+  - `WORKTREE_CONSOLE_TARGET_STATES`（行26-38）与 `WorktreeConsoleTargetState`（行40）：目标状态联合类型，含 `'local' | 'creating' | 'working' | 'ready_for_review' | 'preview_active' | 'preview_detached' | 'retained' | 'cleanup_pending' | 'recovery_required' | 'delivered' | 'discarded'`。
   - `WorktreeConsoleDeliveryState`（行42-50）：联合 `'working' | 'ready_for_review' | 'preview_active' | 'preview_detached' | 'finalized' | 'retained' | 'delivered'`。
   - `WorktreeConsoleProjectionSource`（行52-56）：字段 `kind: 'local' | 'isolated'`、`phase: SessionCheckoutPhase`、`deliveryState?: WorktreeConsoleDeliveryState`。
   - `worktreeReachedDelivery`（行64-73）：函数，参数 `phase: SessionCheckoutPhase, deliveryState?: WorktreeConsoleDeliveryState`，返回布尔。
@@ -172,9 +172,9 @@ Client 侧是插件的浏览器运行时：把 Host 暴露的 Remote 服务适�
 
 - **`EMPTY_TOPOLOGY`**（行15）：默认空拓扑 `WorktreeSidebarTopologyResponse`。
 - **`OWNER_SAFE_SESSION_ACTIONS`**（行18）：`Set(['pin','rename','archive','session-id'])`。
-- **共享拓扑机制**（行24-40）：`sharedTopology` 与 `sharedTopologyListeners`，`setSharedTopology`（行27-30）、`useSharedTopology`（行32-40）。
+- **共享拓扑机制**（行24-40）：`sharedTopology`（行24）与 `sharedTopologyListeners`（行25），`setSharedTopology`（行27-30）、`useSharedTopology`（行32-40）。
 - **`ManagedWorktreeSessionDecoration`**（行43-48）：字段 `kind: 'managed-worktree'`、`state: WorktreeSidebarTaskState`、`label: string`、`originalTitle: string`。
-- **`ManagedWorkspaceGuard`**（行50-56）：字段 `ready: boolean`、`sessionIds: ReadonlySet<string>`、`workspaceIds: ReadonlySet<string>`、方法 `blockSession(id: string): boolean`、`blockWorkspace(id: string): boolean`。
+- **`ManagedWorkspaceGuard`**（行50-56）：字段 `ready: boolean`、`sessionIds: ReadonlySet<string>`、`workspaceIds: ReadonlySet<string>`、方法 `blockSession(id: string): boolean`（行54）、`blockWorkspace(id: string): boolean`（行55）。
 - **`OfficialWorkspaceBrowserProps`**（行58-64）：扩展 `WorkspaceBrowserProps` 加 `adapter: WorktreeConsoleAdapter`、`OfficialBrowser: ComponentType<WorkspaceBrowserProps>`、`guard?`: ManagedWorkspaceGuard、`registerSessionMenuEntry?`: 函数。
 - **`ManagedOfficialWorkspaceBrowser`**（行70-203）：
   - 内部 `useEffect` 注册清除徽章菜单（行91-98）。
