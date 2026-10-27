@@ -7,6 +7,193 @@ source_files:
   - src/ports.ts
   - src/types.ts
   - src/session-checkout-apply.ts
+  - src/checkpoint.ts
+  - src/creation-failure.ts
+  - src/managed-worktree-path.ts
+  - tests/session-checkout-module.test.ts
+tags: [session-checkout, state-machine, worktree, delivery, recovery, apply-engine]
+---
+
+## Overview
+
+`createSessionCheckoutModule(dependencies)` (in `src/session-checkout-module.ts:237-5303`) is the core state machine for dsh-git-worktree. It was ported from Domi and owns the **receipt-first Local Preview**, **rollback/finalize**, **project acceptance slots**, **crash recovery**, and **fingerprint CAS** flows, while adapting ownership to a separate source Local Session and target owner Session (module doc at `src/session-checkout-module.ts:237-243`).
+
+It is **host-agnostic**: every Git, filesystem, registry, session-lookup, and apply-engine concern is injected through the `SessionCheckoutDependencies` port (`src/ports.ts:567-608`). The module talks only to these ports and a JSON checkout registry (`ManagedCheckoutsRegistry`, `src/ports.ts:542-547`).
+
+Key delivery semantic: delivery now **only commits onto the Worktree's own session branch and never touches Local** (see the session-branch gate `refuseLegacyLocalWrite` at `src/session-checkout-module.ts:1656-1668`). The Worktree is attached to a dedicated `sessionBranch` (`refs/heads/feat/sess-<id>…`) at creation (`attachSessionBranch`, `src/session-checkout-module.ts:754-796`) and again before every review/finish/delivery (`ensureSessionBranch`, `src/session-checkout-module.ts:810-860`). Local is only merged back on explicit user request via `mergeBranchForSession`.
+
+The module returns a `SessionCheckoutModule` object (`src/index.ts:113-219`) whose every mutation goes through `withBindingLock` (`src/session-checkout-module.ts:1289-1324`), a single-writer queue that also supports a concurrent read-only `maintenance` bypass for background `reconcile` / retention cleanup / keep-count sweeps.
+
+## Key Components
+
+The module is a single factory `createSessionCheckoutModule` (`src/session-checkout-module.ts:237`). Inside it, many private closures form the state machine; the factory returns the public `SessionCheckoutModule` surface (`src/session-checkout-module.ts:237-338`).
+
+### Public API returned by the factory (`src/index.ts:113-219`)
+
+All wrappers acquire `withBindingLock`; read-only list/inspect calls opt into the `allowConcurrentInspect` maintenance bypass.
+
+- `inspect(sessionId)` → `SessionTargetView` — `inspectAvailable` (`src/session-checkout-module.ts:1344-1360`), spins on the binding lock and routes to `inspectLocal` (`src/session-checkout-module.ts:257-283`) or `inspectIsolated` (`src/session-checkout-module.ts:881-989`).
+- `runtimeContext(sessionId, cwd?)` (`src/session-checkout-module.ts:1077-1220`) — **synchronous** registry-only snapshot that builds the model guidance string for the current target (Local vs Isolated, every delivery state, branch-race notice).
+- `refreshBranchRaceGuards()` (`src/session-checkout-module.ts:1002-1027`) — fills `branchRaceCache` with per-Local-root branch creation times for the synchronous race guard.
+- `preflight(sessionId, expectedRevision)` (`src/session-checkout-module.ts:2553-2631`) — read-only sync readiness check before apply/finish.
+- `preflightPreviewRecovery(sessionId, expectedRevision, expectedReviewId, expectedPreviewId)` (`src/session-checkout-module.ts:2434-2520`) — deterministic detached-preview recovery assessment + proof.
+- `runExclusiveSessionMutation(sessionId, operation)` — runs `operation(target)` under the exclusive lock.
+- `bind(sessionId, choice)` (`src/session-checkout-module.ts:5216-5219` → `bindTarget`, `src/session-checkout-module.ts:4841-5200`) — binds a Local or creates an Isolated target.
+- `createIsolatedTarget(sourceSessionId, targetSessionId, createOptions?)` (`src/session-checkout-module.ts:5220-5245`) — reserves a distinct owner session; same-id form = in-place upgrade.
+- `beginNextIteration(sessionId, expectedRevision)` (`src/session-checkout-module.ts:5246-5247` → `beginNextIterationTarget`, `src/session-checkout-module.ts:4535-4744`) — recreates a cleaned delivered owner's immutable cwd as the next isolated iteration.
+- `resumeRevision(...)` (`src/session-checkout-module.ts:1997-2068`), `prepareReviewRegeneration(...)` (`src/session-checkout-module.ts:2070-2101`), `preparePreviewRecoveryAnalysis(...)` (`src/session-checkout-module.ts:2103-2137`), `createPreviewRecoveryHandoff(...)` (`src/session-checkout-module.ts:2139-2185`) — persist Host one-shot continuations/proofs and create handoff worktrees.
+- `markReadyForReview(sessionId, input)` (`src/session-checkout-module.ts:1684-1765`) — prepares a review and attaches the session branch first.
+- `operate(input)` (`src/session-checkout-module.ts:3816-3834` → `operateTarget`) — dispatches the `SessionCheckoutOperation` actions `apply | finish | preview | checkpoint | rollback_preview | finalize_preview | retry_cleanup | discard | recover`.
+- `isAutoDeliverEnabled()` (`src/session-checkout-module.ts:5266`) — live autoDeliver flag.
+- `listManagedWorktrees(input?)` (`src/session-checkout-module.ts:4069-4078`), `listManagedWorktreesForSession(sessionId, input?)` (`src/session-checkout-module.ts:4080-4094`).
+- `pruneMergedBranchesForSession(sessionId, input?)` (`src/session-checkout-module.ts:4170-4186`), `autoPruneStaleMergedBranches(olderThanDays)` (`src/session-checkout-module.ts:4193-4213`).
+- `mergeBranchForSession(sessionId, input)` (`src/session-checkout-module.ts:4215-4291`) — merges a session-owned worktree branch into Local HEAD (forward) or vice versa (reverse), with ownership gating and acceptance-slot refusal.
+- `listAbandonedWorktreeSnapshots(sessionId)` (`src/session-checkout-module.ts:4293-4309`), `restoreAbandonedWorktreeSnapshot(sessionId, checkoutId)` (`src/session-checkout-module.ts:4311-4334`).
+- `manageManagedWorktreeForSession(sessionId, input)` (`src/session-checkout-module.ts:4336-4355`) and `manageManagedWorktree(input)` (`src/session-checkout-module.ts:4357-4434`) — owner-scoped discard / set_retention / set_permanent / clear_sidebar_badge / cleanup.
+- `inspectManagedWorktreeCleanup(input?)` (`src/session-checkout-module.ts:4004-4016`) and `bulkCleanupManagedWorktrees(candidates)` (`src/session-checkout-module.ts:4018-4067`).
+- `resolveManagedRoot(checkoutId)` (`src/session-checkout-module.ts:4457-4459`), `resolveRoots(checkoutId)` (`src/session-checkout-module.ts:4466-4469`) — registry read of both boundaries.
+- `observeManagedCheckout(checkoutId)` (`src/session-checkout-module.ts:4436-4450`), `observeManagedCheckouts(checkoutIds)` (`src/session-checkout-module.ts:4436-4439`) — validated observation.
+- `cleanupExpiredRetained(now?)` (`src/session-checkout-module.ts:4483-4503`), `enforceWorktreeKeepCount()` (`src/session-checkout-module.ts:4511-4533`), `reconcile()` (`src/session-checkout-module.ts:1362-1609`).
+
+### Core internal closures (state machine)
+
+- `withBindingLock(operation, {allowConcurrentInspect?})` (`src/session-checkout-module.ts:1289-1324`) — single-writer mutex with a `maintenance` read-only bypass; maintenance drains running inspects before handing the queue back to mutations.
+- `inspectLocal` / `inspectIsolated` (`src/session-checkout-module.ts:257-283`, `881-989`) — build `SessionTargetView`; `inspectIsolated` validates identity, restores `recovery_required` → `ready` when paths are intact, and reports project acceptance-slot ownership.
+- `validateManagedCheckoutDetailed` (`src/session-checkout-module.ts:597-653`) / `validateManagedCheckout` (`src/session-checkout-module.ts:655-662`) — canonical-path + Git-common-dir + branch-fingerprint identity proof (returns `valid | invalid | unavailable`).
+- `ensureSessionBranch` (`src/session-checkout-module.ts:810-860`) and `attachSessionBranch` (`src/session-checkout-module.ts:754-796`) — attach the Worktree to its own session branch, trying `createSessionBranchCandidates` names; falls back to detached-HEAD if the port `attachWorktreeBranch` is absent.
+- `refuseLegacyLocalWrite` (`src/session-checkout-module.ts:1656-1668`) — blocks legacy apply/preview/finalize that would write Local when a `sessionBranch` exists.
+- `operateApply` (`src/session-checkout-module.ts:2187-2344`), `operatePreview` (`src/session-checkout-module.ts:2633-2783`), `operateFinalizePreview` (`src/session-checkout-module.ts:3166-3310`), `operateRollbackPreview` (`src/session-checkout-module.ts:2824-2929`), `operateFinish` (`src/session-checkout-module.ts:3339-3574`), `operateCheckpoint` (`src/session-checkout-module.ts:1767-1995`), `operateDiscard` (`src/session-checkout-module.ts:3586-3750`), `operateRecover` (`src/session-checkout-module.ts:3752-3814`) — each is an `operate` action handler with exclusive-lock CAS (`expectedRevision`), stale-target re-validations, acceptance-slot checks, and journal-based crash recovery.
+- `cleanupFinalized` (`src/session-checkout-module.ts:2979-3163`) — the safety-critical removal chain: fingerprint CAS, worktree removal, detached-residue quarantine, container reclamation, and terminal `delivered` transition.
+- `detachPreviewAfterLocalDrift` (`src/session-checkout-module.ts:2785-2822`) — turns a `preview_active` into `preview_detached` when Local drifted during rollback/finalize.
+- `reconcile` (`src/session-checkout-module.ts:1362-1609`) — startup/idle sweep that replays journals to deterministic states, reclassifies finalized/retained, and triggers cleanup of expired retained worktrees.
+- `bindTarget` (`src/session-checkout-module.ts:4841-5200`) — the create/local-rebind logic for both `bind` and `createIsolatedTarget`.
+- `beginNextIterationTarget` (`src/session-checkout-module.ts:4535-4744`) — recreate a delivered owner's immutable cwd as the next isolated iteration.
+
+### Constants & module-level helpers
+
+- `UNVERSIONED_OID='unversioned'`, `UNVERSIONED_REF='WORKING_TREE'` (`src/session-checkout-module.ts:91-92`).
+- `RETENTION_24H_MS`, `RETENTION_3D_MS` (`src/session-checkout-module.ts:93-94`), `DEFAULT_WORKTREE_RETENTION` imported from `src/types.ts:39`.
+- `CHECKOUT_CLEANUP_TIMEOUT_MS = 120_000` (`src/session-checkout-module.ts:108`) and `withCleanupTimeout` (`src/session-checkout-module.ts:108-126`) — bounding startup cleanup so one stuck record cannot block app start.
+- `TRANSIENT_CLEANUP_RETRY_DELAYS_MS = [100, 300, 800]` (`src/session-checkout-module.ts:172`) and `retryTransientCleanup` / `isTransientCleanupError` (`src/session-checkout-module.ts:163-184`) — retry on EBUSY/EPERM/EACCES/ENOTEMPTY.
+- `persistedCleanupReason` / `cleanupReasonForMessage` (`src/session-checkout-module.ts:142-161`) — structured cleanup reason with legacy prose fallback.
+- `pathForIdentity`, `pathsEqual`, `resolvedPathsEqual`, `pathIsWithin`, `branchNameOf` (`src/session-checkout-module.ts:192-235`) — Windows-safe path/branch normalization helpers.
+- `sha256Facts` / `canonicalJson` / `recoveryGeneration` (`src/session-checkout-module.ts:2415-2432`) — the sha256 of canonical JSON forming the preview-recovery proof `generation`.
+- `pushLocalBranchBestEffort` (`src/session-checkout-module.ts:129-140`) — best-effort session-branch push after finish.
+
+### Domain data structures (port types in `src/ports.ts`)
+
+`ManagedCheckoutRecord` (`src/ports.ts:487-540`) — the durable per-checkout record. All fields: `checkoutId`, `predecessorCheckoutId?`, `projectId`, `projectName`, `ownerSessionId`, `sourceSessionId?`, `localRoot`, `managedRoot`, `managedGitRoot`, `gitCommonDir`, `gitDir`, `baseOid`, `applyBaseOid?` (last applied isolated snapshot, not the user-visible base), `previousReview?` (`ManagedWorktreePreviousReviewRecord`, `src/ports.ts:353-359`), `checkpoints?` (`ManagedWorktreeCheckpointRecord[]`, `src/ports.ts:501-518`), `recoveryContinuation?`, `abandonedSnapshotOid?`, `abandonedSnapshotAt?`, `permanent?`, `sidebarBadgeClearedRevision?`, `sourceRef`, `sessionBranch?` (`refs/heads/feat/sess-…`, absent on historical records), `sessionTopic?`, `phase` (`SessionCheckoutPhase`, `src/types.ts:18-27`), `delivery` (`ManagedCheckoutDelivery` union, `src/ports.ts:449-485`), `journal` (`ManagedCheckoutJournal | null`, `src/ports.ts:501`), `revision`.
+
+`ManagedCheckoutDelivery` (`src/ports.ts:449-485`) is a discriminated union on `state`: `working` | `ready_for_review` | `preview_active` | `preview_detached` | `finalized` | `retained` | `delivered`, each carrying the review/preview/proof and cleanup bookkeeping (e.g. `cleanup: 'pending'|'blocked'|'scheduled'`, `cleanupMessage?`, `cleanupReason?`, `retention`, `retainedAt`, `expiresAt`).
+
+`ManagedCheckoutJournal` (`src/ports.ts:331`) separates `create` journals (`ManagedCheckoutCreateJournal`, `src/ports.ts:288-292`, with `creation: WorktreeCreationEvidence`, `step: 'creating_worktree'`) from mutation journals (`ManagedCheckoutMutationJournal`, `src/ports.ts:294-329`, `operation` ∈ `apply | preview | checkpoint | rollback_preview | finalize_preview | finish | cleanup`, and `step` ∈ `planning | artifacts_retained | committing_session_branch | writing_local | updating_ref | replacing_index | removing_worktree`).
+
+`ManagedCheckoutsRegistry` (`src/ports.ts:542-547`): version-2 JSON, `revision`, `sessionBindings: Record<sessionId, SessionBindingRecord>`, `managedCheckouts: Record<checkoutId, ManagedCheckoutRecord>`. Persisted atomically by `SessionCheckoutRegistryPort` (`src/ports.ts:549-552`); every mutation bumps `revision` via `updateManagedCheckout` (`src/session-checkout-module.ts:1670-1682`).
+
+`SessionBindingRecord` (`src/ports.ts:257-267`) ties a session to `{kind:'local'}` or `{kind:'isolated', checkoutId}` plus `projectId`, `ownerSessionId`, `sourceRef`, `sourceOid`, `inheritedFromSessionId?`, `revision`.
+
+`SessionCheckoutDependencies` (`src/ports.ts:567-608`) is the injected port bundle: `lookup`, `git` (`SessionCheckoutGitPort`, `src/ports.ts:109-230`), `files` (`SessionCheckoutFilesPort`, `src/ports.ts:238-255`), `registry`, `applyEngine` (`SessionCheckoutApplyEngine`, `src/session-checkout-apply.ts:279-317`), `managedCheckoutsRoot`, `createCheckoutId`, plus optional/local-adaptation flags (`autoPush`, `autoDeliver`, `worktreesRoot`, `inheritLocalChanges`, `worktreeKeepCount`, `branchRaceGuard`, `branchRaceWindowMs`).
+
+### Test surface
+
+`tests/session-checkout-module.test.ts` (3145 lines) exercises bind/apply/preview/finalize/rollback/checkpoint/discard/recover, retention cleanup, keep-count eviction, prune, merge gating, abandoned-snapshot restore, branch-race guards, and the legacy-prose→structured cleanup-reason fallback. It builds adapters via `createNodeSessionCheckoutDependencies` (`tests/session-checkout-module.test.ts:14`) against a real Git repo.
+
+## Architecture
+
+Every public method acquires `withBindingLock` (`src/session-checkout-module.ts:1289-1324`), a single-writer queue. Background sweeps (`reconcile`, `cleanupExpiredRetained`, `enforceWorktreeKeepCount`) and `preflightPreviewRecovery` opt into the read-only `maintenance` bypass so they never block interactive mutations; the bypass first drains in-flight inspects (`maintenance_draining`, `src/session-checkout-module.ts:1312-1319`) before a mutation takes the queue.
+
+```text
+            ┌──────────────────────────────────────────────────────────┐
+            │  Host / Tools / Session-Target runtimeContext (index.ts)   │
+            └───────────────┬──────────────────────────────────────────┘
+                            │ bind / operate / cleanup / inspect
+                            ▼
+            ┌──────────────────────────────────────────────────────────┐
+            │  SessionCheckoutModule (returned object, lines 5202-5303)   │
+            │  withBindingLock (exclusive | maintenance | draining)       │
+            └───────┬───────────────────────────────┬──────────────────┘
+                    │                                │
+          ┌─────────▼──────────┐            ┌────────▼───────────────┐
+          │ bindTarget          │            │ reconcile / cleanup... │
+          │ (create / attach    │            │ (maintenance bypass)   │
+          │  sessionBranch)     │            └────────┬───────────────┘
+          └─────────┬──────────┘                     │
+                    │ writes                         │ reads/writes
+                    ▼                                ▼
+            ┌──────────────────────────────────────────────────────────┐
+            │  ManagedCheckoutsRegistry (JSON, ports.ts:542-547)          │
+            │  sessionBindings + managedCheckouts, revision bumped        │
+            └───┬───────────────────┬────────────────────┬───────────────┘
+                │                   │                    │
+   ┌────────────▼─────┐  ┌──────────▼─────────┐  ┌───────▼──────────────┐
+   │ SessionCheckout   │  │ SessionCheckout     │  │ SessionCheckout       │
+   │ GitPort           │  │ FilesPort           │  │ ApplyEngine          │
+   │ (worktree,        │  │ (canonicalize,      │  │ (plan/preview/        │
+   │  inspect,         │  │  removeTree,        │  │  finalize/rollback/   │
+   │  removeWorktree,  │  │  quarantine)        │  │  commitIsolated,      │
+   │  attachBranch)    │  │                     │  │  reviewIsolated, CAS) │
+   └───────────────────┘  └────────────────────┘  └──────────────────────┘
+                ▲                   ▲                    ▲
+                └──────── Local ─────┴──── Managed Worktree (isolated) ─┘
+```
+
+Two checkout kinds coexist through a binding (`src/session-checkout-module.ts:4841-4890`):
+- **Local** (`kind:'local'`): the project's own repo; no worktree; direct Local work.
+- **Isolated** (`kind:'isolated', checkoutId`): a detached managed worktree (`createDetachedWorktree`, called at `src/session-checkout-module.ts:5102` and `4655`) on its own `sessionBranch`, with the Local project root as its `localRoot`. Delivery commits only on the session branch; Local is never written (`refuseLegacyLocalWrite`, `src/session-checkout-module.ts:1656-1668`).
+
+Project **acceptance slot** (`holdsProjectAcceptanceSlot` / `findProjectAcceptanceHolder`, `src/session-checkout-module.ts:2346-2364`) serializes preview/rollback/finalize/finish per `localRoot`: only one managed checkout in `preview_active` or with a `preview`/`rollback_preview`/`finalize_preview`/`finish` journal may occupy a project's Local at a time.
+
+## Data Flow
+
+### Create / bind (Local → Isolated)
+`bindTarget` (`src/session-checkout-module.ts:4841-5200`) resolves the project, inspects the repo, picks a trusted sibling/fallback container, writes a `preparing` record + binding, calls `dependencies.git.createDetachedWorktree` (`src/session-checkout-module.ts:5102`), then `attachSessionBranch` (`src/session-checkout-module.ts:5117`), optionally carries local WIP (`carryLocalWorkInProgress`, `src/session-checkout-module.ts:4778-4804`), and flips the record to `ready`. Failures roll back via `finishFailedCreation` (`src/session-checkout-module.ts:498-521`) and `markRecoveryRequired` (`src/session-checkout-module.ts:523-538`).
+
+### Delivery (the central flow)
+1. `markReadyForReview` (`src/session-checkout-module.ts:1684-1765`) ensures the session branch, snapshots the review (`applyEngine.reviewIsolated`/`inspectReview`), and records `delivery.state='ready_for_review'`.
+2. `operate preview` (`src/session-checkout-module.ts:2366-2516`) runs `applyEngine.plan`, retains preview artifacts (`retainPreviewArtifacts`, `src/session-checkout-module.ts:2366-2372`), and sets `preview_active`.
+3. `operate finalize_preview` (`src/session-checkout-module.ts:2480-2624`) commits via `applyEngine.finalize` to Local; `operate finish` (`src/session-checkout-module.ts:2480-2715`) instead commits **only on the session branch** via `applyEngine.commitIsolated` (`src/session-checkout-apply.ts:292`) / `reviewIsolated` (`src/session-checkout-apply.ts:294`), sets `finalized`, optionally retains (`retainFinalized`, `src/session-checkout-module.ts:2931-2957`) or cleans up (`cleanupFinalized`, `src/session-checkout-module.ts:2979-3163`), and optionally best-effort pushes the session branch (`pushLocalBranchBestEffort`, `src/session-checkout-module.ts:129-140`).
+4. `cleanupFinalized` transitions the record to `delivered` + `discarded` phase after the worktree is removed and the empty container reclaimed (`collectEmptyManagedContainer`, `src/session-checkout-module.ts:2963-2977`).
+
+### Recovery & drift
+If Local drifts during a preview (`stale_local`/`preview_modified`), `operateRollbackPreview`/`operateFinalizePreview` call `detachPreviewAfterLocalDrift` (`src/session-checkout-module.ts:2785-2822`) → `preview_detached`, then `preflightPreviewRecoveryTarget` (`src/session-checkout-module.ts:2434-2520`) produces a sha256 `WorktreePreviewRecoveryProof` (`recoveryGeneration`, `src/session-checkout-module.ts:2430-2432`) that gates retry via `recoveryProofMatches` (`src/session-checkout-module.ts:2522-2526`).
+
+### Retention maintenance
+`reconcile` (`src/session-checkout-module.ts:1362-1609`) replays interrupted journals, classifies finalized/retained, and calls `cleanupExpiredRetained` (`src/session-checkout-module.ts:4483-4503`) and `enforceWorktreeKeepCount` (`src/session-checkout-module.ts:4511-4533`). `retainFinalized` keeps a frozen environment for `retain_24h` / `retain_3d` / `retain_manual` (`retentionExpiresAt`, `src/session-checkout-module.ts:186-190`).
+
+### Next iteration
+After a successful cleanup, `beginNextIterationTarget` (`src/session-checkout-module.ts:4535-4744`) reuses the delivered owner's immutable cwd path and recreates the detached worktree at the predecessor session branch tip, preserving the iteration chain.
+
+## Connections
+
+- [[index]] — plugin entry; builds adapters and mounts the returned `SessionCheckoutModule`.
+- [[session-checkout-apply-module]] — the `SessionCheckoutApplyEngine` port consumed here (`applyEngine.plan/preview/finalize/rollback/checkpoint/commitIsolated/reviewIsolated/assessPreviewRecovery`, `src/session-checkout-apply.ts:279-317`).
+- [[ports]] — `SessionCheckoutDependencies`, `ManagedCheckoutRecord`, `ManagedCheckoutJournal`, `SessionBindingRecord`, `ManagedCheckoutsRegistry`.
+- [[types]] — `SessionCheckoutPhase`, `WorktreeRetentionMode`, `WorktreeCleanupReason`, `ManagedCheckoutDelivery`, view types.
+- [[managed-worktree-path]] — `createManagedWorktreePathCandidates`, `createManagedWorktreeRepositoryKey`, `createSessionBranchCandidates` (`src/session-checkout-module.ts:40-45`) used for container/candidate/branch naming.
+- [[checkpoint]] — `checkpointGenerationForRecord` (`src/session-checkout-module.ts:39`) used in inspect/delivery views.
+- [[concurrent-session-guard]] — `detectLocalBranchRace` (`src/session-checkout-module.ts:76`) backing the branch-race notice.
+- [[creation-failure]] — `WorktreeCreationFailure` (`src/session-checkout-module.ts:37`) used by `finishFailedCreation`.
+- [[console-host]] / console control plane — consumes `runtimeContext`, `inspect`, and the cleanup/summary views.
+
+## Known Issues
+
+- **Local write on legacy records is blocked by design** (`refuseLegacyLocalWrite`, `src/session-checkout-module.ts:1656-1668`): once a `sessionBranch` exists, the legacy apply/preview/finalize "write Local" paths return `operation_not_allowed`. Historical records created before session branches were adopted are forced through `finish` instead (and `operateFinish` additionally refuses `applyBaseOid`-bearing legacy records at `src/session-checkout-module.ts:3369-3375`).
+- **`apply`/`preview` operations are effectively legacy**: the delivery model moved to session-branch-only commits, so `operateApply`/`operatePreview` still exist (`src/session-checkout-module.ts:2187-2344`, `2633-2783`) but the model is now expected to use `finish` (session-branch delivery).
+- **Windows file-handle blocking**: `CHECKOUT_CLEANUP_TIMEOUT_MS = 120_000` (`src/session-checkout-module.ts:172`) bounds startup cleanup; transient EBUSY/EPERM are retried via `retryTransientCleanup` (`src/session-checkout-module.ts:172-184`) but a permanently held directory (e.g. a lingering agent process) surfaces as `quarantine_busy`/`directory_busy` cleanup and must be resolved manually.
+- **`branchRaceGuard`/`branchRaceWindowMs` rely on reflog**: if `git.branchCreationTimes` is absent, the guard stays silent (`src/session-checkout-module.ts:1002-1027`) rather than guessing — concurrent Local branches from another live session are then undetected.
+- **`attachWorktreeBranch` port may be absent**: when not provided, the Worktree stays detached HEAD and `ensureSessionBranch` warns and lets delivery proceed (`src/session-checkout-module.ts:810-817`); such records are later adopted onto a fresh branch at `finish`.
+- **Empty-container reclamation is best-effort only**: `collectEmptyManagedContainer` (`src/session-checkout-module.ts:2963-2977`) and `removeEmptyDirectoryTree` calls never delete user bytes; a non-empty same-named directory is left untouched and rejected as untrusted (`src/session-checkout-module.ts:2963-3005`).
+- **Keep-count eviction does not use `operateDiscard`**: `enforceWorktreeKeepCount` (`src/session-checkout-module.ts:4511-4533`) evicts finalized/retained worktrees via `cleanupFinalized` directly because `operateDiscard` only accepts `ready`/`recovery_required` phases and would silently fail on delivered records.
+
+---
+title: Session Checkout Module
+type: module
+source_files:
+  - src/session-checkout-module.ts
+  - src/index.ts
+  - src/ports.ts
+  - src/types.ts
+  - src/session-checkout-apply.ts
   - tests/session-checkout-module.test.ts
   - src/checkpoint.ts
   - src/creation-failure.ts
