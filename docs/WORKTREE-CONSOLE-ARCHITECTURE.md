@@ -108,6 +108,7 @@ Console 状态由 domain facts 单向投影，不创建第二套持久状态机�
 
 - `list` 返回 path-free summary；
 - `managedRoot` 只在 caller 已通过身份验证的 create/current/inspect detail 中出现；
+- `current` 已完成 isolated checkout 校验后，可以复用同 checkout、同 `ready` phase、同 owner、同 revision 的观测，避免重复 Git 子进程；revision 不一致、linked read 或交付终态必须走原权威校验。交付终态的 Local 分支复用该权威校验返回的 `localSnapshot`；快照缺失时保留原 `localRoot` 检查。Client 可见时每 5 秒轮询，隐藏时每 60 秒轮询，恢复可见立即刷新；
 - create request 只带 source Session ID，target Session ID 必须由 Host 分配；
 - preflight 是严格只读操作，绑定 checkout ID、expected revision 和 expected review ID；不得创建可执行 plan、slot、Git ref 或 Local 写入；Ready 后 Client 可以自动运行并在 Review 卡/dock 间按 identity 复用结果，但任何 Preview/direct Finalize 前都必须 bypass 缓存重新检查；
 - `project_acceptance_busy` 的 blocker 只包含 checkout ID、owner Session ID 与状态，不含路径；等待 owner 保留 `preflight`，但 `preview`/`finalize` capability 关闭；

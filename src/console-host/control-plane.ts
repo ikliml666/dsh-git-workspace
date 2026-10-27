@@ -449,6 +449,10 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
     if (caller.checkout.id !== record.checkoutId) return undefined
     if (caller.checkout.phase !== 'ready' || record.phase !== 'ready') return undefined
     if (caller.ownership !== 'owner') return undefined
+    // `current` inspects first and reads the registry again during projection.
+    // Only reuse when both observations describe the same revision: otherwise
+    // old branch/HEAD data would be projected beside new review/proof state.
+    if (caller.revision !== record.revision) return undefined
     return {
       managedRoot: record.managedRoot,
       snapshot: { branch: caller.current.branch, headOid: caller.current.oid },
@@ -589,7 +593,9 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
       observed.dirty,
       ownerSessionAvailable(access.record),
       access.linkedRead,
-      observedDeliveryProof,
+      // A caller observed before a registry advance can carry an older proof.
+      // In that case use the proof on the freshly authorized record instead.
+      access.record.revision === observedCaller?.revision ? observedDeliveryProof : undefined,
       await settledLocalBranch(projectedRecord, sessionId, observed.managedRoot, observed.localSnapshot),
     ))
   }
