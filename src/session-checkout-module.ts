@@ -32,6 +32,7 @@ import type {
   WorktreePushOutcome,
 } from './types.js'
 import { DEFAULT_WORKTREE_RETENTION } from './types.js'
+import { worktreeReachedDelivery } from './console-contract.js'
 import { SessionCheckoutError } from './index.js'
 import { WorktreeCreationFailure } from './creation-failure.js'
 import type { WorktreeCreationEvidence } from './ports.js'
@@ -4832,11 +4833,33 @@ export function createSessionCheckoutModule(
       let nextIteration = 1
       let replacedDeliveredBinding: SessionBindingRecord | undefined
       const existing = getPersistedBinding(sessionId)
+      // An isolated Session whose task already reached Local may be released
+      // back to the Local boundary. The Worktree record itself is untouched: it
+      // stays readable for its retention window, and only the binding stops
+      // pointing at it. A live (undelivered) checkout keeps the old refusal —
+      // unbinding mid-task would strand unmerged work in a frozen directory.
+      let releasedDeliveredCheckout = false
       if (existing) {
         if (choice.kind === 'local' && existing.target.kind === 'local') {
           return inspectLocal(existing)
         }
-        if (
+        if (choice.kind === 'local' && existing.target.kind === 'isolated') {
+          const registry = dependencies.registry.read()
+          const record = registry.managedCheckouts[existing.target.checkoutId]
+          const delivered = record !== undefined
+            && worktreeReachedDelivery(record.phase, record.delivery.state)
+            && (record.phase === 'discarded' || record.phase === 'finalized' || record.phase === 'retained')
+          if (!delivered) {
+            throw new SessionCheckoutError(
+              'operation_not_allowed',
+              hostMessage('theWorktreeHasNotBeenDeliveredToLocalYet'),
+            )
+          }
+          // The bind below rewrites this Session's binding to Local; the record
+          // keeps its own history so the delivered badge and the retention
+          // countdown stay correct.
+          releasedDeliveredCheckout = true
+        } else if (
           choice.kind === 'isolated'
           && existing.target.kind === 'local'
           && sessionId === sourceSessionId
@@ -4873,7 +4896,8 @@ export function createSessionCheckoutModule(
           }
         }
         if (
-          !(choice.kind === 'isolated' && existing.target.kind === 'isolated' && nextIteration > 1)
+          !releasedDeliveredCheckout
+          && !(choice.kind === 'isolated' && existing.target.kind === 'isolated' && nextIteration > 1)
           && !(choice.kind === 'isolated' && existing.target.kind === 'local' && sessionId === sourceSessionId && createAttempt === 0 && createOptions !== undefined)
         ) {
           throw new SessionCheckoutError('target_already_bound', hostMessage('theSessionIsAlreadyBoundToASessionTarget'))

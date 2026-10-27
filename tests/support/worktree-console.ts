@@ -35,6 +35,8 @@ import type {
   WorktreeConsolePreviewRecoveryPreflightResponse,
   WorktreeConsoleRestoreAbandonedRequest,
   WorktreeConsoleRestoreAbandonedResponse,
+  WorktreeConsoleReturnToLocalRequest,
+  WorktreeConsoleReturnToLocalResponse,
   WorktreeConsolePrepareRegenerationRequest,
   WorktreeConsolePreviewRequest,
   WorktreeConsoleRetryCleanupRequest,
@@ -90,6 +92,7 @@ function readyTarget(): WorktreeConsoleTargetDetails {
       setPermanent: false,
       retryCleanup: false,
       beginNextIteration: false,
+      returnToLocal: false,
     },
     checkpointGeneration: '9'.repeat(64),
     review: {
@@ -158,6 +161,7 @@ export function createWorktreeConsoleAdapterFixture(stateful = false): WorktreeC
           setPermanent: false,
           retryCleanup: false,
           beginNextIteration: true,
+          returnToLocal: true,
         },
       },
       changedFiles: ['src/index.ts'],
@@ -414,6 +418,30 @@ export function createWorktreeConsoleAdapterFixture(stateful = false): WorktreeC
         dirty: false,
         commitOid: null,
         capabilities: { ...target.capabilities, preflight: false, preview: false, resumeRevision: false, finalize: false, beginNextIteration: false },
+      } })
+    },
+    async returnToLocal(request: WorktreeConsoleReturnToLocalRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleReturnToLocalResponse>> {
+      record('returnToLocal', request)
+      const {
+        review: _review,
+        reviewSlot: _slot,
+        deliveryProof: _deliveryProof,
+        ...released
+      } = target
+      return outcome({ target: {
+        ...released,
+        checkoutId: null,
+        ownerSessionId: 'target-session',
+        targetSessionId: null,
+        iteration: 0,
+        revision: target.revision + 1,
+        state: 'local',
+        phase: 'local',
+        dirty: false,
+        commitOid: null,
+        currentBranch: 'main',
+        sourceSessionId: 'target-session',
+        capabilities: { ...target.capabilities, discard: false, retryCleanup: false, beginNextIteration: false, returnToLocal: false },
       } })
     },
     async gitOverview(sessionId: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitOverviewResponse>> {

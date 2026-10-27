@@ -604,6 +604,10 @@ export const hostMessages = {
     "zh": "会话已经绑定 Session Target，不能切换",
     "en": "The Session is already bound to a Session Target and cannot switch."
   },
+  "theWorktreeHasNotBeenDeliveredToLocalYet": {
+    "zh": "这个 Worktree 还没有交付到 Local，不能回到 Local（请先交付或放弃）",
+    "en": "This Worktree has not been delivered to Local yet, so it cannot return to Local. Deliver or discard it first."
+  },
   "aNonGitProjectCannotCreateAnIsolatedCheckout": {
     "zh": "非 Git 项目不能创建 Isolated Checkout",
     "en": "A non-Git project cannot create an Isolated Checkout."

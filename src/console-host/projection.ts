@@ -2,6 +2,7 @@ import { hostMessage } from '../i18n/host.js'
 import { hostPersistedCleanupMessage } from '../i18n/host-messages.js'
 import {
   consoleStateFromDomain,
+  worktreeReachedDelivery,
   type WorktreeConsoleCapabilities,
   type WorktreeConsoleDeliveryProof,
   type WorktreeConsoleReviewSummary,
@@ -94,6 +95,12 @@ export function capabilities(
     setPermanent: manageAuthorized && active,
     retryCleanup: manageAuthorized && cleanup,
     beginNextIteration: owner && delivered,
+    // Only the owner Session can be rebound, and only once the Worktree has
+    // actually reached delivery: releasing an in-flight Worktree would strand
+    // its review/preview state with no Session pointing at it. The host keeps
+    // the call idempotent, so a Session already standing on Local simply gets
+    // the Local projection back.
+    returnToLocal: owner && worktreeReachedDelivery(record.phase, record.delivery.state),
   }
 }
 
@@ -191,6 +198,7 @@ export function projectDetails(
   ownerSessionAvailable?: boolean,
   linkedRead = false,
   observedDeliveryProof?: WorktreeConsoleDeliveryProof,
+  settledLocalBranch?: string | null,
 ): WorktreeConsoleTargetDetails {
   return {
     ...projectRecord(record, callerSessionId, {
@@ -208,7 +216,14 @@ export function projectDetails(
     // own branch when the Worktree cannot be observed this instant (a frozen or
     // vanished runtime, a transient inspect failure) instead of collapsing to
     // the bare "Worktree · state" label.
-    currentBranch: snapshot?.branch ?? sourceBranchFromRef(record.sessionBranch ?? ''),
+    //
+    // A delivered Worktree is the exception: the Session is back at the Local
+    // boundary, so the chip must name the branch the user is actually standing
+    // on (master, after the merge) rather than the frozen task branch. The host
+    // resolves that branch with the settled record and passes it in; `undefined`
+    // keeps the worktree branch, `null` means Local is not observable right now
+    // and the recorded label is still the best answer.
+    currentBranch: settledLocalBranch ?? snapshot?.branch ?? sourceBranchFromRef(record.sessionBranch ?? ''),
     ...(callerSessionId === record.ownerSessionId && !linkedRead && record.recoveryContinuation
       ? {
           recoveryContinuation: record.recoveryContinuation.kind === 'worktree_apply_conflict'
@@ -285,6 +300,7 @@ export function projectLocal(target: SessionTargetView, sessionId: string): Work
       setPermanent: false,
       retryCleanup: false,
       beginNextIteration: false,
+      returnToLocal: false,
     },
     managedRoot: null,
     sourceRoot: null,

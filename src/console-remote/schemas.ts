@@ -97,6 +97,7 @@ const capabilitiesSchema = strict({
   setPermanent: z.boolean(),
   retryCleanup: z.boolean(),
   beginNextIteration: z.boolean(),
+  returnToLocal: z.boolean(),
 })
 const acceptanceBlockerSchema = strict({
   checkoutId: checkoutIdSchema,

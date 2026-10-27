@@ -13,6 +13,7 @@ import type {
   WorktreeConsolePreflightResponse,
   WorktreeConsolePreviewRecoveryPreflightResponse,
   WorktreeConsoleRestoreAbandonedResponse,
+  WorktreeConsoleReturnToLocalResponse,
   WorktreeConsoleReviewDiffResponse,
   WorktreeConsoleGitGraphResponse,
   WorktreeConsoleGitMutationResponse,
@@ -60,6 +61,7 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
     'gitWorktree/setPermanent': (agentId: string, checkoutId: string, expectedRevision: number, permanent: boolean, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>>
     'gitWorktree/retryCleanup': (agentId: string, checkoutId: string, expectedRevision: number, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>>
     'gitWorktree/beginNextIteration': (agentId: string, checkoutId: string, expectedRevision: number, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>>
+    'gitWorktree/returnToLocal': (agentId: string, checkoutId: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleReturnToLocalResponse>>>
     'gitWorktree/clearSidebarBadge': (agentId: string, checkoutId: string, expectedRevision: number, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>>
     'gitWorktree/gitOverview': (agentId: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleGitOverviewResponse>>>
     'gitWorktree/gitGraph': (agentId: string, limit?: number, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleGitGraphResponse>>>

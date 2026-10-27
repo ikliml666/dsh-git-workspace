@@ -115,6 +115,12 @@ export interface WorktreeConsoleCapabilities {
   retryCleanup: boolean
   /** Recreate a cleaned delivered owner's immutable cwd for iteration + 1. */
   beginNextIteration: boolean
+  /**
+   * Rebind this Session from a delivered managed Worktree back to the Local
+   * checkout. Only meaningful while the Session still points at `isolated`;
+   * once it is back on Local there is nothing left to release.
+   */
+  returnToLocal: boolean
 }
 
 export interface WorktreeConsolePreviewRecovery {
@@ -412,6 +418,22 @@ export interface WorktreeConsoleClearSidebarBadgeRequest {
   sessionId: string
   checkoutId: string
   expectedRevision: number
+}
+
+/**
+ * 回到 Local：把一个已交付的隔离会话释放回 Local 边界。
+ *
+ * 只针对已经交付（delivered）的 Worktree —— 任务成果已经在 Local，冻结环境
+ * 只是保留期内的回滚材料。未交付的 Worktree 拒绝：中途解绑会把未合并的工作
+ * 留在冻结目录里。记录本身不动，保留期倒计时与已交付徽章照旧。
+ */
+export interface WorktreeConsoleReturnToLocalRequest {
+  sessionId: string
+  checkoutId: string
+}
+
+export interface WorktreeConsoleReturnToLocalResponse {
+  target: WorktreeConsoleTargetDetails
 }
 
 export interface WorktreeConsoleMutationResponse {
@@ -746,6 +768,7 @@ export interface WorktreeConsoleAdapter {
   setPermanent(request: WorktreeConsoleSetPermanentRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   retryCleanup(request: WorktreeConsoleRetryCleanupRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   beginNextIteration(request: WorktreeConsoleBeginNextIterationRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
+  returnToLocal(request: WorktreeConsoleReturnToLocalRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleReturnToLocalResponse>>
   clearSidebarBadge(request: WorktreeConsoleClearSidebarBadgeRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   gitOverview(sessionId: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitOverviewResponse>>
   gitGraph(sessionId: string, limit?: number): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitGraphResponse>>

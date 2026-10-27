@@ -6,6 +6,14 @@
 
 ### Fixed
 
+- 已交付的托管 Worktree 会把用户锁在里面，胶囊也永远显示冻结的任务分支（2026-10-27，回退 Local 的能力补齐）：worktree 交付合并后，owner 会话的 Workspace 记录仍是 `isolated`，宿主没有任何「解绑回 Local」的路径——`bindTarget`（`src/session-checkout-module.ts`）只允许 `local → isolated`，`isolated → local` 一律撞 `target_already_bound`；客户端菜单里也没有对应入口。同时顶部胶囊的 `currentBranch` 取自 `observeManagedCheckout` 观测到的 worktree 分支（`src/console-host/projection.ts` `projectDetails`），因此交付后仍显示 `feat/sess-…` 而不是 Local 的 master。
+  - `src/console-host/projection.ts`：`projectDetails` 新增 `settledLocalBranch` 形参，`currentBranch` 改为 `settledLocalBranch ?? snapshot?.branch ?? sourceBranchFromRef(record.sessionBranch)`；`capabilities` 新增 `returnToLocal`（仅 owner 且已交付为真）。
+  - `src/console-host/control-plane.ts`：新增 `settledLocalBranch()`——owner 在交付终态（`discarded`/`finalized`/`retained`）且 live cwd 已不在 `managedRoot` 内时，读 Local 仓库的真实分支作为胶囊分支；`returnToLocal()`——校验 owner + 已交付 + 当前确实指向该 isolated binding，再 `module.bind(sessionId, { kind: 'local' })`，幂等（已回 Local 时直接返回 Local 投影而不是报错）。
+  - `src/session-checkout-module.ts` `bindTarget`：新增 `isolated → local` 的已交付放行分支（未交付仍拒绝，避免把未合并的改动留在冻结目录里无主），`target_already_bound` 守卫相应加 `!releasedDeliveredCheckout`。
+  - 契约与传输：`WorktreeConsoleReturnToLocalRequest/Response`、`WorktreeConsoleCapabilities.returnToLocal`、descriptor `returnToLocal`、remote `gitWorktree/returnToLocal`、client adapter 与 host `@Remote returnToLocal` 全链路打通。
+  - 客户端：顶部胶囊菜单在「开始下一轮修改」之后新增「回到 Local 工作区」，成功后就地把目标切成 Local 投影。
+  - 验证：`tsc --noEmit` 0 诊断；`tests/console-host.test.ts` 63 passed（新增 6 条：交付后胶囊显示 Local 分支、owner 仍在冻结环境时保留 worktree 分支、`returnToLocal` capability 门控、解绑成功、未交付拒绝、已回 Local 幂等）；`tests/client-target-console.test.tsx` 76 passed。
+
 - 托管 Worktree 会话的顶部胶囊与整条 Console 链路全部报错（2026-10-26，owner 授权边界纠正）：在真实 Worktree 里跑测试时发现，**凡是 owner 会话自己的调用一律失败**——`worktree_inspect`、`current`、顶部胶囊的状态探测、复审面板全部拿不到目标。根因在授权函数 `verifyCallerRoot`（`src/console-host/control-plane.ts`）：它只用 `getSession → getProject → project.root` 判断调用者根目录，而 Workspace 项目记录的 root **永远是 Local 路径**；托管 owner 会话实际运行时的 cwd 是它的不可变 worktree 目录（`.../worktrees/<project>/<topic>/`），两者必然不等，于是每次调用都被判 `project_mismatch`。本轮做端到端验证时 `worktree_create` 成功、紧接着的 `worktree_inspect` 就撞上这个错。
   - `src/ports.ts`：`SessionCheckoutLookupPort` 新增可选 `getSessionCwd(sessionId)`。**刻意不复用 `getSession`**——那个方法的契约是「导航用的 Workspace 归属投影」（`tests/lookup.test.ts` 断言它只返回 `{id, projectId}`），把 cwd 塞进去会污染授权证据与展示投影的边界（第一版就是这么写的，两个 lookup 用例立刻红了）。
   - `src/adapters/lookup.ts`：实现 `getSessionCwd`，直接读 harness sessions store 里 live session 的 `header.cwd`（宿主未提供 sessions 服务时返回 undefined，行为退回原样）。

@@ -971,6 +971,10 @@ export const clientMessages = {
     "zh": "返回来源 Session",
     "en": "Return to source Session"
   },
+  "back.to.local.checkout": {
+    "zh": "回到 Local 工作区",
+    "en": "Back to the Local checkout"
+  },
   "manage.linked.worktrees": {
     "zh": "管理关联 Worktrees",
     "en": "Manage linked Worktrees"

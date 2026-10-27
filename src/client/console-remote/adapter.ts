@@ -21,6 +21,7 @@ import type {
   WorktreeConsolePreflightResponse,
   WorktreeConsolePreviewRecoveryPreflightResponse,
   WorktreeConsoleRestoreAbandonedResponse,
+  WorktreeConsoleReturnToLocalResponse,
   WorktreeConsoleReviewDiffResponse,
   WorktreeSidebarTopologyResponse,
 } from '../../console-contract.js'
@@ -138,6 +139,7 @@ export function createWorktreeConsoleRemoteAdapter(remote: GitWorktreeRemote, ge
     setPermanent: request => invoke<WorktreeConsoleMutationResponse>('setPermanent', locale => remote.setPermanent(request.sessionId, request.checkoutId, request.expectedRevision, request.permanent, locale)),
     retryCleanup: request => invoke<WorktreeConsoleMutationResponse>('retryCleanup', locale => remote.retryCleanup(request.sessionId, request.checkoutId, request.expectedRevision, locale)),
     beginNextIteration: request => invoke<WorktreeConsoleMutationResponse>('beginNextIteration', locale => remote.beginNextIteration(request.sessionId, request.checkoutId, request.expectedRevision, locale)),
+    returnToLocal: request => invoke<WorktreeConsoleReturnToLocalResponse>('returnToLocal', locale => remote.returnToLocal(request.sessionId, request.checkoutId, locale)),
     clearSidebarBadge: request => invoke<WorktreeConsoleMutationResponse>('clearSidebarBadge', locale => remote.clearSidebarBadge(request.sessionId, request.checkoutId, request.expectedRevision, locale)),
     gitOverview: sessionId => invoke<WorktreeConsoleGitOverviewResponse>('gitOverview', locale => remote.gitOverview(sessionId, locale)),
     gitGraph: (sessionId, limit) => invoke<WorktreeConsoleGitGraphResponse>('gitGraph', locale => remote.gitGraph(sessionId, limit, locale)),
