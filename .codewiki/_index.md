@@ -20,5 +20,5 @@
 - [[modules/host-overview|Host Entry and Registration Surface]]
 - [[modules/review-console|Review Console 评审操作与恢复]]
 - [[modules/session-checkout-apply|Session Checkout Apply Pipeline]]
-- [[modules/session-checkout-module|Session Checkout State Machine]]
+- [[modules/session-checkout-module|Session Checkout Module]]
 - [[modules/settings-card|Settings Card 插件设置页]]
