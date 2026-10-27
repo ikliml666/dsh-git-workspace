@@ -198,9 +198,20 @@ export interface SessionCheckoutModule {
   /** Both boundaries of a managed checkout from the registry, without Git I/O (cwd restoration). */
   resolveRoots(checkoutId: string): { managedRoot: string; localRoot: string } | undefined
   /** Fresh validated observation; callers can project it without re-reading Git. */
-  observeManagedCheckout?(checkoutId: string): Promise<{ managedRoot: string; snapshot: GitCheckoutSnapshot; dirty: boolean }>
+  observeManagedCheckout?(checkoutId: string): Promise<{
+    managedRoot: string
+    snapshot: GitCheckoutSnapshot
+    /** Local-side snapshot from the same validation pass, so callers need not re-inspect `localRoot`. */
+    localSnapshot: GitCheckoutSnapshot
+    dirty: boolean
+  }>
   /** Batch observation under one lock; results align with the requested checkoutIds. */
-  observeManagedCheckouts?(checkoutIds: string[]): Promise<Array<{ managedRoot: string; snapshot: GitCheckoutSnapshot; dirty: boolean }>>
+  observeManagedCheckouts?(checkoutIds: string[]): Promise<Array<{
+    managedRoot: string
+    snapshot: GitCheckoutSnapshot
+    localSnapshot: GitCheckoutSnapshot
+    dirty: boolean
+  }>>
   cleanupExpiredRetained(now?: number): Promise<string[]>
   /** codex 对齐：按 worktree-keep-count LRU 逐出最旧的已交付托管 Worktree（豁免 permanent）。 */
   enforceWorktreeKeepCount(): Promise<string[]>

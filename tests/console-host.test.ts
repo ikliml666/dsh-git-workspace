@@ -1270,6 +1270,55 @@ describe('Worktree Console Host control plane', () => {
     })
   })
 
+  it('reuses the caller inspection instead of re-validating the same checkout', async () => {
+    // `current` first runs `module.inspect`, whose isolated path already pays one
+    // `git status` plus two `git inspect` spawns. Re-observing the very same
+    // record through `observeManagedCheckout` repeated that triple spawn and was
+    // a third of every 5s poll — the reported "chip is slow to read the branch".
+    const { control, module } = plane()
+    const reobserve = vi.fn()
+    module.observeManagedCheckout = reobserve as unknown as SessionCheckoutModule['observeManagedCheckout']
+    vi.mocked(module.inspect).mockResolvedValue({
+      ...local('target-session'),
+      checkout: { id: 'checkout-1', kind: 'isolated', label: 'Task', phase: 'ready' },
+      current: { branch: 'feat/live', oid: B },
+      dirty: false,
+    })
+
+    const result = await control.current('target-session')
+
+    expect(reobserve).not.toHaveBeenCalled()
+    expect(result).toMatchObject({ ok: true, value: { target: { currentBranch: 'feat/live', dirty: false } } })
+  })
+
+  it('takes the delivered Local branch from the observation instead of a third inspect', async () => {
+    // Identity validation already inspects the Local side to prove both roots
+    // share one repository. Carrying that snapshot out removes the extra
+    // `git rev-parse` the chip used to pay just to name `master`.
+    const retained = retainedRecord()
+    const git = gitDouble()
+    const lookup = ownerLocalLookup()
+    lookup.getSessionCwd = () => '/local'
+    const { control, module } = plane(retained, { lookup, git })
+    vi.mocked(module.inspect).mockResolvedValue({
+      ...local('target-session'),
+      checkout: { id: retained.checkoutId, kind: 'isolated', label: 'Task', phase: 'retained' },
+      current: { branch: 'feat/sess-target-session--task', oid: B },
+      dirty: false,
+    })
+    module.observeManagedCheckout = vi.fn(async () => ({
+      managedRoot: '/managed',
+      snapshot: { root: '/managed', commonDir: '/git/common', gitDir: '/git/worktrees/one', branch: 'feat/sess-target-session--task', headOid: B, headRef: 'HEAD' },
+      localSnapshot: { root: '/local', commonDir: '/git/common', gitDir: '/.git', branch: 'main', headOid: A, headRef: 'HEAD' },
+      dirty: false,
+    })) as unknown as SessionCheckoutModule['observeManagedCheckout']
+
+    const result = await control.current('target-session')
+
+    expect(result).toMatchObject({ ok: true, value: { target: { currentBranch: 'main', state: 'retained' } } })
+    expect(vi.mocked(git.inspect)).not.toHaveBeenCalled()
+  })
+
   it('offers the owner a way back to Local only after the Worktree reached delivery', async () => {
     const retained = retainedRecord()
     const { control } = plane(retained, { lookup: ownerLocalLookup() })

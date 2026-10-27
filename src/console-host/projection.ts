@@ -117,7 +117,7 @@ export function projectRecord(
   record: ManagedCheckoutRecord,
   callerSessionId: string,
   observed?: {
-    snapshot?: GitCheckoutSnapshot
+    snapshot?: Pick<GitCheckoutSnapshot, 'branch' | 'headOid'>
     dirty?: boolean
     summary?: ManagedWorktreeSummaryView
     ownerSessionAvailable?: boolean
@@ -193,7 +193,7 @@ export function projectDetails(
   record: ManagedCheckoutRecord,
   callerSessionId: string,
   managedRoot: string | null,
-  snapshot?: GitCheckoutSnapshot,
+  snapshot?: Pick<GitCheckoutSnapshot, 'branch' | 'headOid'>,
   dirty?: boolean,
   ownerSessionAvailable?: boolean,
   linkedRead = false,

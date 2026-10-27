@@ -397,12 +397,19 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
     return { record: requested, linkedRead: true }
   }
 
-  async function observe(record: ManagedCheckoutRecord): Promise<{
+  async function observe(
+    record: ManagedCheckoutRecord,
+    observedCaller?: SessionTargetView,
+  ): Promise<{
     managedRoot: string | null
-    snapshot?: GitCheckoutSnapshot
+    snapshot?: Pick<GitCheckoutSnapshot, 'branch' | 'headOid'>
+    /** Local-side snapshot from the same validation pass; only the module port supplies it. */
+    localSnapshot?: GitCheckoutSnapshot
     dirty?: boolean
   }> {
     if (record.phase === 'discarded') return { managedRoot: null }
+    const reused = observeFromCaller(record, observedCaller)
+    if (reused !== undefined) return reused
     if (options.module.observeManagedCheckout) return options.module.observeManagedCheckout(record.checkoutId)
     const managedRoot = await options.module.resolveManagedRoot(record.checkoutId)
     const snapshot = await options.git.inspect(managedRoot)
@@ -413,6 +420,40 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
 
   function ownerSessionAvailable(record: ManagedCheckoutRecord): boolean {
     return options.lookup.getSession(record.ownerSessionId) !== undefined
+  }
+
+  /**
+   * Reuse the observation `callerTarget` already paid for.
+   *
+   * The conversation chip polls `current` every few seconds, and that call runs
+   * `options.module.inspect(sessionId)` first: `inspectIsolated` validates the
+   * managed checkout with one `git status` plus two `git inspect` spawns. The
+   * projection that follows then called `observe()` on the SAME record, which
+   * replays that exact triple-spawn through `validateManagedCheckout` before
+   * reading `current`/`dirty` — values the caller view is already holding. On a
+   * warm Windows checkout each spawn costs ~30-50ms, so the duplicate was
+   * roughly a third of every poll.
+   *
+   * Only an active (`ready`) owner view is reused, and only when it describes
+   * exactly this checkout with a matching phase. Delivered terminal states stay
+   * on the authoritative path on purpose: `committedFollowupView` reports a
+   * deliberately conservative `dirty: true`, and the frozen environment's real
+   * Git status must still be what the chip shows.
+   */
+  function observeFromCaller(
+    record: ManagedCheckoutRecord,
+    caller: SessionTargetView | undefined,
+  ): { managedRoot: string | null; snapshot?: Pick<GitCheckoutSnapshot, 'branch' | 'headOid'>; dirty?: boolean } | undefined {
+    if (caller === undefined) return undefined
+    if (caller.checkout.kind !== 'isolated') return undefined
+    if (caller.checkout.id !== record.checkoutId) return undefined
+    if (caller.checkout.phase !== 'ready' || record.phase !== 'ready') return undefined
+    if (caller.ownership !== 'owner') return undefined
+    return {
+      managedRoot: record.managedRoot,
+      snapshot: { branch: caller.current.branch, headOid: caller.current.oid },
+      dirty: caller.dirty,
+    }
   }
 
   /** True when `candidate` is `root` itself or nested under it (cross-platform). */
@@ -445,6 +486,7 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
     record: ManagedCheckoutRecord,
     sessionId: string,
     managedRoot: string | null,
+    observedLocalSnapshot?: GitCheckoutSnapshot,
   ): Promise<string | null | undefined> {
     if (record.ownerSessionId !== sessionId) return undefined
     if (!worktreeReachedDelivery(record.phase, record.delivery.state)) return undefined
@@ -454,6 +496,9 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
     // outside the frozen root is described by the Local checkout.
     const liveCwd = options.lookup.getSessionCwd?.(sessionId)
     if (liveCwd !== undefined && managedRoot !== null && withinRoot(liveCwd, managedRoot)) return undefined
+    // The observation that produced `managedRoot` already read the Local side
+    // during identity validation; that snapshot IS this answer.
+    if (observedLocalSnapshot !== undefined) return observedLocalSnapshot.branch
     if (!options.files.exists(record.localRoot)) return null
     try {
       const localSnapshot = await options.git.inspect(record.localRoot)
@@ -517,7 +562,7 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
     observedCaller?: SessionTargetView,
   ) {
     const access = await linkedReadAccess(sessionId, checkoutId, observedCaller)
-    const observed = await observe(access.record)
+    const observed = await observe(access.record, observedCaller)
     let projectedRecord = access.record
     if (access.acceptanceAnchorCheckoutId !== undefined) {
       const currentAnchor = recordOf(options.registry, access.acceptanceAnchorCheckoutId)
@@ -545,7 +590,7 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
       ownerSessionAvailable(access.record),
       access.linkedRead,
       observedDeliveryProof,
-      await settledLocalBranch(projectedRecord, sessionId, observed.managedRoot),
+      await settledLocalBranch(projectedRecord, sessionId, observed.managedRoot, observed.localSnapshot),
     ))
   }
 
@@ -865,7 +910,7 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
       const worktrees = []
       let observedIndex = 0
       for (const record of records) {
-        let observed: { managedRoot: string | null; snapshot?: GitCheckoutSnapshot; dirty?: boolean } | undefined
+        let observed: { managedRoot: string | null; snapshot?: Pick<GitCheckoutSnapshot, 'branch' | 'headOid'>; dirty?: boolean } | undefined
         if (record.phase === 'discarded') {
           observed = undefined
         } else if (observations) {

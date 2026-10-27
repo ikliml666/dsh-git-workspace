@@ -110,3 +110,24 @@ test('sessions, languages and adapter instances do not share outcomes', async ()
   f.requests[1]!.resolve(f.value); await settle()
   expect(zh.listener).toHaveBeenCalledTimes(1)
 })
+
+test('parks the loop while the window is hidden and resumes on visibility', async () => {
+  // A hidden GUI shows no chip, yet each poll still costs the host a `git status`
+  // plus two `git rev-parse` spawns on the owner's checkout. Park it when hidden.
+  const f = fixture()
+  const setHidden = (hidden: boolean) => {
+    Object.defineProperty(document, 'visibilityState', { value: hidden ? 'hidden' : 'visible', configurable: true })
+    document.dispatchEvent(new Event('visibilitychange'))
+  }
+  setHidden(true)
+  const a = f.watch()
+  f.requests[0]!.resolve(f.value); await settle()
+  expect(a.listener).toHaveBeenCalledTimes(1)
+  await vi.advanceTimersByTimeAsync(5000)
+  expect(f.current).toHaveBeenCalledTimes(1)
+  setHidden(false)
+  expect(f.current).toHaveBeenCalledTimes(2)
+  f.requests[1]!.resolve(f.value); await settle()
+  await vi.advanceTimersByTimeAsync(5000)
+  expect(f.current).toHaveBeenCalledTimes(3)
+})

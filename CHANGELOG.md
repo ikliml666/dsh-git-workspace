@@ -4,6 +4,20 @@
 
 ## [Unreleased]
 
+### Performance
+
+- 顶部胶囊读取分支明显卡顿（2026-10-27，消除 `current` 链路里的重复 Git 校验）：用户报告「顶部胶囊读取分支速度太慢」。一次 `current` 原本要跑 **12 次 git 子进程**，其中 7 次是纯重复劳动（`git --version` 这种纯 spawn 在 Windows 上就要 25–37ms）：
+  - `current` 先跑 `module.inspect(sessionId)`，`inspectIsolated` 已经用「1 次 `git status` + 2 次 `git inspect`」验证过这个 checkout；紧随其后的 `details()` → `observe()` → `observeManagedCheckout()` 又对**同一条 record** 重跑一遍同一套三次 spawn，只为取 `current`/`dirty`——而这两个值调用方视图里本来就有（5 次）。
+  - 交付终态下 `settledLocalBranch()` 再单独 `git inspect(record.localRoot)` 一次，只为拿 Local 分支名（2 次）；而这个 Local 快照在校验阶段（`validateManagedCheckoutDetailed` 里 `git.inspect(canonicalLocalRoot)`）早就拿到过。
+  - `src/console-host/control-plane.ts`：新增 `observeFromCaller(record, caller)`——当调用方视图确实是**同一条 checkout、同为 `ready` 活跃阶段、且 `ownership === 'owner'`** 时，直接复用它的 `current`/`dirty`，跳过整轮 `validateManagedCheckout`；其他情形（无调用方视图、交付终态、linked read）一律走原权威路径。`observe()` 增加 `observedCaller` 形参并优先复用。**交付终态刻意不复用**：`committedFollowupView` 报的 `dirty` 是保守值 `true`，冻结环境的真实 Git 状态仍必须由权威校验给出。
+  - `src/session-checkout-module.ts`：`ValidatedManagedCheckout` 新增 `localSnapshot` 字段，`validateManagedCheckoutDetailed` 在已有的并行 `git inspect(canonicalLocalRoot)` 之后把它一并带出；`observeManagedCheckout()` 返回值相应带上 `localSnapshot`（`src/index.ts` 端口类型同步）。`settledLocalBranch()` 增加 `observedLocalSnapshot` 形参，有它就**不再 spawn**，省掉第三次 `rev-parse`。
+  - `src/console-host/projection.ts` / `control-plane.ts`：投影所需的 `snapshot` 类型从整个 `GitCheckoutSnapshot` 收窄为 `Pick<GitCheckoutSnapshot, 'branch' | 'headOid'>`——投影本来只读这两个字段，收窄后复用路径在类型上就是合法的，也不必伪造 `root`/`commonDir`/`gitDir`。
+  - `src/client/target-console/current-polling.ts`：窗口不可见（`document.visibilityState === 'hidden'`）时轮询间隔从 5s 拉长到 60s，`visibilitychange` 回到可见立即 `invalidate()` 刷新一次。隐藏的 GUI 看不到胶囊，却仍在让宿主每 5s 对一个 checkout 跑一串 Git 子进程。
+  - 顺带补可观测性：`src/console-host/service.ts` 的 `current` diag 记录新增 `durationMs`，之后能直接用 `sidebar-diag.ndjson` 回答「到底慢在哪」而不是靠猜。
+  - **实测数字**（临时探针，对真实 Local 与真实冻结 Worktree 各跑 7 轮取中位数，node 直接 spawn 同样的 git 命令序列）：优化前 **110.9ms**、优化后 **40.2ms**，省 70.8ms，**2.76× 加速**，git 子进程 **12 → 5 次**。
+  - 新增回归用例：「reuses the caller inspection instead of re-validating the same checkout」「takes the delivered Local branch from the observation instead of a third inspect」（`tests/console-host.test.ts`）、「parks the loop while the window is hidden and resumes on visibility」（`tests/current-polling.test.ts`）。三条均已**反证**——把修复分别改回去（禁用 `observeFromCaller`、禁用 `localSnapshot` 复用、隐藏态仍用 5s），对应用例逐一失败。
+  - 已实测排除的伪优化：把 `symbolic-ref` 并入 `rev-parse` 做单次 spawn，node 直测「两个 spawn 并行 42.8ms」vs「合并单次 43.2ms」——**没有收益**（Windows 进程创建开销压倒并行度，瓶颈是 spawn 次数而非并行度），因此没有采用。
+
 ### Fixed
 
 - 顶部胶囊塌成「不可用」并提示 `Remote current 返回了不符合 strict contract 的 payload`（2026-10-27，新增能力位的前后兼容）：上一轮给 `WorktreeConsoleCapabilities` 加了 `returnToLocal`，同时在 `src/console-remote/schemas.ts` 里把它写成**必填** boolean。Client 与 Host 是两份独立部署的产物：插件产物（`lib/client.js`）当场更新，宿主进程却要重启才换 Host——于是新 Client 拿着新 schema 去校验旧 Host 的 `current` 响应，`capabilities.returnToLocal` 缺失，整条 payload 校验失败，胶囊退化成裸「不可用」。已实测复现：新 schema 校验旧 Host payload → `invalid_type: path ["returnToLocal"] expected boolean, received undefined`。
