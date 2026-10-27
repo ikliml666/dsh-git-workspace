@@ -65,6 +65,19 @@ function readyReviewOf(record: ManagedCheckoutRecord): ManagedWorktreeReviewReco
   return record.delivery.review
 }
 
+/** A Worktree that reached delivery and is still inside the retention window. */
+function retainedRecord(): ManagedCheckoutRecord {
+  const record = readyRecord()
+  record.phase = 'retained'
+  record.revision = 9
+  record.sessionBranch = 'refs/heads/feat/sess-target-session--task'
+  record.delivery = {
+    state: 'retained', review: readyReviewOf(record), commitOid: B, isolatedFingerprint: 'fingerprint-1',
+    retention: 'retain_24h', retainedAt: 10, expiresAt: 20, cleanup: 'scheduled',
+  }
+  return record
+}
+
 function registry(record = readyRecord()): SessionCheckoutRegistryPort {
   const value: ManagedCheckoutsRegistry = {
     version: 2, revision: 1, sessionBindings: {}, managedCheckouts: { [record.checkoutId]: record },
@@ -1210,6 +1223,114 @@ describe('Worktree Console Host control plane', () => {
     const { control } = plane(finalized, { lookup: ownerLocalLookup() })
     const result = await control.inspect('target-session', finalized.checkoutId)
     expect(result).toMatchObject({ ok: true, value: { target: { state: 'cleanup_pending' } } })
+  })
+
+  it('names the Local branch on a retained Worktree the owner already left', async () => {
+    const retained = retainedRecord()
+    const git = gitDouble()
+    // The frozen environment still reports the task branch; the chip must
+    // follow the branch the Session actually stands on after delivery.
+    vi.mocked(git.inspect).mockImplementation(async root => ({
+      root,
+      commonDir: '/git/common',
+      gitDir: '/git/worktrees/one',
+      branch: root === '/local' ? 'main' : 'feat/sess-target-session--task',
+      headOid: B,
+      headRef: 'HEAD',
+    }))
+    const lookup = ownerLocalLookup()
+    lookup.getSessionCwd = () => '/local'
+    const { control } = plane(retained, { lookup, git })
+
+    const result = await control.current('target-session')
+
+    expect(result).toMatchObject({ ok: true, value: { target: { currentBranch: 'main', state: 'retained' } } })
+  })
+
+  it('keeps naming the Worktree branch while the owner is still inside the frozen environment', async () => {
+    const retained = retainedRecord()
+    const git = gitDouble()
+    vi.mocked(git.inspect).mockImplementation(async root => ({
+      root,
+      commonDir: '/git/common',
+      gitDir: '/git/worktrees/one',
+      branch: root === '/managed' ? 'feat/sess-target-session--task' : 'main',
+      headOid: B,
+      headRef: 'HEAD',
+    }))
+    const lookup = ownerLocalLookup()
+    lookup.getSessionCwd = () => '/managed'
+    const { control } = plane(retained, { lookup, git })
+
+    const result = await control.current('target-session')
+
+    expect(result).toMatchObject({
+      ok: true,
+      value: { target: { currentBranch: 'feat/sess-target-session--task', state: 'retained' } },
+    })
+  })
+
+  it('offers the owner a way back to Local only after the Worktree reached delivery', async () => {
+    const retained = retainedRecord()
+    const { control } = plane(retained, { lookup: ownerLocalLookup() })
+
+    const delivered = await control.current('target-session')
+    expect(delivered).toMatchObject({ ok: true, value: { target: { capabilities: { returnToLocal: true } } } })
+
+    const working = readyRecord()
+    const pending = plane(working)
+    const pendingResult = await pending.control.current('target-session')
+    expect(pendingResult).toMatchObject({ ok: true, value: { target: { capabilities: { returnToLocal: false } } } })
+  })
+
+  it('rebinds a delivered owner from the frozen Worktree back to the Local checkout', async () => {
+    const retained = retainedRecord()
+    const registryPort = registry(retained)
+    registryPort.read = () => ({
+      version: 2,
+      revision: 1,
+      sessionBindings: {
+        'target-session': {
+          sessionId: 'target-session',
+          projectId: retained.projectId,
+          projectName: retained.projectName,
+          target: { kind: 'isolated', checkoutId: retained.checkoutId },
+          ownerSessionId: 'target-session',
+          sourceRef: retained.sourceRef,
+          sourceOid: retained.baseOid,
+          revision: 1,
+        },
+      },
+      managedCheckouts: { [retained.checkoutId]: retained },
+    })
+    const { module, control } = plane(retained, { lookup: ownerLocalLookup(), registry: registryPort })
+    vi.mocked(module.bind).mockResolvedValue(local('target-session'))
+
+    const result = await control.returnToLocal({ sessionId: 'target-session', checkoutId: retained.checkoutId })
+
+    expect(module.bind).toHaveBeenCalledWith('target-session', { kind: 'local' })
+    expect(result).toMatchObject({ ok: true, value: { target: { state: 'local', checkoutId: null } } })
+  })
+
+  it('refuses to release a Worktree that has not reached delivery', async () => {
+    const working = readyRecord()
+    const { module, control } = plane(working, { lookup: ownerLocalLookup() })
+
+    const result = await control.returnToLocal({ sessionId: 'target-session', checkoutId: working.checkoutId })
+
+    expect(result).toMatchObject({ ok: false, error: { code: 'operation_not_allowed' } })
+    expect(module.bind).not.toHaveBeenCalled()
+  })
+
+  it('reports the Local projection instead of failing when the owner already left', async () => {
+    const retained = retainedRecord()
+    const { module, control } = plane(retained, { lookup: ownerLocalLookup() })
+    vi.mocked(module.inspect).mockResolvedValue(local('target-session'))
+
+    const result = await control.returnToLocal({ sessionId: 'target-session', checkoutId: retained.checkoutId })
+
+    expect(module.bind).not.toHaveBeenCalled()
+    expect(result).toMatchObject({ ok: true, value: { target: { state: 'local' } } })
   })
 
   it('keeps list rows path-free while authorized detail contains the validated managedRoot', async () => {

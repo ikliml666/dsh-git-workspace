@@ -22,6 +22,7 @@ import type {
   WorktreeConsolePreflightResponse,
   WorktreeConsolePreviewRecoveryPreflightResponse,
   WorktreeConsoleRestoreAbandonedResponse,
+  WorktreeConsoleReturnToLocalResponse,
   WorktreeConsoleReviewDiffResponse,
   WorktreeApplyConflictContinuation,
   WorktreeClientBootReport,
@@ -290,6 +291,11 @@ export class WorktreeConsoleService extends TypertRemoteService {
   @Remote
   beginNextIteration(agent: Agent, checkoutId: string, expectedRevision: number, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>> {
     return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.beginNextIteration({ sessionId: agent.id, checkoutId, expectedRevision }))
+  }
+
+  @Remote
+  returnToLocal(agent: Agent, checkoutId: string, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleReturnToLocalResponse>> {
+    return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.returnToLocal({ sessionId: agent.id, checkoutId }))
   }
 
   @Remote

@@ -156,8 +156,11 @@ it('keeps naming the Session branch after delivery, when Local is back in charge
     if (!current.ok) throw Error(JSON.stringify(current))
     const target = current.value.target
 
-    // 交付后 Worktree 冻结保留，但胶囊仍要给出「这次改动落在哪条分支上」。
-    expect(target.currentBranch).toBe('feat/sess-owner--labels')
+    // 交付后 owner 会话已回到 Local 边界：胶囊要跟随用户真正站着的分支
+    // （master/main），而不是冻结在 Worktree 里的任务分支——否则合并完成后
+    // 胶囊会一直显示 feat/…，用户以为还困在 Worktree 里。
+    expect(target.currentBranch).toBe('main')
+    // 「来源分支」仍然记录这次改动落在哪条分支上。
     expect(target.sourceBranch).toBe('feat/sess-owner--labels')
     // Local 从未被写入，仍停在自己的分支上。
     expect(env.git('symbolic-ref', 'HEAD')).toBe('refs/heads/main')

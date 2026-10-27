@@ -60,7 +60,7 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
   const [menuOpen, setMenuOpen] = useState(false)
   const [managerOpen, setManagerOpen] = useState(false)
   const [cleanupConfirmOpen, setCleanupConfirmOpen] = useState(false)
-  const [pendingAction, setPendingAction] = useState<'discard' | 'retry_cleanup' | 'begin_next_iteration' | 'switch_branch' | null>(null)
+  const [pendingAction, setPendingAction] = useState<'discard' | 'retry_cleanup' | 'begin_next_iteration' | 'return_to_local' | 'switch_branch' | null>(null)
   const [overview, setOverview] = useState<WorktreeConsoleGitOverviewResponse | null>(null)
   const [graphOpen, setGraphOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
@@ -392,6 +392,30 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
     }
   }
 
+  const returnToLocal = async (): Promise<void> => {
+    if (!target?.checkoutId || !target.capabilities.returnToLocal || pendingAction !== null) return
+    const scope = actionScope.current
+    const active = () => mounted.current && scope === actionScope.current
+    setMenuOpen(false)
+    setPendingAction('return_to_local')
+    setError(null)
+    try {
+      const outcome = await adapter.returnToLocal({ sessionId, checkoutId: target.checkoutId })
+      if (!active()) return
+      if (!outcome.ok) {
+        setError(outcome.error.message)
+        if (outcome.error.code === 'stale_target') void refresh()
+        return
+      }
+      setTarget(current => current ? { ...current, ...outcome.value.target } : current)
+      requestWorktreeReviewRefresh(sessionId)
+    } catch (reason) {
+      if (active()) setError(reason instanceof Error ? reason.message : String(reason))
+    } finally {
+      if (active()) setPendingAction(null)
+    }
+  }
+
   const discard = async (): Promise<void> => {
     if (!target?.checkoutId || !target.capabilities.discard || pendingAction !== null) return
     const scope = actionScope.current
@@ -525,6 +549,7 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
       ? [{ id: 'source', icon: <ReviewIcon name="external" />, label: t("return.to.source.session") } satisfies MenuEntry]
       : []),
     ...(target?.capabilities.beginNextIteration ? [{ id: 'begin_next_iteration', icon: <ReviewIcon name="create" />, label: pendingAction === 'begin_next_iteration' ? t("creating") : t("start.next.iteration"), disabled: pendingAction !== null } satisfies MenuEntry] : []),
+    ...(target?.capabilities.returnToLocal ? [{ id: 'return_to_local', icon: <ReviewIcon name="external" />, label: pendingAction === 'return_to_local' ? t("processing") : t("back.to.local.checkout"), disabled: pendingAction !== null } satisfies MenuEntry] : []),
     ...(target ? [{ id: 'manager', icon: <ReviewIcon name="manager" />, label: t("manage.linked.worktrees") } satisfies MenuEntry] : []),
   ]
   const footer: MenuEntry[] = target?.capabilities.retryCleanup
@@ -547,6 +572,7 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
           if (id === 'reveal') reveal()
           if (id === 'source') openSource()
           if (id === 'begin_next_iteration') void beginNextIteration()
+          if (id === 'return_to_local') void returnToLocal()
           if (id === 'manager') { setMenuOpen(false); setManagerOpen(true) }
           if (id === 'retry_cleanup') void retryCleanup()
           if (id === 'discard') { setMenuOpen(false); setCleanupConfirmOpen(true) }

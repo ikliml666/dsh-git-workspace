@@ -84,6 +84,7 @@ function localTarget(): WorktreeConsoleTargetDetails {
       setRetention: false,
       retryCleanup: false,
       beginNextIteration: false,
+      returnToLocal: false,
     },
   }
 }
@@ -858,6 +859,47 @@ describe('Harness-native Session Target slots', () => {
       request: { sessionId: 'target-session', checkoutId: 'checkout-1', expectedRevision: 9 },
     }))
     await waitFor(() => expect(screen.queryByText('本轮已交付，可在原会话继续下一轮修改')).toBeNull())
+  })
+
+  test('已交付 Worktree 可从顶部菜单回到 Local 工作区', async () => {
+    const fixture = createWorktreeConsoleAdapterFixture()
+    const { review: _review, reviewSlot: _slot, ...withoutReview } = fixture.target
+    const delivered = {
+      ...withoutReview,
+      state: 'delivered' as const,
+      phase: 'retained' as const,
+      iteration: 1,
+      revision: 9,
+      dirty: false,
+      commitOid: 'c'.repeat(40),
+      capabilities: { ...fixture.target.capabilities, beginNextIteration: true, returnToLocal: true },
+    }
+    fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { target: delivered } }))
+    const slots = new SlotsDouble()
+    registerTargetConsole({ slots }, fixture.adapter, clientServices())
+
+    render(<TargetStatusAction sessionId="target-session" adapter={fixture.adapter} services={clientServices()} />)
+    fireEvent.click(await screen.findByRole('button', { name: /Session Target.*Worktree/ }))
+    fireEvent.click(screen.getByRole('button', { name: '回到 Local 工作区' }))
+    await waitFor(() => expect(fixture.calls).toContainEqual({
+      method: 'returnToLocal',
+      request: { sessionId: 'target-session', checkoutId: 'checkout-1' },
+    }))
+    await waitFor(() => expect(screen.queryByRole('button', { name: '回到 Local 工作区' })).toBeNull())
+  })
+
+  test('未交付的 Worktree 不提供回到 Local 的入口', async () => {
+    const fixture = createWorktreeConsoleAdapterFixture()
+    fixture.adapter.current = vi.fn(async () => ({
+      ok: true,
+      value: { target: { ...fixture.target, capabilities: { ...fixture.target.capabilities, returnToLocal: false } } },
+    }))
+    const slots = new SlotsDouble()
+    registerTargetConsole({ slots }, fixture.adapter, clientServices())
+
+    render(<TargetStatusAction sessionId="target-session" adapter={fixture.adapter} services={clientServices()} />)
+    fireEvent.click(await screen.findByRole('button', { name: /Session Target.*Worktree/ }))
+    expect(screen.queryByRole('button', { name: '回到 Local 工作区' })).toBeNull()
   })
 
   test('Preview rollback 写入结果不确定后 dock 保持可见但不提供自动重试', async () => {

@@ -41,6 +41,8 @@ import type {
   WorktreeConsoleResumeRevisionRequest,
   WorktreeConsoleRollbackPreviewRequest,
   WorktreeConsoleRetryCleanupRequest,
+  WorktreeConsoleReturnToLocalRequest,
+  WorktreeConsoleReturnToLocalResponse,
   WorktreeConsoleReviewDiffRequest,
   WorktreeConsoleReviewDiffResponse,
   WorktreeConsoleSetRetentionRequest,
@@ -101,6 +103,7 @@ export interface WorktreeConsoleControlPlane {
   setPermanent(request: WorktreeConsoleSetPermanentRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   retryCleanup(request: WorktreeConsoleRetryCleanupRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   beginNextIteration(request: WorktreeConsoleBeginNextIterationRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
+  returnToLocal(request: WorktreeConsoleReturnToLocalRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleReturnToLocalResponse>>
   clearSidebarBadge(request: WorktreeConsoleClearSidebarBadgeRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   gitOverview(sessionId: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitOverviewResponse>>
   gitGraph(sessionId: string, limit?: number): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitGraphResponse>>
@@ -412,6 +415,54 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
     return options.lookup.getSession(record.ownerSessionId) !== undefined
   }
 
+  /** True when `candidate` is `root` itself or nested under it (cross-platform). */
+  function withinRoot(candidate: string, root: string): boolean {
+    const normalize = (value: string): string => {
+      const slashed = resolve(value).replace(/\\/g, '/').replace(/\/+$/u, '')
+      return process.platform === 'win32' ? slashed.toLowerCase() : slashed
+    }
+    const normalizedCandidate = normalize(candidate)
+    const normalizedRoot = normalize(root)
+    return normalizedCandidate === normalizedRoot || normalizedCandidate.startsWith(`${normalizedRoot}/`)
+  }
+
+  /**
+   * The branch a delivered Worktree's owner is actually standing on.
+   *
+   * A delivered Worktree leaves the owner Session back at the Local boundary
+   * (that is what "delivered" means: the changes are in Local and the task is
+   * over), while the frozen environment still sits on disk for the retention
+   * window. Reporting the frozen task branch there made the conversation chip
+   * keep naming `feat/...` after the merge, so the user could not tell whether
+   * they were on `master` or still isolated — the exact symptom that prompted
+   * this rule.
+   *
+   * `undefined` = not a delivered-owner read at all, keep the Worktree branch.
+   * `null` = delivered, but Local cannot be observed right now (missing root,
+   * transient Git failure), so the recorded label remains the best answer.
+   */
+  async function settledLocalBranch(
+    record: ManagedCheckoutRecord,
+    sessionId: string,
+    managedRoot: string | null,
+  ): Promise<string | null | undefined> {
+    if (record.ownerSessionId !== sessionId) return undefined
+    if (!worktreeReachedDelivery(record.phase, record.delivery.state)) return undefined
+    if (record.phase !== 'discarded' && record.phase !== 'finalized' && record.phase !== 'retained') return undefined
+    // The owner can also re-enter a retained environment after delivery (the
+    // hook keeps it alive for rollback). Only a Session that is really back
+    // outside the frozen root is described by the Local checkout.
+    const liveCwd = options.lookup.getSessionCwd?.(sessionId)
+    if (liveCwd !== undefined && managedRoot !== null && withinRoot(liveCwd, managedRoot)) return undefined
+    if (!options.files.exists(record.localRoot)) return null
+    try {
+      const localSnapshot = await options.git.inspect(record.localRoot)
+      return localSnapshot === null ? null : localSnapshot.branch
+    } catch {
+      return null
+    }
+  }
+
   function sameLocalRoot(left: string, right: string): boolean {
     return process.platform === 'win32' ? left.toLowerCase() === right.toLowerCase() : left === right
   }
@@ -494,6 +545,7 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
       ownerSessionAvailable(access.record),
       access.linkedRead,
       observedDeliveryProof,
+      await settledLocalBranch(projectedRecord, sessionId, observed.managedRoot),
     ))
   }
 
@@ -1410,6 +1462,41 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
           ownerSessionAvailable: true,
         }),
       }
+    }),
+
+    // 回到 Local：把一个已交付的隔离会话释放回 Local 边界。
+    //
+    // 为什么需要它：交付之后 Worktree 记录进入 retained（默认保留 24 小时），
+    // 会话仍被绑定在 isolated 上，于是顶部胶囊、侧栏与运行上下文都还按隔离态
+    // 描述——用户看不到"我其实已经在 master 上了"，也没有任何入口主动回到
+    // Local。上游同样缺这条路径（isolated → local 直接落到 target_already_bound）。
+    //
+    // 边界：只放行已交付（delivered/finalized/retained）的记录。未交付时解绑会把
+    // 未合并的工作留在冻结目录里，那一律拒绝。记录本身不动，保留期倒计时与已
+    // 交付徽章照旧，回滚材料还在。
+    returnToLocal: request => outcome(async () => {
+      const record = recordOf(options.registry, request.checkoutId)
+      if (record.ownerSessionId !== request.sessionId) {
+        throw domainError('not_owner', hostMessage('onlyTheOwnerSessionCanBeginTheNextIteration'))
+      }
+      if (!worktreeReachedDelivery(record.phase, record.delivery.state)) {
+        throw domainError('operation_not_allowed', hostMessage('theWorktreeHasNotBeenDeliveredToLocalYet'))
+      }
+      if (record.phase !== 'discarded' && record.phase !== 'finalized' && record.phase !== 'retained') {
+        throw domainError('operation_not_allowed', hostMessage('theWorktreeHasNotBeenDeliveredToLocalYet'))
+      }
+      const binding = options.registry.read().sessionBindings[request.sessionId]
+      if (binding?.target.kind !== 'isolated' || binding.target.checkoutId !== request.checkoutId) {
+        // Already released (or the Session never pointed here): report the
+        // current Local projection instead of failing a no-op.
+        const localTarget = await callerTarget(request.sessionId)
+        return { target: projectLocal(localTarget, request.sessionId) }
+      }
+      const target = await options.module.bind(request.sessionId, { kind: 'local' })
+      if (target.checkout.kind !== 'local') {
+        throw domainError('checkout_mismatch', hostMessage('theCurrentSessionIsNotAllowedToAccessThis'))
+      }
+      return { target: projectLocal(target, request.sessionId) }
     }),
   }
 }
