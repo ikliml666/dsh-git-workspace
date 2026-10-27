@@ -97,7 +97,12 @@ const capabilitiesSchema = strict({
   setPermanent: z.boolean(),
   retryCleanup: z.boolean(),
   beginNextIteration: z.boolean(),
-  returnToLocal: z.boolean(),
+  // 新增能力必须容忍缺失：Client 与 Host 是两份独立部署的产物，宿主重启前跑
+  // 的是旧 Host，它根本不知道这个键。写成必填会让整条 `current` 的 payload
+  // 校验失败，胶囊直接塌成「不可用」——一个纯增量的能力位没有资格否决整个
+  // 响应。用 `default(false)` 而非 `optional()`：输入可缺省，输出仍是确定的
+  // boolean，契约类型因此不必跟着变宽。
+  returnToLocal: z.boolean().default(false),
 })
 const acceptanceBlockerSchema = strict({
   checkoutId: checkoutIdSchema,

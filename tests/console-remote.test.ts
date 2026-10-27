@@ -212,6 +212,30 @@ describe('manual strict Worktree Console Remote contribution', () => {
     })).toThrow()
   })
 
+  it('tolerates a Host that predates a purely additive capability bit', () => {
+    const current = WORKTREE_CONSOLE_DESCRIPTORS.find((descriptor) => descriptor.method === 'current')!
+    if (current.result.mode !== 'strict') throw new Error('expected strict current result')
+    const fixture = createWorktreeConsoleAdapterFixture()
+    const { returnToLocal: _omitted, ...olderCapabilities } = fixture.target.capabilities
+    const olderHostPayload = {
+      ok: true as const,
+      value: { target: { ...fixture.target, capabilities: olderCapabilities } },
+    }
+
+    // Client 与 Host 是两份独立部署的产物。宿主重启前跑的还是旧 Host，它不认识
+    // `returnToLocal`；若把新增能力位写成必填，整条 current 的 payload 校验失败，
+    // 胶囊会直接塌成「不可用」——所以它必须容忍缺失，并落成确定的 false。
+    const parsed = current.result.schema.parse(olderHostPayload) as typeof olderHostPayload & {
+      value: { target: { capabilities: Record<string, boolean> } }
+    }
+    expect(parsed.value.target.capabilities.returnToLocal).toBe(false)
+    // 其它字段仍然严格：未知键一律拒绝，兼容不等于放宽。
+    expect(() => current.result.schema.parse({
+      ...olderHostPayload,
+      value: { target: { ...olderHostPayload.value.target, capabilities: { ...olderCapabilities, invented: true } } },
+    })).toThrow()
+  })
+
   it('roundtrips a structured apply-conflict continuation and rejects malformed conflict facts', () => {
     const preview = WORKTREE_CONSOLE_DESCRIPTORS.find((descriptor) => descriptor.method === 'preview')!
     const response = {

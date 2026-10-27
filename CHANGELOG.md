@@ -6,6 +6,11 @@
 
 ### Fixed
 
+- 顶部胶囊塌成「不可用」并提示 `Remote current 返回了不符合 strict contract 的 payload`（2026-10-27，新增能力位的前后兼容）：上一轮给 `WorktreeConsoleCapabilities` 加了 `returnToLocal`，同时在 `src/console-remote/schemas.ts` 里把它写成**必填** boolean。Client 与 Host 是两份独立部署的产物：插件产物（`lib/client.js`）当场更新，宿主进程却要重启才换 Host——于是新 Client 拿着新 schema 去校验旧 Host 的 `current` 响应，`capabilities.returnToLocal` 缺失，整条 payload 校验失败，胶囊退化成裸「不可用」。已实测复现：新 schema 校验旧 Host payload → `invalid_type: path ["returnToLocal"] expected boolean, received undefined`。
+  - `src/console-remote/schemas.ts`：`returnToLocal` 改为 `z.boolean().default(false)`——输入可缺省，输出仍是确定的 `boolean`（因此 `WorktreeConsoleCapabilities` 的类型不必跟着变宽），旧 Host 的 payload 照常被接受。
+  - 新增回归用例「tolerates a Host that predates a purely additive capability bit」（`tests/console-remote.test.ts`）：断言缺 `returnToLocal` 的旧 payload 能解析且落成 `false`，同时断言**未知键仍然被拒**（兼容不等于放宽）。已反证：把该字段改回必填，此用例失败。
+  - 教训：任何**纯增量**的能力位都不该有资格否决整个响应。旧 Client + 新 Host 方向由 Zod 的未知键拒绝兜住，新 Client + 旧 Host 方向必须靠 `.default()`。
+
 - 已交付的托管 Worktree 会把用户锁在里面，胶囊也永远显示冻结的任务分支（2026-10-27，回退 Local 的能力补齐）：worktree 交付合并后，owner 会话的 Workspace 记录仍是 `isolated`，宿主没有任何「解绑回 Local」的路径——`bindTarget`（`src/session-checkout-module.ts`）只允许 `local → isolated`，`isolated → local` 一律撞 `target_already_bound`；客户端菜单里也没有对应入口。同时顶部胶囊的 `currentBranch` 取自 `observeManagedCheckout` 观测到的 worktree 分支（`src/console-host/projection.ts` `projectDetails`），因此交付后仍显示 `feat/sess-…` 而不是 Local 的 master。
   - `src/console-host/projection.ts`：`projectDetails` 新增 `settledLocalBranch` 形参，`currentBranch` 改为 `settledLocalBranch ?? snapshot?.branch ?? sourceBranchFromRef(record.sessionBranch)`；`capabilities` 新增 `returnToLocal`（仅 owner 且已交付为真）。
   - `src/console-host/control-plane.ts`：新增 `settledLocalBranch()`——owner 在交付终态（`discarded`/`finalized`/`retained`）且 live cwd 已不在 `managedRoot` 内时，读 Local 仓库的真实分支作为胶囊分支；`returnToLocal()`——校验 owner + 已交付 + 当前确实指向该 isolated binding，再 `module.bind(sessionId, { kind: 'local' })`，幂等（已回 Local 时直接返回 Local 投影而不是报错）。

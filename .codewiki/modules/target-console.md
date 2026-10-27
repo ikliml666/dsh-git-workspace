@@ -12,10 +12,7 @@ source_files:
   - src/client/target-console/TagManagerModal.tsx
   - src/client/target-console/branch-overview-cache.ts
   - src/client/target-console/current-polling.ts
-  - src/console-contract.js
-  - src/client/actions.js
 tags: [client, target-console, polling, navigation, git-branch-ui]
----
 
 ## Overview
 
@@ -25,7 +22,7 @@ tags: [client, target-console, polling, navigation, git-branch-ui]
 2. **输入坞评审状态条**（`WorktreeReviewStatus`，包裹于 `ReviewStatus`）注入 `conversation.input.dock`（id `worktree-review-status`, order 10，行26-27、行36-40），在输入框上方显示评审准备、预览或恢复状态。
 3. **空白会话 Hero 行胶囊**（`WorktreeHeroChip`，包裹于 `HeroChip`）注入 `conversation.input.dock`（id `worktree-hero-chip`, order 20，行28-29、行41-45），将状态胶囊 portal 到新建会话的初始 Hero 区域。
 
-管理面板由 `WorktreeManagerModal`（行18-49）承载，内部嵌入 `WorktreeConsoleView`（embedded 模式，行39-46），提供完整的 Worktree 列表、创建、丢弃、常驻标记、保留期设置、废弃快照恢复等。所有数据通过 `WorktreeConsoleAdapter`（来自 `../../console-contract.js`）与 Host 通信；UI 状态依赖 `current-polling.ts` 的轻量轮询订阅（Poll 类行11-73）与 `branch-overview-cache.ts` 的分支概览缓存（TTL_MS 行17）。`index.ts` 末尾重导出五大组件（行48-52）。
+管理面板由 `WorktreeManagerModal`（行18-49）承载，内部嵌入 `WorktreeConsoleView`（embedded 模式，行39-46），提供完整的 Worktree 列表、创建、丢弃、常驻标记、保留期设置、废弃快照恢复等。所有数据通过 `WorktreeConsoleAdapter`（来自 `../../console-contract.js`，该文件本次未提供）与 Host 通信；UI 状态依赖 `current-polling.ts` 的轻量轮询订阅（Poll 类行11-73）与 `branch-overview-cache.ts` 的分支概览缓存（TTL_MS 行17）。`index.ts` 末尾重导出五大组件（行48-52）。
 
 ## Key Components
 
@@ -46,11 +43,11 @@ tags: [client, target-console, polling, navigation, git-branch-ui]
   - `services: WorktreeClientServices`（行29）
 - **常量 `STATE_LABELS`**（行32-44）：接收 `ClientTranslator`，返回 11 种状态（local/creating/working/ready_for_review/preview_active/preview_detached/retained/cleanup_pending/recovery_required/delivered/discarded）的本地化标签映射。
 - **函数 `shortOid(value: string)`**（行46-48）：`unversioned` 原样返回，否则截取前 7 字符。
-- **组件 `TargetStatusAction`**（行51-738）
+- **组件 `TargetStatusAction`**（行51-764）
   - 状态与 Refs：
     - `t`（行52）、`language`（行53）
     - `target`（行55）、`loading`（行56）、`error`（行57）、`failure`（行59，记录探针失败 code/message）、`menuOpen`（行60）、`managerOpen`（行61）、`cleanupConfirmOpen`（行62）、`pendingAction`（行63）、`overview`（行64）、`graphOpen`（行65）、`createOpen`（行66）、`createName`（行67）、`createBusy`（行68）、`pruneOpen`（行69）、`prunePreview`（行70）、`pruneLoading`（行71）、`pruneBusy`（行72）、`branchQuery`（行73）、`switchNotice`（行74）、`tagsOpen`（行75）、`tagTarget`（行77，提交打标签的目标 commit，null 为 HEAD）、`initializeOpen`（行79）、`initializeBusy`（行80）
-    - `actionScope` ref（行81）、`activeSession` ref（行82-86）、`mounted` ref（行87）
+    - `actionScope` ref（行81）、`activeSession` ref（行82-86，会话切换时递增 scope）、`mounted` ref（行87）
   - 效果：
     - 挂载设置 `mounted`（行89-92）
     - `refresh` 回调（行94-96）调用 `requestWorktreeReviewRefresh`
@@ -68,9 +65,10 @@ tags: [client, target-console, polling, navigation, git-branch-ui]
     - `confirmPrune`（行312-337）：调用 `adapter.gitPruneMergedBranches(sessionId, false)` 执行（行319），后失效缓存并重取（行328-331）
     - `retryCleanup`（行339-369）：调用 `adapter.retryCleanup`（行347），处理 `stale_target` 后刷新（行355）
     - `beginNextIteration`（行371-393）：调用 `adapter.beginNextIteration`（行379）
-    - `discard`（行395-429）：调用 `adapter.discard`（行403），对 `preview_active` 或 `rollbackPreview` 传 `rollbackPreview: true`（行408-410）
-  - 菜单项构建：`summary`（行431-445）；`MAX_BRANCH_ITEMS = 12`（行447）；分支排序与过滤（行448-466）；`items` 数组（行470-529，非 Git 仓库仅 summary+initialize 行470-473，正常含分支列表/创建/修剪/标签/图/打开/源/迭代/管理）；`footer` 数组（行530-534）涵盖 retry_cleanup 与 discard
-  - 渲染：`<Menu>` 锚点按钮 `.dsh-wtc-target-chip`（行538-597），首次展开时通过 `refreshBranchOverviewInBackground` 或 `ensureBranchOverview` 加载分支列表（行578-585）；子模态 `WorktreeManagerModal`（行598-608）、清理确认 `Modal`（行609-624）、初始化 `Modal`（行625-641）、`BranchGraphModal`（行642-651）、`TagManagerModal`（行652-659）、创建分支 `Modal`（行660-691）、修剪预览 `Modal`（行692-735）
+    - `returnToLocal`（行395-417）：调用 `adapter.returnToLocal`（行403）
+    - `discard`（行419-453）：调用 `adapter.discard`（行427），对 `preview_active` 或 `rollbackPreview` 传 `rollbackPreview: true`（行432-434）
+  - 菜单项构建：`summary`（行455-469）；`MAX_BRANCH_ITEMS = 12`（行471）；分支排序与过滤（行472-490）；`items` 数组（行494-554，非 Git 仓库仅 summary+initialize 行494-497，正常含分支列表/创建/修剪/标签/图/打开/源/迭代/管理）；`footer` 数组（行555-559）涵盖 retry_cleanup 与 discard
+  - 渲染：`<Menu>` 锚点按钮 `.dsh-wtc-target-chip`（行586-622），首次展开时通过 `refreshBranchOverviewInBackground` 或 `ensureBranchOverview` 加载分支列表（行604-611）；子模态 `WorktreeManagerModal`（行624-634）、清理确认 `Modal`（行635-650）、初始化 `Modal`（行651-667）、`BranchGraphModal`（行668-677）、`TagManagerModal`（行678-685）、创建分支 `Modal`（行686-717）、修剪预览 `Modal`（行718-761）
 
 ### src/client/target-console/WorktreeConsoleView.tsx
 
@@ -112,7 +110,7 @@ tags: [client, target-console, polling, navigation, git-branch-ui]
 - **函数 `isHeroRow`**（行31-36）：校验元素为 HTMLElement、connected 且 className 包含 `heroWorkspaceRow`
 - **函数 `findHeroRowFrom`**（行44-69）：从 dock anchor 的兄弟/祖先结构解析 hero 行（行46-62），fallback 到 `document.querySelector`（行64-66）
 - **接口 `WorktreeHeroChipProps`**（行71-76）：`session?`（行72）、`sessionId?`（行73）、`adapter`（行74）、`services`（行75）
-- **组件 `WorktreeHeroChip`**（行84-142）
+- **组件 `WorktreeHeroChip`**（行84-141）
   - 逻辑：计算 `targetSessionId`（行87），effect 中（行88-129）查找 hero 行并启动 `MutationObserver`（行111-118）与 bounded poll（`window.setInterval` 500ms，tries >= 8 停止，即最多 4s，行119-124）；若 `renderPortal` 存在且 `heroRow` 非空且非 `session.blank === false`（行131）则 portal `TargetStatusAction`（行132-141）
 
 ### src/client/target-console/WorktreeReviewStatus.tsx
@@ -121,7 +119,7 @@ tags: [client, target-console, polling, navigation, git-branch-ui]
 - **组件 `WorktreeReviewStatus`**（行25-184）
   - 状态：`detailsOpen`（行28）、`dismissed`（行30，按 delivery iteration 范围 dismiss）、`sessionId`（行32）、`target`（行33）、`error`（行34）、`recovery`（行35）、`detailPreflight`（行36）
   - Refs：`mounted`（行38）、`sessionGeneration`（行39）、`currentSessionId`（行40-41）
-  - 效果：挂载调 `restoreWorktreeRecovery`（行52-54）；订阅 `subscribeCurrent` 并保持 target 单调（行57-73）；`sessionId` 或 `reviewId` 变时关详情（行37）
+  - 效果：挂载调 `restoreWorktreeRecovery`（行43-46）；订阅 `subscribeCurrent` 并保持 target 单调（行57-73）；`sessionId` 或 `reviewId` 变时关详情（行37）
   - 独立恢复卡（行75-99）：当 `standaloneRecovery` 存在（recovery 匹配且 target 无 review 或 working）时渲染排队/发送/失败状态与重发按钮（行94-96）
   - 评审 Dock（行102-183）：仅当 target 有 review 且状态在白名单内（`ready_for_review`/`preview_active`/`preview_detached`/`cleanup_pending`/`recovery_required`/`retained`，行106）才渲染；包含 `ReviewDetailsModal`（行143）、`ReviewActions`（行144-172, compact）、Dismiss 按钮（终态时，行173-181）
   - 标签逻辑（行122-132）依据状态映射文案；`applyTarget`（行116-118）局部更新
@@ -156,7 +154,7 @@ tags: [client, target-console, polling, navigation, git-branch-ui]
     - `createTag`（行70-100）：调 `adapter.gitCreateTag`（行77），本地成功推送失败时报错不隐标签（行91-93）
     - `deleteTag`（行102-120）：调 `adapter.gitDeleteTag`（行108）
     - `pushTag`（行122-142）：调 `adapter.gitPushTag`（行128）
-  - 渲染：创建表单（行160-196）、标签列表（行199-233）、删除确认（行234-259）
+  - 渲染：创建表单（行159-196）、标签列表（行199-233）、删除确认（行234-259）
 
 ### src/client/target-console/branch-overview-cache.ts
 
@@ -214,25 +212,25 @@ tags: [client, target-console, polling, navigation, git-branch-ui]
 
 1. **注册**：`registerTargetConsole`（index.ts 行19-46）将三个组件注入插槽。
 2. **轮询**：组件 mount 时调用 `subscribeCurrent`（current-polling.ts 行76-88），启动 5s 轮询 `adapter.current()`，结果分发给 `TargetStatusAction`（行98-138）与 `WorktreeReviewStatus`（行57-73）。
-3. **分支缓存**：`TargetStatusAction` 首次展开菜单时（行578-585）调用 `refreshBranchOverviewInBackground` 或 `ensureBranchOverview`（branch-overview-cache.ts 行87/行80）；switch/create/prune 后通过 `patchBranchOverview`/`invalidateBranchOverview` 维护（行200-204, 行246-249, 行328-331）。
+3. **分支缓存**：`TargetStatusAction` 首次展开菜单时（行604-611）调用 `refreshBranchOverviewInBackground` 或 `ensureBranchOverview`（branch-overview-cache.ts 行87/行80）；switch/create/prune 后通过 `patchBranchOverview`/`invalidateBranchOverview` 维护（行200-204, 行246-249, 行328-331）。
 4. **变更操作**：
    - 分支切换：`switchBranch`（TargetStatusAction 行186-224）→ `adapter.gitSwitchBranch` → 乐观补丁缓存 → `requestWorktreeReviewRefresh`
-   - 创建目标：`createTarget`（WorktreeConsoleView 行236-291）→ `adapter.create` → 校验 → `openIsolatedTarget`（actions.js）
+   - 创建目标：`createTarget`（WorktreeConsoleView 行236-291）→ `adapter.create` → 校验 → `openIsolatedTarget`（actions.js，未提供）
    - 丢弃/清理：调用 `adapter.discard`/`retryCleanup` 等，成功则 `applyMutation` 更新快照（行197-215）
    - 初始化仓库：`initializeRepository`（TargetStatusAction 行257-285）→ `adapter.initializeProject` 处理非 Git 项目
 5. **评审状态**：`WorktreeReviewStatus` 依据 `target.review` 与状态白名单（行106）渲染 Dock，嵌入 `ReviewActions` 触发预览/回滚/完成（行144-172）。
 
 ## Connections
 
-- [[client-actions]]：`actions.js` 提供 `WorktreeClientServices`、`openExistingSession`（TargetStatusAction 行13, 行178-184）、`openIsolatedTarget`（WorktreeConsoleView 行266）、`openAuthorizedWorktreeTarget`（WorktreeConsoleView 行425）等导航与 workspace 打开能力。
+- [[client-actions]]：`actions.js` 提供 `WorktreeClientServices`、`openExistingSession`（TargetStatusAction 行13, 行178-184）、`openIsolatedTarget`（WorktreeConsoleView 行266）、`openAuthorizedWorktreeTarget`（WorktreeConsoleView 行425）等导航与 workspace 打开能力（文件未提供，仅 import 引用）。
 - [[review-console]]：`review-console/*` 提供 `ReviewIcon`、`ReviewActions`、`ReviewDetailsModal`、恢复续传 `recovery-continuation`（WorktreeReviewStatus 行11-14）、`status-events` 等，被 TargetStatusAction/WorktreeReviewStatus/BranchGraphModal 等依赖。
-- [[console-contract]]：`../../console-contract.js` 定义 `WorktreeConsoleAdapter` 及所有请求/响应类型（如 `WorktreeConsoleTargetDetails`, `WorktreeConsoleGitOverviewResponse`，见各文件 import 行2-11 等），是本模块全部数据的契约源。
+- [[console-contract]]：`../../console-contract.js` 定义 `WorktreeConsoleAdapter` 及所有请求/响应类型（如 `WorktreeConsoleTargetDetails`, `WorktreeConsoleGitOverviewResponse`，见各文件 import 行2-11 等），是本模块全部数据的契约源（文件未提供）。
 - [[client-boot]]：初始化 `WorktreeConsoleAdapter` seam 的客户端启动流程（外部上下文）。
 
 ## Known Issues
 
 - **分支概览不预取**：`TargetStatusAction.tsx` 行140-142 注释明确挂载时不预取 `gitOverview`，避免每个会话无谓 git spawns，仅首次展开弹窗加载。
-- **非 Git 仓库处理**：`TargetStatusAction.tsx` 行144-149 注释说明普通文件夹非仓库是正常预期，使用独立标签与初始化出口（`initializeRepository` 行257-285），避免误显 "unavailable"。
+- **非 Git 仓库处理**：`TargetStatusAction.tsx` 行144-149 注释说明普通文件夹非仓库是正常预期，使用独立标签与初始化出口（`initializeRepository` 行257-285），菜单中非 Git 仓库仅提供 summary+initialize（行494-497），避免误显 "unavailable"。
 - **Hero 行轮询上限**：`WorktreeHeroChip.tsx` 行119-124 每 500ms 轮询查找 late-mounted hero 行，最多 8 次（4s），若更晚挂载则胶囊缺失。
 - **废弃快照增强降级**：`WorktreeConsoleView.tsx` 行167-168 与 行187-189 注释声明 `listAbandoned` 失败仅置空隐藏，不打断主面板。
 - **轮询仅展示用**：`current-polling.ts` 行10 注释声明 `Poll` 永远不用于授权 mutation 或 Git cleanup。
