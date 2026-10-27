@@ -19,16 +19,16 @@ tags: [client, boot, adapter, toolview, i18n, sidebar]
 
 ## Overview
 
-Client 侧是插件的浏览器运行时：把 Host 暴露的 Remote 服务适配成 `WorktreeConsoleAdapter`（契约见 `src/console-contract.ts` 行723-761），向 Harness Workspace 注册 ToolView、会话徽章、侧栏装饰等 UI，并完成 Workspace 代际探测与启动上报。共享契约定义了目标状态、capabilities、错误码 meta、Adapter 接口。
+Client 侧是插件的浏览器运行时：把 Host 暴露的 Remote 服务适配成 `WorktreeConsoleAdapter`（契约见 `src/console-contract.ts` 行745-783），向 Harness Workspace 注册 ToolView、会话徽章、侧栏装饰等 UI，并完成 Workspace 代际探测与启动上报。共享契约定义了目标状态、capabilities、错误码 meta、Adapter 接口。
 
 该模块负责在 DSH Web 环境中初始化 Git Worktree 插件，包含两个入口点：
 
 1. **Browser Entry**（`src/client/index.tsx`）：轻量模式，直接挂载 UI 槽位，可由测试或无 Remote 环境使用，接受可选的 `adapterOverride`（行49-106）。
-2. **Remote Entry**（`src/client/console-remote/index.ts`）：生产主入口，通过 Cordis Context 挂载 Remote Proxy、解析 Sidebar Topology，并按 Host 的 Workspace 代际（legacy / modern / alpha / next / unsupported，契约定义见 `src/console-contract.ts` 行242）选择「接管」（`registerManagedWorkspaceSidebar`，`src/client/workspace-sidebar/index.tsx` 行328-334）还是「装饰」（`registerDecoratedWorkspaceSidebar`，同文件行495-535）策略。
+2. **Remote Entry**（`src/client/console-remote/index.ts`）：生产主入口，通过 Cordis Context 挂载 Remote Proxy、解析 Sidebar Topology，并按 Host 的 Workspace 代际（legacy / modern / alpha / next / unsupported，契约定义见 `src/console-contract.ts` 行245-251）选择「接管」（`registerManagedWorkspaceSidebar`，`src/client/workspace-sidebar/index.tsx` 行328-334）还是「装饰」（`registerDecoratedWorkspaceSidebar`，同文件行495-535）策略。
 
 核心组成：
 
-- **Adapter Layer**：把 RPC 调用转换为带超时与严格 schema 校验的 `WorktreeConsoleOutcome` 对象（`src/client/console-remote/adapter.ts` 行79-153）。
+- **Adapter Layer**：把 RPC 调用转换为带超时与严格 schema 校验的 `WorktreeConsoleOutcome` 对象（`src/client/console-remote/adapter.ts` 行80-155）。
 - **Sidebar Projection**：把远程拓扑投影为本地 Workspace 视图，处理 Session/Workspace 的保护、隐藏与重定位；同时给每行拼出**带分支名**的徽章标签（`src/client/workspace-sidebar/model.ts` 行51-74）。
 - **ToolView Models**：从日志化 call/result 块解析出稳定的 UI 模型（`src/client/model.ts`）。
 - **i18n**：语言归一化与翻译器，支持 zh/en（`src/client/i18n.tsx`、`src/i18n/core.ts`、`src/i18n/transport-messages.ts`）。
@@ -72,17 +72,17 @@ Client 侧是插件的浏览器运行时：把 Host 暴露的 Remote 服务适�
 
 ### Adapter Layer (`src/client/console-remote/adapter.ts` & `src/console-contract.ts`)
 
-- **超时档位**（行55-56）：`FAST_TIMEOUT_MS = 30_000`、`SLOW_TIMEOUT_MS = 180_000`。
-- **`FAST_METHODS`**（行59-64）：含 `sidebarTopology`、`current`、`inspect`、`previewRecoveryPreflight`、`gitOverview`、`gitGraph`、`listAbandoned`；其余落慢档（注释行57-58说明 `list`/`preflight`/`preflightCreate` 全量重算可能逼近30s放SLOW档）。
+- **超时档位**（行56-57）：`FAST_TIMEOUT_MS = 30_000`、`SLOW_TIMEOUT_MS = 180_000`。
+- **`FAST_METHODS`**（行60-65）：含 `sidebarTopology`、`current`、`inspect`、`previewRecoveryPreflight`、`gitOverview`、`gitGraph`、`listAbandoned`；其余落慢档（注释行58-59说明 `list`/`preflight`/`preflightCreate` 全量重算可能逼近30s放SLOW档）。
 - **辅助函数**：
-  - `transport<T>`（行30-32）：返回 `transport_unavailable` 错误。
-  - `malformed<T>`（行34-36）：返回 `malformed_response` 错误。
-  - `messageOf`（行38-42）：提取错误文本。
-  - `isCodecRejection`（行44-47）：检测 codec 拒绝消息。
-  - `timeoutOutcome`（行66-77）：返回 `timeout` 错误。
-- **`createWorktreeConsoleRemoteAdapter(remote, getLanguage)`**（行79-153）：
-  - **`invoke<T>`**（行82-111）：`Promise.race` 超时（行88-93）；异常经 `isCodecRejection` 转 `malformed_response` 否则 `transport_unavailable`（行96）；校验 `carrier` 形状（行102）、`descriptor.result.mode === 'strict'`（行105）及 schema `.parse()`（行107）。
-  - **返回对象**（行113-153）实现 `WorktreeConsoleAdapter`（契约行723-761）全部方法：`sidebarTopology`(114)、`current`(115)、`list`(116)、`preflightCreate`(117)、`createWithInitialCommit`(118)、`create`(119)、`initializeProject`(120)、`inspect`(121)、`reviewDiff`(122)、`preflight`(123)、`previewRecoveryPreflight`(124)、`preparePreviewRecoveryAnalysis`(125)、`createPreviewRecoveryHandoff`(126)、`preview`(127)、`checkpoint`(128)、`resumeRevision`(129-131)、`prepareReviewRegeneration`(132)、`rollbackPreview`(133)、`discard`(134)、`finalize`(135)、`finalizePreview`(136)、`setRetention`(137)、`setPermanent`(138)、`retryCleanup`(139)、`beginNextIteration`(140)、`clearSidebarBadge`(141)、`gitOverview`(142)、`gitGraph`(143)、`gitCreateBranch`(144)、`gitSwitchBranch`(145)、`gitPruneMergedBranches`(146)、`gitListTags`(147)、`gitCreateTag`(148)、`gitDeleteTag`(149)、`gitPushTag`(150)、`listAbandoned`(151)、`restoreAbandoned`(152)。
+  - `transport<T>`（行31-33）：返回 `transport_unavailable` 错误。
+  - `malformed<T>`（行35-37）：返回 `malformed_response` 错误。
+  - `messageOf`（行39-43）：提取错误文本。
+  - `isCodecRejection`（行45-48）：检测 codec 拒绝消息。
+  - `timeoutOutcome`（行67-78）：返回 `timeout` 错误。
+- **`createWorktreeConsoleRemoteAdapter(remote, getLanguage)`**（行80-155）：
+  - **`invoke<T>`**（行83-112）：`Promise.race` 超时（行89-94）；异常经 `isCodecRejection` 转 `malformed_response` 否则 `transport_unavailable`（行96）；校验 `carrier` 形状（行100-103）、`descriptor.result.mode === 'strict'`（行105）及 schema `.parse()`（行107-111）。
+  - **返回对象**（行114-155）实现 `WorktreeConsoleAdapter`（契约行745-783）全部方法：`sidebarTopology`(114)、`current`(115)、`list`(116)、`preflightCreate`(117)、`createWithInitialCommit`(118)、`create`(119)、`initializeProject`(120)、`inspect`(121)、`reviewDiff`(122)、`preflight`(123)、`previewRecoveryPreflight`(124)、`preparePreviewRecoveryAnalysis`(125)、`createPreviewRecoveryHandoff`(126)、`preview`(127)、`checkpoint`(128)、`resumeRevision`(129-132)、`prepareReviewRegeneration`(133)、`rollbackPreview`(134)、`discard`(135)、`finalize`(136)、`finalizePreview`(137)、`setRetention`(138)、`setPermanent`(139)、`retryCleanup`(140)、`beginNextIteration`(141)、`clearSidebarBadge`(142)、`gitOverview`(143)、`gitGraph`(144)、`gitCreateBranch`(145)、`gitSwitchBranch`(146)、`gitPruneMergedBranches`(147)、`gitListTags`(148)、`gitCreateTag`(149)、`gitDeleteTag`(150)、`gitPushTag`(151)、`listAbandoned`(152)、`restoreAbandoned`(153)。
 - **契约关键类型**（`src/console-contract.ts`）：
   - `WORKTREE_CONSOLE_TARGET_STATES`（行26-38）与 `WorktreeConsoleTargetState`（行40）：目标状态联合类型，含 `'local' | 'creating' | 'working' | 'ready_for_review' | 'preview_active' | 'preview_detached' | 'retained' | 'cleanup_pending' | 'recovery_required' | 'delivered' | 'discarded'`。
   - `WorktreeConsoleDeliveryState`（行42-50）：联合 `'working' | 'ready_for_review' | 'preview_active' | 'preview_detached' | 'finalized' | 'retained' | 'delivered'`。
@@ -90,63 +90,64 @@ Client 侧是插件的浏览器运行时：把 Host 暴露的 Remote 服务适�
   - `worktreeReachedDelivery`（行64-73）：函数，参数 `phase: SessionCheckoutPhase, deliveryState?: WorktreeConsoleDeliveryState`，返回布尔。
   - `consoleStateFromDomain`（行76-91）：函数，参数 `source: WorktreeConsoleProjectionSource`，返回 `WorktreeConsoleTargetState`。
   - `WorktreeConsoleProject`（行93-96）：字段 `id: string`、`name: string`。
-  - `WorktreeConsoleCapabilities`（行98-118）：布尔能力字段 `create`、`open`、`inspect`、`discard`、`preflight`、`preview`、`checkpoint`、`resumeRevision`、`rollbackPreview`、`finalize`、`finalizePreview`、`setRetention`、`setPermanent`、`retryCleanup`、`beginNextIteration`。
-  - `WorktreeConsolePreviewRecovery`（行120-125）：字段 `previewId: string`、`detachedAt: number`、`reason: 'stale_local' | 'preview_modified'`、`attemptedAction: 'rollback_preview' | 'finalize_preview' | 'discard'`。
-  - `WorktreeConsoleDeliveryProof`（行127）：类型别名 `WorktreeDeliveryProofView`。
-  - `WorktreeConsoleReviewSummary`（行129-140）：字段 `reviewId: string`、`revision: number`、`iteration: number`、`preparedAt: number`、`summary: string`、`validationStatus: WorktreeValidationStatus`、`validationSummary?: string`、`tests: WorktreeValidationItem[]`、`changedFiles: string[]`、`suggestedCommitMessage: string`。
-  - `WorktreeConsoleTargetSummary`（行143-173）：字段 `project: WorktreeConsoleProject`、`checkoutId: string | null`、`sourceSessionId: string`、`ownerSessionId: string`、`targetSessionId: string | null`、`iteration: number`、`revision: number`、`state: WorktreeConsoleTargetState`、`phase: SessionCheckoutPhase | 'local'`、`dirty: boolean`、`currentOid: string`、`commitOid: string | null`、`sourceBranch: string | null`、`retention?: Exclude<WorktreeRetentionMode, 'cleanup'>`、`retainedAt?: number`、`expiresAt?: number | null`、`permanent?: boolean`、`cleanupMessage?: string`、`deliveryProof?: WorktreeConsoleDeliveryProof`、`review?: WorktreeConsoleReviewSummary`、`checkpoints?: WorktreeCheckpointView[]`、`checkpointGeneration?: string`、`reviewSlot?: 'available' | 'waiting'`、`reviewSlotOwnerSessionId?: string`、`reviewSlotHolder?: WorktreeAcceptanceBlockerView`、`previewRecovery?: WorktreeConsolePreviewRecovery`、`capabilities: WorktreeConsoleCapabilities`。
-  - `WorktreeConsoleTargetDetails`（行176-189）：扩展 `TargetSummary` 加 `managedRoot: string | null`、`sourceRoot: string | null`、`sourceOid: string`、`currentBranch: string | null`、`recoveryContinuation?: WorktreeRecoveryProof`。
-  - `WorktreeConsoleCurrentRequest`（行191-193）/`Response`（行195-197）：请求含 `sessionId: string`；响应含 `target: WorktreeConsoleTargetDetails`。
-  - `WorktreeConsoleListRequest`（行199-203）/`Response`（行205-208）：请求含 `sessionId`、`needsAttention?`、`includeDelivered?`；响应含 `project`、`worktrees: WorktreeConsoleTargetSummary[]`。
-  - `WorktreeSidebarTaskState`（行210-217）：联合 `'working' | 'ready_for_review' | 'preview_active' | 'preview_detached' | 'recovery_required' | 'finalized' | 'discarded'`。
-  - `WorktreeSidebarTask`（行220-230）：字段 `checkoutId: string`、`ownerSessionId: string`、`sourceSessionId: string`、`iteration: number`、`revision: number`、`phase: SessionCheckoutPhase`、`state: WorktreeSidebarTaskState`、`sourceBranch: string | null`。
-  - `WorktreeSidebarProject`（行232-237）：字段 `project: WorktreeConsoleProject`、`tasks: WorktreeSidebarTask[]`、`memberships?: { workspaceIds: string[]; sessionIds: string[] }`。
-  - `WorktreeSidebarTopologyResponse`（行239-245）：字段 `projects: WorktreeSidebarProject[]`、`workspaceClientFlavor?: 'legacy' | 'alpha' | 'next' | 'modern' | 'unsupported'`、`officialWorkspaceActive?: boolean`。
-  - `WorktreeClientBootReport`（行248-257）：字段 `flavor: string`、`branch: 'legacy' | 'alpha' | 'next' | 'modern' | 'unsupported' | 'topology-failed' | 'boot-failed'`、`registered: boolean`、`detail?`、`elapsedMountMs?`、`elapsedTopologyMs?`。
-  - `WorktreeConsoleCreatePreflightResponse`（行260-263）：联合 `{ kind: 'ready'; branches?: string[] } | { kind: 'empty'; confirmationToken: string } | { kind: 'files' }`。
-  - `WorktreeConsoleCreateRequest`（行265-269）：字段 `sourceSessionId: string`、`branch?: string`。
-  - `WorktreeConsoleCreateResponse`（行271-275）：字段 `target: WorktreeConsoleTargetDetails`、`targetSessionId: string`、`managedRoot: string`。
-  - `WorktreeConsoleInspectRequest`（行277-280）/`Response`（行282-284）：请求含 `sessionId`、`checkoutId`；响应含 `target`。
-  - `WorktreeConsoleDiscardRequest`（行286-292）：字段 `sessionId`、`checkoutId`、`expectedRevision`、`confirmDirty`、`rollbackPreview?`。
-  - `WorktreeConsolePreflightRequest`（行294-299）/`Response`（行301-303）：请求含 session/checkout/expectedRevision/expectedReviewId；响应含 `preflight: WorktreeApplyPreflightView`。
-  - `WorktreeConsolePreviewRequest`（行305-310）：字段 `sessionId`、`checkoutId`、`expectedRevision`、`expectedReviewId`。
-  - `WorktreeConsoleCheckpointRequest`（行312-320）：字段 `sessionId`、`checkoutId`、`expectedRevision`、`expectedReviewId`、`expectedGeneration`、`requestId`、`commitMessage`。
-  - `WorktreeConsoleResumeRevisionRequest`（行322-329）：含 `conflictContinuation?: WorktreeApplyConflictContinuation`。
-  - `WorktreeConsolePreviewRecoveryPreflightRequest`（行331-337）/`Response`（行339-341）：含 `expectedPreviewId`；响应含 `preflight: WorktreePreviewRecoveryPreflightView`。
-  - `WorktreeConsolePreparePreviewRecoveryAnalysisRequest`（行343-345）与 `CreatePreviewRecoveryHandoffRequest`（行347-349）扩展上述含 `recoveryProof`。
-  - `WorktreeConsoleCreatePreviewRecoveryHandoffResponse`（行351-353）扩展 CreateResponse 加 `recoveryContinuation: WorktreePreviewRecoveryHandoffProof`。
-  - `WorktreeConsoleRollbackPreviewRequest`（行355-361）：含 `resumeRevision?`、`recoveryProof?`。
-  - `WorktreeConsoleFinalizeRequest`（行363-371）：含 `commitMessage`、`retention`。
-  - `WorktreeConsoleFinalizePreviewRequest`（行373-381）：含 `recoveryProof?`。
-  - `WorktreeConsoleSetRetentionRequest`（行383-388）：含 `retention: Exclude<WorktreeRetentionMode, 'cleanup'>`。
-  - `WorktreeConsoleSetPermanentRequest`（行391-396）：含 `permanent: boolean`。
-  - `WorktreeConsoleRetryCleanupRequest`（行398-402）、`BeginNextIterationRequest`（行404-408）：身份字段。
-  - `WorktreeConsoleClearSidebarBadgeRequest`（行411-415）：含 `sessionId`、`checkoutId`、`expectedRevision`。
-  - `WorktreeConsoleMutationResponse`（行417-423）：字段 `target: WorktreeConsoleTargetSummary`、`changedFiles?`、`commitOid?`、`checkpoint?`、`recoveryContinuation?`。
-  - `WorktreeConsoleAbandonedSnapshot`（行426-432）：字段 `checkoutId`、`projectName`、`snapshotOid`、`snapshotAt`、`revision`。
-  - `WorktreeConsoleAbandonedListRequest`（行434-436）/`Response`（行438-440）：响应含 `snapshots: WorktreeConsoleAbandonedSnapshot[]`。
-  - `WorktreeConsoleRestoreAbandonedRequest`（行442-445）/`Response`（行447-450）：响应含 `checkoutId`、`branch`。
-  - `WorktreeConsolePrepareRegenerationRequest`（行452-457）：身份字段。
-  - `WorktreeConsoleDiffFile`（行461-467）：字段 `path`、`previousPath?`、`status`、`patch`、`truncated`。
-  - `WorktreeConsoleReviewDiffRequest`（行470-475）/`Response`（行477-482）：响应含 `reviewId`、`revision`、`files`、`truncated`。
-  - `WorktreeConsoleGitBranch`（行485-490）：字段 `name`、`oid`、`isCurrent`、`upstream`。
-  - `WorktreeConsoleGitOverviewResponse`（行492-498）：字段 `root`、`branch`、`headOid`、`branches`、`dirtyCount`。
-  - `WorktreeConsoleGitPruneEntry`（行501-505）/`Response`（行507-512）：字段 `dryRun`、`headBranch`、`pruned`、`skipped`。
-  - `WorktreeConsoleGitGraphCommit`（行515-523）/`Response`（行525-529）：字段 `commits`。
-  - `WorktreeConsoleGitMutationResponse`（行531-534）：字段 `branch`。
-  - `WorktreeConsoleGitTag`（行537-549）：字段 `name`、`oid`、`commitOid`、`annotated`、`message`、`pushed`。
-  - `WorktreeConsoleGitTagListResponse`（行551-554）：字段 `root`、`tags`。
-  - `WorktreeConsoleGitTagMutationResponse`（行556-562）：字段 `tag`、`pushed?`、`pushMessage?`。
-  - `WorktreeConsoleGitCreateTagRequest`（行565-573）、`GitDeleteTagRequest`（行575-580）、`GitPushTagRequest`（行582-585）：各含对应参数。
-  - `WORKTREE_CONSOLE_ERROR_CODES`（行587-592）与 `WorktreeConsoleErrorCode`（行594）：错误码联合。
-  - `WorktreeConsoleErrorCategory`（行595-603）、`WorktreeConsoleRecovery`（行604）：类型。
-  - `WorktreeApplyConflictContinuation`（行606-617）、`WorktreeApplyConflictRecoveryProof`（行619-628）、`WorktreeReviewRegenerationProof`（行630-636）、`WorktreePreviewRecoveryAnalysisProof`（行638-646）、`WorktreePreviewRecoveryHandoffProof`（行648-657）：各 proof 结构。
-  - `WorktreeRecoveryProof`（行659-663）联合上述 proof；`WorktreeConsoleContinuation`（行664）为冲突续做。
-  - `WorktreeConsoleError`（行666-671）：字段 `code`、`message`、`details?`、`continuation?`。
-  - `WorktreeConsoleOutcome<T>`（行673-675）：`{ ok: true; value: T } | { ok: false; error: WorktreeConsoleError }`。
-  - `WorktreeConsoleErrorMeta`（行677-681）：字段 `category`、`recovery`、`retryable`。
-  - `ERROR_META`（行683-716）常量映射；`worktreeConsoleErrorMeta`（行718-720）函数。
-  - `WorktreeConsoleAdapter`（行723-761）：上述方法签名集合，含可选 `preflightCreate?`、`createWithInitialCommit?`、`initializeProject?`、`listAbandoned?`、`restoreAbandoned?` 等。
+  - `WorktreeConsoleCapabilities`（行98-124）：布尔能力字段 `create`、`open`、`inspect`、`discard`、`preflight`、`preview`、`checkpoint`、`resumeRevision`、`rollbackPreview`、`finalize`、`finalizePreview`、`setRetention`、`setPermanent`、`retryCleanup`、`beginNextIteration`、`returnToLocal`。
+  - `WorktreeConsolePreviewRecovery`（行126-131）：字段 `previewId: string`、`detachedAt: number`、`reason: 'stale_local' | 'preview_modified'`、`attemptedAction: 'rollback_preview' | 'finalize_preview' | 'discard'`。
+  - `WorktreeConsoleDeliveryProof`（行133）：类型别名 `WorktreeDeliveryProofView`。
+  - `WorktreeConsoleReviewSummary`（行135-146）：字段 `reviewId: string`、`revision: number`、`iteration: number`、`preparedAt: number`、`summary: string`、`validationStatus: WorktreeValidationStatus`、`validationSummary?: string`、`tests: WorktreeValidationItem[]`、`changedFiles: string[]`、`suggestedCommitMessage: string`。
+  - `WorktreeConsoleTargetSummary`（行149-179）：字段 `project: WorktreeConsoleProject`、`checkoutId: string | null`、`sourceSessionId: string`、`ownerSessionId: string`、`targetSessionId: string | null`、`iteration: number`、`revision: number`、`state: WorktreeConsoleTargetState`、`phase: SessionCheckoutPhase | 'local'`、`dirty: boolean`、`currentOid: string`、`commitOid: string | null`、`sourceBranch: string | null`、`retention?: Exclude<WorktreeRetentionMode, 'cleanup'>`、`retainedAt?: number`、`expiresAt?: number | null`、`permanent?: boolean`、`cleanupMessage?: string`、`deliveryProof?: WorktreeConsoleDeliveryProof`、`review?: WorktreeConsoleReviewSummary`、`checkpoints?: WorktreeCheckpointView[]`、`checkpointGeneration?: string`、`reviewSlot?: 'available' | 'waiting'`、`reviewSlotOwnerSessionId?: string`、`reviewSlotHolder?: WorktreeAcceptanceBlockerView`、`previewRecovery?: WorktreeConsolePreviewRecovery`、`capabilities: WorktreeConsoleCapabilities`。
+  - `WorktreeConsoleTargetDetails`（行182-195）：扩展 `TargetSummary` 加 `managedRoot: string | null`、`sourceRoot: string | null`、`sourceOid: string`、`currentBranch: string | null`、`recoveryContinuation?: WorktreeRecoveryProof`。
+  - `WorktreeConsoleCurrentRequest`（行197-199）/`Response`（行201-203）：请求含 `sessionId: string`；响应含 `target: WorktreeConsoleTargetDetails`。
+  - `WorktreeConsoleListRequest`（行205-209）/`Response`（行211-214）：请求含 `sessionId`、`needsAttention?`、`includeDelivered?`；响应含 `project`、`worktrees: WorktreeConsoleTargetSummary[]`。
+  - `WorktreeSidebarTaskState`（行216-223）：联合 `'working' | 'ready_for_review' | 'preview_active' | 'preview_detached' | 'recovery_required' | 'finalized' | 'discarded'`。
+  - `WorktreeSidebarTask`（行226-236）：字段 `checkoutId: string`、`ownerSessionId: string`、`sourceSessionId: string`、`iteration: number`、`revision: number`、`phase: SessionCheckoutPhase`、`state: WorktreeSidebarTaskState`、`sourceBranch: string | null`。
+  - `WorktreeSidebarProject`（行238-243）：字段 `project: WorktreeConsoleProject`、`tasks: WorktreeSidebarTask[]`、`memberships?: { workspaceIds: string[]; sessionIds: string[] }`。
+  - `WorktreeSidebarTopologyResponse`（行245-251）：字段 `projects: WorktreeSidebarProject[]`、`workspaceClientFlavor?: 'legacy' | 'alpha' | 'next' | 'modern' | 'unsupported'`、`officialWorkspaceActive?: boolean`。
+  - `WorktreeClientBootReport`（行254-263）：字段 `flavor: string`、`branch: 'legacy' | 'alpha' | 'next' | 'modern' | 'unsupported' | 'topology-failed' | 'boot-failed'`、`registered: boolean`、`detail?`、`elapsedMountMs?`、`elapsedTopologyMs?`。
+  - `WorktreeConsoleCreatePreflightResponse`（行266-269）：联合 `{ kind: 'ready'; branches?: string[] } | { kind: 'empty'; confirmationToken: string } | { kind: 'files' }`。
+  - `WorktreeConsoleCreateRequest`（行271-275）：字段 `sourceSessionId: string`、`branch?: string`。
+  - `WorktreeConsoleCreateResponse`（行277-281）：字段 `target: WorktreeConsoleTargetDetails`、`targetSessionId: string`、`managedRoot: string`。
+  - `WorktreeConsoleInspectRequest`（行283-286）/`Response`（行288-290）：请求含 `sessionId`、`checkoutId`；响应含 `target`。
+  - `WorktreeConsoleDiscardRequest`（行292-298）：字段 `sessionId`、`checkoutId`、`expectedRevision`、`confirmDirty`、`rollbackPreview?`。
+  - `WorktreeConsolePreflightRequest`（行300-305）/`Response`（行307-309）：请求含 session/checkout/expectedRevision/expectedReviewId；响应含 `preflight: WorktreeApplyPreflightView`。
+  - `WorktreeConsolePreviewRequest`（行311-316）：字段 `sessionId`、`checkoutId`、`expectedRevision`、`expectedReviewId`。
+  - `WorktreeConsoleCheckpointRequest`（行318-326）：字段 `sessionId`、`checkoutId`、`expectedRevision`、`expectedReviewId`、`expectedGeneration`、`requestId`、`commitMessage`。
+  - `WorktreeConsoleResumeRevisionRequest`（行328-335）：含 `conflictContinuation?: WorktreeApplyConflictContinuation`。
+  - `WorktreeConsolePreviewRecoveryPreflightRequest`（行337-343）/`Response`（行345-347）：含 `expectedPreviewId`；响应含 `preflight: WorktreePreviewRecoveryPreflightView`。
+  - `WorktreeConsolePreparePreviewRecoveryAnalysisRequest`（行349-351）与 `CreatePreviewRecoveryHandoffRequest`（行353-355）扩展上述含 `recoveryProof`。
+  - `WorktreeConsoleCreatePreviewRecoveryHandoffResponse`（行357-359）扩展 CreateResponse 加 `recoveryContinuation: WorktreePreviewRecoveryHandoffProof`。
+  - `WorktreeConsoleRollbackPreviewRequest`（行361-367）：含 `resumeRevision?`、`recoveryProof?`。
+  - `WorktreeConsoleFinalizeRequest`（行369-377）：含 `commitMessage`、`retention`。
+  - `WorktreeConsoleFinalizePreviewRequest`（行379-387）：含 `recoveryProof?`。
+  - `WorktreeConsoleSetRetentionRequest`（行389-394）：含 `retention: Exclude<WorktreeRetentionMode, 'cleanup'>`。
+  - `WorktreeConsoleSetPermanentRequest`（行397-402）：含 `permanent: boolean`。
+  - `WorktreeConsoleRetryCleanupRequest`（行404-408）、`BeginNextIterationRequest`（行410-414）：身份字段。
+  - `WorktreeConsoleClearSidebarBadgeRequest`（行417-421）：含 `sessionId`、`checkoutId`、`expectedRevision`。
+  - `WorktreeConsoleReturnToLocalRequest`（行430-433）/`Response`（行435-437）：请求含 `sessionId`、`checkoutId`；响应含 `target`。
+  - `WorktreeConsoleMutationResponse`（行439-445）：字段 `target: WorktreeConsoleTargetSummary`、`changedFiles?`、`commitOid?`、`checkpoint?`、`recoveryContinuation?`。
+  - `WorktreeConsoleAbandonedSnapshot`（行448-454）：字段 `checkoutId`、`projectName`、`snapshotOid`、`snapshotAt`、`revision`。
+  - `WorktreeConsoleAbandonedListRequest`（行456-458）/`Response`（行460-462）：响应含 `snapshots: WorktreeConsoleAbandonedSnapshot[]`。
+  - `WorktreeConsoleRestoreAbandonedRequest`（行464-467）/`Response`（行469-472）：响应含 `checkoutId`、`branch`。
+  - `WorktreeConsolePrepareRegenerationRequest`（行474-479）：身份字段。
+  - `WorktreeConsoleDiffFile`（行483-489）：字段 `path`、`previousPath?`、`status`、`patch`、`truncated`。
+  - `WorktreeConsoleReviewDiffRequest`（行492-497）/`Response`（行499-504）：响应含 `reviewId`、`revision`、`files`、`truncated`。
+  - `WorktreeConsoleGitBranch`（行507-512）：字段 `name`、`oid`、`isCurrent`、`upstream`。
+  - `WorktreeConsoleGitOverviewResponse`（行514-520）：字段 `root`、`branch`、`headOid`、`branches`、`dirtyCount`。
+  - `WorktreeConsoleGitPruneEntry`（行523-527）/`Response`（行529-534）：字段 `dryRun`、`headBranch`、`pruned`、`skipped`。
+  - `WorktreeConsoleGitGraphCommit`（行537-545）/`Response`（行547-551）：字段 `commits`。
+  - `WorktreeConsoleGitMutationResponse`（行553-556）：字段 `branch`。
+  - `WorktreeConsoleGitTag`（行559-571）：字段 `name`、`oid`、`commitOid`、`annotated`、`message`、`pushed`。
+  - `WorktreeConsoleGitTagListResponse`（行573-576）：字段 `root`、`tags`。
+  - `WorktreeConsoleGitTagMutationResponse`（行578-584）：字段 `tag`、`pushed?`、`pushMessage?`。
+  - `WorktreeConsoleGitCreateTagRequest`（行587-595）、`GitDeleteTagRequest`（行597-602）、`GitPushTagRequest`（行604-607）：各含对应参数。
+  - `WORKTREE_CONSOLE_ERROR_CODES`（行609-614）与 `WorktreeConsoleErrorCode`（行616）：错误码联合。
+  - `WorktreeConsoleErrorCategory`（行617-626）、`WorktreeConsoleRecovery`（行626）：类型。
+  - `WorktreeApplyConflictContinuation`（行628-639）、`WorktreeApplyConflictRecoveryProof`（行641-650）、`WorktreeReviewRegenerationProof`（行652-658）、`WorktreePreviewRecoveryAnalysisProof`（行660-668）、`WorktreePreviewRecoveryHandoffProof`（行670-679）：各 proof 结构。
+  - `WorktreeRecoveryProof`（行681-685）联合上述 proof；`WorktreeConsoleContinuation`（行686）为冲突续做。
+  - `WorktreeConsoleError`（行688-693）：字段 `code`、`message`、`details?`、`continuation?`。
+  - `WorktreeConsoleOutcome<T>`（行695-697）：`{ ok: true; value: T } | { ok: false; error: WorktreeConsoleError }`。
+  - `WorktreeConsoleErrorMeta`（行699-703）：字段 `category`、`recovery`、`retryable`。
+  - `ERROR_META`（行705-738）常量映射；`worktreeConsoleErrorMeta`（行740-742）函数。
+  - `WorktreeConsoleAdapter`（行745-783）：上述方法签名集合，含可选 `preflightCreate?`、`createWithInitialCommit?`、`initializeProject?`、`listAbandoned?`、`restoreAbandoned?` 等。
 
 ### Model Layer (`src/client/model.ts`)
 
@@ -229,7 +230,7 @@ Client 侧是插件的浏览器运行时：把 Host 暴露的 Remote 服务适�
 
 ### Styles (`src/client/styles.ts`)
 
-- **`WORKTREE_STYLES`**（行3-170）：从 `REVIEW_CONSOLE_STYLES` 拼接（行1, 164），含侧栏图标/徽章（行5-90）、卡片（行92-160）、预会话（行152-160）、创建对话框（行166-170）。
+- **`WORKTREE_STYLES`**（行3-170）：从 `REVIEW_CONSOLE_STYLES` 拼接（行1, 164），含侧栏图标/徽章（行5-90）、卡片（行92-160）、预会话（行152-160）、创建对话框（行166-169）。
   - 徽章块（行17-34）：`max-width: 168px`（行20），放宽 seat 宽度避免 chip 被裁剪（行41-55），状态色（行60-90）。
 
 ### Upstream Decoration Script (`scripts/workspace-sidebar-upstream.mjs`)
@@ -266,15 +267,15 @@ Client 侧是插件的浏览器运行时：把 Host 暴露的 Remote 服务适�
 ## Data Flow
 
 1. **Initialization**：Host 调 `apply`（`console-remote/index.ts` 行62）；Remote contribution 挂载（行64），`WorktreeConsoleAdapter` 就绪并 `ctx.provide('worktreeConsole', adapter)`（行72）。
-2. **Topology Resolution**：`adapter.sidebarTopology()`（adapter.ts 行114，契约行727）返回 `workspaceClientFlavor` 与 `officialWorkspaceActive`（契约行242-244），决定走「接管」（`registerManagedWorkspaceSidebar` sidebar 行328）还是「装饰」（`registerDecoratedWorkspaceSidebar` sidebar 行495）。
+2. **Topology Resolution**：`adapter.sidebarTopology()`（adapter.ts 行114，契约行245-251）返回 `workspaceClientFlavor` 与 `officialWorkspaceActive`，决定走「接管」（`registerManagedWorkspaceSidebar` sidebar 行328）还是「装饰」（`registerDecoratedWorkspaceSidebar` sidebar 行495）。
 3. **Model Projection**：`projectManagedWorkspaceSidebar`（model.ts 行81）合并远程 task 与本地状态；`sidebarBadgeTasks`（model.ts 行51-74）行62 算出 `label`（含分支名）。
 4. **Decoration Render**：装饰层 `managedWorktreeDecoration`（由 `scripts/workspace-sidebar-upstream.mjs` 行101-104 注入）读取行节点 `__dshGitWorktree`（在 sidebar/index.tsx 行159-164 设置），优先用 `value.label`、缺失退回 i18n 状态文案，产出带 `title` 的徽章（样式见 styles.ts 行17-34）。在装饰模式（`registerDecoratedWorkspaceSidebar`）下，`WorktreeStatusBadgeEntry`（sidebar/index.tsx 行464-481）通过 `ROW_SEATS`（行424）注入 `leading` 图标与 `hover` 文本标签（均含 chip）。
-5. **ToolView Interaction**：用户在 ToolView 的操作打到 Adapter，`invoke`（adapter.ts 行82）带超时与严格校验返回，再由 `parseCreateTool`（model.ts 行100）/`parseReviewTool`（model.ts 行152）解析成稳定模型渲染。
+5. **ToolView Interaction**：用户在 ToolView 的操作打到 Adapter，`invoke`（adapter.ts 行83-112）带超时与严格校验返回，再由 `parseCreateTool`（model.ts 行100）/`parseReviewTool`（model.ts 行152）解析成稳定模型渲染。
 
 ## Connections
 
-- [[target-console|Target Console]]：会话胶囊与 Target 面板，`currentBranch` 决定胶囊主标签（契约行186）。
-- [[review-console|Review Console]]：评审差异与恢复流程（契约行469-482）。
+- [[target-console|Target Console]]：会话胶囊与 Target 面板，`currentBranch` 决定胶囊主标签（契约行182-195）。
+- [[review-console|Review Console]]：评审差异与恢复流程（契约行492-504）。
 - [[console-host]]：Remote 侧的 `sidebarTopology` / `current` / `list` 等投影来源（adapter.ts 行114-116）。
 
 ## Known Issues
@@ -284,5 +285,5 @@ Client 侧是插件的浏览器运行时：把 Host 暴露的 Remote 服务适�
 - **`value.label` 缺失回落静默**：装饰层注入的 `managedWorktreeDecoration`（upstream.mjs 行101-104）不区分「模型没给 label」和「空串」，均退回状态文案，排查难。
 - **`reportBoot` 诊断不可靠**：`console-remote/index.ts` 行86-102 尽力而为，catch 仅日志，`registered: true` 只说明注册调用没抛错，不代表行渲染成功。
 - **过滤服务声明**：Remote Entry 的 `inject`（行45-49）故意过滤 `remote.directoryPicker` 与 `remoteAccess` 避免死锁/挂起，相关服务通过代理延迟解析（sidebar/index.tsx 行219-235, 292-316）。
-- **FAST_METHODS 与注释一致性**：`adapter.ts` 行57-58 注释称 `list`/`preflight`/`preflightCreate` 放 SLOW 档，代码 `FAST_METHODS`（行59-64）未包含它们，逻辑一致但维护需注意超时档位分配。
+- **FAST_METHODS 与注释一致性**：`adapter.ts` 行58-59 注释称 `list`/`preflight`/`preflightCreate` 放 SLOW 档，代码 `FAST_METHODS`（行60-65）未包含它们，逻辑一致但维护需注意超时档位分配。
 - **装饰模式 slot 依赖**：`registerDecoratedWorkspaceSidebar`（sidebar/index.tsx 行495-535）注入 `sidebar.session.row.leading` 与 `sidebar.session.row.hover` seat（行522-527，描述符 `id: 'dsh-git-worktree-status', order: 500`）；若 Host 未声明这些 seats，回调永不执行，徽章不挂载（代码注释行411-423, 510-514 明确无 trailing seat）。
