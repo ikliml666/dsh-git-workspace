@@ -6,6 +6,17 @@ type Result = { outcome: WorktreeConsoleOutcome<WorktreeConsoleCurrentResponse> 
 type Listener = (result: Result) => void
 const clients = new WeakMap<WorktreeConsoleAdapter, Map<string, Poll>>()
 const DELAY = 5_000
+/**
+ * A hidden window cannot show the chip, but a host-side `current` still costs a
+ * `git status` plus two `git rev-parse` spawns on the owner's checkout. Polling
+ * a backgrounded GUI therefore burns CPU and disk for nothing, so a hidden
+ * document parks the loop and the next visibility change resumes it at once.
+ */
+const HIDDEN_DELAY = 60_000
+
+function isHidden(): boolean {
+  return typeof document !== 'undefined' && document.visibilityState === 'hidden'
+}
 
 /** Display-only observation. Never used to authorize a mutation or Git cleanup. */
 class Poll {
@@ -22,12 +33,18 @@ class Poll {
     if ((event as CustomEvent<{ sessionId?: string }>).detail?.sessionId === this.sessionId) this.invalidate()
   }
 
+  /** Coming back to a hidden tab is exactly when the chip must be correct again. */
+  private onVisibility = (): void => {
+    if (!isHidden()) this.invalidate()
+  }
+
   subscribe(listener: Listener): () => void {
     const first = this.listeners.size === 0
     this.listeners.add(listener)
     if (first) {
       this.generation++
       window.addEventListener(WORKTREE_REVIEW_REFRESH_EVENT, this.onRefresh)
+      document.addEventListener('visibilitychange', this.onVisibility)
       // A detached request is allowed to settle, but cannot seed a new mount.
       this.invalidate()
     } else if (this.last) {
@@ -41,6 +58,7 @@ class Poll {
       this.dirty = false
       clearTimeout(this.timer)
       window.removeEventListener(WORKTREE_REVIEW_REFRESH_EVENT, this.onRefresh)
+      document.removeEventListener('visibilitychange', this.onVisibility)
       if (!this.running) this.release()
     }
   }
@@ -68,7 +86,7 @@ class Poll {
     this.running = false
     if (!this.listeners.size) { this.release(); return }
     if (this.dirty) { void this.run(); return }
-    this.timer = setTimeout(() => { void this.run() }, DELAY)
+    this.timer = setTimeout(() => { void this.run() }, isHidden() ? HIDDEN_DELAY : DELAY)
   }
 }
 

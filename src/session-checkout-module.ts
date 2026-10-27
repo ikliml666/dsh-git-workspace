@@ -542,6 +542,15 @@ export function createSessionCheckoutModule(
     canonicalManagedGitRoot: string
     snapshot: GitCheckoutSnapshot
     status: { dirty: boolean }
+    /**
+     * The Local checkout observed in the same validation pass.
+     *
+     * `validateManagedCheckoutDetailed` already inspects `localRoot` to prove
+     * both sides share one repository. Carrying that snapshot out lets callers
+     * that need the Local branch (the conversation chip after delivery) reuse
+     * it instead of paying a second `git rev-parse` for the same directory.
+     */
+    localSnapshot: GitCheckoutSnapshot
   }
 
   type ManagedCheckoutValidationResult =
@@ -635,7 +644,7 @@ export function createSessionCheckoutModule(
       const status = await statusPromise
       return {
         status: 'valid',
-        checkout: { canonicalManagedRoot, canonicalManagedGitRoot, snapshot, status },
+        checkout: { canonicalManagedRoot, canonicalManagedGitRoot, snapshot, status, localSnapshot },
       }
     } catch {
       // Git 子进程超时、杀毒软件占用等瞬时 I/O 故障不能永久污染健康 Worktree。
@@ -4429,7 +4438,15 @@ export function createSessionCheckoutModule(
     if (!record || record.phase === 'discarded') throw new SessionCheckoutError('checkout_missing', hostMessage('theWorktreeDirectoryNoLongerExists'))
     const validated = await validateManagedCheckout(bindingForManagedRecord(record), record, false)
     if (!validated) throw new SessionCheckoutError('checkout_mismatch', hostMessage('theWorktreeDirectoryIdentityCannotBeVerified'))
-    return { managedRoot: validated.canonicalManagedRoot, snapshot: validated.snapshot, dirty: validated.status.dirty }
+    // `localSnapshot` rides along because validation already inspected the Local
+    // side to prove one shared repository; consumers that need the Local branch
+    // (the conversation chip after delivery) would otherwise spawn Git again.
+    return {
+      managedRoot: validated.canonicalManagedRoot,
+      snapshot: validated.snapshot,
+      localSnapshot: validated.localSnapshot,
+      dirty: validated.status.dirty,
+    }
   }
 
   /** 一次拿锁批量观察多个 checkout；单条失败整体抛错，与逐条 observe 语义一致。 */

@@ -74,11 +74,14 @@ export class WorktreeConsoleService extends TypertRemoteService {
 
   @Remote
   async current(agent: Agent, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleCurrentResponse>> {
+    // 顶部胶囊每 5s 轮询一次，一次 current 的成本直接决定胶囊刷新手感：
+    // 记录耗时，才能用 diag 回答「到底慢在哪」而不是靠猜。
+    const startedAt = Date.now()
     const outcome = await withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.current(agent.id))
     // 顶部胶囊永远显示「不可用」时，唯一的现场证据就是这条：胶囊会立刻调一次
     // current，失败时的 code/message 决定是会话未持验收位、项目不匹配还是 git 报错。
     this.appendDiag({
-      kind: 'current', ts: Date.now(), ok: outcome.ok, agentId: agent.id,
+      kind: 'current', ts: Date.now(), durationMs: Date.now() - startedAt, ok: outcome.ok, agentId: agent.id,
       code: outcome.ok ? undefined : outcome.error.code,
       message: outcome.ok ? undefined : outcome.error.message,
     })
