@@ -1275,7 +1275,8 @@ describe('Worktree Console Host control plane', () => {
     // `git status` plus two `git inspect` spawns. Re-observing the very same
     // record through `observeManagedCheckout` repeated that triple spawn and was
     // a third of every 5s poll — the reported "chip is slow to read the branch".
-    const { control, module } = plane()
+    const record = readyRecord()
+    const { control, module } = plane(record)
     const reobserve = vi.fn()
     module.observeManagedCheckout = reobserve as unknown as SessionCheckoutModule['observeManagedCheckout']
     vi.mocked(module.inspect).mockResolvedValue({
@@ -1283,12 +1284,84 @@ describe('Worktree Console Host control plane', () => {
       checkout: { id: 'checkout-1', kind: 'isolated', label: 'Task', phase: 'ready' },
       current: { branch: 'feat/live', oid: B },
       dirty: false,
+      revision: record.revision,
     })
 
     const result = await control.current('target-session')
 
     expect(reobserve).not.toHaveBeenCalled()
     expect(result).toMatchObject({ ok: true, value: { target: { currentBranch: 'feat/live', dirty: false } } })
+  })
+
+  it('revalidates when the registry revision advances after the caller inspection', async () => {
+    const staleRecord = readyRecord()
+    const currentRecord = { ...staleRecord, revision: staleRecord.revision + 1 }
+    const { control, module } = plane(staleRecord, {
+      registry: {
+        read: () => ({ version: 2, revision: 2, sessionBindings: {}, managedCheckouts: { [currentRecord.checkoutId]: structuredClone(currentRecord) } }),
+        write: vi.fn(),
+      },
+    })
+    const reobserve = vi.fn(async () => ({
+      managedRoot: '/managed',
+      snapshot: { root: '/managed', commonDir: '/git/common', gitDir: '/git/worktrees/one', branch: 'feat/current', headOid: B, headRef: 'HEAD' },
+      localSnapshot: { root: '/local', commonDir: '/git/common', gitDir: '/.git', branch: 'main', headOid: A, headRef: 'HEAD' },
+      dirty: false,
+    }))
+    module.observeManagedCheckout = reobserve as unknown as SessionCheckoutModule['observeManagedCheckout']
+    vi.mocked(module.inspect).mockResolvedValue({
+      ...local('target-session'),
+      checkout: { id: staleRecord.checkoutId, kind: 'isolated', label: 'Task', phase: 'ready' },
+      current: { branch: 'feat/stale', oid: A },
+      revision: staleRecord.revision,
+    })
+
+    const result = await control.current('target-session')
+
+    expect(reobserve).toHaveBeenCalledTimes(1)
+    expect(result).toMatchObject({
+      ok: true,
+      value: { target: { currentBranch: 'feat/current', revision: currentRecord.revision } },
+    })
+  })
+
+  it('uses the fresh registry proof when the caller proof belongs to an older revision', async () => {
+    const retained = retainedRecord()
+    const currentRecord = {
+      ...retained,
+      revision: retained.revision + 1,
+      delivery: {
+        ...retained.delivery,
+        proof: { localBranch: 'main', localHeadBefore: A, localHeadAfter: B, changedFiles: ['current.ts'] },
+      },
+    }
+    const { control, module } = plane(retained, {
+      lookup: ownerLocalLookup(),
+      registry: {
+        read: () => ({ version: 2, revision: 2, sessionBindings: {}, managedCheckouts: { [currentRecord.checkoutId]: structuredClone(currentRecord) } }),
+        write: vi.fn(),
+      },
+    })
+    vi.mocked(module.inspect).mockResolvedValue({
+      ...local('target-session'),
+      checkout: { id: retained.checkoutId, kind: 'isolated', label: 'Task', phase: 'retained' },
+      revision: retained.revision,
+      delivery: {
+        state: 'retained',
+        review: retained.delivery.review,
+        commitOid: B,
+        proof: { localBranch: 'main', localHeadBefore: A, localHeadAfter: A, changedFiles: ['stale.ts'], commitInLocalHistory: true },
+        retention: 'retain_24h', retainedAt: 10, expiresAt: 20, cleanup: 'scheduled',
+      },
+    })
+
+    const result = await control.current('target-session')
+
+    expect(result).toMatchObject({
+      ok: true,
+      value: { target: { revision: currentRecord.revision, deliveryProof: { changedFiles: ['current.ts'], commitInLocalHistory: null } } },
+    })
+    expect(JSON.stringify(result)).not.toContain('stale.ts')
   })
 
   it('takes the delivered Local branch from the observation instead of a third inspect', async () => {

@@ -20,6 +20,8 @@
 
 ### Fixed
 
+- `current` 观测复用可能混用两个 revision 的状态（2026-10-27，性能改动的并发时序复核）：`callerTarget()` 完成 `inspect` 后，`details()` 会重新读取 registry；若期间 revision 前进，此前会把旧分支/HEAD/dirty 与新 revision、Review 和 delivery proof 放在同一响应里。`observeFromCaller` 现要求 `caller.revision === record.revision`，不一致时回退原权威校验，不牺牲已有快速路径；`details()` 同时只在调用方与授权记录同 revision 时采用其 delivery proof，否则使用当前 registry 的证明。新增 revision 前进、旧 proof 不得混入新响应两条回归测试；修复前实测 `reobserve` 调用 0 次而失败，修复后重新校验并返回当前分支。架构文档同步记录复用条件、`localSnapshot` 与可见性轮询策略。
+
 - 顶部胶囊塌成「不可用」并提示 `Remote current 返回了不符合 strict contract 的 payload`（2026-10-27，新增能力位的前后兼容）：上一轮给 `WorktreeConsoleCapabilities` 加了 `returnToLocal`，同时在 `src/console-remote/schemas.ts` 里把它写成**必填** boolean。Client 与 Host 是两份独立部署的产物：插件产物（`lib/client.js`）当场更新，宿主进程却要重启才换 Host——于是新 Client 拿着新 schema 去校验旧 Host 的 `current` 响应，`capabilities.returnToLocal` 缺失，整条 payload 校验失败，胶囊退化成裸「不可用」。已实测复现：新 schema 校验旧 Host payload → `invalid_type: path ["returnToLocal"] expected boolean, received undefined`。
   - `src/console-remote/schemas.ts`：`returnToLocal` 改为 `z.boolean().default(false)`——输入可缺省，输出仍是确定的 `boolean`（因此 `WorktreeConsoleCapabilities` 的类型不必跟着变宽），旧 Host 的 payload 照常被接受。
   - 新增回归用例「tolerates a Host that predates a purely additive capability bit」（`tests/console-remote.test.ts`）：断言缺 `returnToLocal` 的旧 payload 能解析且落成 `false`，同时断言**未知键仍然被拒**（兼容不等于放宽）。已反证：把该字段改回必填，此用例失败。
