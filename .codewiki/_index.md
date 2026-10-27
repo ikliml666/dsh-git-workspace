@@ -22,4 +22,3 @@
 - [[modules/session-checkout-apply|Session Checkout Apply Pipeline]]
 - [[modules/session-checkout-module|Session Checkout State Machine]]
 - [[modules/settings-card|Settings Card 插件设置页]]
-- [[modules/target-console|Target Console 目标徽章与 Worktree 控制台]]

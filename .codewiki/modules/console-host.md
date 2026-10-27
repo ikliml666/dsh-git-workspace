@@ -95,7 +95,7 @@ Typert RPC 服务层，继承自 `TypertRemoteService`（L35），充当网关�
 - `WorktreeConsoleControlPlane`（L80-119）：定义所有公开 API 方法签名，涵盖 `sidebarTopology`、`current`、`list`、`preflightCreate`、`createWithInitialCommit`、`create`、`initProject`、`inspect`、`reviewDiff`、`preflight`、`previewRecoveryPreflight`、`preparePreviewRecoveryAnalysis`、`createPreviewRecoveryHandoff`、`preview`、`checkpoint`、`resumeRevision`、`prepareReviewRegeneration`、`rollbackPreview`、`discard`、`finalize`、`finalizePreview`、`setRetention`、`setPermanent`、`retryCleanup`、`beginNextIteration`、`returnToLocal`、`clearSidebarBadge`、`gitOverview`、`gitGraph`、`gitCreateBranch`、`gitSwitchBranch`、`gitPruneMergedBranches`、`listAbandoned`、`restoreAbandoned`，并在 L113-116 声明了 `gitListTags`、`gitCreateTag`、`gitDeleteTag`、`gitPushTag`。
 
 **工厂函数**:
-- `createWorktreeConsoleControlPlane(options)`（L206-L1501）：返回 `WorktreeConsoleControlPlane` 实例。`createTargetSessionId` 默认 `randomUUID`（L207）。
+- `createWorktreeConsoleControlPlane(options)`（L206-L1502）：返回 `WorktreeConsoleControlPlane` 实例。`createTargetSessionId` 默认 `randomUUID`（L207）。
 
 **内部私有辅助函数（非导出，但为核心逻辑）**:
 - `recordOf(registry, checkoutId)`（L121-125）：从 Registry 读取 Checkout 记录，不存在抛 `domainError('checkout_missing')`。

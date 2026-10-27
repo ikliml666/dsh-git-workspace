@@ -120,26 +120,26 @@ tags:
 **导出成员**
 
 *   **`inject`** (`index.ts:45-49`): 一个服务注入数组。它是官方 Workspace 注入列表的子集，通过 `officialWorkspaceInject.filter(service => service !== 'remote.directoryPicker' && service !== 'remoteAccess')` 过滤掉了 `remote.directoryPicker` 和 `remoteAccess` 以避免死锁（详见行 18-44 注释），并附加 `'slots'` 和 `'configForms'` 以确保插件设置卡片能正确挂载。
-*   **`apply(ctx: ConsoleClientContext): Promise<void>`** (`index.ts:62-196`):
+*   **`apply(ctx: ConsoleClientContext): Promise<void>`** (`index.ts:62-206`):
     *   **用途**: 主激活函数，执行 Worktree Console 的完整启动流程。
     *   **步骤**:
-        1.  **挂载 Remote** (行 63-66): 调用 `ctx.remote.$mount(contribution)` 挂载 Git Worktree Remote 命名空间，并记录挂载耗时 `elapsedMountMs`。
+        1.  **挂载 Remote** (行 64-66): 调用 `ctx.remote.$mount(contribution)` 挂载 Git Worktree Remote 命名空间，并记录挂载耗时 `elapsedMountMs`。
         2.  **获取远程代理** (行 67-70): 从上下文获取 `remote.gitWorktree`。如果未找到，抛出 `mountFailed` 错误（使用 `transportMessages` 的 `mountFailed` 翻译）。
         3.  **创建适配器** (行 71): 调用 `createWorktreeConsoleRemoteAdapter` 创建适配器实例，传入 `remote` 和 `getLanguage`。
         4.  **提供适配器** (行 72): 将适配器作为 `worktreeConsole` 服务提供给上下文（`ctx.provide('worktreeConsole', adapter)`）。
         5.  **挂载设置卡片** (行 73): 调用 `mountSettingsCard`。
         6.  **定义工具挂载函数** (行 75-81): `mountTools` 函数用于在工作区上下文中注入工具视图（`applyToolViews`）。
-        7.  **定义启动报告函数** (行 84-100): `reportBoot` 函数用于向远程发送启动报告（调用 `remote.clientBootReport`），包含 flavor、注册状态、耗时等信息，诊断最佳努力。
-        8.  **获取拓扑** (行 101-109): 调用 `adapter.sidebarTopology()` 获取工作区客户端形态（记录 `elapsedTopologyMs`）。如果失败，报告并抛出 `workspaceGenerationUnknown` 错误。
-        9.  **分支注册逻辑** (行 110-195): 根据 `topology.value.workspaceClientFlavor` 分发不同的注册策略：
-            *   `'legacy'` (行 110-119): 检查 `sessions.open` 可用性，注册托管侧边栏 (`registerManagedWorkspaceSidebar`) 并挂载工具。
-            *   `'modern'` (行 120-155):
-                *   如果 `officialWorkspaceActive` 为真，注册装饰侧边栏 (`registerDecoratedWorkspaceSidebar`) 并挂载工具（行 121-138）。
-                *   否则，注册托管侧边栏并传入 `applyOfficialWorkspace`（行 139-154）。
-            *   `'alpha'` / `'next'` (行 156-191):
-                *   如果 `officialWorkspaceActive` 为真，注册装饰侧边栏（行 160-174）。
-                *   否则，注册托管侧边栏并传入对应的 `applyWorkspace`（行 175-190）。
-            *   其他 (行 192-194): 报告不支持，仅挂载工具。
+        7.  **定义启动报告函数** (行 86-102): `reportBoot` 函数用于向远程发送启动报告（调用 `remote.clientBootReport`），包含 flavor、注册状态、耗时等信息，诊断最佳努力。
+        8.  **获取拓扑** (行 103-109): 调用 `adapter.sidebarTopology()` 获取工作区客户端形态（记录 `elapsedTopologyMs`）。如果失败，报告并抛出 `workspaceGenerationUnknown` 错误。
+        9.  **分支注册逻辑** (行 110-205): 根据 `topology.value.workspaceClientFlavor` 分发不同的注册策略：
+            *   `'legacy'` (行 112-121): 检查 `sessions.open` 可用性，注册托管侧边栏 (`registerManagedWorkspaceSidebar`) 并挂载工具。
+            *   `'modern'` (行 122-161):
+                *   如果 `officialWorkspaceActive` 为真，注册装饰侧边栏 (`registerDecoratedWorkspaceSidebar`) 并挂载工具（行 127-144）。
+                *   否则，注册托管侧边栏并传入 `applyOfficialWorkspace`（行 145-160）。
+            *   `'alpha'` / `'next'` (行 162-200):
+                *   如果 `officialWorkspaceActive` 为真，注册装饰侧边栏（行 166-183）。
+                *   否则，注册托管侧边栏并传入对应的 `applyWorkspace`（行 184-199）。
+            *   其他 (行 201-205): 报告不支持，仅挂载工具。
 
 ### `src/i18n/transport-messages.ts`
 
@@ -169,9 +169,9 @@ tags:
 │                                                                             │
 │  1. Mount Remote Contribution (index.ts:64)                                │
 │  2. Create Adapter (adapter.ts:71,80-156)                                  │
-│  3. Resolve Topology (adapter.sidebarTopology, index.ts:102)               │
-│  4. Branch Registration (Legacy/Modern/Alpha/Next) (index.ts:110-195)     │
-│  5. Report Boot Status (reportBoot, index.ts:84-100)                       │
+│  3. Resolve Topology (adapter.sidebarTopology, index.ts:104)               │
+│  4. Branch Registration (Legacy/Modern/Alpha/Next) (index.ts:110-205)     │
+│  5. Report Boot Status (reportBoot, index.ts:86-102)                       │
 └──────────────────────────────────────────────────────────────────────────┼──┘
                                                                          │
 ┌────────────────────────────────────────────────────────────────────────▼──┐

@@ -15,7 +15,7 @@ tags:
 
 ## Overview
 
-`src/client/console-remote/adapter.ts` 实现了 `createWorktreeConsoleRemoteAdapter`（行 80-155），作为客户端与远程 Worktree Console 宿主之间的传输层代理。核心职责包括：
+`src/client/console-remote/adapter.ts` 实现了 `createWorktreeConsoleRemoteAdapter`（行 80-156），作为客户端与远程 Worktree Console 宿主之间的传输层代理。核心职责包括：
 
 1. **超时防护**：底层 Web RPC 传输无原生超时机制（注释行 50-55），适配器通过 `Promise.race` 注入看门狗（行 89-94），防止 UI 永久冻结，且服务端变更调用在超时后仍在宿主安全运行并可重试。
 2. **严格契约校验**：基于 `WORKTREE_CONSOLE_DESCRIPTORS` 中的描述符（行 81 构建 Map，行 105 获取 `descriptor` 并调用 `descriptor.result.create().parse` 对 `carrier.value` 进行严格解析，行 108），依赖 `src/console-remote/schemas.ts` 的 Zod schemas 确保数据一致性。
@@ -44,7 +44,7 @@ tags:
 
 ### 核心函数与接口
 
-*   **`createWorktreeConsoleRemoteAdapter(remote, getLanguage)`** (行 80-155)：
+*   **`createWorktreeConsoleRemoteAdapter(remote, getLanguage)`** (行 80-156)：
     *   输入：`remote: GitWorktreeRemote`，`getLanguage: () => Language`（默认 `() => 'zh'`）（行 80）。
     *   初始化：构建 `descriptors` Map（行 81），映射方法名到 `WORKTREE_CONSOLE_DESCRIPTORS`。
     *   内部函数 **`invoke<T>(method, call)`** (行 83-112)：
@@ -112,9 +112,9 @@ tags:
 *   **`strictCodec`** (`src/console-remote/descriptors.ts`, 行 52-56)：构造 `{ mode: 'strict', typeSymbol, create: () => schema, schema }` 的 TypertCodec。字段：`mode` (固定 `'strict'`)，`typeSymbol` (字符串)，`create` (返回 schema 的懒加载函数)，`schema` (Zod schema 实例)。
 *   **`descriptor` 工厂** (`src/console-remote/descriptors.ts`, 行 76-92)：生成 `InvocationDescriptor`，自动注入 agent 参数与 `locale` 参数。生成的 descriptor 字段：`id` (L84)，`service` (L85)，`namespace` (L86)，`method` (L87)，`invocation` (L88)，`parameters` (L89)，`result` (L90)。
 *   **Zod Schemas** (`src/console-remote/schemas.ts`)：
-    *   `outcomeSchema<T>` (行 222-227)：discriminatedUnion 包装成功/失败结果，对应 `WorktreeConsoleOutcome` 结构。
-    *   `consoleErrorSchema` (行 211-220)：错误严格结构，superRefine 确保仅 `apply_conflict` 可携带 `continuation`（行 217-219）。
-    *   响应 Schema（如 `currentResponseSchema` 行 229, `listResponseSchema` 行 241, `mutationResponseSchema` 行 268-274, `previewRecoveryPreflightResponseSchema` 行 369 等）被 `descriptors.ts` 引用，供 adapter 严格解析。
+    *   `consoleErrorSchema` (行 216-225)：错误严格结构，superRefine 确保仅 `apply_conflict` 可携带 `continuation`（行 222-224）。
+    *   `outcomeSchema<T>` (行 227-232)：discriminatedUnion 包装成功/失败结果，对应 `WorktreeConsoleOutcome` 结构。
+    *   响应 Schema（如 `currentResponseSchema` 行 234, `listResponseSchema` 行 246, `mutationResponseSchema` 行 273-279, `previewRecoveryPreflightResponseSchema` 行 374 等）被 `descriptors.ts` 引用，供 adapter 严格解析。
 
 ## Architecture
 
