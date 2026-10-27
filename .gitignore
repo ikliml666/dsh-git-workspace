@@ -3,3 +3,5 @@ lib/
 *.tsbuildinfo
 .DS_Store
 *.log
+# 一次性调试探针/检查脚本的落盘目录，不随仓库分发
+.dsh-ops/
