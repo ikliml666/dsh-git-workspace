@@ -117,6 +117,14 @@
 
 ### Changed
 
+- 适配 DSH `0.2.1-rc.4`（基线适配，2026-10-28）：插件版本升至 `0.13.0`，DSH devDependencies 精确锁定 `0.2.1-rc.4`（核心 peer 的 caret 范围 `^0.2.1-rc.1` 已覆盖该版本，locale peer 精确清单追加 `|| 0.2.1-rc.4`），`minimumReleaseAgeExclude` 同步覆盖 rc.4 精确锁定依赖。
+  - **rc.4 是 rc.3 的纯版本号重发**：用 `npm pack` 拉取全部相关 `@deepseek-ai/dsh-*` 包并与仓库已装的 rc.3 逐文件做 SHA-256 比对（探针 `.dsh-ops/rc4-compare.mjs`），唯一差异是各包 `package.json` 的版本字段，以及 `@deepseek-ai/dsh-client-modules/lib/index.js` 里一个内嵌构建 commit 标记（`be72761` → `ec17a2c`，等长 42376 字节、无逻辑差异）。官方 Workspace Client 在 rc.3 与 rc.4 之间字节完全相同（232824 字节，SHA-256 `9c2c17a6…6544`）。
+  - 因此 `scripts/workspace-sidebar-upstream.mjs:5-6` 只移动 `WORKSPACE_UI_VERSION` / `WORKSPACE_LOCALE_VERSION` 到 `0.2.1-rc.4`，`WORKSPACE_CLIENT_SHA256` 保持原值——门禁仍是真检查而非假设：产物若有变，构建当场被拒。`src/host-compat.ts` 的 modern generation 注释与 `tests/host-compat.test.ts` 的 flavor 映射补充 rc.4。
+  - 接缝探针（`.dsh-ops/probe-rc4-seams.mjs`）对 rc.4 `lib/client.js` 实测：源 232824 字节、派生 236427 字节，`ALL 8 REQUIRED SEAMS OK`。`visibleSessionMenuItems` 在上游任何一代都不存在，它由插件自身装饰引入，`replaceIfPresent` 接缝缺席是预期行为（rc.3 报告的「9 个接缝」把该可选标记也算进去了，本版报告改按「8 必需 + 1 可选」表述）。
+  - 顺带修掉一处**继承自 master 基线的门禁失败**：`scripts/check-publish.mjs:146` 的预期方法表仍停在 38 项，而 `./remote` 早已因「回到 Local」能力新增 `returnToLocal`（第 39 项），`git diff --stat master -- scripts/check-publish.mjs src/console-remote/ tests/console-remote.test.ts` 为空可证非本轮引入。补入后门禁报告 39 项。
+  - 验证（Windows x64，Node 24.19.0，pnpm 12.5.1，Cordis 4.0.5 / loader 1.0.6 / include 1.0.10 / schemastery 3.18.5，TypeScript 5.9.3 / Vitest 2.1.9 / tsdown 0.17.4）：`typecheck` 0 诊断、`build` 通过（`lib/client.js` 1192.39 kB）、`check:sidebar-version` 通过（ui-workspace 0.2.1-rc.4 + 0.1.6-alpha.2 + 0.1.7-rc.2 三路 SHA-256、locale 0.2.1-rc.4）、`check:publish` 全部通过（13 Host singleton、12 导出目标、39 项 strict Remote 方法）、`pnpm test` 54 个测试文件 **795 passed / 4 skipped**，其中 focused lifecycle 27 passed。
+  - 仅源码兼容验证：未启动正式/隔离 DSH Profile，未做 rc.4 浏览器、真实 AI 对话、桌面端与 Windows 全流程验收。详见 [0.2.1-rc.4 报告](docs/compatibility/0.2.1-rc.4.md) 与 [JSON](docs/compatibility/0.2.1-rc.4-validation.json)。
+
 - 侧边栏进行中行显示状态徽章（workspace-sidebar 模块，2026-10-25）：撤销上游 594298b「隐藏 working 文字 badge」的行为，`working` 状态与其他状态一致显示「进行中」徽章（有分支名时为「进行中 · <分支名>」）。理由：任务运行中恰是会话行最需要说明自己在做什么的时刻，只留一个 16px 分支图标让用户无法从侧栏判断任务状态。
   - 三个变体的派生改写同步放开条件：`scripts/workspace-sidebar-upstream.mjs` 的 `ManagedWorktreeIdentity` 去掉 `decoration.state !== "working" &&`，`scripts/workspace-sidebar-upstream-next.mjs` 与 `-alpha.mjs` 的行内徽章同理。
   - 上游回归用例 `tests/client-workspace-sidebar-status.test.tsx` 改为断言「working 也显示徽章」（原本断言 `toBeNull()`），并把 `keeps the %s badge unchanged` 的遍历范围从「除 working 外全部状态」扩到全部状态；回退该改动后 modern 变体 3 条用例失败，恢复后 30 条全通过。

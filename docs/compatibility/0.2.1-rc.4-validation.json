@@ -1,0 +1,112 @@
+{
+  "target": "0.2.1-rc.4",
+  "pluginVersion": "0.13.0",
+  "status": "source-compatibility-passed",
+  "validatedAt": "2026-10-28",
+  "environment": {
+    "platform": "win32",
+    "arch": "x64",
+    "node": "24.19.0",
+    "pnpm": "12.5.1",
+    "cordis": "4.0.5",
+    "cordisPluginLoader": "1.0.6",
+    "cordisPluginInclude": "1.0.10",
+    "schemastery": "3.18.5",
+    "typescript": "5.9.3",
+    "vitest": "2.1.9",
+    "tsdown": "0.17.4",
+    "dshPackages": "0.2.1-rc.4"
+  },
+  "checks": [
+    {
+      "name": "typecheck",
+      "command": "pnpm run typecheck",
+      "exit": 0,
+      "result": "no diagnostics"
+    },
+    {
+      "name": "build",
+      "command": "pnpm run build",
+      "exit": 0,
+      "result": "lib/client.js 1192.39 kB"
+    },
+    {
+      "name": "sidebar-version-gate",
+      "command": "pnpm run check:sidebar-version",
+      "exit": 0,
+      "result": "ui-workspace 0.2.1-rc.4 + 0.1.6-alpha.2 + 0.1.7-rc.2 SHA-256 gates, locale 0.2.1-rc.4"
+    },
+    {
+      "name": "publish-gate",
+      "command": "pnpm run check:publish",
+      "exit": 0,
+      "result": "13 Host singletons, 12 export targets, 39 strict Remote methods, mount patch, NOTICE, browser ModuleLoader and lazy directory-picker"
+    },
+    {
+      "name": "test-suite",
+      "command": "pnpm test",
+      "exit": 0,
+      "files": 54,
+      "passed": 795,
+      "skipped": 4,
+      "failed": 0
+    },
+    {
+      "name": "focused-lifecycle",
+      "command": "node node_modules/vitest/vitest.mjs run tests/workspace-provider-lifecycle.test.ts",
+      "exit": 0,
+      "passed": 27,
+      "failed": 0
+    },
+    {
+      "name": "seam-probe",
+      "command": "node .dsh-ops/probe-rc4-seams.mjs",
+      "exit": 0,
+      "result": "source bytes 232824; derived bytes 236427; RESULT: ALL 8 REQUIRED SEAMS OK (visibleSessionMenuItems absent as expected: it is introduced only by the plugin decoration)"
+    }
+  ],
+  "skippedTests": [
+    {
+      "file": "tests/git-unborn.test.ts",
+      "line": 72,
+      "reason": "non-Windows-only case"
+    },
+    {
+      "file": "tests/session-checkout-apply.test.ts",
+      "line": 1225,
+      "reason": "non-Windows-only case"
+    },
+    {
+      "file": "tests/session-checkout-apply.test.ts",
+      "line": 1241,
+      "reason": "non-Windows-only case"
+    },
+    {
+      "file": "tests/project-skills.test.ts",
+      "line": 88,
+      "reason": "non-Windows-only case"
+    }
+  ],
+  "notValidated": [
+    "0.2.1-rc.4 real browser rendering and interactions",
+    "AI conversation and the complete review/preview/delivery/rollback/recovery/cleanup runtime lifecycle",
+    "DSH Profile install or startup",
+    "Desktop end-to-end behaviour",
+    "Release packaging and publishing"
+  ],
+  "sourceDifference": {
+    "from": "0.2.1-rc.3",
+    "to": "0.2.1-rc.4",
+    "summary": "Pure version-number republish. Byte-for-byte identical apart from package.json version fields and one embedded build-commit string in @deepseek-ai/dsh-client-modules/lib/index.js (be72761 -> ec17a2c). No logic, type or contract change.",
+    "officialWorkspaceClientBytes": 232824,
+    "officialWorkspaceClientSha256": "9c2c17a66a5c20de00ac2852cb76debb5237439e97f877403bcaa2a471086544",
+    "seamsSurvived": 8,
+    "seamsMissed": [
+      {
+        "marker": "visibleSessionMenuItems",
+        "note": "optional replaceIfPresent seam; the marker is introduced by the plugin's own decoration, so it cannot appear in upstream source on any generation"
+      }
+    ],
+    "decorationChangeRequired": false
+  }
+}

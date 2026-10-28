@@ -73,11 +73,33 @@
 
 **仅源码兼容验证**：本轮未启动正式或隔离 DSH Profile，未完成 `0.2.1-rc.3` 浏览器渲染与交互、API Key 下的真实 AI 对话、Review/预览/交付/回滚/恢复/清理全流程、桌面端与 Windows 端到端验收。旧版本的浏览器与运行时证据不可转用为本组合的验收证据。4 个 skipped 均为平台条件跳过（`tests/git-unborn.test.ts:72`、`tests/session-checkout-apply.test.ts:1225`、`:1241`、`tests/project-skills.test.ts:88` 为非 Windows 专用用例），`tests/git-unborn.test.ts:253` 的 Windows 长路径用例在本轮平台实际执行而非跳过。详见 [0.2.1-rc.3 报告](compatibility/0.2.1-rc.3.md)。
 
+### 0.2.1-rc.4 适配（插件 0.13.0；源码兼容验证）
+
+插件 `0.13.0` 将 DSH 开发依赖精确锁定到 `0.2.1-rc.4`（核心 peer 的 caret 范围 `^0.2.1-rc.1` 已覆盖该版本，locale peer 精确清单追加 `|| 0.2.1-rc.4`），官方 Workspace Browser 派生门禁的版本常量同步对齐 rc.4。**rc.4 相对 rc.3 是纯版本号重发**：把全部 `@deepseek-ai/dsh-*` 包逐文件按 SHA-256 与仓库已装的 rc.3 比对，唯一差异是各包 `package.json` 的版本字段，以及 `@deepseek-ai/dsh-client-modules/lib/index.js` 里一个内嵌构建 commit 标记（`be72761` → `ec17a2c`，等长 42376 字节、无逻辑差异）。官方 Workspace Client 在 rc.3 与 rc.4 之间**字节完全相同**（232824 字节，SHA-256 `9c2c17a66a5c20de00ac2852cb76debb5237439e97f877403bcaa2a471086544`），因此门禁只移动版本常量、SHA-256 常量保持原值——这是一个真检查而非假设：若产物有变，构建会当场被门禁拒绝。
+
+8 个必需文本接缝全部进入派生产物，装饰逻辑零改动；`visibleSessionMenuItems` 在上游任何一代都不存在，它由插件自身装饰引入，其 `replaceIfPresent` 接缝缺席是预期行为。该版本不需要 Worktree registry、Review 或 Recovery 数据迁移；历史组合的支持记录不变。
+
+| 验证项 | 结果 |
+| --- | --- |
+| 平台 | Windows x64，Node 24.19.0，pnpm 12.5.1 |
+| 依赖解析 | Cordis 4.0.5、cordis-plugin-loader 1.0.6、cordis-plugin-include 1.0.10、schemastery 3.18.5、全部 `@deepseek-ai/dsh-*` 为 0.2.1-rc.4；TypeScript 5.9.3 / Vitest 2.1.9 / tsdown 0.17.4 |
+| `typecheck` | 通过，0 诊断 |
+| `build` | 通过，`lib/client.js` 1192.39 kB |
+| `check:sidebar-version` | 通过：ui-workspace 0.2.1-rc.4 + 0.1.6-alpha.2 + 0.1.7-rc.2 三路 SHA-256，locale 0.2.1-rc.4 |
+| `check:publish` | 通过：13 Host singleton、12 导出目标、39 项 strict Remote 方法、挂载补丁、NOTICE 与浏览器 ModuleLoader/惰性 directory-picker |
+| `pnpm test` | 54 个测试文件 **795 passed / 4 skipped**，无失败 |
+| focused lifecycle | `tests/workspace-provider-lifecycle.test.ts` 27 passed |
+| 接缝探针（对 rc.4 `lib/client.js`） | 源 232824 字节，`ALL 8 REQUIRED SEAMS OK`，派生 236427 字节 |
+
+顺带修掉一处**继承自 master 基线的门禁失败**：`scripts/check-publish.mjs` 的预期方法表仍停在 38 项，而 `./remote` 早已因「回到 Local」能力新增了 `returnToLocal`（第 39 项）。`git diff --stat master -- scripts/check-publish.mjs src/console-remote/ tests/console-remote.test.ts` 为空，可证该不一致非本轮引入；现已把 `returnToLocal` 补入方法表，门禁报告 39 项。
+
+**仅源码兼容验证**：本轮未启动正式或隔离 DSH Profile，未完成 `0.2.1-rc.4` 浏览器渲染与交互、API Key 下的真实 AI 对话、Review/预览/交付/回滚/恢复/清理全流程、桌面端与 Windows 端到端验收。旧版本的浏览器与运行时证据不可转用为本组合的验收证据。4 个 skipped 均为平台条件跳过（`tests/git-unborn.test.ts:72`、`tests/session-checkout-apply.test.ts:1225`、`:1241`、`tests/project-skills.test.ts:88` 为非 Windows 专用用例），`tests/git-unborn.test.ts:253` 的 Windows 长路径用例在本轮平台实际执行而非跳过。详见 [0.2.1-rc.4 报告](compatibility/0.2.1-rc.4.md)，机器结果见 [JSON](compatibility/0.2.1-rc.4-validation.json)。
+
 ### 三种版本约束不要混淆（当前源码）
 
-1. **开发基线**：DSH 开发依赖精确为 `0.2.1-rc.3`；Cordis `4.0.5`、loader `1.0.6`、include `1.0.10`、schemastery `3.18.5`。旧 alpha/next Browser 别名仅用于构建来源门禁，不是私有 Host singleton。
-2. **安装声明**：当前 DSH 核心 peers 为 `^0.1.2-rc.1 || ^0.2.0-rc.1 || ^0.2.1-rc.1`（caret 范围，覆盖 `0.2.1-rc.3`），locale peer 为精确枚举并在本版追加 `|| 0.2.1-rc.3`；Cordis peer 为 `^4.0.5`。这是 package.json 的安装声明，不是所有 peer patch 版本的运行时证明。`0.9.3` 历史上的多数 DSH `^0.1.2-rc.1` 与 locale `0.1.2-rc.1 || 0.1.7-rc.2` 不再是当前声明；历史记录仍保留。官方 Profile 由 Host 提供运行时，不能为了消除 peer 警告补装另一套 singleton。
-3. **Workspace 派生**：当前 bundle 来源为 `0.2.1-rc.3`、`0.1.6-alpha.2`、`0.1.7-rc.2`，逐一经过版本/SHA-256 门禁。Host 实际解析的 `dsh-agent` 版本选择单一派生；新 modern 不复用于 `0.2.0`，未知版本保留官方 Provider。保留旧派生不等于当前 peers 支持旧 Host，来源门禁也不是浏览器验收。
+1. **开发基线**：DSH 开发依赖精确为 `0.2.1-rc.4`；Cordis `4.0.5`、loader `1.0.6`、include `1.0.10`、schemastery `3.18.5`。旧 alpha/next Browser 别名仅用于构建来源门禁，不是私有 Host singleton。
+2. **安装声明**：当前 DSH 核心 peers 为 `^0.1.2-rc.1 || ^0.2.0-rc.1 || ^0.2.1-rc.1`（caret 范围，覆盖 `0.2.1-rc.4`），locale peer 为精确枚举并在本版追加 `|| 0.2.1-rc.4`；Cordis peer 为 `^4.0.5`。这是 package.json 的安装声明，不是所有 peer patch 版本的运行时证明。`0.9.3` 历史上的多数 DSH `^0.1.2-rc.1` 与 locale `0.1.2-rc.1 || 0.1.7-rc.2` 不再是当前声明；历史记录仍保留。官方 Profile 由 Host 提供运行时，不能为了消除 peer 警告补装另一套 singleton。
+3. **Workspace 派生**：当前 bundle 来源为 `0.2.1-rc.4`、`0.1.6-alpha.2`、`0.1.7-rc.2`，逐一经过版本/SHA-256 门禁。Host 实际解析的 `dsh-agent` 版本选择单一派生；新 modern 不复用于 `0.2.0`，未知版本保留官方 Provider。保留旧派生不等于当前 peers 支持旧 Host，来源门禁也不是浏览器验收。
 
 历史可用组合不因当前源码升级被撤销；未覆盖的运行时生命周期仍需单独验收。
 
@@ -151,7 +173,31 @@ The actual `0.2.1-rc.2 → 0.2.1-rc.3` source difference sits in the official Wo
 
 **Source compatibility only:** no formal or isolated DSH Profile was started this round, and no `0.2.1-rc.3` browser rendering/interaction, API-key AI conversation, full review/preview/delivery/rollback/recovery/cleanup lifecycle, desktop or Windows end-to-end acceptance was performed. Earlier browser and runtime evidence does not accept this combination. All four skips are platform-conditional (`tests/git-unborn.test.ts:72`, `tests/session-checkout-apply.test.ts:1225`, `:1241`, `tests/project-skills.test.ts:88` are non-Windows-only cases), while the Windows long-path case at `tests/git-unborn.test.ts:253` actually ran on this platform instead of skipping. See the [0.2.1-rc.3 report](compatibility/0.2.1-rc.3.md).
 
-**Separate three current constraints:** (1) DSH dev dependencies are exact `0.2.1-rc.3`, with Cordis `4.0.5`, loader `1.0.6`, include `1.0.10` and schemastery `3.18.5`. (2) DSH core peers are the caret range `^0.1.2-rc.1 || ^0.2.0-rc.1 || ^0.2.1-rc.1` (which covers `0.2.1-rc.3`), the locale peer is an exact enumeration extended with `|| 0.2.1-rc.3`, and the Cordis peer is `^4.0.5`. This does not prove every permitted patch version. The historical `0.9.3` caret/locale constraints above are not the current manifest; never install private Host singletons merely to suppress Profile peer warnings. (3) Current Browser sources are individually version/SHA-gated `0.2.1-rc.3`, `0.1.6-alpha.2` and `0.1.7-rc.2`. Host-resolved agent version selects one derivative; the new modern source is not reused on `0.2.0`, and unknown versions keep the official Provider. Keeping old derivations does not extend current peer support to old Hosts. Neither gate nor package selection proves browser acceptance. Historical working combinations are not withdrawn.
+### 0.2.1-rc.4 adaptation (plugin 0.13.0; source compatibility validation)
+
+Plugin `0.13.0` pins DSH dev dependencies to exact `0.2.1-rc.4` (the core caret peer range `^0.2.1-rc.1` already covers it, and the locale peer enumeration gains `|| 0.2.1-rc.4`), and moves the official Workspace Browser derivation gate's version constants to rc.4. **rc.4 is a pure version-number republish of rc.3**: every `@deepseek-ai/dsh-*` package was downloaded and compared file-by-file by SHA-256 against the rc.3 tree already installed here. The only differing files are each package's `package.json` (version fields) and `@deepseek-ai/dsh-client-modules/lib/index.js`, where one embedded build-commit marker changes `be72761` → `ec17a2c` at identical length (42376 bytes) with no logic difference.
+
+The official Workspace Client is **byte-identical** between rc.3 and rc.4: 232824 bytes, SHA-256 `9c2c17a66a5c20de00ac2852cb76debb5237439e97f877403bcaa2a471086544`. The gate therefore moves only the version constants (`scripts/workspace-sidebar-upstream.mjs:5-6`) while the SHA-256 constant stays unchanged — a real check, not an assumption: a changed artifact would be rejected at build time.
+
+All eight required text seams reach the derived artifact and the decoration logic needed no change. `visibleSessionMenuItems` is absent from upstream on every generation because the plugin's own decoration introduces that identifier; its `replaceIfPresent` seam is optional and its absence is the expected case. No Worktree registry, Review or Recovery data migration is required; historical compatibility records are unchanged.
+
+| Check | Result |
+| --- | --- |
+| Platform | Windows x64, Node 24.19.0, pnpm 12.5.1 |
+| Resolved dependencies | Cordis 4.0.5, cordis-plugin-loader 1.0.6, cordis-plugin-include 1.0.10, schemastery 3.18.5, every `@deepseek-ai/dsh-*` at 0.2.1-rc.4; TypeScript 5.9.3 / Vitest 2.1.9 / tsdown 0.17.4 |
+| `typecheck` | Passed, no diagnostics |
+| `build` | Passed, `lib/client.js` 1192.39 kB |
+| `check:sidebar-version` | Passed: ui-workspace 0.2.1-rc.4 + 0.1.6-alpha.2 + 0.1.7-rc.2 SHA-256 gates, locale 0.2.1-rc.4 |
+| `check:publish` | Passed: 13 Host singletons, 12 export targets, 39 strict Remote methods, mount patch, NOTICE and browser ModuleLoader/lazy directory-picker |
+| `pnpm test` | 54 test files, **795 passed / 4 skipped**, no failures |
+| Focused lifecycle | `tests/workspace-provider-lifecycle.test.ts` 27 passed |
+| Seam probe against rc.4 `lib/client.js` | 232824 source bytes, `ALL 8 REQUIRED SEAMS OK`, 236427 derived bytes |
+
+A baseline publish-gate failure was fixed in passing: `scripts/check-publish.mjs` still enumerated 38 strict Remote methods while `./remote` already exposed 39 — `returnToLocal` (the "return to Local" capability) had been added without extending the expected array. `git diff --stat master -- scripts/check-publish.mjs src/console-remote/ tests/console-remote.test.ts` was empty, proving the mismatch was inherited rather than introduced by this bump. The gate now reports 39 methods.
+
+**Source compatibility only:** no formal or isolated DSH Profile was started this round, and no `0.2.1-rc.4` browser rendering/interaction, API-key AI conversation, full review/preview/delivery/rollback/recovery/cleanup lifecycle, desktop or Windows end-to-end acceptance was performed. Earlier browser and runtime evidence does not accept this combination. All four skips are platform-conditional (`tests/git-unborn.test.ts:72`, `tests/session-checkout-apply.test.ts:1225`, `:1241`, `tests/project-skills.test.ts:88` are non-Windows-only cases), while the Windows long-path case at `tests/git-unborn.test.ts:253` actually ran on this platform instead of skipping. See the [0.2.1-rc.4 report](compatibility/0.2.1-rc.4.md) and the [machine-readable JSON](compatibility/0.2.1-rc.4-validation.json).
+
+**Separate three current constraints:** (1) DSH dev dependencies are exact `0.2.1-rc.4`, with Cordis `4.0.5`, loader `1.0.6`, include `1.0.10` and schemastery `3.18.5`. (2) DSH core peers are the caret range `^0.1.2-rc.1 || ^0.2.0-rc.1 || ^0.2.1-rc.1` (which covers `0.2.1-rc.4`), the locale peer is an exact enumeration extended with `|| 0.2.1-rc.4`, and the Cordis peer is `^4.0.5`. This does not prove every permitted patch version. The historical `0.9.3` caret/locale constraints above are not the current manifest; never install private Host singletons merely to suppress Profile peer warnings. (3) Current Browser sources are individually version/SHA-gated `0.2.1-rc.4`, `0.1.6-alpha.2` and `0.1.7-rc.2`. Host-resolved agent version selects one derivative; the new modern source is not reused on `0.2.0`, and unknown versions keep the official Provider. Keeping old derivations does not extend current peer support to old Hosts. Neither gate nor package selection proves browser acceptance. Historical working combinations are not withdrawn.
 
 **Migration:** rc.1 of the 0.1.5 line uses Session V3; older Hosts cannot read upgraded logs. Back up the original environment and test with an isolated `DSH_HOME`/repository. Rollback requires original data, not just an older npm package. The 0.1.2-rc.1 line also removed the optional SQLite backend; export old data with the original version first. Record resolved packages rather than the CLI version alone: a caret may resolve a later RC. This run found no rc.2 mixing. Registry tags observed on 2026-09-11 were `latest=0.1.5-rc.1`, `next=0.1.5-rc.2`.
 
