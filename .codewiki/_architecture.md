@@ -1,23 +1,20 @@
 ---
-title: dsh-git-worktree 系统总览
+title: architecture
 type: architecture
 source_files:
-  - src/index.ts
-  - src/types.ts
-  - src/ports.ts
-  - src/commands.ts
-  - src/tools.ts
-  - src/commit-message.ts
-  - src/concurrent-session-guard.ts
-  - src/console-contract.ts
-  - src/checkpoint.ts
-  - src/creation-failure.ts
-  - src/delivery-excludes.ts
-  - src/host-compat.ts
-  - src/managed-worktree-path.ts
-  - src/session-checkout-apply.ts
-  - src/session-target-context.ts
-  - src/workspace-provider-lifecycle.ts
+  - cordis.patch.yml
+  - package.json
+  - scripts/check-publish.mjs
+  - scripts/check-workspace-sidebar-version.mjs
+  - scripts/clean-lib.mjs
+  - scripts/dev-dsh-lib.mjs
+  - scripts/dev-dsh.mjs
+  - scripts/dsh-source-runner.mjs
+  - scripts/workspace-sidebar-upstream-alpha.mjs
+  - scripts/workspace-sidebar-upstream-next.mjs
+  - scripts/workspace-sidebar-upstream.mjs
+  - tsdown.config.ts
+  - vitest.config.ts
   - src/adapters/files.ts
   - src/adapters/git-options.ts
   - src/adapters/git.ts
@@ -30,23 +27,12 @@ source_files:
   - src/adapters/safe-file.ts
   - src/adapters/working-directory.ts
   - src/adapters/worktree-creation.ts
-  - src/console-host/control-plane.ts
-  - src/console-host/errors.ts
-  - src/console-host/projection.ts
-  - src/console-host/review-diff.ts
-  - src/console-host/service.ts
-  - src/console-remote/descriptors.ts
-  - src/console-remote/remote.ts
-  - src/console-remote/schemas.ts
-  - src/i18n/core.ts
-  - src/i18n/host-messages.ts
-  - src/i18n/host.ts
+  - src/checkpoint.ts
   - src/client/WorktreeCreateRow.tsx
   - src/client/WorktreeReviewRow.tsx
   - src/client/actions.ts
   - src/client/console-remote/adapter.ts
   - src/client/console-remote/index.ts
-  - src/client/harness-platform.d.ts
   - src/client/i18n.tsx
   - src/client/index.tsx
   - src/client/model.ts
@@ -54,11 +40,7 @@ source_files:
   - src/client/pre-session/controller.ts
   - src/client/pre-session/harness-input.ts
   - src/client/pre-session/index.tsx
-  - src/client/review-console/DeliveryProof.tsx
-  - src/client/review-console/PreflightStatus.tsx
   - src/client/review-console/ReviewActions.tsx
-  - src/client/review-console/ReviewDetailsModal.tsx
-  - src/client/review-console/ReviewIcon.tsx
   - src/client/review-console/WorktreeReviewPanel.tsx
   - src/client/review-console/index.ts
   - src/client/review-console/preflight-cache.ts
@@ -70,6 +52,7 @@ source_files:
   - src/client/settings-card/form-model.ts
   - src/client/settings-card/index.ts
   - src/client/settings-card/worktree-settings-card.ts
+  - src/client/styles.ts
   - src/client/target-console/BranchGraphModal.tsx
   - src/client/target-console/TagManagerModal.tsx
   - src/client/target-console/TargetStatusAction.tsx
@@ -80,274 +63,334 @@ source_files:
   - src/client/target-console/branch-overview-cache.ts
   - src/client/target-console/current-polling.ts
   - src/client/target-console/index.ts
-  - src/client/workspace-sidebar/index.tsx
-  - src/client/workspace-sidebar/model.ts
-  - lib/index.js
-  - lib/ports.js
-  - lib/ports.d.ts
-  - lib/types.d.ts
-  - lib/adapters/files.js
-  - lib/adapters/git-options.js
-  - lib/adapters/git.js
-  - lib/adapters/git.d.ts
-  - lib/adapters/initial-commit.js
-  - lib/adapters/lookup.js
-  - lib/adapters/project-skill-io.js
-  - lib/adapters/project-skill-provider.js
-  - lib/adapters/project-skills.js
-  - lib/adapters/registry.js
-  - lib/adapters/safe-file.js
-  - lib/adapters/working-directory.js
-  - lib/adapters/worktree-creation.js
-  - lib/checkpoint.js
-  - lib/commit-message.js
-  - lib/concurrent-session-guard.js
-  - lib/console-contract.js
-  - lib/console-contract.d.ts
-  - lib/console-host/control-plane.js
-  - lib/console-host/errors.js
-  - lib/console-host/projection.js
-  - lib/console-host/review-diff.js
-  - lib/console-host/service.js
-  - lib/console-remote/descriptors.js
-  - lib/console-remote/schemas.js
-  - lib/creation-failure.js
-  - lib/delivery-excludes.js
-  - lib/host-compat.js
-  - lib/i18n/core.js
-  - lib/i18n/host.js
-  - lib/i18n/host-messages.js
-  - lib/managed-worktree-path.js
-  - lib/session-checkout-apply.js
-  - lib/session-target-context.js
-  - lib/tools.js
-  - lib/commands.js
-  - lib/workspace-provider-lifecycle.js
-  - lib/client/index.js
-  - lib/client/i18n.js
-  - lib/client/model.js
-  - lib/client/actions.js
-  - lib/client/WorktreeCreateRow.js
-  - lib/client/WorktreeReviewRow.js
-  - lib/client/console-remote/adapter.js
-  - lib/client/console-remote/index.js
-  - lib/client/pre-session/controller.js
-  - lib/client/pre-session/PreSessionWorktreeToggle.js
-  - lib/client/pre-session/harness-input.js
-  - lib/client/pre-session/index.js
-  - lib/client/review-console/DeliveryProof.js
-  - lib/client/review-console/PreflightStatus.js
-  - lib/client/review-console/ReviewActions.js
-  - lib/client/review-console/ReviewDetailsModal.js
-  - lib/client/review-console/ReviewIcon.js
-  - lib/client/review-console/WorktreeReviewPanel.js
-  - lib/client/review-console/index.js
-  - lib/client/review-console/preflight-cache.js
-  - lib/client/review-console/preview-recovery-cache.js
-  - lib/client/review-console/recovery-continuation.js
-  - lib/client/review-console/request-cache.js
-  - lib/client/review-console/status-events.js
-  - lib/client/settings-card/WorktreeSettingsCard.js
-  - lib/client/settings-card/form-model.js
-  - lib/client/settings-card/index.js
-  - lib/client/settings-card/worktree-settings-card.js
-  - lib/client/target-console/BranchGraphModal.js
-  - lib/client/target-console/TagManagerModal.js
-  - lib/client/target-console/TargetStatusAction.js
-  - lib/client/target-console/WorktreeConsoleView.js
-  - lib/client/target-console/WorktreeHeroChip.js
-  - lib/client/target-console/WorktreeManagerModal.js
-  - lib/client/target-console/WorktreeReviewStatus.js
-  - lib/client/target-console/branch-overview-cache.js
-  - lib/client/target-console/current-polling.js
-  - lib/client/target-console/index.js
-  - lib/client/workspace-sidebar/index.js
-  - lib/client/workspace-sidebar/model.js
-  - tests/adapters-safe-file.test.ts
-  - tests/client-actions.test.ts
-  - tests/client-branch-overview-cache.test.ts
-  - tests/client-bundle.test.ts
-  - tests/client-conflict-display.test.tsx
-  - tests/client-console-remote-routing.test.ts
-  - tests/client-i18n.test.tsx
-  - tests/client-polling-diagnostic.test.tsx
-  - tests/client-pre-session.test.tsx
-  - tests/client-preview-recovery-cache.test.ts
-  - tests/client-recovery-continuation.test.ts
-  - tests/client-review-console.test.tsx
-  - tests/client-review-details.test.tsx
-  - tests/client-settings-card.test.tsx
-  - tests/client-target-console.test.tsx
-  - tests/client-toolview.test.tsx
-  - tests/client-workspace-sidebar-actions.test.ts
-  - tests/client-workspace-sidebar-model.test.ts
-  - tests/client-workspace-sidebar-profile.test.ts
-  - tests/client-workspace-sidebar-status.test.tsx
-  - tests/client-workspace-sidebar.test.tsx
-  - tests/concurrent-session-guard.test.ts
-  - tests/console-contract.test.ts
-  - tests/console-host.test.ts
-  - tests/console-remote.test.ts
-  - tests/current-polling.test.ts
-  - tests/dev-dsh.test.ts
-  - tests/git-creation-lifecycle.test.ts
-  - tests/git-tags.test.ts
-  - tests/git-timeouts.test.ts
-  - tests/git-unborn.test.ts
-  - tests/host-i18n.test.ts
-  - tests/host-locale-context.test.ts
-  - tests/host-query-budget.test.ts
-  - tests/i18n-catalogs.test.ts
-  - tests/i18n-references.test.ts
-  - tests/lookup.test.ts
-  - tests/official-workspace-client-next.mock.ts
-  - tests/official-workspace-client.mock.ts
-  - tests/project-skill-provider.test.ts
-  - tests/project-skills-race.test.ts
-  - tests/project-skills.test.ts
-  - tests/session-branch-adopt.test.ts
-  - tests/session-branch-delivery.test.ts
-  - tests/session-branch-label.test.ts
-  - tests/session-checkout-apply.test.ts
-  - tests/session-checkout-module.test.ts
-  - tests/surface.test.ts
-  - tests/support/official-client.ts
-  - tests/support/production-adapters.ts
-  - tests/support/review-actions-harness.tsx
-  - tests/support/ui-primitives.tsx
-  - tests/support/worktree-console.ts
-  - tests/working-directory-adapter.test.ts
-  - tests/workspace-provider-lifecycle.test.ts
-  - tests/worktree-creation.test.ts
-tags: [git-worktree, dsh-plugin, session-checkout, rpc, react, i18n, architecture, overview]
+  - src/client/target-console/target-console.styles.ts
+  - src/commands.ts
+  - src/concurrent-session-guard.ts
+  - src/console-contract.ts
+  - src/console-host/control-plane.ts
+  - src/console-host/errors.ts
+  - src/console-host/projection.ts
+  - src/console-host/review-diff.ts
+  - src/console-host/service.ts
+  - src/console-remote/descriptors.ts
+  - src/console-remote/remote.ts
+  - src/console-remote/schemas.ts
+  - src/console-remote/typert.ts
+  - src/creation-failure.ts
+  - src/delivery-excludes.ts
+  - src/host-compat.ts
+  - src/i18n/client-messages.ts
+  - src/i18n/core.ts
+  - src/i18n/host-messages.ts
+  - src/i18n/host.ts
+  - src/i18n/transport-messages.ts
+  - src/index.ts
+  - src/managed-worktree-path.ts
+  - src/ports.ts
+  - src/session-checkout-apply.ts
+  - src/session-checkout-module.ts
+  - src/session-target-context.ts
+  - src/tools.ts
+  - src/types.ts
+  - src/workspace-provider-lifecycle.ts
+tags: [architecture, overview, system-map, data-flow, dependency-graph, dsh-git-worktree]
 ---
 
 ## Overview
 
-`dsh-git-worktree` 是一个运行在 DSH（DeepSeek Harness / Cordis 宿主）之上的受管 Git Worktree（"Isolated Checkout"）系统插件。其领域核心（状态机、`session-checkout-apply` 引擎、ports 接口）从 Domi 的 `session-checkout` 域移植而来且与宿主无关（`src/index.ts` 3-10 行模块注释，`lib/index.js` 顶层说明），本插件在此之上补齐三层 DSH 适配：
+本文是 `dsh-git-worktree` 插件的横切总览，写给零上下文的未来 agent。该插件运行在 DSH（Harness）宿主内，为每个 Session 提供 **Local / Isolated** 两种工作目标：绑定在项目本地 checkout（`local`），或绑定在一个由插件托管生命周期与路径命名的 git worktree（`isolated`，即 Managed Checkout）。托管记录持久化在 `registry.json`（v2 结构，`revision` 单调递增，用作 CAS 版本号），完整生命周期为 **绑定 → 创建 → 评审→ 预览→ 交付（finish）→ 清理/保留→ 下一轮迭代→ 崩溃恢复**。
 
-1. **Host 侧**：`src/index.ts` 的 `apply()`（358-459 行 / `lib/index.js` 对应）把端口适配器（git/files/registry/lookup）、应用引擎、模型工具（`tools.ts`/`tools.js`）、人类命令（`commands.ts`/`commands.js`）、系统提示上下文（`session-target-context.ts`）和 RPC 服务（`console-host/service.ts`）组装到 Cordis Context 上。
-2. **RPC 契约层**：`src/console-contract.ts`（及 `lib/console-contract.js`）定义 JSON-only DTO；`src/console-remote/`（及 `lib/console-remote/`）定义 Typert strict schema + 描述符；`src/console-host/`（及 `lib/console-host/`）是服务端控制面。
-3. **Web 客户端**：`src/client/`（及 `lib/client/`）用 React 实现 ToolView 回放卡、验收 Dock、目标胶囊、分支图/标签管理、侧栏投影、设置卡与空白会话 "Start in a Worktree" 流。
+系统有三条用户可见表面：
 
-持久化只有两处：`stateDir/managed-checkouts.json`（v2 原子 JSON 注册表，`src/adapters/registry.ts` / `lib/adapters/registry.js`）与 Git 内部 ref 命名空间 `refs/dsh-worktree/session-checkouts/<sha256前24>`、`refs/dsh-worktree/abandoned/<checkoutId>`（`src/adapters/git.ts` / `lib/adapters/git.js`）。测试套件（`tests/`）覆盖 Host 域、Client 域与平台适配器域（见 `tests.md` Overview）。
+- **模型工具**：9 个 `worktree_*` 工具，由 `src/tools.ts:94` 的 `registerTools` 注册；模型驱动的交付受 `autoDeliver` 设置门槛约束（`src/tools.ts:8`）。
+- **人类命令**：单一 `/worktree` 命令（status/list/continue/next/finalize/finish/discard/remove），由 `src/commands.ts:44` 注册；破坏性动词仅限人类发起。
+- **浏览器 Worktree Console**：Client 端 UI 经 Typert Remote RPC 调用 Host 端控制平面，覆盖同一个领域门面。
+
+架构主轴有四条：
+
+1. **领域与宿主解耦**：`src/session-checkout-module.ts:237` 的 `createSessionCheckoutModule` 是唯一领域门面（接口声明在 `src/index.ts:381`），只依赖 `src/ports.ts` 的端口接口；真实 I/O 全部在 `src/adapters/` 中实现并由 `src/index.ts:358` 的 `apply()` 注入（依赖倒置）。
+2. **单一 JSON 契约**：Host 与 Client 两份独立部署产物只通过 `src/console-contract.ts`（纯类型 DTO）与 `src/console-remote/descriptors.ts:94`（一份冻结的 39 方法 strict 描述符数组）共享 wire 契约。
+3. **双语文案贯穿两端**：`src/i18n/core.ts` 是平台无关叶子；Host 侧用 `AsyncLocalStorage` 做 per-invocation locale 快照（`src/i18n/host.ts:6`），Client 侧每次调用注入 locale（`src/client/console-remote/adapter.ts:84`）。
+4. **失败关闭的安全设计**：删除 checkout 前必须先把 Session cwd 迁出（迁出失败即中止删除，`src/tools.ts:51`）；worktree 创建失败绝不强删，只回滚或标记 `recovery_required`（`src/adapters/worktree-creation.ts:17` + `src/creation-failure.ts:2`）。
+
+本文综合以下模块文章写成：`cli`、`module_core`、`support`、`adapters`、`session_guard`、`i18n`、`types`、`console_contract`、`console_host`、`console_remote`、`client_console_remote`、`client_core`、`client_target_console`、`client_review_console`、`client_pre_session`、`client_settings_card`、`client_i18n`、`workspace_provider`、`scripts`。文中行号均引自这些模块文章；各模块的完整细节请进入对应模块文章阅读。
 
 ## System Overview
 
+下图给出静态分层：浏览器端、wire 契约层、Host 端与外部世界，外加不进入运行时的构建工具链。
+
 ```text
-┌──────────────────────────────── DSH Host (Cordis ctx) ────────────────────────────────┐
-│  src/index.ts :: apply() 组装全部子系统 (358-459) / lib/index.js apply()                │
-└───────┬───────────────────────┬───────────────────────┬───────────────────┬───────────┘
-        ▼                       ▼                       ▼                   ▼
-┌────────────────┐    ┌──────────────────────┐  ┌─────────────┐  ┌──────────────────────┐
-│ adapters/      │───►│ session-checkout-     │◄─│ tools.ts    │  │ console-host/        │
-│ git/files/     │    │ apply.ts (引擎)       │  │ commands.ts │  │ service.ts (@Remote) │
-│ registry/      │    │ (src 4 / lib 领域核心)│  └─────────────┘  └──────────┬───────────┘
-│ lookup/ports   │    └──────────────────────┘                             │ Typert RPC
-└───────▲────────┘ ┌────────────────────────────────┐ ┌──────────────────────┐ │
-        │ ports.ts  │ 持久化: managed-checkouts.json │ │ console-remote/      │◄┘
-        │ (接口)    │ (v2 原子) + refs/dsh-worktree/ │ │ schemas/descriptors  │
-        └──────────┤ (git.ts)                       │ └───────────┬───────────┘
-                   └────────────────────────────────┘            ▼
-                                                          ┌──────────────────────┐
-                                                          │ client/ (React UI)   │
-                                                          │ src/client/*         │
-                                                          └──────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│ dsh-git-worktree 系统总览（静态分层）                                  │
+│                                                                      │
+│ [1] 浏览器端 Client —— src/client/（随宿主 Web 面加载）                │
+│   index.tsx apply()：注册 ToolView、注入样式、按需拉起各子模块          │
+│     ├─ WorktreeCreateRow / WorktreeReviewRow（tool.call.toolview 行）  │
+│     ├─ target-console：TargetStatusAction · WorktreeConsoleView ·      │
+│     │   WorktreeReviewStatus · WorktreeHeroChip · 提交图/标签弹层       │
+│     ├─ review-console：ReviewActions · WorktreeReviewPanel ·           │
+│     │   preflight / preview-recovery 缓存 · recovery-continuation 队列  │
+│     ├─ pre-session：PreSessionWorktreeToggle + Controller（空白会话）   │
+│     ├─ settings-card：WorktreeSettingsCard + SettingsFormModel         │
+│     └─ console-remote/index.ts（flavor 路由）► adapter.ts（RPC 适配）   │
+│   共享基座：actions.ts · model.ts · i18n.tsx · styles.ts                │
+└─────────────────────────────────────┬────────────────────────────────┘
+                                     │ WorktreeConsoleAdapter（JSON DTO）
+                                     ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│ [2] wire 契约与传输层 —— Host 与 Client 双端共享的唯一边界              │
+│   console-contract.ts：纯类型 DTO · 状态投影 · ERROR_META              │
+│   console-remote/descriptors.ts：39 个 strict InvocationDescriptor     │
+│   console-remote/schemas.ts：Zod strict 校验（拒绝未知键）              │
+│   console-remote/remote.ts（客户端类型面）· typert.ts（Host 贡献）      │
+└─────────────────────────────────────┬────────────────────────────────┘
+                                     │ gitWorktree/* @Remote（Typert Gateway）
+                                     ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│ [3] Host 端 —— src/（Node 进程内）                                     │
+│   index.ts apply()：组合根 —— 构建端口与领域模块，注册全部表面，         │
+│     挂载 Workspace 竞选，启动 reconcile 与保留期定时器（:358 起）        │
+│   ├─ 表现面：tools.ts（模型 worktree_* 工具）· commands.ts（/worktree） │
+│   │    session-target-context.ts（系统提示 runtimeContext）             │
+│   ├─ 控制台：console-host/service.ts ► control-plane.ts                │
+│   │    ► projection.ts · review-diff.ts · errors.ts                    │
+│   ├─ 领域：session-checkout-module.ts（状态机 + withBindingLock）       │
+│   │    session-checkout-apply.ts（apply 引擎）                         │
+│   │    concurrent-session-guard.ts（分支竞态）· support 助手            │
+│   │    （checkpoint · commit-message · creation-failure ·              │
+│   │      delivery-excludes · managed-worktree-path）                   │
+│   ├─ 端口：ports.ts ◄ adapters/{git, files, registry, lookup,          │
+│   │    project-skills, working-directory}.ts                           │
+│   └─ 宿主特有：workspace-provider-lifecycle.ts（uiWorkspace 竞选）      │
+│        + host-compat.ts + i18n/host.ts（宿主双语文案）                  │
+└─────────────────────────────────────┬────────────────────────────────┘
+                                     ▼
+       Harness 宿主服务（subprocess · sessions · workspaceRegistry ·
+       uiWorkspace · settings · locale）· git 子进程 · node:fs
+       · registry.json（AtomicJsonCheckoutRegistry 原子读写）
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ [4] 构建 / 开发工具链（不进入运行时）                                   │
+│   package.json 门禁 · tsdown.config.ts · vitest.config.ts             │
+│   scripts/：check-publish · dev-dsh-lib · workspace-sidebar-upstream*  │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
-**各区域职责**：
-- **Host 装配层**（`src/index.ts` / `lib/index.js`）：读取 volatile 配置、建 stateDir、挂载 WorkspaceProvider 生命周期、装配端口与引擎、启动 `WorktreeConsoleService`、注册工具/命令/上下文、安排 reconcile 与定时保留/剪枝。
-- **端口与适配器层**（`src/adapters/` / `lib/adapters/`）：用 Node fs、`ctx.subprocess`、宿主 `workspaceRegistry`/`sessions`/`workingDirectory` 实现 `ports.ts` 定义的宿主无关接口；含崩溃安全注册表（`registry.ts`/`safe-file.ts`）、Project Skills 搬运、worktree 创建与失败回滚（`worktree-creation.ts`）。
-- **领域引擎层**（`src/session-checkout-apply.ts` / `lib/session-checkout-apply.js`）：`DefaultSessionCheckoutApplyEngine` 实现快照指纹、三方合并、Local 预览/回滚/终审、checkpoint、会话分支交付 `commitIsolated`；只依赖端口接口。
-- **服务面层**（`src/tools.ts`、`src/commands.ts`、`src/console-host/` / `lib` 对应）：模型工具、`/worktree` 命令、控制台宿主 RPC 与控制面（授权、投影、review-diff）。
-- **RPC 契约层**（`src/console-contract.ts`、`src/console-remote/` / `lib` 对应）：JSON-only 共享契约 + Typert strict 描述符，是 Host/Client 唯一共享面。
-- **Web 客户端层**（`src/client/` / `lib/client/`）：React ToolView、评审控制台、目标胶囊、空白会话预创建、侧栏投影与设置页。
+分层要点：
+
+- **组合根唯一**。`src/index.ts:358` 的 `apply()` 构建全部适配器与领域模块，依次注册工具（`src/index.ts:381`）、命令（`:408`）、系统提示上下文（`:409`）、控制台服务（`:398-405`），挂载 uiWorkspace 竞选（`:363`），并在 ready 时与每 15 分钟（`:343`）运行 `reconcile`（`:414`）。
+- **三条入口，一个门面**。tools / commands / console-host 都调用同一个 `SessionCheckoutModule`；区别只在表面层（工具输出 JSON、命令渲染文本、控制台产出 DTO）。
+- **uiWorkspace 竞选是 Host 侧特例**。`mountWorkspaceProviderLifecycle`（`src/workspace-provider-lifecycle.ts:66`）用 Cordis Loader 在宿主侧禁用/恢复官方 `uiWorkspace` 入口，其结果 `officialWorkspaceActive` 单向传入 `WorktreeConsoleService`（`src/index.ts:398-405` → `src/console-host/service.ts:35`），并经 `sidebarTopology` 告知 Client 该走哪条 flavor 分支。
+- **构建工具链与运行时隔离**。`scripts/` 只在构建/发布/开发时执行；`tsdown.config.ts` 通过 virtual id 消费 `workspace-sidebar-upstream*.mjs` 对官方 Workspace 客户端做 SHA-256 门控派生。
+
+跨切面不变量（读任何模块前先记住）：
+
+- **路径无关投影**：`*View` 与 `WorktreeConsoleTargetSummary` 不携带路径；只有鉴权通过后的 `WorktreeConsoleTargetDetails` 才含 `managedRoot`/`sourceRoot`（`src/console-contract.ts:185`）。
+- **CAS 一致性**：所有变更携带 `expectedRevision`/`expectedReviewId`；`registry.revision` 在 `withBindingLock`（`src/session-checkout-module.ts:1289`）下单调递增。
+- **严苛 JSON**：Host 拒绝 `undefined` 键；wire 层 Zod strict 拒绝未知键（`src/console-remote/schemas.ts:29`）。
+- **locale 快照隔离**：Host 每个 RPC 在 `withHostLanguage` 内运行；用户数据（路径、分支名、JSON）永不翻译。
 
 ## Data Flow
 
+下图给出一次典型变更（`finalize`）从三条入口到结果投影的完整管线；A/B 两条入口直连领域门面，C 经过 wire 链路。
+
 ```text
-┌──────────┐ worktree_create ┌───────────────┐ createDetachedWorktree ┌──────────────────┐
-│ tools.ts│─────────────────►│ module        │──────────────────────►│ git.ts /         │
-│ (94-693)│ (100-166)        │ (index.ts)    │ (git.ts)               │ worktree-creation│
-└──────────┘                 └───────┬───────┘                       │                  │
-       │ enterCheckout (148)         │ createIsolatedTarget          └──────────────────┘
-       ▼                            ▼                                       │
-┌──────────┐ ready_for_review ┌───────────────┐ inspectReview         ┌──────────────────┐
-│ client   │─────────────────►│ control-plane │─────────────────────►│ engine           │
-│ UI       │ (ReviewActions) │               │ (1421-1470)           │ (apply/preview)  │
-└──────────┘                 └───────┬───────┘                       └──────────────────┘
-       │ adapter.invoke              │ authorize/verifyCallerRoot
-       ▼                             ▼
-┌──────────┐ Typert RPC      ┌──────────────────┐  observeFromCaller ┌──────────────────┐
-│ remote   │────────────────►│ console-host/     │──────────────────►│ projection.ts    │
-│ adapter  │                 │ service.ts        │                   │                  │
-└──────────┘                 └──────────────────┘                   └──────────────────┘
-       ▲                                                                 │
-       │ sidebarTopology/current polling (current-polling.ts)           │
-       └───────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│ [入口] 三条路径 → 同一领域门面                                         │
+│   A 模型 Agent：tools.ts:94 registerTools → 9 个 worktree_* 工具       │
+│     （worktree_create :101 · ready_for_review :319 · deliver :406）    │
+│   B 人类用户：commands.ts:44 → /worktree 动词（status / list /         │
+│     continue / next / finalize / finish / discard / remove）           │
+│   C 浏览器 Console：review-console/ReviewActions.submitCommit(:625)    │
+│     → adapter.finalize（WorktreeConsoleAdapter）                       │
+└─────────────────────────────────────┬────────────────────────────────┘
+                                     │ A/B 直连门面；C 经下方 wire 链路
+                                     ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│ [C 的 wire 链路]（A/B 跳过本框）                                       │
+│   client/console-remote/adapter.ts invoke(:83)：locale 注入(:84)       │
+│     · 30s/180s 超时(:56) · descriptor strict 复验(:108)                │
+│        ▼ Typert Gateway：descriptors.ts:94（agentId 先解析 :58）       │
+│   console-host/service.ts:35 @Remote：withHostLanguage 薄封装          │
+│        ▼                                                              │
+│   control-plane.ts:206：authorize(:318) · expectedRevision CAS ·      │
+│     readyReview(:140) → module.operate / module.*                     │
+└─────────────────────────────────────┬────────────────────────────────┘
+                                     ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│ [领域核心] SessionCheckoutModule 门面                                  │
+│   （src/session-checkout-module.ts:237 返回，接口 src/index.ts:113）   │
+│   withBindingLock(:1289)：单进程互斥 · registry.revision 单调递增      │
+│   operate(:3816) · inspect(:1344) · bindTarget(:4841)                 │
+│   beginNextIteration(:4535) · markReadyForReview(:1684)               │
+└─────────────────────────────────────┬────────────────────────────────┘
+                                     ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│ [端口 → 适配器 → 外部世界]                                             │
+│   git.ts:249：加固 git 子进程（--no-optional-locks · C locale）        │
+│     runGit(:93) · createDetachedWorktree(:336)                        │
+│     → worktree-creation.ts:17（证据优先，失败仅回滚不强删）             │
+│   registry.ts:397 + safe-file.ts:82/:113：registry.json 原子读写       │
+│   lookup.ts:65：Harness sessions / workspaceRegistry                  │
+│   project-skills.ts:101：Skill 快照/携带 · working-directory.ts:61     │
+└─────────────────────────────────────┬────────────────────────────────┘
+                                     ▼
+        Git 仓库（session 分支 · refs/dsh-worktree/*）· registry.json
+                                     │
+                                     ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│ [结果投影返回]                                                         │
+│   operate → SessionCheckoutOperationResult（types.ts:585）             │
+│   A/B ► tools / commands 渲染 *View 文本（JSON 输出）                   │
+│   C ► projection.ts projectRecord(:116) → WorktreeConsoleTarget*      │
+│     （路径无关）► adapter strict 复验 ► ReviewActions.applyTarget(:253) │
+│     ► requestWorktreeReviewRefresh 广播刷新全部挂载面                   │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
-**关键数据流路径**（引用模块文章行号）：
-1. **创建（Local → Isolated）**：`worktree_create`（`src/tools.ts` 100-166）→ `module.createIsolatedTarget` → `createDetachedWorktree`（`src/adapters/git.ts`）→ `createWorktree`（`src/adapters/worktree-creation.ts`：排他 mkdir → `worktree add --detach --no-checkout --lock` → `read-tree` + `checkout-index --all` → 双重 `verifyIdentity` → `unlock`）→ `attachWorktreeBranch`（`src/adapters/git.ts`）→ `enterCheckout`（`src/tools.ts` 148）。
-2. **编辑 → 评审**：`worktree_ready_for_review`（`src/tools.ts` 318-403）→ `markReadyForReview` → 引擎 `inspectReview`（`src/session-checkout-apply.ts` 1421-1470）→ 记录 `delivery = ready_for_review`、`revision++`；`checkpointGenerationForRecord`（`src/checkpoint.ts` 16-28）派生 CAS generation。
-3. **预览 / 交付（两条互斥路径）**：Local Preview 走 `ReviewActions.previewLocal` → 控制面 `preview`（`src/console-host/control-plane.ts`）→ 引擎 `plan`（1614-1616）+`preview`（1818-1958）；回滚 `rollback`（1988-2091），确认 `finalize`（2093-2367）。会话分支路径：`worktree_deliver`（`src/tools.ts` 405-506）→ 引擎 `commitIsolated`（1521-1608，**完全不读写 Local**）→ 清理/`pushBranch`。
-4. **放弃与恢复**：`discard` 前 `snapshotAbandonedWorktree`（`src/adapters/git.ts`）→ `refs/dsh-worktree/abandoned/<checkoutId>`；恢复 `restoreAbandonedSnapshot`（`src/adapters/git.ts`）。
-5. **控制台读路径（轮询）**：`TargetStatusAction` → `subscribeCurrent`（`src/client/target-console/current-polling.ts`，5s 可见/60s 隐藏）→ `adapter.current` → RPC → `control-plane.current` → `projectDetails`（`src/console-host/projection.ts`）→ 渲染；评审面共享 `request-cache.ts` 单飞缓存与 `WORKTREE_REVIEW_REFRESH_EVENT` 失效广播。
-6. **恢复请求队列（Client→Agent）**：冲突/评审过期 → `enqueueWorktreeRecovery`（`src/client/review-console/recovery-continuation.ts`）→ localStorage 持久化 → `attempt` 在 owner 会话 open/idle 且 target 精确匹配时发送重建 prompt；Host 端每次发送前重新 `inspect` 验证。
+### 流程 1 —— 模型工具（worktree_deliver，`src/tools.ts:447` 起）
+
+1. `sessionIdOf(exec.agent)` 解析调用者 Session（`:449`），`module.inspect` 读取当前目标（`:450`）。
+2. `module.isAutoDeliverEnabled()` 为 false 即拒绝（`:451`）；`delivery.state` 必须是 `working`/`ready_for_review`（`:455`）。
+3. `leaveCheckoutBeforeRemoval`（`src/tools.ts:51`）先把 Session cwd 迁出 checkout（`:470`）；迁出失败直接抛出并中止——Session 绝不指向一个即将消失的目录。
+4. `module.operate({ action: 'finish', … })`（`:474`）进入 `operateTarget`（`src/session-checkout-module.ts:3816`）：CAS 校验 → apply 引擎在隔离侧提交；提交只落在 session 分支，Local 工作树/索引/HEAD 永不被写（`refuseLegacyLocalWrite`，`:1656`）。
+5. 失败时 `enterCheckout` 把 Session 送回存活 checkout（`:486`）；成功返回 `SessionCheckoutFinishedResult`（`src/types.ts:394`），含 `commitOid`、保留策略与尽力而为的 `push` 结果。
+
+### 流程 2 —— 人类命令（`/worktree finalize`，`src/commands.ts:121`）
+
+解析 `reviewId revision retention` 三元组 → 校验评审卡未过期（`:133`）→ `leaveCheckout`（`src/commands.ts:51`；失败即中止删除，`:139`）→ `module.operate({ action: 'finish', … })` → `finishedText` 渲染（`:35`）。浏览器侧 `finalizeCurrentSession`（`src/client/actions.ts:278`）发送同一条命令。
+
+### 流程 3 —— Console RPC（finalize）
+
+1. `ReviewActions.submitCommit`（`src/client/review-console/ReviewActions.tsx:625`）先**强制刷新** preflight 缓存（写前必须拿新鲜 Host 读数），再调 `adapter.finalize`。
+2. `createWorktreeConsoleRemoteAdapter`（`src/client/console-remote/adapter.ts:80`）的 `invoke`（`:83`）：注入 locale（`:84`）、按方法选 30s/180s 超时（`:56`）、成功载荷经 descriptor strict 复验（`:108`）。
+3. Typert Gateway 依 `WORKTREE_CONSOLE_DESCRIPTORS`（`src/console-remote/descriptors.ts:94`）先解析 `agentId`（`:58`）再做业务派发。
+4. `WorktreeConsoleService`（`src/console-host/service.ts:35`）在 `withHostLanguage` 下委托 `control-plane.finalize`（`src/console-host/control-plane.ts:1337`）：`authorize`（`:318`）+ `expectedRevision`/`expectedReviewId` CAS → `module.operate({ action: 'finish' })`。
+5. `conflict` → `apply_conflict` + 冲突续传（`control-plane.ts:167`）；`finished` → `mutationResponse` 经 `projection.projectRecord`（`src/console-host/projection.ts:116`）返回路径无关 DTO。
+6. 客户端 `applyTarget`（`ReviewActions.tsx:253`）广播 `requestWorktreeReviewRefresh`（`src/client/review-console/status-events.ts:4`），所有挂载面重读 Host 权威 target。
+
+### 流程 4 —— 只读系统提示（同步契约）
+
+`registerSessionTargetContext`（`src/session-target-context.ts:14`）注册 order 118 的 `systemPrompt.context`，其 text **同步**调用 `module.runtimeContext`（`src/session-checkout-module.ts:1077`）。每 45 秒（`src/session-target-context.ts:22`）fire-and-forget `refreshBranchRaceGuards`（`:1002`）把 `git.branchCreationTimes`（`src/adapters/git.ts:508`，reflog 派生）写入 `branchRaceCache`（`:999`）；`branchRaceNotice`（`:1035`）同步消费缓存并调用纯函数 `detectLocalBranchRace`（`src/concurrent-session-guard.ts:68`），命中则在提示中注入「Branch Race detected」，引导后启动的 Session 先调 `worktree_create` 隔离。
+
+### 流程 5 —— 生命周期与持久化
+
+`bindTarget`（`:4841`）写 `preparing` 记录 + `sessionBindings` → `git.createDetachedWorktree`（`src/adapters/git.ts:336` → `worktree-creation.ts:17`：先采集身份证据，失败按 `WorktreeCreationFailure.rolledBack` 决定回滚删除或 `recovery_required`）→ `attachSessionBranch`（`:754`）→ `ready`。`markReadyForReview`（`:1684`）快照评审并经 `checkpointGenerationForRecord`（`src/checkpoint.ts:16`）盖章 CAS 世代。交付后 `cleanupFinalized`（`:2979`) 拆除 worktree 至 `discarded`+`delivered`；保留期与 LRU 由 `cleanupExpiredRetained`/`enforceWorktreeKeepCount` 定时收敛。registry 读写全程经 `AtomicJsonCheckoutRegistry`（`src/adapters/registry.ts:397`）与 safe-file（原子写 `src/adapters/safe-file.ts:82`；崩溃后从 `.tmp`/`.bak` 恢复 `:113`）。
+
+### 流程 6 —— i18n（横切）
+
+每个 `@Remote` 在 `withHostLanguage` 内运行（`service.ts:76` 为范式）；tools/commands 用 `languageForInvocation`（`src/i18n/host.ts:30`）按调用者绑定语言；客户端每次 `invoke` 注入 locale（`adapter.ts:83`）。错误码语言无关，`consoleFailure`（`src/console-host/errors.ts:13`）保持 `code` 稳定、仅 message 本地化。
 
 ## Dependency Graph
 
-```text
-┌────────────────────────┐   depends on    ┌────────────────────────┐
-│ domain engine          │───────────────►│ ports.ts (宿主无关接口)│
-│ session-checkout-apply │                │ lib/ports.d.ts         │
-│ src 4 / lib 领域核心   │                └───────────▲────────────┘
-└────────────────────────┘                            │ implemented by
-                                                     │
-┌────────────────────────┐  implements    ┌──────────┴────────────┐
-│ adapters/ (git, files, │───────────────►│ Node fs / ctx.subprocess│
-│ registry, lookup)      │                │ DSH workspaceRegistry │
-└────────────────────────┘                └───────────────────────┘
+依赖规则：**`X ──► Y` 表示「X 依赖 Y」**；`◄──` 用于标注「实现端口接口」的关系。
 
-┌────────────────────────┐  calls via     ┌────────────────────────┐
-│ client/ (React)        │─ strict RPC ──►│ console-remote/        │
-│ src/client/*           │                │ descriptors/schemas    │
-└────────────────────────┘                └───────────▲────────────┘
-                                                     │ served by
-                                                     │
-┌────────────────────────┐  uses          ┌──────────┴────────────┐
-│ console-host/          │───────────────►│ control-plane.ts      │
-│ service.ts             │                │ module (SessionCheckout│
-└────────────────────────┘                │ Module 接口)          │
-                                           └────────────────────────┘
+```text
+┌──────────────────────────────────────────────────────────────────────┐
+│ [Client] src/client/（依赖方向：A ──► B 表示 A 依赖 B）                 │
+│   target-console ──► client_core（actions · model · i18n · styles）    │
+│   review-console ──► client_core + request-cache（单飞缓存）           │
+│   pre-session ──► client_core ；settings-card ──► client_i18n          │
+│   全部 UI ──► console-contract.ts（WorktreeConsoleAdapter :745）        │
+│   console-remote/index.ts + adapter.ts ──► console-remote/             │
+│     descriptors.ts + schemas.ts（与 Host 共享同一冻结数组 :94）          │
+└─────────────────────────────────────┬────────────────────────────────┘
+                                     │ Client 对下依赖的唯一通道
+                                     ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│ [共享叶子] Client 与 Host 双端依赖；自身不依赖任何业务模块               │
+│   types.ts ◄── console-contract.ts ◄── console-remote/*                │
+│   i18n/core.ts ◄── i18n/host.ts（Host 专用）                           │
+│                 ◄── i18n/client-messages.ts（Client 专用）             │
+└─────────────────────────────────────┬────────────────────────────────┘
+                                     ▲
+                                     │ Host 对上依赖同一批叶子
+┌─────────────────────────────────────┴────────────────────────────────┐
+│ [Host] src/                                                           │
+│   tools.ts / commands.ts / session-target-context.ts                  │
+│     ──► SessionCheckoutModule 门面（session-checkout-module.ts）       │
+│   console-host/{service, control-plane, projection, review-diff}      │
+│     ──► 模块门面 + ports.ts + console-contract.ts                     │
+│   session-checkout-module.ts ──► ports.ts（只依赖接口＝依赖倒置）       │
+│     ──► session-checkout-apply.ts ──► ports.ts                        │
+│     ──► support 助手 + concurrent-session-guard.ts                    │
+│   adapters/{git, files, registry, lookup, project-skills,             │
+│     working-directory}.ts ──► ports.ts（实现接口；index.ts 注入）       │
+│   workspace-provider-lifecycle.ts ──► host-compat.ts                  │
+│     officialWorkspaceActive ──► console-host/service.ts（单向）        │
+│   index.ts apply()（:358）＝ 组合根：依赖上述全部并完成装配              │
+└─────────────────────────────────────┬────────────────────────────────┘
+                                     ▼
+        Harness 宿主 / git 子进程 / node:fs / registry.json
+
+  构建期（与运行时隔离）：
+    package.json ──► scripts/check-publish.mjs（7 项发布门禁）
+    tsdown.config.ts ──► scripts/workspace-sidebar-upstream*.mjs（virtual 派生）
+    vitest.config.ts ──► tests/*（不进入发布产物）
 ```
 
-**依赖方向约束**：
-- **端口反转**：领域逻辑（apply 引擎、状态机）只依赖 `ports.ts`/`ports.d.ts` 接口；`adapters/` 提供 DSH 实现，因此可用 fake 测试（`src/ports.ts` 1-8 行注释，`lib/ports.js` 唯一运行时导出 `liveConfigValue`）。
-- **单一 RPC 通道**：Client 永远通过 `WorktreeConsoleAdapter`（`console-contract.ts` 745-784）→ Typert strict 描述符（`console-remote/descriptors.ts`）→ `WorktreeConsoleService`（`console-host/service.ts`）→ 控制面 → 模块；Client 与 Host 是两份独立部署产物，schema 用 `default(false)` 等手段容忍增量（`console-remote/schemas.ts`）。
-- **授权边界**：每个 Host 操作都解析精确 caller 会话并在执行时复验 project/owner/cwd/revision/review 身份（`console-contract.ts` 5-8 行注释）；`capabilities()` 投影只影响 UI 可见性，真实 mutation 都重新 CAS。
-- **ref 命名空间隔离**：插件产物全部在 `refs/dsh-worktree/` 下，永不与用户 ref 冲突（`src/adapters/git.ts`）。
-- **测试依赖**：`tests/support/production-adapters.ts` 与 `tests/support/worktree-console.ts` 分别提供 Node 生产依赖与确定性 Console 适配器夹具，被 Host/Client/平台测试复用（`tests.md` Key Components）。
+依赖规则：
+
+1. **组合根唯一**：只有 `src/index.ts` 的 `apply()` 构建并装配对象；模块之间不互相实例化。
+2. **依赖倒置**：领域（`session-checkout-module.ts`、`session-checkout-apply.ts`）只 import `ports.ts` 接口；`src/adapters/` 实现端口并被注入。领域文件永不直接触 git / fs / 宿主服务。
+3. **契约是共享叶子**：`console-contract.ts` 只依赖 `types.ts`；`console-remote/{descriptors,schemas}` 与 `client/console-remote/adapter.ts` 消费**同一份冻结描述符数组**（`descriptors.ts:94`），两端独立部署仍做同构 strict 校验。
+4. **Client 只见契约**：`src/client/*` 不 import 任何 Host 内部模块（仅 `console-contract` 与 `console-remote` 公共面）；宿主服务以结构化接口注入（`WorktreeClientServices` 等）。
+5. **i18n 三段式**：`core.ts` 无平台依赖（其文件头 `:1` 明示）；`host.ts` 仅 Host、`client-messages.ts` 仅 Client，两端在各自边界解析 locale。
+6. **support 与 types 是叶子**：四个 support 助手互不依赖；`types.ts` 是最底层类型面，被领域、契约与表面共同消费。
+7. **`workspace_provider` 特例**：它是 Host 侧对 Cordis Loader 的控制器，不依赖领域；其产出 `officialWorkspaceActive` 只向 `console-host/service.ts` 单向流动。
+8. **构建期隔离**：`scripts/` 不被任何运行时代码 import；`tsdown` 经 virtual id 消费派生产物，`vitest` 用 mock 替身。
 
 ## Module Roles
 
-- **入口与配置**：`src/index.ts` / `lib/index.js` 定义 `SessionCheckoutModule` 接口（113-219 行 / `lib` 对应）、`Config`（261-319 / `lib` 对应）、`apply()`（358-459 / `lib` 对应）装配全部子系统；`volatile()` 使设置页编辑落到 `cordis.patch.yml` 且以 LiveValue 引用到达。
-- **领域类型与错误码**：`src/types.ts` / `lib/types.d.ts` 定义 `SessionTargetRef`、`SessionCheckoutPhase`、`WorktreeDeliveryView` 七态、`SESSION_CHECKOUT_ERROR_CODES`（29 个稳定错误码）等。
-- **端口接口**：`src/ports.ts` / `lib/ports.d.ts` / `lib/ports.js` 定义 `SessionCheckoutGitPort`、`SessionCheckoutFilesPort`、`SessionCheckoutLookupPort`、`ManagedCheckoutsRegistry` 与 `liveConfigValue` 统一读取。
-- **应用引擎**：`src/session-checkout-apply.ts` / `lib/session-checkout-apply.js`（约 2678 行）实现 `DefaultSessionCheckoutApplyEngine`：`checkpoint`、`inspectReview`、`commitIsolated`、`preflight`/`plan`/`apply`、`preview`、`assessPreviewRecovery`、`rollback`、`finalize`、`finish` 等方法，负责快照指纹、三方合并与事务性写。
-- **适配器**：
-  - `adapters/files.ts` / `lib/adapters/files.js`：Node fs 文件端口（身份校验、隔离、删除重试）。
-  - `adapters/git.ts` / `lib/adapters/git.js`：`ctx.subprocess` 支撑的 git 端口（ref 命名空间、inspect、worktree 创建/移除、分支/标签、merge、abandoned 快照）。
-  - `adapters/git-options.ts` / `lib/adapters/git-options.js`：Git 超时校验与选择。
-  - `adapters/initial-commit.ts` / `lib/adapters/initial-commit.js`：空仓库初始化协议。
-  - `adapters/lookup.ts` / `lib/adapters/lookup.js`：会话/项目→Workspace 映射。
-  - `adapters/project-skill-*.ts` / `lib/adapters/project-skill-*.js`：Project Skills 搬运与溯源存储。
-  - `adapters/registry.ts` + `safe-file.ts` / `lib` 对应：v2 原子 JSON 注册表与崩溃安全读写。
-  - `adapters/working-directory.ts` / `lib/adapters/working-directory.js`：会话 cwd 端口。
-  - `adapters/worktree-creation.ts` / `lib/adapters/worktree-creation.js`：创建与失败回滚（最敏感安全代码）。
-- **控制台 Host**：`src/console-host/`（errors/projection/control-plane/review-diff/service）实现 RPC 服务端控制面，含授权、投影、diff 限额与诊断。`control-plane.ts` 的 `createWorktreeConsoleControlPlane` 含 `verifyCallerRoot`、`authorize`、`observeFromCaller` 等内部函数与 39 个端点。
-- **RPC 契约**：`src/console-contract.ts` + `src/console-remote/`（descriptors/schemas/remote）定义 JSON-only 共享契约、strict zod schema 与 Typert 描述符；`lib` 对应同名文件。
-- **Web 客户端**：`src/client/`（及 `lib/client/`）含入口编排（`index.tsx`/`index.js`）、`console-remote/adapter`、actions/model/i18n、ToolView 行、review-console（验收动作巨组件 `ReviewActions.tsx`）、target-console（胶囊/管理面板/分支图/标签）、pre-session（空白会话流）、settings-card、workspace-sidebar（投影与徽章）。
-- **工具与命令**：`src/tools.ts` / `lib/tools.js` 注册九个模型工具；`src/commands.ts` / `lib/commands.js` 注册 `/worktree` 人类命令（破坏性动词只给人用）。
-- **i18n 与支撑**：`src/i18n/`（core/host/host-messages）提供 `withHostLanguage` 与约 370 键双语目录；`src/commit-message.ts`、`concurrent-session-guard.ts`、`checkpoint.ts`、`creation-failure.ts`、`delivery-excludes.ts`、`host-compat.ts`、`managed-worktree-path.ts`、`session-target-context.ts`、`workspace-provider-lifecycle.ts` 提供提交校验、分支竞态守卫、CAS generation、创建失败标记、交付排除、宿主代际探测、路径候选与 Workspace 选举。
-- **测试套件**：`tests/` 下的 Host 域（`console-host.test.ts`、`session-checkout-module.test.ts` 等）、Client 域（`client-*.test.tsx`）、平台域（`git-*.test.ts`、`worktree-creation.test.ts` 等）与共享夹具（`support/`），完整覆盖三轨道（见 `tests.md`）。
+### 组合根与领域层（Host）
+
+| 模块 | 核心文件（行号） | 职责 | 相互连接 |
+|---|---|---|---|
+| index.ts（插件入口） | `src/index.ts:333` | 组合根：构建端口与领域模块，注册工具/命令/上下文/控制台与 Workspace 竞选；启动 reconcile（`:414`）与 15 分钟维护定时（`:343`）；volatile 配置经 `liveConfigValue` 注入 | 连接下表所有模块 |
+| module_core | `src/session-checkout-module.ts:237` | `createSessionCheckoutModule` 门面（接口 `src/index.ts:381`）：状态机、`withBindingLock`(`:1289`)、`operate`(`:3816`)、`bindTarget`(`:4841`)、`reconcile`(`:1362`)、`runtimeContext`(`:1077`)；`managed-worktree-path.ts` 提供分支/路径命名 | 被 cli、console_host、session-target-context 调用；依赖 ports、apply 引擎、support、session_guard |
+| session-checkout-apply | `src/session-checkout-apply.ts` | apply 引擎：plan/apply/preview/checkpoint/rollback/finalize、`reviewIsolated`(`:1489`)/`commitIsolated`(`:1538`)、`captureSnapshot`(`:613`) | 由 module 经 `dependencies.applyEngine` 驱动；依赖 ports + support |
+| session-target-context | `src/session-target-context.ts:14` | 注入 order 118 系统提示（同步 `runtimeContext`）；45s 刷新分支竞态缓存(`:22`) | 调用 module_core；消费 working-directory 端口 |
+| session_guard | `src/concurrent-session-guard.ts:68` | 纯函数 `detectLocalBranchRace` + 模块侧 `branchRaceCache`(`:999`)/`branchRaceNotice`(`:1035`)，产出「Branch Race detected」提示 | 数据源 `adapters/git.branchCreationTimes`(`:508`)、`lookup.listLiveSessions`(`:109`) |
+| support | `src/checkpoint.ts:16` · `commit-message.ts:2` · `creation-failure.ts:3` · `delivery-excludes.ts:22` | 叶子助手：Review/checkpoint CAS 世代、提交信息校验（空/NUL）、`WorktreeCreationFailure.rolledBack`、交付排除 pathspec | 被 module/apply/adapters 直接 import；组内无互相依赖 |
+| types | `src/types.ts` | 纯类型面：`SessionTargetView`(`:198`)、Operation(`:344`)/Result(`:585`)、错误码(`:597`)；路径无关 `*View` | 被领域、console_contract、全部表面消费 |
+
+### 端口与适配器（Host 基础设施）
+
+| 模块 | 核心文件（行号） | 职责 | 相互连接 |
+|---|---|---|---|
+| ports | `src/ports.ts` | 端口接口：git/files/registry/lookup + `SessionCheckoutDependencies`（含 `LiveValue` 配置） | adapters 实现之；module/apply/console_host 依赖之 |
+| adapters | `git.ts:93` · `files.ts:89` · `registry.ts:397` · `safe-file.ts:82` · `lookup.ts:65` · `project-skills.ts:101` · `working-directory.ts:61` · `worktree-creation.ts:17` · `git-options.ts` · `initial-commit.ts` | 端口实现：加固 git 子进程（`runGit` `:93`）、崩溃安全 JSON、Harness 查询、Skill 携带/校验、cwd 迁移端口、证据优先的 worktree 创建/回滚 | 实现 ports；由 index.ts 注入 module 与 console_host |
+
+### 宿主表面与横切
+
+| 模块 | 核心文件（行号） | 职责 | 相互连接 |
+|---|---|---|---|
+| cli | `src/tools.ts:8` · `src/commands.ts:44` | 9 个模型工具 + `/worktree` 命令；删除前迁出 cwd（`:51`/`:62`）；`autoDeliver` 门槛（`tools.ts:451`） | 调用 module_core；文案经 i18n host 包裹 |
+| i18n | `core.ts:19` · `host.ts:6` · `host-messages.ts:1759` · `client-messages.ts` · `transport-messages.ts` | 双语目录与 locale 隔离；`hostRegistrationMessage`(`:1758`)；persistedCleanup 白名单(`:1768`) | Host 侧被 tools/commands/console-host 使用；Client 侧被全部 client UI 使用 |
+| workspace_provider | `src/workspace-provider-lifecycle.ts:66` · `src/host-compat.ts:79` | uiWorkspace provider 竞选（Host 侧 Loader disable/restore 官方入口）；宿主 flavor 判定 | `officialWorkspaceActive` 单向进入 console-host/service.ts(`:40`) |
+| console_contract | `src/console-contract.ts:705` · `:76` · `:695` · `:705` · `:745` | 纯类型契约：状态枚举/投影、全部 DTO、`ERROR_META` 错误策略、`WorktreeConsoleAdapter` 接缝 | 上游 types.ts；被 Host/Client/测试夹具三方 import |
+
+### 控制台（Host ↔ Client）
+
+| 模块 | 核心文件（行号） | 职责 | 相互连接 |
+|---|---|---|---|
+| console_host | `service.ts:35` · `control-plane.ts:318` · `projection.ts:116` · `review-diff.ts:123` · `errors.ts:13` | `@Remote` 薄封装 + 权威控制平面（`authorize` `:318`、CAS、`linkedReadAccess` `:340`）、路径无关投影、临时索引 review diff、`WorktreeConsoleOutcome` 构造 | 依赖 module + ports + contract；被 console_remote 的 wire 调用 |
+| console_remote | `descriptors.ts:94` · `schemas.ts:29`/`:227` · `remote.ts:31` · `typert.ts:5` | 39 个 strict RPC 描述符 + Zod 校验 + Host `TYPERT` 贡献 + 客户端 `GitWorktreeRemote` 类型面 | 与 console_contract 同源；Host/Client 共享同一数组 |
+| client_console_remote | `client/console-remote/index.ts:62` · `adapter.ts:80` | `$mount` + flavor 路由（legacy/alpha/next/modern/unsupported）；adapter：locale 注入(`:84`)、30s/180s 超时(`:56`)、strict 复验(`:108`) | 实现 `WorktreeConsoleAdapter`；被全部 client UI 消费 |
+
+### 浏览器端 UI
+
+| 模块 | 核心文件（行号） | 职责 | 相互连接 |
+|---|---|---|---|
+| client_core | `client/index.tsx:49` · `actions.ts:199`/`:278` · `model.ts:100`/`:152` · `i18n.tsx:29` · `styles.ts` | 客户端入口（ToolView 注册、i18n Proxy、样式注入）、导航/最终化编排、回放稳定 ToolView 模型 | 依赖 contract；被各 UI 子模块复用 |
+| client_target_console | `target-console/index.ts:19` · `TargetStatusAction.tsx:51` · `WorktreeConsoleView.tsx:93` · `current-polling.ts:94` · `branch-overview-cache.ts` | header 胶囊 / dock 状态条 / hero chip / 关联 Worktrees 管理面 / 提交图 / 标签；5s 轮询与 SWR 分支缓存 | 走 adapter；复用 review-console 的 `ReviewActions` |
+| client_review_console | `ReviewActions.tsx:82` · `WorktreeReviewPanel.tsx:54` · `request-cache.ts:41` · `recovery-continuation.ts:389` | 验收卡与全部交付 mutation；单飞 preflight/preview-recovery 缓存；跨渲染恢复续传（localStorage + Host 复验 `:195`） | 走 adapter + client_core actions；刷新事件驱动 target-console |
+| client_pre_session | `pre-session/index.tsx:30` · `controller.ts:75` · `PreSessionWorktreeToggle.tsx` · `harness-input.ts` | 空白会话前创建隔离目标：创建 → 迁移草稿/附件 → 导航 → 退役源（含回滚 `:197`） | 走 adapter + client_core services |
+| client_settings_card | `settings-card/index.ts:35` · `form-model.ts:188` | 设置页：暂存式表单模型（revision 围栏 `:293`）编辑 5 个 volatile 字段 | 由 console-remote 入口挂载（`client/console-remote/index.ts:73`） |
+| client_i18n | `client/i18n.tsx:29`/`:49` | `LocaleFace` → `useSyncExternalStore` 响应式语言；命令式 `translatorForServices` | 被全部 client UI 使用 |
+
+### 构建与开发工具链
+
+| 模块 | 核心文件（行号） | 职责 | 相互连接 |
+|---|---|---|---|
+| scripts | `check-publish.mjs`（7 项门禁） · `dev-dsh-lib.mjs:466` · `workspace-sidebar-upstream.mjs:11`/`:176` · `clean-lib.mjs` · `check-workspace-sidebar-version.mjs` | 发布完整性门禁、本地快照安装与 dev fixture（`dev:dsh`）、官方 Workspace 客户端 SHA-256 门控派生、`lib/` 清理 | 被 `package.json` scripts / `tsdown.config.ts` / `vitest.config.ts` 消费；不进入运行时 |
