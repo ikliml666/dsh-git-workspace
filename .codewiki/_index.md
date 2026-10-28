@@ -14,6 +14,12 @@
 - [[learnings/platform-gated-tests-win32|平台门控测试：win32 上跳过的 4 个用例均为有意设计]]
 ## Module
 
-- [[modules/lib|lib]]
-- [[modules/src|src（dsh-git-worktree 插件源码根目录）]]
-- [[modules/tests|tests]]
+- [[modules/adapters|adapters]]
+- [[modules/client_console_remote|client_console_remote（客户端远程控制台通信适配）]]
+- [[modules/client_core|client_core]]
+- [[modules/client_pre_session|client_pre_session]]
+- [[modules/client_review_console|client_review_console]]
+- [[modules/client_settings_card|client_settings_card]]
+- [[modules/client_target_console|client_target_console]]
+- [[modules/console_contract|console_contract]]
+- [[modules/console_host|console_host]]

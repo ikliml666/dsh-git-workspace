@@ -1,28 +1,88 @@
 {
   "version": 1,
-  "jobId": "job-mvrv14z3-0",
+  "jobId": "job-mvrx8448-1",
   "scope": "auto",
-  "startedAt": "2026-10-28T08:36:10.480Z",
-  "finishedAt": "2026-10-28T09:50:37.620Z",
+  "startedAt": "2026-10-28T09:37:35.192Z",
+  "finishedAt": "2026-10-28T11:15:43.343Z",
   "baseCommit": null,
   "headCommit": null,
   "changeSet": null,
   "plan": null,
   "results": [
     {
-      "name": "modules/tests.md",
+      "name": "modules/client_pre_session.md",
       "ok": true,
       "stopReason": "stream-error",
       "error": null
     },
     {
-      "name": "modules/lib.md",
+      "name": "modules/client_core.md",
       "ok": true,
       "stopReason": "stream-error",
       "error": null
     },
     {
-      "name": "modules/root.md",
+      "name": "modules/client_settings_card.md",
+      "ok": true,
+      "stopReason": "stream-error",
+      "error": null
+    },
+    {
+      "name": "modules/adapters.md",
+      "ok": true,
+      "stopReason": "stream-error",
+      "error": null
+    },
+    {
+      "name": "modules/client_review_console.md",
+      "ok": true,
+      "stopReason": "stream-error",
+      "error": null
+    },
+    {
+      "name": "modules/client_console_remote.md",
+      "ok": true,
+      "stopReason": "stream-error",
+      "error": null
+    },
+    {
+      "name": "modules/console_contract.md",
+      "ok": true,
+      "stopReason": "stream-error",
+      "error": null
+    },
+    {
+      "name": "modules/console_host.md",
+      "ok": true,
+      "stopReason": "stream-error",
+      "error": null
+    },
+    {
+      "name": "modules/client_target_console.md",
+      "ok": true,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/console_remote.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/client_workspace_sidebar.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/i18n.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/core.md",
       "ok": false,
       "stopReason": "error",
       "error": null
@@ -34,13 +94,253 @@
       "error": null
     },
     {
-      "name": "modules/src.md",
-      "ok": true,
-      "stopReason": "completed",
+      "name": "modules/domain_core.md",
+      "ok": false,
+      "stopReason": "error",
       "error": null
     },
     {
-      "name": "_patterns.md",
+      "name": "modules/support_utils.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/client_conflict_display.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/client_bundle.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/client_actions.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/client_console_routing.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/client_i18n.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/client_polling_diagnostic.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/client_preview_recovery_cache.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/client_review_details.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/client_recovery_continuation.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/client_toolview.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/client_branch_overview_cache.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/concurrent_session_guard.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/adapters_safe_file.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/dev_dsh.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/current_polling.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/git_creation_lifecycle.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/git_tags.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/host_i18n.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/git_unborn.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/host_locale_context.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/git_timeouts.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/host_query_budget.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/i18n_catalogs.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/i18n_references.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/project_skill_provider.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/lookup.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/official_workspace_client_mocks.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/session_branch.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/project_skills.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/session_checkout.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/support_official_client.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/support_production_adapters.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/support_review_actions_harness.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/support_ui_primitives.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/support_worktree_console.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/surface.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/worktree_creation.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/workspace_provider_lifecycle.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/working_directory_adapter.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/root.md",
       "ok": false,
       "stopReason": "error",
       "error": null
@@ -50,9 +350,19 @@
       "ok": false,
       "stopReason": "error",
       "error": null
+    },
+    {
+      "name": "_patterns.md",
+      "ok": false,
+      "stopReason": "error",
+      "error": null
     }
   ],
   "qualityIssues": [
+    {
+      "name": "modules/console_host.md",
+      "issue": "存量文章未过契约：必需章节 Overview 是空的；必需章节 Key Components 是空的"
+    },
     {
       "name": "learnings/schemastery-volatile-protocol-fork.md",
       "issue": "存量文章未过契约：模型输出缺 frontmatter"
@@ -66,7 +376,22 @@
   "blockers": [
     {
       "kind": "article-failed",
-      "name": "modules/root.md",
+      "name": "modules/console_remote.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/client_workspace_sidebar.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/i18n.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/core.md",
       "detail": "error"
     },
     {
@@ -76,13 +401,228 @@
     },
     {
       "kind": "article-failed",
-      "name": "_patterns.md",
+      "name": "modules/domain_core.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/support_utils.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/client_conflict_display.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/client_bundle.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/client_actions.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/client_console_routing.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/client_i18n.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/client_polling_diagnostic.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/client_preview_recovery_cache.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/client_review_details.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/client_recovery_continuation.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/client_toolview.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/client_branch_overview_cache.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/concurrent_session_guard.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/adapters_safe_file.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/dev_dsh.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/current_polling.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/git_creation_lifecycle.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/git_tags.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/host_i18n.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/git_unborn.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/host_locale_context.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/git_timeouts.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/host_query_budget.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/i18n_catalogs.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/i18n_references.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/project_skill_provider.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/lookup.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/official_workspace_client_mocks.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/session_branch.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/project_skills.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/session_checkout.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/support_official_client.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/support_production_adapters.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/support_review_actions_harness.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/support_ui_primitives.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/support_worktree_console.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/surface.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/worktree_creation.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/workspace_provider_lifecycle.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/working_directory_adapter.md",
+      "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "modules/root.md",
       "detail": "error"
     },
     {
       "kind": "article-failed",
       "name": "_architecture.md",
       "detail": "error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "_patterns.md",
+      "detail": "error"
+    },
+    {
+      "kind": "quality",
+      "name": "modules/console_host.md",
+      "detail": "存量文章未过契约：必需章节 Overview 是空的；必需章节 Key Components 是空的"
     },
     {
       "kind": "quality",
@@ -96,26 +636,26 @@
     }
   ],
   "canAdvanceBaseline": false,
-  "writtenCount": 3,
-  "failedCount": 4,
+  "writtenCount": 9,
+  "failedCount": 49,
   "notes": [
-    "modules/root.md 请求失败 —— llm 通道失败（error，QUOTA）：429: {\"message\":\"workbuddy 上游失败：被限流（http 429）：池中已无可用账号（5 个账号被限流）（code 6000，requestId 2bc4b146-29cc-48fb-9e0f-add96045da60）。您的使用量已超出频率限制，将在 2026-10-28 20:03:42 UTC+8 重置，您也可以切换其他模型继续使用。建议换一个模型继续，或稍后等待该账号的额度恢复\",\"type\":\"soft_rate\",\"code\":\"quota_exceeded\"}",
-    "modules/scripts.md 请求失败 —— llm 通道失败（error，QUOTA）：429: {\"message\":\"workbuddy 上游失败：被限流（http 429）：池中已无可用账号（5 个账号被限流）（code 6000，requestId 5fe1e9df-1674-4a60-b4dd-8c18110e0cf6）。您的使用量已超出频率限制，将在 2026-10-28 20:03:42 UTC+8 重置，您也可以切换其他模型继续使用。建议换一个模型继续，或稍后等待该账号的额度恢复\",\"type\":\"soft_rate\",\"code\":\"quota_exceeded\"}",
-    "文章 modules/src.md 自动修正 3 处行号锚点",
-    "文章 modules/src.md 行号锚点存疑（未改）：src/index.ts:113-219 符号未找到未改；src/tools.ts:318 符号歧义未改；src/client/review-console/request-cache.ts:41 符号歧义未改 等",
+    "modules/root.md 请求失败 —— llm 通道失败（error，QUOTA）：429: {\"message\":\"workbuddy 上游失败：被限流（http 429）：池中已无可用账号（4 个账号被限流、1 个账号不可用）（code 6000，requestId 9cef6f77-4aac-4b76-a53e-f7d82eda14ec）。您的使用量已超出频率限制，将在 2026-10-28 23:27:59 UTC+8 重置，您也可以切换其他模型继续使用。建议换一个模型继续，或稍后等待该账号的额度恢复\",\"type\":\"soft_rate\",\"code\":\"quota_exceeded\"}",
     "阶段已启动：2 个请求（模型 workbuddy/hy3，并发 6）",
     "横切批次已提交：_architecture/_patterns + 0 个概念",
-    "_patterns.md 请求失败 —— llm 通道失败（error，QUOTA）：429: {\"message\":\"workbuddy 上游失败：被限流（http 429）：池中已无可用账号（5 个账号被限流）（code 6000，requestId 74bd458b-58e5-42ef-aa11-67a676cbcc37）。您的使用量已超出频率限制，将在 2026-10-28 20:03:42 UTC+8 重置，您也可以切换其他模型继续使用。建议换一个模型继续，或稍后等待该账号的额度恢复\",\"type\":\"soft_rate\",\"code\":\"quota_exceeded\"}",
-    "_architecture.md 请求失败 —— llm 通道失败（error，QUOTA）：429: {\"message\":\"workbuddy 上游失败：被限流（http 429）：池中已无可用账号（5 个账号被限流）（code 6000，requestId 1ac0537e-4834-4bac-9bb3-4c9332439e96）。您的使用量已超出频率限制，将在 2026-10-28 20:03:42 UTC+8 重置，您也可以切换其他模型继续使用。建议换一个模型继续，或稍后等待该账号的额度恢复\",\"type\":\"soft_rate\",\"code\":\"quota_exceeded\"}",
-    "3 个请求输入超单请求预算（110k），按大档装填",
-    "阶段已启动：3 个请求（模型 workbuddy/hy3 + 大档 volces-ark/glm-5.3-flash（3 个），并发 6 + 大档 2）",
-    "校对批次已提交：3 篇合并为 3 个请求",
-    "modules/tests.md：自动修正 2 处行号锚点",
-    "modules/tests.md：行号锚点存疑（未改）—— tests/client-review-console.test.tsx:777 符号歧义未改；tests/client-target-console.test.tsx:1556 符号歧义未改；tests/session-checkout-apply.test.ts:1225 符号歧义未改 等",
-    "modules/lib.md：行号锚点存疑（未改）—— lib/index.js:158-173 符号未找到未改；lib/types.d.ts:499 符号歧义未改；lib/types.d.ts:439-440 符号歧义未改 等",
-    "modules/src.md：行号锚点存疑（未改）—— src/index.ts:113-219 符号未找到未改；src/tools.ts:318 符号歧义未改；src/client/review-console/request-cache.ts:41 符号歧义未改 等",
-    "存量文章体检：2 篇未过契约（learnings/schemastery-volatile-protocol-fork.md、learnings/workspace-takeover-truth-report.md）",
-    "完整性未成立（部分完成（6 项未满足：error））—— error；error；error",
+    "阶段已启动：6 个请求（模型 workbuddy/hy3，并发 6）",
+    "校对批次已提交：9 篇合并为 6 个请求",
+    "modules/client_pre_session.md：批量校对输出缺席，保留原文",
+    "modules/client_core.md：批量校对输出缺席，保留原文",
+    "modules/client_settings_card.md：批量校对输出缺席，保留原文",
+    "modules/adapters.md：批量校对输出缺席，保留原文",
+    "modules/client_review_console.md：批量校对输出缺席，保留原文",
+    "modules/client_console_remote.md：批量校对输出缺席，保留原文",
+    "modules/console_contract.md：批量校对输出缺席，保留原文",
+    "modules/console_host.md：批量校对输出缺席，保留原文",
+    "modules/client_target_console.md：批量校对输出缺席，保留原文",
+    "存量文章体检：3 篇未过契约（modules/console_host.md、learnings/schemastery-volatile-protocol-fork.md、learnings/workspace-takeover-truth-report.md）",
+    "完整性未成立（部分完成（52 项未满足：error））—— error；error；error",
+    "清理孤儿模块文章 3 篇（模块划分已变，旧文件无人重写）—— lib.md、src.md、tests.md",
     "cw index exit 0",
     "编译基线未推进（完整性未成立：未消化的变化下次编译仍会被看见）",
     "符号快照无变化（2675 个组件），跳过写入"
