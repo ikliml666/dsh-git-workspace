@@ -397,7 +397,7 @@ tags: [git-worktree, dsh-plugin, session-checkout, rpc, react, i18n]
 | `worktree_resume_revision` | 226-271 | Ready→Working，必须先于新的文件修改（227-229 行 description 注释） |
 | `worktree_begin_next_iteration` | 273-316 | 交付+清理完成后重建 cwd 进入下一轮 |
 | `worktree_ready_for_review` | 318-403 | summary/details/validationStatus/tests/suggestedCommitMessage |
-| `worktree_deliver` | 405-506 | **autoDeliver 关闭即拒绝**（451-453）；Working 或 Ready 均可；先 leave 后 finish（470-473）；失败回 `enterCheckout`（482-490）；返回 `branch`（497 行注释：交付落在会话分支，Local 未写） |
+| `worktree_deliver` | 405-506 | **autoDeliver 关闭即拒绝**（451-453）；Working 或 Ready 均可；先 leave 后 finish（470-473）；失败回 `enterCheckout`（482-490）；返回 `branch`（496 行注释：交付落在会话分支，Local 未写） |
 | `worktree_cleanup` | 508-558 | `cleanup_retained` + CAS revision |
 | `worktree_prune_branches` | 560-628 | `git branch -d` 语义，dryRun 预览 |
 | `worktree_merge` | 630-692 | forward/reverse 合并，dryRun 试合并 |

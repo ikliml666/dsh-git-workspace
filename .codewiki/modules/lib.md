@@ -30,6 +30,7 @@ source_files:
   - lib/console-host/review-diff.js
   - lib/console-host/service.js
   - lib/console-remote/descriptors.js
+  - lib/console-remote/remote.d.ts
   - lib/console-remote/schemas.js
   - lib/creation-failure.js
   - lib/delivery-excludes.js
@@ -38,6 +39,7 @@ source_files:
   - lib/i18n/host.js
   - lib/i18n/host-messages.js
   - lib/managed-worktree-path.js
+  - lib/session-checkout-apply.d.ts
   - lib/session-checkout-apply.js
   - lib/session-target-context.js
   - lib/tools.js
@@ -107,7 +109,7 @@ tags: [dsh-git-worktree, git-worktree, plugin, adapters, session-checkout, conso
 | 成员 | 行号 | 用途 |
 | --- | --- | --- |
 | `SessionCheckoutError` | 4-15 | 领域错误类；字段 `code`（稳定错误码）与继承的 `message`；构造器 10-14 置 `name='SessionCheckoutError'` |
-| `inject` | 46 | 插件注入清单 `{ tools:{}, commands:{}, subprocess:{}, loader:{await:false} }`；**必须具名导出**，否则首次 `ctx.tools` 访问抛 "cannot get property without inject"（原因见 40-45 注释） |
+| `inject` | 46 | 插件注入清单 `{ tools:{}, commands:{}, subprocess:{}, loader:{await:false} }`；**必须具名导出**，否则首次 `ctx.tools` 访问抛 "cannot get property without inject"（原因见 39-45 注释） |
 | `volatile(schema)` | 48-52 | 给 schemastery 字段打 `meta.volatile`：设置页编辑写 `cordis.patch.yml` 不重挂载，值以 live 引用到达 |
 | `Config` | 53-111 | 插件配置 schema（字段见下表） |
 | `resolveWorktreesRootValue` | 112-115 | `liveConfigValue(raw)?.trim()` → `resolve()`，空值返回 `undefined` |
@@ -141,12 +143,12 @@ tags: [dsh-git-worktree, git-worktree, plugin, adapters, session-checkout, conso
 - `GitCheckoutSnapshot`（52-59）：`root`、`commonDir`、`gitDir`、`branch`（null=detached）、`headOid`（可为 `'unborn'`）、`headRef`。
 - `DirectoryIdentity`（238-242）：`device`、`inode`、`birthtimeNs`（均为字符串化的 stat 值）——目录身份三元组，清理/隔离的 CAS 基础。
 - `SessionCheckoutLookupPort`（27-51）：`getSidebarMemberships?`、`getSession`、`getProject`、`getSessionCwd?`（40 行，owner 会话的实时 cwd，是授权证据，与 `getSession` 分离）、`listLiveSessions?`（46-50，分支竞态守卫数据源）。
-- `SessionCheckoutGitPort`（94-237）：`inspect`、`findContainingWorktreeRoot`、`status`、`createDetachedWorktree`、`attachWorktreeBranch?`（118，CAS 语义：`expectedOldOid` 为 null 时仅当分支不存在才创建）、`removeWorktree`、`retain/releaseApplyBase`、`retainInternalArtifact`/`readInternalArtifact`/`releaseInternalArtifacts`、`isAncestor`，以及大量「Local adaptation」可选方法（`pushBranch?`、`repairWorktreeLinks?`、`pruneWorktrees?`、`branchOverview?`、`defaultBranch?`、`branchTipTimes?`、`branchCreationTimes?`、`deleteLocalBranch?`、`mergeLocalBranch?`、`graphLog?`、`createLocalBranch?`、`switchLocalBranch?`、标签四件套、`captureLocalWip?`/`applyWorktreePatch?`/`listUntrackedFiles?`、`snapshotAbandonedWorktree?`/`restoreAbandonedSnapshot?`、`preflightInitialCommit?`/`initializeEmptyRepository?`/`initializeProject?`、`listWorktreeincludeFiles?`）。
+- `SessionCheckoutGitPort`（94-237）：`inspect`、`findContainingWorktreeRoot`、`status`、`createDetachedWorktree`、`attachWorktreeBranch?`（118，CAS 语义：`expectedOldOid` 为 null 时仅当分支不存在才创建）、`removeWorktree`、`retain/releaseApplyBase`、`retainInternalArtifact`/`readInternalArtifact`/`releaseInternalArtifacts`、`isAncestor`，以及大量「Local adaptation」可选方法（`pushBranch?`、`repairWorktreeLinks?`、`pruneWorktrees?`、`branchOverview?`、`defaultBranch?`、`branchTipTimes?`、`branchCreationTimes?`、`deleteLocalBranch?`、`mergeLocalBranch?`、`graphLog?`、`createLocalBranch?`、`switchLocalBranch?`、标签五件套、`captureLocalWip?`/`applyWorktreePatch?`/`listUntrackedFiles?`、`snapshotAbandonedWorktree?`/`restoreAbandonedSnapshot?`、`preflightInitialCommit?`/`initializeEmptyRepository?`/`initializeProject?`、`listWorktreeincludeFiles?`）。
 - `SessionCheckoutFilesPort`（243-260）：`exists`、`canonicalize`、`inspectDirectoryIdentity`、`ensureDirectory`、`removeEmptyDirectoryTree`、`quarantineDirectoryTree`、`removeDirectoryTree`、`measureDirectoryBytes`、`readTextFile?`、`copyFile?`、`isSymbolicLink?`。
 - `WorktreeCreationEvidence`（276-288）：`root`、`rootIdentity`、`parentIdentity`、`commonDir`、`commonIdentity`、`lockReason`、`gitDir?`、`gitIdentity?`、`metadataFingerprint?`、`indexFingerprint?`、`quarantinePath?`。
-- `ManagedCheckoutJournal`（289-323）：create 日志（`operation:'create'`，step `creating_worktree`，带 `creation?: WorktreeCreationEvidence`，294-296）与 mutation 日志（`operation: 'apply'|'preview'|'checkpoint'|'rollback_preview'|'finish'|'finalize_preview'|'cleanup'`，step 七选一，`baseOid/planRevision/previewId/reviewId/…/resumeRevision/changedFiles` 等，297-322）。
+- `ManagedCheckoutJournal`（289-323）：create 日志（`operation:'create'`，step `creating_worktree`，带 `creation?: WorktreeCreationEvidence`，289-293）与 mutation 日志（`operation: 'apply'|'preview'|'checkpoint'|'rollback_preview'|'finish'|'finalize_preview'|'cleanup'`，step 七选一，`baseOid/planRevision/previewId/reviewId/…/resumeRevision/changedFiles` 等，294-322）。
 - `ManagedCheckoutDelivery`（426-471，7 个状态判别联合）：`working{iteration}`；`ready_for_review{review}`；`preview_active{review, preview}`；`preview_detached{review, preview, detachedAt, reason:'stale_local'|'preview_modified', attemptedAction}`；`finalized{review, commitOid, proof?, isolatedFingerprint, finalizedAt, cleanup:'pending'|'blocked', cleanupMessage?}`；`retained{…, retention, retainedAt, expiresAt, cleanup:'scheduled'|'blocked'}`；`delivered{iteration, commitOid, proof?, deliveredAt}`。
-- `ManagedCheckoutRecord`（472-525）字段：`checkoutId`(473)、`predecessorCheckoutId?`(474)、`projectId`/`projectName`(476-477)、`ownerSessionId`(478)、`sourceSessionId?`(479)、`localRoot`(481)、`managedRoot`(483)、`managedGitRoot`(485)、`gitCommonDir`/`gitDir`(487-488)、`baseOid`(489)、`applyBaseOid?`(490)、`previousReview?`(492)、`checkpoints?`(494)、`recoveryContinuation?`(496)、`abandonedSnapshotOid?`/`abandonedSnapshotAt?`(498-499)、`permanent?`(501)、`sidebarBadgeClearedRevision?`(503)、`sourceRef`(505)、`sessionBranch?`(506-513)、`sessionTopic?`(514-520)、`phase`(521)、`delivery`(522)、`journal`(523)、`revision`(524)。
+- `ManagedCheckoutRecord`（472-525）字段：`checkoutId`(473)、`predecessorCheckoutId?`(475)、`projectId`/`projectName`(476-477)、`ownerSessionId`(478)、`sourceSessionId?`(480)、`localRoot`(482)、`managedRoot`(484)、`managedGitRoot`(486)、`gitCommonDir`/`gitDir`(487-488)、`baseOid`(489)、`applyBaseOid?`(491)、`previousReview?`(493)、`checkpoints?`(495)、`recoveryContinuation?`(497)、`abandonedSnapshotOid?`/`abandonedSnapshotAt?`(499-500)、`permanent?`(502)、`sidebarBadgeClearedRevision?`(504)、`sourceRef`(505)、`sessionBranch?`(506-513)、`sessionTopic?`(514-520)、`phase`(521)、`delivery`(522)、`journal`(523)、`revision`(524)。
 - `ManagedCheckoutsRegistry`（526-531）：`version:2`、`revision`、`sessionBindings: Record<string, SessionBindingRecord>`（SessionBindingRecord 定义在 261-271：`sessionId/projectId/projectName/target/ownerSessionId/inheritedFromSessionId?/sourceRef/sourceOid/revision`）、`managedCheckouts: Record<string, ManagedCheckoutRecord>`。
 - `LiveValue<T>`（537-539）：`{ get(): T }`。
 
@@ -224,7 +226,7 @@ tags: [dsh-git-worktree, git-worktree, plugin, adapters, session-checkout, conso
 `initialCommitActions(inspect, run)`（7-133）返回三个动作；内部助手：`checked`（9-14）、`identity`（15-20，`dev:ino:birthtimeNs[:mtimeNs:ctimeNs]`）、`indexBytes`（21-30）。
 
 - `preflightInitialCommit(root)`（31-52）：快照非 unborn→`ready`；目录枚举**刻意不忽略任何 pattern**（38-39 注释：ignored/符号链接/嵌套仓库/空目录都需用户显式决策）→有文件即 `files`；否则对 `{snapshot, rootIdentity, canonicalIdentity, gitIdentity, commonIdentity, head, headIdentity, index, files}` 做 sha256 指纹→`empty`。
-- `initializeEmptyRepository(root, fingerprint, assertAuthorized?)`（53-113）：三段式预检（before/current/latest，55/65/77）；`index.lock` 独占创建（61-64，`wx`）；`mktree` 空 stdin 建空树（75）；`commit-tree` 建初始提交（76）；`update-ref --stdin` 事务里 CAS 更新 unborn HEAD，`beforeCommit` 回调在锁下再次预检（83-94）；`EEXIST`→`initialRepositoryBusy`（98-100）；finally 逆序清理**只清理自己创建的锁**（103-112）。
+- `initializeEmptyRepository(root, fingerprint, assertAuthorized?)`（53-113）：三段式预检（before/current/latest，54/65/77）；`index.lock` 独占创建（61-64，`wx`）；`mktree` 空 stdin 建空树（75）；`commit-tree` 建初始提交（76）；`update-ref --stdin` 事务里 CAS 更新 unborn HEAD，`beforeCommit` 回调在锁下再次预检（83-94）；`EEXIST`→`initialRepositoryBusy`（98-100）；finally 逆序清理**只清理自己创建的锁**（103-112）。
 - `initializeProject(root)`（117-131）：本地适配——非 Git/未出生仓库经用户确认变为有首次提交的仓库；`init -b main`（不写 config，123-124）、`add -A`、`commit`；已有提交的仓库拒绝（119-121）。
 
 #### `lookup.js` — 会话/项目→Workspace 映射
@@ -263,7 +265,7 @@ tags: [dsh-git-worktree, git-worktree, plugin, adapters, session-checkout, conso
 
 #### `working-directory.js` — 会话 cwd 端口
 
-`createSessionWorkingDirectoryPort(ctx)`（28-75）：动态探测宿主 `workingDirectory` 服务（29-36，无服务注册表的插件 Context 视同未挂载）；`current`（38-49）、`enter`（50-57，无服务/无 live Agent 返回 `undefined`——**调用方不得在 undefined 时声称已切换 cwd**，53-54 注释）、`leave`（58-73，仅当当前 cwd 在 `path` 内才搬回 fallback）。`isWithin`（77-85）跨平台包含判定。
+`createSessionWorkingDirectoryPort(ctx)`（28-75）：动态探测宿主 `workingDirectory` 服务（29-36，无服务注册表的插件 Context 视同未挂载）；`current`（38-49）、`enter`（50-57，无服务/无 live Agent 返回 `undefined`——**调用方不得在 undefined 时声称已切换 cwd**，52-53 注释）、`leave`（58-73，仅当当前 cwd 在 `path` 内才搬回 fallback）。`isWithin`（77-85）跨平台包含判定。
 
 #### `worktree-creation.js` — 创建与失败回滚（最敏感的安全代码）
 
@@ -353,14 +355,14 @@ tags: [dsh-git-worktree, git-worktree, plugin, adapters, session-checkout, conso
 
 #### `console-contract.*` — JSON-only 共享契约
 
-运行时（`console-contract.js`）：`WORKTREE_CONSOLE_TARGET_STATES`（11-23，11 态）、`worktreeReachedDelivery`（30-36，delivered/finalized/retained 或终态 phase）、`consoleStateFromDomain`（38-63，**discarded phase 压过 retained/finalized 标签**，47-50 注释）、`WORKTREE_CONSOLE_ERROR_CODES`（64-69 = 29 领域码 + 3 传输码）、`ERROR_META`（70-103，每个码的 `category/recovery/retryable`）、`worktreeConsoleErrorMeta`（104-106）。
+运行时（`console-contract.js`）：`WORKTREE_CONSOLE_TARGET_STATES`（11-23，11 态）、`worktreeReachedDelivery`（30-36，delivered/finalized/retained 或终态 phase）、`consoleStateFromDomain`（38-63，**discarded phase 压过 retained/finalized 标签**，47-49 注释）、`WORKTREE_CONSOLE_ERROR_CODES`（64-69 = 29 领域码 + 3 传输码）、`ERROR_META`（70-103，每个码的 `category/recovery/retryable`）、`worktreeConsoleErrorMeta`（104-106）。
 
-类型（`console-contract.d.ts`）：`WorktreeConsoleCapabilities`（33-59，16 个能力位含 `returnToLocal`）；`WorktreeConsoleReviewSummary`（67-78）；`WorktreeConsoleTargetSummary`（80-110，路径无关行：`project/checkoutId?/sourceSessionId/ownerSessionId/targetSessionId?/iteration/revision/state/phase/dirty/currentOid/commitOid?/sourceBranch/retention?/retainedAt?/expiresAt?/permanent?/cleanupMessage?/deliveryProof?/review?/checkpoints?/checkpointGeneration?/reviewSlot?/reviewSlotOwnerSessionId?/reviewSlotHolder?/previewRecovery?/capabilities`）；`WorktreeConsoleTargetDetails`（112-125，追加 `managedRoot/sourceRoot/sourceOid/currentBranch/recoveryContinuation?`）；错误与恢复凭证（480-546，`WorktreeApplyConflictContinuation` 484-495、四种 proof 496-532、`WorktreeConsoleOutcome` 540-546）；`WorktreeConsoleAdapter`（554-600，Client 侧规范化接口，40+ 方法）。
+类型（`console-contract.d.ts`）：`WorktreeConsoleCapabilities`（33-59，16 个能力位含 `returnToLocal`）；`WorktreeConsoleReviewSummary`（67-78）；`WorktreeConsoleTargetSummary`（80-110，路径无关行：`project/checkoutId?/sourceSessionId/ownerSessionId/targetSessionId?/iteration/revision/state/phase/dirty/currentOid/commitOid?/sourceBranch/retention?/retainedAt?/expiresAt?/permanent?/cleanupMessage?/deliveryProof?/review?/checkpoints?/checkpointGeneration?/reviewSlot?/reviewSlotOwnerSessionId?/reviewSlotHolder?/previewRecovery?/capabilities`）；`WorktreeConsoleTargetDetails`（112-125，追加 `managedRoot/sourceRoot/sourceOid/currentBranch/recoveryContinuation?`）；错误与恢复凭证（480-546，`WorktreeApplyConflictContinuation` 484-495、四种 proof 496-532、`WorktreeConsoleOutcome` 540-546）；`WorktreeConsoleAdapter`（554-600，Client 侧规范化接口，38 个方法）。
 
 #### `console-host/` — 宿主 RPC 实现
 
 - `errors.js`：`domainError`（3-5，Error + code + continuation）、`consoleFailure`（6-32，领域错误透传，否则折叠为 `git_error`；**第三方错误文案本地原样透出**，21-24 注释）、`failure`（33-43）、`outcome`（44-51，try/catch 包裹器）。
-- `projection.js`：`capabilities(record, callerSessionId, ownerSessionAvailable, linkedRead)`（47-85，owner/source/linkedRead 三类授权矩阵）；`sourceBranchFromRef`（91-93）；`projectRecord`（94-152，`sessionBranch ?? sourceRef`——会话自有分支优先于 fork 点，113-116 注释）；`projectDetails`（153-221，含 `currentBranch` 的已交付例外：交付后 chip 必须显示用户实际所在分支，170-177 注释）；`projectLocal`（222-260）。
+- `projection.js`：`capabilities(record, callerSessionId, ownerSessionAvailable, linkedRead)`（47-85，owner/source/linkedRead 三类授权矩阵）；`sourceBranchFromRef`（91-93）；`projectRecord`（94-152，`sessionBranch ?? sourceRef`——会话自有分支优先于 fork 点，113-116 注释）；`projectDetails`（153-221，含 `currentBranch` 的已交付例外：交付后 chip 必须显示用户实际所在分支，170-176 注释）；`projectLocal`（222-260）。
 - `control-plane.js`：`createWorktreeConsoleControlPlane(options)`（92-1366）。关键内部：`verifyCallerRoot`（130-206，owner 的 live cwd = immutable worktree 根、已交付 settled 态回落 Local 边界、canonicalize 带 memo 154-162）；`authorize`（207-227，owner/source + 项目匹配 + 根校验 + 可见性）；`linkedReadAccess`（228-277，验收槽位持有者的精确读授权）；`observeFromCaller`（314-335，复用 `current` 已付的 3 次 spawn，296-313 注释）；`settledLocalBranch`（361-387）；`acceptanceHolder`/`projectReviewSlot`（391-419）；创建互斥 `withCreation`（505-526，session + root 双键）。全部端点（行号）：`sidebarTopology` 543-602、`current` 603-610、`gitOverview` 611-625、`gitGraph` 626-632、`gitCreateBranch` 633-639、`gitSwitchBranch` 640-656（交付中拒绝切分支 642-651）、`gitPruneMergedBranches` 657-659、`gitListTags` 660-668、`gitCreateTag` 669-682、`gitDeleteTag` 683-699（先远端后本地，685-686 注释）、`gitPushTag` 700-710、`listAbandoned` 711-713、`restoreAbandoned` 714-718、`list` 719-797（批量观察 746-757 + 逐条降级 770-778）、`preflightCreate` 798-817（empty 确认令牌 5 分钟/500 上限 809-815）、`createWithInitialCommit` 818-837、`create` 838、`initProject` 839-844、`inspect` 845、`reviewDiff` 846-889（读前后双重 preflight + 指纹比对 856-881）、`preflight` 890-903、`previewRecoveryPreflight` 904-919、`preparePreviewRecoveryAnalysis` 920-943、`createPreviewRecoveryHandoff` 944-977、`checkpoint` 978-1007、`preview` 1008-1031、`resumeRevision` 1032-1086（冲突恢复请求的严格身份校验 1042-1050）、`prepareReviewRegeneration` 1087-1108、`rollbackPreview` 1109-1129、`discard` 1130-1160、`finalize` 1161-1201、`finalizePreview` 1202-1248、`setRetention` 1249-1258、`setPermanent` 1259-1268、`retryCleanup` 1269-1277、`clearSidebarBadge` 1278-1290、`beginNextIteration` 1291-1330、`returnToLocal` 1341-1364（仅已交付记录可解绑，1331-1340 注释）。
 - `review-diff.js`：常量 `REVIEW_DIFF_MAX_FILES=200`/`REVIEW_DIFF_MAX_PATCH_BYTES=100KiB`/`REVIEW_DIFF_MAX_PAYLOAD_BYTES=1MiB`（7-9）；`ReviewDiffStaleError`（10-15）；`createGitWorktreeReviewDiffReader(projectSkills?)`（101-211）：临时 object directory + `GIT_INDEX_FILE` 隔离环境（111-119）→`read-tree`+`add -A`→移除携带 Skills 的路径（121-140）→name-status 与 `expected` changedFiles 严格比对（148-151）→**按批 8 文件并行取证**（155-171，逐文件 2 spawn 串行最坏 400 次会顶爆 SLOW 180s，155-156 注释）→payload 预算折叠（180-198）；`parseNameStatus`（70-94，R/C 折叠为 renamed，78-80 注释）。
 - `service.js`：`WorktreeConsoleService extends TypertRemoteService`（40-316，全部方法挂 `@Remote` 装饰器，81-115）。字段 `hostContext/controlPlane/diagFile/officialWorkspaceActive`（153-156）；`appendDiag`（167-174，ndjson 面包屑，绝不破坏 RPC）；`sidebarTopology`（175-187，注入 `workspaceClientFlavor`/`officialWorkspaceActive`）；`clientBootReport`（188-191）；`current`（192-205，**计时并记录失败 code/message 到 diag**，193-198 注释）；其余 30+ 方法（`list` 206-208、`preflightCreate` 209-211、`createWithInitialCommit` 212-214、`create` 215-217、`initProject` 218-220、`inspect` 221-223、`reviewDiff` 224-226、`preflight` 227-229、`previewRecoveryPreflight` 230-234、`preparePreviewRecoveryAnalysis` 235-239、`createPreviewRecoveryHandoff` 240-244、`preview` 245-247、`checkpoint` 248-252、`prepareReviewRegeneration` 253-255、`resumeRevision` 256-260、`rollbackPreview` 261-263、`discard` 264-266、`finalize` 267-269、`finalizePreview` 270-274、`setRetention` 275-277、`setPermanent` 278-280、`retryCleanup` 281-283、`beginNextIteration` 284-286、`returnToLocal` 287-289、`clearSidebarBadge` 290-292、`gitOverview` 293-295、`gitGraph` 296-298、`gitCreateBranch` 299-301、`gitSwitchBranch` 302-304、`gitPruneMergedBranches` 305-307、`listAbandoned` 308-310、`restoreAbandoned` 311-313）均为同一模式：`withHostLanguage(locale ?? languageFromSettings(agent.ctx))` 包裹 controlPlane 调用。
@@ -368,7 +370,7 @@ tags: [dsh-git-worktree, git-worktree, plugin, adapters, session-checkout, conso
 #### `console-remote/` — strict zod 契约与描述符
 
 - `schemas.js`：基础 schema（`sessionIdSchema` 5、`checkoutIdSchema` 6、`commitMessageSchema` 8、`oidSchema` 11-15、`branchNameSchema` 19-21 等）；`capabilitiesSchema`（54-76）——`returnToLocal` 用 `.default(false)` 而非 `optional()`（70-75 注释：**新增能力位缺失不得让整条 `current` 校验失败**）；`targetSummarySchema`（92-125）、`targetDetailsSchema`（174-180）、`consoleErrorSchema`（187-196，continuation 仅允许 `apply_conflict`，192-195）、`outcomeSchema`（197-202）、`preflightSchema`（269-282）、`previewRecoveryProofSchema`（311-328）等全部响应 schema。
-- `descriptors.js`：`strictCodec`（7-11，DSH 0.2 走 `create()`，保留 legacy `schema` 字段）、`agentParameter`（12-18）、`json`（19-27）、`descriptor`（28-38）；`WORKTREE_CONSOLE_DESCRIPTORS`（39-191，40 个方法的参数/结果 strict 编码）；`WORKTREE_CONSOLE_REMOTE`（192-195）。
+- `descriptors.js`：`strictCodec`（7-11，DSH 0.2 走 `create()`，保留 legacy `schema` 字段）、`agentParameter`（12-18）、`json`（19-27）、`descriptor`（28-38）；`WORKTREE_CONSOLE_DESCRIPTORS`（39-191，39 个方法的参数/结果 strict 编码）；`WORKTREE_CONSOLE_REMOTE`（192-195）。
 - `remote.d.ts`：`TypertRemoteMap` 对 `gitWorktree/*` 全部方法的线类型声明。
 
 #### `host-compat.js`
@@ -466,7 +468,7 @@ tags: [dsh-git-worktree, git-worktree, plugin, adapters, session-checkout, conso
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-分层约束：领域引擎只依赖 `ports`（宿主无关）；适配器把 DSH/Cordis 特性（`ctx.subprocess`、`workspaceRegistry`、volatile 配置）挡在端口后面；console-contract 是 Host/Client 唯一共享面（`console-contract.d.ts:118-126` 明示不含 Cordis/React/Remote/文件系统实现）。
+分层约束：领域引擎只依赖 `ports`（宿主无关）；适配器把 DSH/Cordis 特性（`ctx.subprocess`、`workspaceRegistry`、volatile 配置）挡在端口后面；console-contract 是 Host/Client 唯一共享面（`console-contract.d.ts:118-119` 明示不含 Cordis/React/Remote/文件系统实现）。
 
 ## Data Flow
 
@@ -516,7 +518,7 @@ Client `invoke`（`adapter.js:51-85`）→ `remote.gitWorktree.<method>` → 宿
 ## Known Issues
 
 1. **safe-file 无跨进程锁**：`lib/adapters/safe-file.js:76-77`（ponytail 注释）——唯一 tmp + 原子 rename 已消除「tmp 互踩」与「半写提升」，但文件级 last-writer-wins 仍在；需要强一致时才引入 lock 文件。
-2. **apply 路径 git 超时 30s**：`lib/session-checkout-apply.js:37-39`——与 `git.ts` 的 120s 默认不同，apply 命令假定很短，可用 `options.timeoutMs` 覆盖。
+2. **apply 路径 git 超时 30s**：`lib/session-checkout-apply.js:37-39`——与 `git-options.js` 的 120s 默认不同，apply 命令假定很短，可用 `options.timeoutMs` 覆盖。
 3. **禁 hooks 临时目录不清理**：`lib/session-checkout-apply.js:29-36`——模块级懒创建的 `dsh-disabled-git-hooks-*` mkdtemp 目录从不删除。
 4. **plans Map 单槽**：`lib/session-checkout-apply.js:1053-1059`——同一 isolated checkout 的新 plan 会顶替旧的，防止 Map 随重复计算增长。
 5. **第三方错误文案泄漏天花板**：`lib/console-host/errors.js:21-24`——本地 Console 故意原样透出第三方错误便于排查（有测试锚定）；一旦出现远程传输必须先脱敏。
@@ -528,7 +530,7 @@ Client `invoke`（`adapter.js:51-85`）→ `remote.gitWorktree.<method>` → 宿
 11. **设置页为自包含裁剪版**：`lib/client/settings-card/form-model.js:3-18`——harness `dsh-client-ui-primitives` 的 settings-form 模块晚于本插件，故裁剪自带；staged 文本只在自己保存时写入，overridden 以 user 层存在性判定。
 12. **客户端 inject 清单的兼容性剔除**：`lib/client/console-remote/index.js:18-31` 与 40-44——`remote.directoryPicker`/`remoteAccess` 必须从注入中剔除（否则 web 启动死锁或 rc.2 永久 pending "waiting for service"），`slots`/`configForms` 必须显式声明（否则 `ctx.get` 永远 undefined，设置卡静默不挂载）。
 13. **Workspace 选举的历史事故与 Loader 1.0.6 怪癖**：`lib/workspace-provider-lifecycle.js:19-42`（2026-10-17 两次崩溃源于客户端求值的 `!!js` disabled 表达式在两个不同步时刻结果相反）；`entry.update()` 不等待 dispose（116-121 注释）；`fiber.await()` 会在保留的失败 transition 上自旋（202-208 与 229-233 注释，2026-10-24 Windows 实测）。
-14. **`inject` 必须具名导出**：`lib/index.js:40-45`——裸函数导出会无注入清单，首次 `ctx.tools` 访问直接报 "cannot get property without inject"。
+14. **`inject` 必须具名导出**：`lib/index.js:39-45`——裸函数导出会无注入清单，首次 `ctx.tools` 访问直接报 "cannot get property without inject"。
 15. **未提供的能力位必须缺省 false**：`lib/console-remote/schemas.js:70-75`——Client 与 Host 独立部署，旧 Host 不知道新键；写成必填会让整条 `current` payload 校验失败、胶囊塌成「不可用」。
 16. **`gitOverview` 不预取**：`lib/client/target-console/TargetStatusAction.js:117-124`——胶囊对每个会话都挂载，而 `gitOverview` 需 3 次 git spawn；分支列表仅在首次展开弹出层时拉取。
 17. **tag pushed 三态**：`lib/console-remote/schemas.js:394-402` 与 `lib/adapters/git.js:604-606`——`pushed: null`（远端不可查）不得被强转为 false 误报「未推送」。

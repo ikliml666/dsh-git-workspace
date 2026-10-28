@@ -1,9 +1,9 @@
 {
   "version": 1,
-  "jobId": "job-mvryaeas-0",
+  "jobId": "job-mvs0yndw-2",
   "scope": "auto",
-  "startedAt": "2026-10-28T10:07:21.316Z",
-  "finishedAt": "2026-10-28T12:02:28.296Z",
+  "startedAt": "2026-10-28T11:22:12.068Z",
+  "finishedAt": "2026-10-28T14:49:33.917Z",
   "baseCommit": null,
   "headCommit": null,
   "changeSet": null,
@@ -12,51 +12,47 @@
     {
       "name": "modules/scripts.md",
       "ok": false,
-      "stopReason": "error",
-      "error": null
-    },
-    {
-      "name": "modules/root.md",
-      "ok": false,
-      "stopReason": "error",
-      "error": null
-    },
-    {
-      "name": "modules/src.md",
-      "ok": true,
-      "stopReason": "completed",
+      "stopReason": "stream-error",
       "error": null
     },
     {
       "name": "modules/lib.md",
       "ok": true,
-      "stopReason": "completed",
+      "stopReason": "stream-error",
+      "error": null
+    },
+    {
+      "name": "modules/root.md",
+      "ok": false,
+      "stopReason": "stream-error",
       "error": null
     },
     {
       "name": "modules/tests.md",
       "ok": true,
-      "stopReason": "completed",
+      "stopReason": "stream-error",
+      "error": null
+    },
+    {
+      "name": "modules/src.md",
+      "ok": true,
+      "stopReason": "stream-error",
       "error": null
     },
     {
       "name": "_patterns.md",
-      "ok": true,
-      "stopReason": "completed",
+      "ok": false,
+      "stopReason": "error",
       "error": null
     },
     {
       "name": "_architecture.md",
-      "ok": true,
-      "stopReason": "completed",
+      "ok": false,
+      "stopReason": "error",
       "error": null
     }
   ],
   "qualityIssues": [
-    {
-      "name": "modules/console_host.md",
-      "issue": "存量文章未过契约：必需章节 Overview 是空的；必需章节 Key Components 是空的"
-    },
     {
       "name": "learnings/schemastery-volatile-protocol-fork.md",
       "issue": "存量文章未过契约：模型输出缺 frontmatter"
@@ -71,17 +67,22 @@
     {
       "kind": "article-failed",
       "name": "modules/scripts.md",
-      "detail": "error"
+      "detail": "stream-error"
     },
     {
       "kind": "article-failed",
       "name": "modules/root.md",
+      "detail": "stream-error"
+    },
+    {
+      "kind": "article-failed",
+      "name": "_patterns.md",
       "detail": "error"
     },
     {
-      "kind": "quality",
-      "name": "modules/console_host.md",
-      "detail": "存量文章未过契约：必需章节 Overview 是空的；必需章节 Key Components 是空的"
+      "kind": "article-failed",
+      "name": "_architecture.md",
+      "detail": "error"
     },
     {
       "kind": "quality",
@@ -95,26 +96,26 @@
     }
   ],
   "canAdvanceBaseline": false,
-  "writtenCount": 5,
-  "failedCount": 2,
+  "writtenCount": 3,
+  "failedCount": 4,
   "notes": [
-    "modules/scripts.md 请求失败 —— llm 通道失败（error，QUOTA）：429: {\"message\":\"workbuddy 上游失败：被限流（http 429）：池中已无可用账号（4 个账号被限流、1 个账号不可用）（code 6000，requestId 9443c94e-aaa7-4953-8a66-ce7b69e18632）。您的使用量已超出频率限制，将在 2026-10-28 23:27:59 UTC+8 重置，您也可以切换其他模型继续使用。建议换一个模型继续，或稍后等待该账号的额度恢复\",\"type\":\"soft_rate\",\"code\":\"quota_exceeded\"}",
-    "modules/root.md 请求失败 —— llm 通道失败（error，QUOTA）：429: {\"message\":\"workbuddy 上游失败：被限流（http 429）：池中已无可用账号（4 个账号被限流、1 个账号不可用）（code 6000，requestId fe5066a8-e402-4c8a-a95c-d46af5a8bf0e）。您的使用量已超出频率限制，将在 2026-10-28 23:27:59 UTC+8 重置，您也可以切换其他模型继续使用。建议换一个模型继续，或稍后等待该账号的额度恢复\",\"type\":\"soft_rate\",\"code\":\"quota_exceeded\"}",
-    "文章 modules/lib.md 自动修正 3 处行号锚点",
-    "文章 modules/lib.md 行号锚点存疑（未改）：lib/console-host/control-plane.js:1008-1031 符号未找到未改；lib/client/console-remote/adapter.js:79-84 符号未找到未改",
-    "文章 modules/tests.md 自动修正 2 处行号锚点",
-    "文章 modules/tests.md 行号锚点存疑（未改）：tests/git-creation-lifecycle.test.ts:13 符号歧义未改；tests/console-host.test.ts:28 符号歧义未改",
+    "规划：模块 src 下钻失败：llm 通道失败（error，QUOTA）：429: {\"message\":\"workbuddy 上游失败：被限流（http 429）：池中已无可用账号（1 个账号不可用、4 个账号被限流）（code 6000，requestId fb97dbe4-a30b-4f3a-92a5-50666eadb05e）。您的使用量已",
+    "规划：模块 tests 下钻失败：llm 通道失败（error，QUOTA）：429: {\"message\":\"workbuddy 上游失败：被限流（http 429）：池中已无可用账号（1 个账号不可用、4 个账号被限流）（code 6000，requestId 34c17db9-61da-49c9-a0de-e077801a2b7e）。您的使用量已",
+    "规划：5 个模块（AST 符号聚类：2675 个组件、4 次模型请求、4 次降级、3s）",
+    "阶段已启动：5 篇 agentic 写作（模型 workbuddy/hy3，并发 6，单篇≤30 步）",
+    "modules/scripts.md agentic 写作未产出正文（stream-error）",
+    "modules/root.md agentic 写作未产出正文（stream-error）",
     "阶段已启动：2 个请求（模型 workbuddy/hy3，并发 6）",
     "横切批次已提交：_architecture/_patterns + 0 个概念",
-    "5 个请求输入超单请求预算（110k），按大档装填",
-    "阶段已启动：5 个请求（模型 workbuddy/hy3 + 大档 volces-ark/glm-5.3-flash（5 个），并发 6 + 大档 2）",
-    "校对批次已提交：5 篇合并为 5 个请求",
-    "proof-batch-2 请求失败 —— llm 通道失败（error，PI_AI_ERROR）：{\"error\":{\"code\":\"InternalServiceError\",\"message\":\"The service encountered an unexpected internal error. Request id: 021793187365225f47b3ae95ec9e82c79e9e226fe2407f93828f9\",\"param\":\"\",\"type\":\"InternalServerError\"},\"type\":\"error\"}",
-    "modules/tests.md：行号锚点存疑（未改）—— tests/git-creation-lifecycle.test.ts:13 符号歧义未改；tests/console-host.test.ts:28 符号歧义未改",
-    "modules/lib.md：批量校对输出缺席，保留原文",
-    "存量文章体检：3 篇未过契约（modules/console_host.md、learnings/schemastery-volatile-protocol-fork.md、learnings/workspace-takeover-truth-report.md）",
-    "完整性未成立（部分完成（5 项未满足：error））—— error；error；存量文章未过契约：必需章节 Overview 是空的；必需章节 Key Components 是空的",
-    "清理孤儿模块文章 9 篇（模块划分已变，旧文件无人重写）—— adapters.md、client_console_remote.md、client_core.md、client_pre_session.md、client_review_console.md 等",
+    "_patterns.md 请求失败 —— llm 通道失败（error，QUOTA）：429: {\"message\":\"workbuddy 上游失败：被限流（http 429）：池中已无可用账号（1 个账号不可用、4 个账号被限流）（code 6000，requestId f49558d2-d6a7-491c-80c3-33bce52c32cb）。您的使用量已超出频率限制，将在 2026-10-28 23:27:59 UTC+8 重置，您也可以切换其他模型继续使用。建议换一个模型继续，或稍后等待该账号的额度恢复\",\"type\":\"soft_rate\",\"code\":\"quota_exceeded\"}",
+    "_architecture.md 请求失败 —— llm 通道失败（error，QUOTA）：429: {\"message\":\"workbuddy 上游失败：被限流（http 429）：池中已无可用账号（1 个账号不可用、4 个账号被限流）（code 6000，requestId cc62a6cb-a2cf-4055-bb28-af1bd99c7c8f）。您的使用量已超出频率限制，将在 2026-10-28 23:27:59 UTC+8 重置，您也可以切换其他模型继续使用。建议换一个模型继续，或稍后等待该账号的额度恢复\",\"type\":\"soft_rate\",\"code\":\"quota_exceeded\"}",
+    "3 个请求输入超单请求预算（110k），按大档装填",
+    "阶段已启动：3 个请求（模型 workbuddy/hy3 + 大档 volces-ark/glm-5.3-flash（3 个），并发 6 + 大档 2）",
+    "校对批次已提交：3 篇合并为 3 个请求",
+    "modules/lib.md：自动修正 2 处行号锚点",
+    "modules/lib.md：行号锚点存疑（未改）—— lib/console-host/control-plane.js:1008-1031 符号未找到未改；lib/client/console-remote/adapter.js:79-84 符号未找到未改",
+    "存量文章体检：2 篇未过契约（learnings/schemastery-volatile-protocol-fork.md、learnings/workspace-takeover-truth-report.md）",
+    "完整性未成立（部分完成（6 项未满足：stream-error））—— stream-error；stream-error；error",
     "cw index exit 0",
     "编译基线未推进（完整性未成立：未消化的变化下次编译仍会被看见）",
     "符号快照无变化（2675 个组件），跳过写入"
