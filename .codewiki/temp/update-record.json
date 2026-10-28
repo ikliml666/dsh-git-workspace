@@ -1,14 +1,26 @@
 {
   "version": 1,
-  "jobId": "job-mvruwhqr-2",
+  "jobId": "job-mvrv14z3-0",
   "scope": "auto",
-  "startedAt": "2026-10-28T08:32:33.747Z",
-  "finishedAt": "2026-10-28T09:22:45.575Z",
+  "startedAt": "2026-10-28T08:36:10.480Z",
+  "finishedAt": "2026-10-28T09:50:37.620Z",
   "baseCommit": null,
   "headCommit": null,
   "changeSet": null,
   "plan": null,
   "results": [
+    {
+      "name": "modules/tests.md",
+      "ok": true,
+      "stopReason": "stream-error",
+      "error": null
+    },
+    {
+      "name": "modules/lib.md",
+      "ok": true,
+      "stopReason": "stream-error",
+      "error": null
+    },
     {
       "name": "modules/root.md",
       "ok": false,
@@ -23,18 +35,6 @@
     },
     {
       "name": "modules/src.md",
-      "ok": false,
-      "stopReason": "contract",
-      "error": null
-    },
-    {
-      "name": "modules/lib.md",
-      "ok": true,
-      "stopReason": "completed",
-      "error": null
-    },
-    {
-      "name": "modules/tests.md",
       "ok": true,
       "stopReason": "completed",
       "error": null
@@ -53,18 +53,6 @@
     }
   ],
   "qualityIssues": [
-    {
-      "name": "modules/console-host.md",
-      "issue": "存量文章未过契约：重复章节：Key Components、Architecture、Data Flow、Connections、Known Issues"
-    },
-    {
-      "name": "modules/session-checkout-module.md",
-      "issue": "存量文章未过契约：正文里又出现了一份 frontmatter（疑似重复贴头）；重复章节：Overview、Key Components、Architecture、Data Flow、Connections"
-    },
-    {
-      "name": "modules/target-console.md",
-      "issue": "存量文章未过契约：frontmatter 未闭合（缺结束 ---）"
-    },
     {
       "name": "learnings/schemastery-volatile-protocol-fork.md",
       "issue": "存量文章未过契约：模型输出缺 frontmatter"
@@ -88,11 +76,6 @@
     },
     {
       "kind": "article-failed",
-      "name": "modules/src.md",
-      "detail": "contract"
-    },
-    {
-      "kind": "article-failed",
       "name": "_patterns.md",
       "detail": "error"
     },
@@ -100,21 +83,6 @@
       "kind": "article-failed",
       "name": "_architecture.md",
       "detail": "error"
-    },
-    {
-      "kind": "quality",
-      "name": "modules/console-host.md",
-      "detail": "存量文章未过契约：重复章节：Key Components、Architecture、Data Flow、Connections、Known Issues"
-    },
-    {
-      "kind": "quality",
-      "name": "modules/session-checkout-module.md",
-      "detail": "存量文章未过契约：正文里又出现了一份 frontmatter（疑似重复贴头）；重复章节：Overview、Key Components、Architecture、Data Flow、Connections"
-    },
-    {
-      "kind": "quality",
-      "name": "modules/target-console.md",
-      "detail": "存量文章未过契约：frontmatter 未闭合（缺结束 ---）"
     },
     {
       "kind": "quality",
@@ -128,29 +96,29 @@
     }
   ],
   "canAdvanceBaseline": false,
-  "writtenCount": 2,
-  "failedCount": 5,
+  "writtenCount": 3,
+  "failedCount": 4,
   "notes": [
-    "文章 modules/src.md 未过契约闸门，不落盘 —— source_files 有 1 个不在本次读取的证据里：src/console-remote/adapter.ts；source_files 指向不存在的文件：src/console-remote/adapter.ts",
-    "文章 modules/lib.md 行号锚点存疑（未改）：lib/index.js:158-173 符号未找到未改；lib/types.d.ts:499 符号歧义未改；lib/types.d.ts:439-440 符号歧义未改 等",
-    "文章 modules/tests.md 自动修正 1 处行号锚点",
-    "文章 modules/tests.md 行号锚点存疑（未改）：tests/session-checkout-apply.test.ts:1225 符号歧义未改；tests/session-branch-delivery.test.ts:11 符号未找到未改；tests/client-bundle.test.ts:11-16 符号歧义未改",
+    "modules/root.md 请求失败 —— llm 通道失败（error，QUOTA）：429: {\"message\":\"workbuddy 上游失败：被限流（http 429）：池中已无可用账号（5 个账号被限流）（code 6000，requestId 2bc4b146-29cc-48fb-9e0f-add96045da60）。您的使用量已超出频率限制，将在 2026-10-28 20:03:42 UTC+8 重置，您也可以切换其他模型继续使用。建议换一个模型继续，或稍后等待该账号的额度恢复\",\"type\":\"soft_rate\",\"code\":\"quota_exceeded\"}",
+    "modules/scripts.md 请求失败 —— llm 通道失败（error，QUOTA）：429: {\"message\":\"workbuddy 上游失败：被限流（http 429）：池中已无可用账号（5 个账号被限流）（code 6000，requestId 5fe1e9df-1674-4a60-b4dd-8c18110e0cf6）。您的使用量已超出频率限制，将在 2026-10-28 20:03:42 UTC+8 重置，您也可以切换其他模型继续使用。建议换一个模型继续，或稍后等待该账号的额度恢复\",\"type\":\"soft_rate\",\"code\":\"quota_exceeded\"}",
+    "文章 modules/src.md 自动修正 3 处行号锚点",
+    "文章 modules/src.md 行号锚点存疑（未改）：src/index.ts:113-219 符号未找到未改；src/tools.ts:318 符号歧义未改；src/client/review-console/request-cache.ts:41 符号歧义未改 等",
     "阶段已启动：2 个请求（模型 workbuddy/hy3，并发 6）",
     "横切批次已提交：_architecture/_patterns + 0 个概念",
-    "_patterns.md 请求失败 —— llm 通道失败（error，QUOTA）：429: {\"message\":\"workbuddy 上游失败：被限流（http 429）：池中已无可用账号（5 个账号被限流）（code 6000，requestId 84f5ec0d-86ef-4802-a57d-b277dbcd586d）。您的使用量已超出频率限制，将在 2026-10-28 20:03:42 UTC+8 重置，您也可以切换其他模型继续使用。建议换一个模型继续，或稍后等待该账号的额度恢复\",\"type\":\"soft_rate\",\"code\":\"quota_exceeded\"}",
-    "_architecture.md 请求失败 —— llm 通道失败（error，QUOTA）：429: {\"message\":\"workbuddy 上游失败：被限流（http 429）：池中已无可用账号（5 个账号被限流）（code 6000，requestId c5520ba7-d966-43b3-8a8d-cc885be3e4b0）。您的使用量已超出频率限制，将在 2026-10-28 20:03:42 UTC+8 重置，您也可以切换其他模型继续使用。建议换一个模型继续，或稍后等待该账号的额度恢复\",\"type\":\"soft_rate\",\"code\":\"quota_exceeded\"}",
-    "2 个请求输入超单请求预算（110k），按大档装填",
-    "阶段已启动：2 个请求（模型 workbuddy/hy3 + 大档 volces-ark/glm-5.3-flash（2 个），并发 6 + 大档 2）",
-    "校对批次已提交：2 篇合并为 2 个请求",
-    "modules/lib.md：行号锚点存疑（未改）—— lib/index.js:158-173 符号未找到未改；lib/types.d.ts:499 符号歧义未改；lib/types.d.ts:439-440 符号歧义未改 等",
+    "_patterns.md 请求失败 —— llm 通道失败（error，QUOTA）：429: {\"message\":\"workbuddy 上游失败：被限流（http 429）：池中已无可用账号（5 个账号被限流）（code 6000，requestId 74bd458b-58e5-42ef-aa11-67a676cbcc37）。您的使用量已超出频率限制，将在 2026-10-28 20:03:42 UTC+8 重置，您也可以切换其他模型继续使用。建议换一个模型继续，或稍后等待该账号的额度恢复\",\"type\":\"soft_rate\",\"code\":\"quota_exceeded\"}",
+    "_architecture.md 请求失败 —— llm 通道失败（error，QUOTA）：429: {\"message\":\"workbuddy 上游失败：被限流（http 429）：池中已无可用账号（5 个账号被限流）（code 6000，requestId 1ac0537e-4834-4bac-9bb3-4c9332439e96）。您的使用量已超出频率限制，将在 2026-10-28 20:03:42 UTC+8 重置，您也可以切换其他模型继续使用。建议换一个模型继续，或稍后等待该账号的额度恢复\",\"type\":\"soft_rate\",\"code\":\"quota_exceeded\"}",
+    "3 个请求输入超单请求预算（110k），按大档装填",
+    "阶段已启动：3 个请求（模型 workbuddy/hy3 + 大档 volces-ark/glm-5.3-flash（3 个），并发 6 + 大档 2）",
+    "校对批次已提交：3 篇合并为 3 个请求",
     "modules/tests.md：自动修正 2 处行号锚点",
     "modules/tests.md：行号锚点存疑（未改）—— tests/client-review-console.test.tsx:777 符号歧义未改；tests/client-target-console.test.tsx:1556 符号歧义未改；tests/session-checkout-apply.test.ts:1225 符号歧义未改 等",
-    "存量文章体检：5 篇未过契约（modules/console-host.md、modules/session-checkout-module.md、modules/target-console.md 等）",
-    "完整性未成立（部分完成（10 项未满足：error））—— error；error；contract",
-    "清理孤儿模块文章 9 篇（模块划分已变，旧文件无人重写）—— adapters.md、client-boot.md、console-host.md、host-overview.md、review-console.md 等",
+    "modules/lib.md：行号锚点存疑（未改）—— lib/index.js:158-173 符号未找到未改；lib/types.d.ts:499 符号歧义未改；lib/types.d.ts:439-440 符号歧义未改 等",
+    "modules/src.md：行号锚点存疑（未改）—— src/index.ts:113-219 符号未找到未改；src/tools.ts:318 符号歧义未改；src/client/review-console/request-cache.ts:41 符号歧义未改 等",
+    "存量文章体检：2 篇未过契约（learnings/schemastery-volatile-protocol-fork.md、learnings/workspace-takeover-truth-report.md）",
+    "完整性未成立（部分完成（6 项未满足：error））—— error；error；error",
     "cw index exit 0",
     "编译基线未推进（完整性未成立：未消化的变化下次编译仍会被看见）",
-    "符号快照已写入（2675 个组件），下次增量按组件级判定"
+    "符号快照无变化（2675 个组件），跳过写入"
   ],
   "wikiPath": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree\\.codewiki"
 }

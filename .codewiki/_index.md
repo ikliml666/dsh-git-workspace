@@ -15,4 +15,5 @@
 ## Module
 
 - [[modules/lib|lib]]
+- [[modules/src|src（dsh-git-worktree 插件源码根目录）]]
 - [[modules/tests|tests]]

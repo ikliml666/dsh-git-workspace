@@ -125,7 +125,7 @@ tags: [git-worktree, dsh-plugin, adapters, session-checkout, console-rpc, react-
 | 名称 | 位置 | 说明 |
 | --- | --- | --- |
 | `workspaceClientFlavorForAgentVersion()` | 4-27 | 精确版本映射：`0.1.2-rc.1→legacy`、`0.1.6-alpha.2→alpha`、`0.1.7-rc.2→next`、`0.2.0-rc.2→modern`；未钉住的 `0.2.x` 走 `isModernGeneration` 也判 modern（注释 13-23 说明 0.2.1-rc.4 为上游钉住发布） |
-| `isModernGeneration()` | 28-31 | 正则 `^0\.2\.` |
+| `isModernGeneration()` | 28-31 | 正则 `/^(\d+)\.(\d+)\./` 提取主/次版本并要求为 `0.2`（即 `0.2.x`） |
 | `agentVersionFromAnchor()` | 32-43 | 用 `createRequire` 从锚点解析 `@deepseek-ai/dsh-agent/package.json` 读取版本 |
 | `workspaceFlavorDiagnostics()` | 52-63 | 依次探测 `[process.argv[1], process.cwd(), import.meta.url]` 三类锚点（`ANCHOR_KINDS`，44 行），首个解析到 Host agent 树的锚点定 flavor，全部记录 |
 | `hostWorkspaceClientFlavor()` | 64-66 | 便捷封装 |
@@ -269,7 +269,7 @@ tags: [git-worktree, dsh-plugin, adapters, session-checkout, console-rpc, react-
 - `WorktreeConsoleCapabilities`（33-59）：`create/open/inspect/discard/preflight/preview/checkpoint/resumeRevision/rollbackPreview/finalize/finalizePreview/setRetention/setPermanent/retryCleanup/beginNextIteration/returnToLocal` 共 16 个能力位。
 - `WorktreeConsoleTargetSummary`（80-110）：`project, checkoutId, sourceSessionId, ownerSessionId, targetSessionId, iteration, revision, state, phase, dirty, currentOid, commitOid, sourceBranch, retention?, retainedAt?, expiresAt?, permanent?, cleanupMessage?, deliveryProof?, review?, checkpoints?, checkpointGeneration?, reviewSlot?, reviewSlotOwnerSessionId?, reviewSlotHolder?, previewRecovery?, capabilities`。
 - `WorktreeConsoleTargetDetails`（112-125）：Summary 之上加 `managedRoot, sourceRoot, sourceOid, currentBranch, recoveryContinuation?`。
-- `WorktreeConsoleAdapter`（554-600）：客户端统一 seam，38 个 `Promise<WorktreeConsoleOutcome<T>>` 方法（`sidebarTopology/current/list/preflightCreate/createWithInitialCommit/create/initProject/inspect/reviewDiff/preflight/previewRecoveryPreflight/preparePreviewRecoveryAnalysis/createPreviewRecoveryHandoff/preview/checkpoint/resumeRevision/prepareReviewRegeneration/rollbackPreview/discard/finalize/finalizePreview/setRetention/setPermanent/retryCleanup/beginNextIteration/returnToLocal/clearSidebarBadge/gitOverview/gitGraph/gitCreateBranch/gitSwitchBranch/gitPruneMergedBranches/gitListTags/gitCreateTag/gitDeleteTag/gitPushTag` + 可选 `listAbandoned/restoreAbandoned`）。
+- `WorktreeConsoleAdapter`（554-600）：客户端统一 seam，38 个 `Promise<WorktreeConsoleOutcome<T>>` 方法（`sidebarTopology/current/list/preflightCreate/createWithInitialCommit/create/initializeProject/inspect/reviewDiff/preflight/previewRecoveryPreflight/preparePreviewRecoveryAnalysis/createPreviewRecoveryHandoff/preview/checkpoint/resumeRevision/prepareReviewRegeneration/rollbackPreview/discard/finalize/finalizePreview/setRetention/setPermanent/retryCleanup/beginNextIteration/returnToLocal/clearSidebarBadge/gitOverview/gitGraph/gitCreateBranch/gitSwitchBranch/gitPruneMergedBranches/gitListTags/gitCreateTag/gitDeleteTag/gitPushTag` + 可选 `listAbandoned/restoreAbandoned`）。
 
 ### 4. 适配器
 
@@ -283,7 +283,7 @@ tags: [git-worktree, dsh-plugin, adapters, session-checkout, console-rpc, react-
 | `directoryIdentitiesEqual()` | 51-53 | 三元组相等 |
 | `quarantineDirectoryTree()` | 54-74 | 校验 quarantine 父目录同源且未占用(55-62) → `rename` → 复验身份(64-66)；不匹配则**尽量 rename 回原位且绝不删除身份不符对象**(67-72 注释) |
 | `removeDirectoryTree()` | 75-88 | 拒绝非目录/符号链接根(79-81)；Windows 上 `maxRetries:6` vs 其他 2(85) |
-| `createNodeFilesPort()` | 90-116 | 返回 11 方法对象：`exists/canonicalize/inspectDirectoryIdentity/ensureDirectory/removeEmptyDirectoryTree/quarantineDirectoryTree/removeDirectoryTree/measureDirectoryBytes/readTextFile/copyFile(102-106, 先建父目录+rm 目标)/isSymbolicLink(107-114)` |
+| `createNodeFilesPort()` | 90-116 | 返回 11 方法对象：`exists/canonicalize/inspectDirectoryIdentity/ensureDirectory/removeEmptyDirectoryTree/quarantineDirectoryTree/removeDirectoryTree/measureDirectoryBytes/readTextFile/copyFile(101-106, 先建父目录+rm 目标)/isSymbolicLink(107-114)` |
 
 #### git-options.js
 
