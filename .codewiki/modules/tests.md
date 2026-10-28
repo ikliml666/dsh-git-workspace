@@ -39,6 +39,7 @@ source_files:
   - tests/i18n-catalogs.test.ts
   - tests/i18n-references.test.ts
   - tests/lookup.test.ts
+  - tests/official-workspace-client-alpha.mock.ts
   - tests/official-workspace-client-next.mock.ts
   - tests/official-workspace-client.mock.ts
   - tests/project-skill-provider.test.ts
@@ -217,6 +218,7 @@ tags: [测试, vitest, worktree, console-host, console-contract, i18n, sidebar, 
 
 - `tests/official-workspace-client.mock.ts`：`inject`（3，含 `conversation`/`connection`）、`derivedBrowserCalls`（11-14，记录传给派生 Browser 的 props）、`resetDerivedBrowserCalls()`（13-15）、`WorkspaceBrowser(props)`（17-20，渲染 `data-derived-workspace-browser`）、`apply(ctx)`（22-38，在 `sidebar.workspaces` 与 `conversation.hero.workspace` 两个 slot 注册官方 Browser）。
 - `tests/official-workspace-client-next.mock.ts`：`inject`（1，`shortcuts` 版本）、`apply(ctx)`（3-21）——声明 `sidebar.workspaces` 完整子 seat 树（`session.menu.item`、`session.row.action`、`session.row.leading`、`session.row.hover`）与 `conversation.hero.workspace`。
+- `tests/official-workspace-client-alpha.mock.ts`：alpha 派生 mock，被 `client-console-remote-routing.test.ts:19` 以 `applyAlpha` 引入，与 legacy/next 并列参与 Browser 三分派。
 - 另有被多处引用的 `tests/support/commit-message.js`（导出 `longCommitMessage`，供 `console-host.test.ts:1`、`client-review-console.test.tsx:2`、`session-checkout-apply.test.ts:1`、`session-checkout-module.test.ts:1` 使用；源码不在本文引用范围）。
 
 ### Host 端集成测试套件
@@ -282,7 +284,7 @@ tags: [测试, vitest, worktree, console-host, console-contract, i18n, sidebar, 
 - `tests/host-i18n.test.ts`：`placeholders()`（7）；双语与占位符契约（10-17）、按调用语言渲染且 code 稳定（19-29）、不翻译插值数据（31-37）、仅识别的 legacy cleanup 消息投影期本地化（39-47）、注册元数据双语（49-55）、第三方错误原样透传（57-61）。
 - `tests/host-locale-context.test.ts`：`deferred()`（12-16）、`settingsContext(preference)`（18-20）；只读公开 settings 且兜底（23-29）、重叠调用隔离与嵌套恢复（31-51）、偏好快照（53-62）；descriptor 尾参可选 locale（66-77）、Client 请求语言捕获（80-90）、显式 locale 不串扰并发（92-112）；工具/命令按 Agent ctx 快照（116-146）。
 - `tests/host-query-budget.test.ts`：`traces` hoisted（12）+ `vi.mock('node:child_process')` 计时（13-21）；`test.each([1,3])`（23-98）度量真实 git 命令数，预算 `{ current: 18, list: 18 + 9*(count-1), preflight: 60, deliver: 90 }`（67，行 65-66 注释 deliver 74 次实测），并断言观察是新鲜的而非缓存（74-80）。
-- `tests/i18n-catalogs.test.ts` / `tests/i18n-references.test.ts`：三目录双语+参数一致（catalogs 6-17）；引用护栏——`walk()`（10-15）、`literalKeys()`（20-26）、`CLIENT_CALL`/`HOST_CALL` 正则（28-29），扫描 `src/client` 的字面 `t("…")` 与其余源码的 `hostMessage("…")` 必须落在目录内（31-51，行 8-9 注释目录内部一致性由 catalogs 负责）。
+- `tests/i18n-catalogs.test.ts` / `tests/i18n-references.test.ts`：三目录双语+参数一致（catalogs 8-18）；引用护栏——`walk()`（10-15）、`literalKeys()`（20-26）、`CLIENT_CALL`/`HOST_CALL` 正则（28-29），扫描 `src/client` 的字面 `t("…")` 与其余源码的 `hostMessage("…")` 必须落在目录内（31-51，行 8-9 注释目录内部一致性由 catalogs 负责）。
 - `tests/lookup.test.ts`：`LiveSessionFixture`（6-8）、`workspace()`（10-12）、`contextOf()`（14-34）；权威 workspace 投影（37-49）、cwd header 恢复冷会话（51-63）、冷/错配/无路径/歧义不恢复（65-82）、sidebar identity 含空 workspace 与 cold header 但不授予 `getSession` 权威（86-98）。
 - `tests/working-directory-adapter.test.ts`：`fakeHost(initial, opts)`（9-27）、`ctxWith(service)`（29-31）；enter 移动并回报（34-42）、无服务降级 no-op 返回 `undefined`（44-50，行 46-47 注释）、current 对未知 session 返回 undefined（52-55）、leave 仅当在 checkout 内才还原（57-71）、仅前缀相同的兄弟路径忽略（73-77）。
 - `tests/adapters-safe-file.test.ts`：`dirs`(7)、`scratch()`（8-12，`mkdtempSync('dsh-git-worktree-safe-file-…')`）、afterEach 递归清理（14-16）；最新可解析 tmp 残余晋升且其余清理（19-31）、legacy `<file>.tmp` 晋升（33-40）、全不可解析清空并返回 null（42-50）、原子写留 `.bak` 且损坏后可从 bak 恢复（52-64）、`writeTextFileAtomic` 整体替换（66-73）。
@@ -296,7 +298,7 @@ tags: [测试, vitest, worktree, console-host, console-contract, i18n, sidebar, 
 
 - `tests/client-actions.test.ts`：`services(byId, projectedCwd = 'workspace-path')`（12-45，手写 `WorktreeClientServices` 含可订阅 list）；12 场景（47-227）：mainView-retained finalize（48）、多 main 拒绝（64）、新 Harness 用 `uiWorkspace.openSession` 且校验 cwd（78）、无导航服务抛「会话导航服务」（88）、打开既有 target 不重建 Workspace（94）、cwd 不一致 fail closed（109）、source cwd 匹配才开（121）、授权 slot holder 先 inspect 验证（131）、inspect 在途时 caller 失活不导航（159）、身份不一致拒绝（180）、`prefillSessionDraft` 只填草稿不发送（194）、新建后 cwd 重投影复验含 fake timers 2s 超时（205-227）。
 - `tests/client-branch-overview-cache.test.ts`：`overview(branches)`（16-24）、afterEach `invalidateBranchOverview`（26-28）；6 场景（31-130）：后台 flight 不覆盖乐观 patch（31）、flight 中失效不回填（57）、无并发变更正常回填（75）、失败 flight 清槽不回陈旧快照（83，行 97 中文注释）、`!ok` 也清槽（102）、失败不清 mid-flight patch（116）。共同技巧：`vi.spyOn(Date,'now')` 把 fetchedAt 拨旧 61s 触发 stale-while-revalidate（35）。
-- `tests/client-bundle.test.ts`：`beforeEach` 用 `transferableAbortController` stub 全局 AbortController（11-16）；`gatewayClient()`（20-25）、`mountAccess()`（27-32，行 28 注释：无 owner 快照/直播流时官方 UI 应答恒 false）、`ClientHandoff`（35-38）、`platformRequire()`（40-43，UI primitives 用空对象顶替）、`executeBundle(code)`（49-59，假 `window.__ModuleLoader__`）、`configFormsStub()`（62-71）。测试：产物 require 白名单恰好 5 项（74-84）、注册 package id `dsh-git-worktree` 与 inject 列表（86-112，行 104-111 注释解释排除 `remote.directoryPicker`/`remoteAccess` 的死锁事故）、uiWorkspace 先于 conversation 装配且随 fiber 撤销（114-216，含 style `data-plugin` 归属断言 189-195）、modern Host picker 等 uiWorkspace 且懒解析（218-292）、Lucide 按需打包而 React 留宿主（295-303）。
+- `tests/client-bundle.test.ts`：`beforeEach` 用 `transferableAbortController` stub 全局 AbortController（11-16）；`gatewayClient()`（20-25）、`mountAccess()`（27-32，行 28 注释：无 owner 快照/直播流时官方 UI 应答恒 false）、`ClientHandoff`（35-38）、`platformRequire()`（40-43，UI primitives 用空对象顶替）、`executeBundle(code)`（49-59，假 `window.__ModuleLoader__`）、`configFormsStub()`（62-71）。测试：产物 require 白名单恰好 5 项（74-84）、注册 package id `dsh-git-worktree` 与 inject 列表（86-112，行 104-111 注释解释排除 `remote.directoryPicker`/`remoteAccess` 的死锁事故）、uiWorkspace 先于 conversation 装配且随 fiber 撤销（114-216，含 style `data-plugin` 归属断言 191-195）、modern Host picker 等 uiWorkspace 且懒解析（218-292）、Lucide 按需打包而 React 留宿主（295-303）。
 - `tests/client-conflict-display.test.tsx`：`files`（10，5 个超长文件名）、`conflictFixture()`（12-21）；紧凑冲突卡 + 详情弹层 + 无预览按钮（25-51）、busy/capability 禁用 + 英文 compact 一致（53-69）。
 - `tests/client-console-remote-routing.test.ts`：`spies` hoisted（3-8）+ 三个 `vi.mock`（9-16）；`clientContext(legacy)`（22-32）；`describe('one Host-pinned Browser provider per Client startup')`（38）：`test.each` legacy/alpha/next 各注册自己的 Browser（39-55，断言 inject 序列 50-54）、未知 Host 不注册（57-63）、官方 Workspace live 时 decorate 而非 replay（65-74）、错配/不可识别在注册前失败（76-82）。
 - `tests/client-i18n.test.tsx`：`localeFace(active)`（18-27，可变 locale face）、`evidence`（29-33，含中文 reviewId/文件名）、`Counter`（35-39）；9 场景（41-141）：读 `snapshot.active` 而非猜属性（42-49，含 throw 面）、订阅切换不重置本地状态（51-62）、两个实例不共享语言（64-71）、目录参数与英文文案完整性（73-82）、工具态/解析诊断用当前翻译（84-90）、评审标题切换且用户数据不动（92-106）、命令式动作每次调用读 locale（108-115）、入口注册传真 locale face（117-131）、侧栏投影只译插件徽章（133-141）；英文恢复提示保留 ID/hash/JSON 路径（144-160）。

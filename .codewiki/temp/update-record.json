@@ -1,14 +1,32 @@
 {
   "version": 1,
-  "jobId": "job-mvs9jbxy-7",
+  "jobId": "job-mvsfyvft-9",
   "scope": "auto",
-  "startedAt": "2026-10-28T15:22:13.942Z",
-  "finishedAt": "2026-10-28T19:11:06.902Z",
+  "startedAt": "2026-10-28T18:22:16.745Z",
+  "finishedAt": "2026-10-28T19:56:07.940Z",
   "baseCommit": null,
   "headCommit": null,
   "changeSet": null,
   "plan": null,
   "results": [
+    {
+      "name": "modules/lib.md",
+      "ok": true,
+      "stopReason": "stream-error",
+      "error": null
+    },
+    {
+      "name": "modules/tests.md",
+      "ok": true,
+      "stopReason": "stream-error",
+      "error": null
+    },
+    {
+      "name": "modules/src.md",
+      "ok": true,
+      "stopReason": "stream-error",
+      "error": null
+    },
     {
       "name": "modules/scripts.md",
       "ok": true,
@@ -16,67 +34,19 @@
       "error": null
     },
     {
-      "name": "modules/root.md",
+      "name": "_patterns.md",
       "ok": false,
       "stopReason": "error",
       "error": null
     },
     {
-      "name": "modules/src.md",
-      "ok": true,
-      "stopReason": "completed",
-      "error": null
-    },
-    {
-      "name": "modules/lib.md",
-      "ok": true,
-      "stopReason": "completed",
-      "error": null
-    },
-    {
-      "name": "modules/tests.md",
-      "ok": true,
-      "stopReason": "completed",
-      "error": null
-    },
-    {
-      "name": "_patterns.md",
-      "ok": true,
-      "stopReason": "completed",
-      "error": null
-    },
-    {
       "name": "_architecture.md",
-      "ok": true,
-      "stopReason": "completed",
+      "ok": false,
+      "stopReason": "error",
       "error": null
     }
   ],
   "qualityIssues": [
-    {
-      "name": "modules/adapters.md",
-      "issue": "存量文章未过契约：frontmatter 未闭合（缺结束 ---）"
-    },
-    {
-      "name": "modules/client_console_remote.md",
-      "issue": "存量文章未过契约：重复章节：Architecture、Data Flow、Connections、Known Issues"
-    },
-    {
-      "name": "modules/client_pre_session.md",
-      "issue": "存量文章未过契约：source_files 指向不存在的文件：src/client/review-console/ReviewIcon.js"
-    },
-    {
-      "name": "modules/client_target_console.md",
-      "issue": "存量文章未过契约：模型输出缺 frontmatter"
-    },
-    {
-      "name": "modules/console_host.md",
-      "issue": "存量文章未过契约：正文里又出现了一份 frontmatter（疑似重复贴头）；重复章节：Overview、Key Components、Architecture、Data Flow、Connections"
-    },
-    {
-      "name": "modules/host_compat.md",
-      "issue": "存量文章未过契约：模型输出缺 frontmatter"
-    },
     {
       "name": "modules/tests.md",
       "issue": "存量文章未过契约：source_files 指向不存在的文件：tests/support/commit-message.js"
@@ -94,38 +64,13 @@
   "blockers": [
     {
       "kind": "article-failed",
-      "name": "modules/root.md",
+      "name": "_patterns.md",
       "detail": "error"
     },
     {
-      "kind": "quality",
-      "name": "modules/adapters.md",
-      "detail": "存量文章未过契约：frontmatter 未闭合（缺结束 ---）"
-    },
-    {
-      "kind": "quality",
-      "name": "modules/client_console_remote.md",
-      "detail": "存量文章未过契约：重复章节：Architecture、Data Flow、Connections、Known Issues"
-    },
-    {
-      "kind": "quality",
-      "name": "modules/client_pre_session.md",
-      "detail": "存量文章未过契约：source_files 指向不存在的文件：src/client/review-console/ReviewIcon.js"
-    },
-    {
-      "kind": "quality",
-      "name": "modules/client_target_console.md",
-      "detail": "存量文章未过契约：模型输出缺 frontmatter"
-    },
-    {
-      "kind": "quality",
-      "name": "modules/console_host.md",
-      "detail": "存量文章未过契约：正文里又出现了一份 frontmatter（疑似重复贴头）；重复章节：Overview、Key Components、Architecture、Data Flow、Connections"
-    },
-    {
-      "kind": "quality",
-      "name": "modules/host_compat.md",
-      "detail": "存量文章未过契约：模型输出缺 frontmatter"
+      "kind": "article-failed",
+      "name": "_architecture.md",
+      "detail": "error"
     },
     {
       "kind": "quality",
@@ -144,29 +89,29 @@
     }
   ],
   "canAdvanceBaseline": false,
-  "writtenCount": 6,
-  "failedCount": 1,
+  "writtenCount": 4,
+  "failedCount": 2,
   "notes": [
-    "阶段已启动：2 个请求（模型 workbuddy/hy3，并发 6）",
     "横切批次已提交：_architecture/_patterns + 0 个概念",
-    "_architecture.md：自动修正 1 处行号锚点",
-    "_architecture.md：行号锚点存疑（未改）—— src/tools.ts:318 符号歧义未改",
-    "4 个请求输入超单请求预算（110k），按大档装填",
-    "阶段已启动：6 个请求（模型 workbuddy/hy3 + 大档 volces-ark/glm-5.3-flash（4 个），并发 6 + 大档 2）",
-    "校对批次已提交：6 篇合并为 6 个请求",
-    "proof-batch-2 请求失败 —— llm 通道失败（error，TIMEOUT）：pi-ai stream idle timeout after 300000ms",
-    "modules/scripts.md：自动修正 1 处行号锚点",
-    "modules/lib.md：自动修正 1 处行号锚点",
-    "modules/lib.md：行号锚点存疑（未改）—— lib/index.js:127-134 符号未找到未改",
+    "_patterns.md 请求失败 —— llm 通道失败（error，QUOTA）：429: {\"message\":\"workbuddy 上游失败：被限流（http 429）：池中已无可用账号（4 个账号被限流、1 个账号不可用）（code 6004，requestId 11894e58-dd22-4f6e-9560-8dd989e814a9）。您的使用量已超出频率限制，将在 2026-10-29 12:59:16 UTC+8 重置，您也可以切换其他模型继续使用。建议换一个模型继续，或稍后等待该账号的额度恢复\",\"type\":\"soft_rate\",\"code\":\"quota_exceeded\"}",
+    "_architecture.md 请求失败 —— llm 通道失败（error，QUOTA）：429: {\"message\":\"workbuddy 上游失败：被限流（http 429）：池中已无可用账号（4 个账号被限流、1 个账号不可用）（code 6004，requestId 8126bb94-b5bd-4c84-8053-ff0e22b5ce24）。您的使用量已超出频率限制，将在 2026-10-29 12:59:16 UTC+8 重置，您也可以切换其他模型继续使用。建议换一个模型继续，或稍后等待该账号的额度恢复\",\"type\":\"soft_rate\",\"code\":\"quota_exceeded\"}",
+    "本地核对 1 处问题 —— modules/tests.md：source_files 缺 tests/support/commit-message.js",
+    "3 个请求输入超单请求预算（110k），按大档装填",
+    "阶段已启动：4 个请求（模型 workbuddy/hy3 + 大档 volces-ark/glm-5.3-flash（3 个），并发 6 + 大档 2）",
+    "校对批次已提交：4 篇合并为 4 个请求",
+    "proof-batch-4 请求失败 —— llm 通道失败（error，QUOTA）：429: {\"message\":\"workbuddy 上游失败：被限流（http 429）：池中已无可用账号（4 个账号被限流、1 个账号不可用）（code 6004，requestId 61b8482a-25bb-4d64-89e2-28811132b9ca）。您的使用量已超出频率限制，将在 2026-10-29 12:59:16 UTC+8 重置，您也可以切换其他模型继续使用。建议换一个模型继续，或稍后等待该账号的额度恢复\",\"type\":\"soft_rate\",\"code\":\"quota_exceeded\"}",
     "modules/tests.md：自动修正 1 处行号锚点",
     "modules/tests.md：行号锚点存疑（未改）—— tests/workspace-provider-lifecycle.test.ts:103-107 符号歧义未改；tests/client-workspace-sidebar-profile.test.ts:92-98 符号未找到未改；tests/client-target-console.test.tsx:171-172 符号歧义未改 等",
-    "modules/src.md：批量校对输出缺席，保留原文",
-    "存量文章体检：9 篇未过契约（modules/adapters.md、modules/client_console_remote.md、modules/client_pre_session.md 等）",
-    "完整性未成立（部分完成（10 项未满足：error））—— error；存量文章未过契约：frontmatter 未闭合（缺结束 ---）；存量文章未过契约：重复章节：Architecture、Data Flow、Connections、Known Issues",
-    "清理孤儿模块文章 19 篇（模块划分已变，旧文件无人重写）—— adapters.md、cli.md、client_console_remote.md、client_core.md、client_i18n.md 等",
+    "modules/lib.md：自动修正 1 处行号锚点",
+    "modules/lib.md：行号锚点存疑（未改）—— lib/index.js:127-134 符号未找到未改",
+    "modules/src.md：自动修正 1 处行号锚点",
+    "modules/src.md：行号锚点存疑（未改）—— src/console-contract.ts:7 符号未找到未改；src/ports.ts:232-236 符号未找到未改；src/managed-worktree-path.ts:63-75 符号未找到未改 等",
+    "modules/scripts.md：批量校对输出缺席，保留原文",
+    "存量文章体检：3 篇未过契约（modules/tests.md、learnings/schemastery-volatile-protocol-fork.md、learnings/workspace-takeover-truth-report.md）",
+    "完整性未成立（部分完成（5 项未满足：error））—— error；error；存量文章未过契约：source_files 指向不存在的文件：tests/support/commit-message.js",
     "cw index exit 0",
     "编译基线未推进（完整性未成立：未消化的变化下次编译仍会被看见）",
-    "符号快照无变化（2675 个组件），跳过写入"
+    "符号快照已写入（1836 个组件），下次增量按组件级判定"
   ],
   "wikiPath": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree\\.codewiki"
 }
