@@ -14,11 +14,5 @@
 - [[learnings/platform-gated-tests-win32|平台门控测试：win32 上跳过的 4 个用例均为有意设计]]
 ## Module
 
-- [[modules/adapters|Adapter Layer]]
-- [[modules/client-boot|Client Boot 客户端入口与启动]]
-- [[modules/console-host|Console Host Control Plane]]
-- [[modules/host-overview|Host Entry and Registration Surface]]
-- [[modules/review-console|Review Console 评审操作与恢复]]
-- [[modules/session-checkout-apply|Session Checkout Apply Pipeline]]
-- [[modules/session-checkout-module|Session Checkout Module]]
-- [[modules/settings-card|Settings Card 插件设置页]]
+- [[modules/lib|lib]]
+- [[modules/tests|tests]]
