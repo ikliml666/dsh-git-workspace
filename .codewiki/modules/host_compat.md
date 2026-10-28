@@ -1,1 +1,0 @@
-I'll start by exploring the repository structure to understand what's relevant to the `host_compat` module.

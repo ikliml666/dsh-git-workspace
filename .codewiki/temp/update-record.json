@@ -1,222 +1,42 @@
 {
   "version": 1,
-  "jobId": "job-mvs33s42-4",
+  "jobId": "job-mvs9jbxy-7",
   "scope": "auto",
-  "startedAt": "2026-10-28T12:22:10.706Z",
-  "finishedAt": "2026-10-28T17:41:12.979Z",
+  "startedAt": "2026-10-28T15:22:13.942Z",
+  "finishedAt": "2026-10-28T19:11:06.902Z",
   "baseCommit": null,
   "headCommit": null,
   "changeSet": null,
   "plan": null,
   "results": [
     {
-      "name": "modules/cli.md",
-      "ok": true,
-      "stopReason": "finished",
-      "error": null
-    },
-    {
-      "name": "modules/managed_worktree_path.md",
-      "ok": false,
-      "stopReason": "max-steps",
-      "error": null
-    },
-    {
-      "name": "modules/host_compat.md",
-      "ok": true,
-      "stopReason": "finished",
-      "error": null
-    },
-    {
-      "name": "modules/support.md",
-      "ok": true,
-      "stopReason": "max-steps",
-      "error": null
-    },
-    {
-      "name": "modules/module_core.md",
-      "ok": true,
-      "stopReason": "finished",
-      "error": null
-    },
-    {
-      "name": "modules/workspace_provider.md",
-      "ok": true,
-      "stopReason": "stream-error",
-      "error": null
-    },
-    {
-      "name": "modules/adapters.md",
-      "ok": true,
-      "stopReason": "max-steps",
-      "error": null
-    },
-    {
-      "name": "modules/session_guard.md",
-      "ok": true,
-      "stopReason": "finished",
-      "error": null
-    },
-    {
-      "name": "modules/ports.md",
-      "ok": false,
-      "stopReason": "stream-error",
-      "error": null
-    },
-    {
-      "name": "modules/apply_engine.md",
-      "ok": false,
-      "stopReason": "max-steps",
-      "error": null
-    },
-    {
-      "name": "modules/i18n.md",
-      "ok": true,
-      "stopReason": "stream-error",
-      "error": null
-    },
-    {
-      "name": "modules/console_contract.md",
-      "ok": true,
-      "stopReason": "stream-error",
-      "error": null
-    },
-    {
-      "name": "modules/types.md",
-      "ok": true,
-      "stopReason": "finished",
-      "error": null
-    },
-    {
-      "name": "modules/console_remote.md",
-      "ok": true,
-      "stopReason": "stream-error",
-      "error": null
-    },
-    {
-      "name": "modules/client_pre_session.md",
-      "ok": true,
-      "stopReason": "max-steps",
-      "error": null
-    },
-    {
-      "name": "modules/console_host.md",
-      "ok": true,
-      "stopReason": "stream-error",
-      "error": null
-    },
-    {
-      "name": "modules/client_console_remote.md",
-      "ok": true,
-      "stopReason": "max-steps",
-      "error": null
-    },
-    {
-      "name": "modules/client_i18n.md",
-      "ok": true,
-      "stopReason": "finished",
-      "error": null
-    },
-    {
-      "name": "modules/client_core.md",
-      "ok": true,
-      "stopReason": "stream-error",
-      "error": null
-    },
-    {
-      "name": "modules/client_settings_card.md",
-      "ok": true,
-      "stopReason": "max-steps",
-      "error": null
-    },
-    {
-      "name": "modules/client_workspace_sidebar.md",
-      "ok": false,
-      "stopReason": "stream-error",
-      "error": null
-    },
-    {
-      "name": "modules/client_review_console.md",
-      "ok": true,
-      "stopReason": "max-steps",
-      "error": null
-    },
-    {
-      "name": "modules/client_target_console.md",
-      "ok": true,
-      "stopReason": "stream-error",
-      "error": null
-    },
-    {
       "name": "modules/scripts.md",
       "ok": true,
-      "stopReason": "finished",
-      "error": null
-    },
-    {
-      "name": "modules/domain_core.md",
-      "ok": false,
-      "stopReason": "stream-error",
-      "error": null
-    },
-    {
-      "name": "modules/infra_support.md",
-      "ok": false,
-      "stopReason": "stream-error",
-      "error": null
-    },
-    {
-      "name": "modules/client_actions_bundle.md",
-      "ok": false,
-      "stopReason": "stream-error",
-      "error": null
-    },
-    {
-      "name": "modules/client_review.md",
-      "ok": false,
-      "stopReason": "stream-error",
-      "error": null
-    },
-    {
-      "name": "modules/client_console.md",
-      "ok": false,
-      "stopReason": "stream-error",
-      "error": null
-    },
-    {
-      "name": "modules/client_session_recovery.md",
-      "ok": false,
-      "stopReason": "stream-error",
-      "error": null
-    },
-    {
-      "name": "modules/client_ui_misc.md",
-      "ok": false,
-      "stopReason": "stream-error",
-      "error": null
-    },
-    {
-      "name": "modules/git_session.md",
-      "ok": false,
-      "stopReason": "stream-error",
-      "error": null
-    },
-    {
-      "name": "modules/project_skills.md",
-      "ok": false,
-      "stopReason": "stream-error",
-      "error": null
-    },
-    {
-      "name": "modules/dev_dsh.md",
-      "ok": false,
       "stopReason": "stream-error",
       "error": null
     },
     {
       "name": "modules/root.md",
       "ok": false,
-      "stopReason": "stream-error",
+      "stopReason": "error",
+      "error": null
+    },
+    {
+      "name": "modules/src.md",
+      "ok": true,
+      "stopReason": "completed",
+      "error": null
+    },
+    {
+      "name": "modules/lib.md",
+      "ok": true,
+      "stopReason": "completed",
+      "error": null
+    },
+    {
+      "name": "modules/tests.md",
+      "ok": true,
+      "stopReason": "completed",
       "error": null
     },
     {
@@ -258,6 +78,10 @@
       "issue": "存量文章未过契约：模型输出缺 frontmatter"
     },
     {
+      "name": "modules/tests.md",
+      "issue": "存量文章未过契约：source_files 指向不存在的文件：tests/support/commit-message.js"
+    },
+    {
       "name": "learnings/schemastery-volatile-protocol-fork.md",
       "issue": "存量文章未过契约：模型输出缺 frontmatter"
     },
@@ -270,78 +94,8 @@
   "blockers": [
     {
       "kind": "article-failed",
-      "name": "modules/managed_worktree_path.md",
-      "detail": "max-steps"
-    },
-    {
-      "kind": "article-failed",
-      "name": "modules/ports.md",
-      "detail": "stream-error"
-    },
-    {
-      "kind": "article-failed",
-      "name": "modules/apply_engine.md",
-      "detail": "max-steps"
-    },
-    {
-      "kind": "article-failed",
-      "name": "modules/client_workspace_sidebar.md",
-      "detail": "stream-error"
-    },
-    {
-      "kind": "article-failed",
-      "name": "modules/domain_core.md",
-      "detail": "stream-error"
-    },
-    {
-      "kind": "article-failed",
-      "name": "modules/infra_support.md",
-      "detail": "stream-error"
-    },
-    {
-      "kind": "article-failed",
-      "name": "modules/client_actions_bundle.md",
-      "detail": "stream-error"
-    },
-    {
-      "kind": "article-failed",
-      "name": "modules/client_review.md",
-      "detail": "stream-error"
-    },
-    {
-      "kind": "article-failed",
-      "name": "modules/client_console.md",
-      "detail": "stream-error"
-    },
-    {
-      "kind": "article-failed",
-      "name": "modules/client_session_recovery.md",
-      "detail": "stream-error"
-    },
-    {
-      "kind": "article-failed",
-      "name": "modules/client_ui_misc.md",
-      "detail": "stream-error"
-    },
-    {
-      "kind": "article-failed",
-      "name": "modules/git_session.md",
-      "detail": "stream-error"
-    },
-    {
-      "kind": "article-failed",
-      "name": "modules/project_skills.md",
-      "detail": "stream-error"
-    },
-    {
-      "kind": "article-failed",
-      "name": "modules/dev_dsh.md",
-      "detail": "stream-error"
-    },
-    {
-      "kind": "article-failed",
       "name": "modules/root.md",
-      "detail": "stream-error"
+      "detail": "error"
     },
     {
       "kind": "quality",
@@ -375,6 +129,11 @@
     },
     {
       "kind": "quality",
+      "name": "modules/tests.md",
+      "detail": "存量文章未过契约：source_files 指向不存在的文件：tests/support/commit-message.js"
+    },
+    {
+      "kind": "quality",
       "name": "learnings/schemastery-volatile-protocol-fork.md",
       "detail": "存量文章未过契约：模型输出缺 frontmatter"
     },
@@ -385,26 +144,26 @@
     }
   ],
   "canAdvanceBaseline": false,
-  "writtenCount": 22,
-  "failedCount": 15,
+  "writtenCount": 6,
+  "failedCount": 1,
   "notes": [
-    "modules/client_review_console.md：行号锚点存疑（未改）—— tests/client-recovery-continuation.test.ts:384 符号歧义未改；src/client/review-console/request-cache.ts:93 符号歧义未改；tests/client-recovery-continuation.test.ts:405 符号歧义未改 等",
-    "modules/client_pre_session.md：自动修正 1 处行号锚点",
-    "modules/client_pre_session.md：行号锚点存疑（未改）—— src/client/pre-session/controller.ts:95-98 符号歧义未改",
-    "modules/console_contract.md：自动修正 2 处行号锚点",
-    "modules/console_contract.md：行号锚点存疑（未改）—— src/console-contract.ts:162 符号歧义未改；src/console-contract.ts:167 符号歧义未改；src/console-contract.ts:184 符号歧义未改 等",
-    "modules/client_console_remote.md：自动修正 9 处行号锚点",
-    "modules/client_console_remote.md：行号锚点存疑（未改）—— src/console-contract.ts:609 符号歧义未改；src/client/console-remote/adapter.ts:105 符号未找到未改；src/client/console-remote/adapter.ts:60 符号歧义未改 等",
-    "modules/client_i18n.md：自动修正 7 处行号锚点",
-    "modules/client_i18n.md：行号锚点存疑（未改）—— src/i18n/core.ts:19 符号未找到未改；src/i18n/core.ts:22 符号未找到未改；src/i18n/core.ts:1 符号未找到未改 等",
+    "阶段已启动：2 个请求（模型 workbuddy/hy3，并发 6）",
+    "横切批次已提交：_architecture/_patterns + 0 个概念",
+    "_architecture.md：自动修正 1 处行号锚点",
+    "_architecture.md：行号锚点存疑（未改）—— src/tools.ts:318 符号歧义未改",
+    "4 个请求输入超单请求预算（110k），按大档装填",
+    "阶段已启动：6 个请求（模型 workbuddy/hy3 + 大档 volces-ark/glm-5.3-flash（4 个），并发 6 + 大档 2）",
+    "校对批次已提交：6 篇合并为 6 个请求",
+    "proof-batch-2 请求失败 —— llm 通道失败（error，TIMEOUT）：pi-ai stream idle timeout after 300000ms",
     "modules/scripts.md：自动修正 1 处行号锚点",
-    "_patterns.md：自动修正 10 处行号锚点",
-    "_patterns.md：行号锚点存疑（未改）—— src/console-contract.ts:292 符号歧义未改；src/console-contract.ts:318 符号歧义未改；tests/console-host.test.ts:1458-1467 符号未找到未改 等",
-    "modules/console_host.md：批量校对输出缺席，保留原文",
-    "_architecture.md：批量校对输出缺席，保留原文",
-    "存量文章体检：8 篇未过契约（modules/adapters.md、modules/client_console_remote.md、modules/client_pre_session.md 等）",
-    "完整性未成立（部分完成（23 项未满足：max-steps））—— max-steps；stream-error；max-steps",
-    "清理孤儿模块文章 3 篇（模块划分已变，旧文件无人重写）—— lib.md、src.md、tests.md",
+    "modules/lib.md：自动修正 1 处行号锚点",
+    "modules/lib.md：行号锚点存疑（未改）—— lib/index.js:127-134 符号未找到未改",
+    "modules/tests.md：自动修正 1 处行号锚点",
+    "modules/tests.md：行号锚点存疑（未改）—— tests/workspace-provider-lifecycle.test.ts:103-107 符号歧义未改；tests/client-workspace-sidebar-profile.test.ts:92-98 符号未找到未改；tests/client-target-console.test.tsx:171-172 符号歧义未改 等",
+    "modules/src.md：批量校对输出缺席，保留原文",
+    "存量文章体检：9 篇未过契约（modules/adapters.md、modules/client_console_remote.md、modules/client_pre_session.md 等）",
+    "完整性未成立（部分完成（10 项未满足：error））—— error；存量文章未过契约：frontmatter 未闭合（缺结束 ---）；存量文章未过契约：重复章节：Architecture、Data Flow、Connections、Known Issues",
+    "清理孤儿模块文章 19 篇（模块划分已变，旧文件无人重写）—— adapters.md、cli.md、client_console_remote.md、client_core.md、client_i18n.md 等",
     "cw index exit 0",
     "编译基线未推进（完整性未成立：未消化的变化下次编译仍会被看见）",
     "符号快照无变化（2675 个组件），跳过写入"
