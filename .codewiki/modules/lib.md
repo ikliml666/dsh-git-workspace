@@ -290,7 +290,7 @@ tags: [git-worktree, dsh-plugin, session-checkout, console, adapters, i18n, appl
 
 `isWorkingDirectoryLike`(14-19)、`sessionOf`(20-22)、`createSessionWorkingDirectoryPort(ctx)`(28-75)：
 - `current(agent)`(38-49)：无服务/无会话 → `undefined`；异常吞掉。
-- `enter(agent, path)`(50-57)：无服务或 `agent===undefined` → `undefined`（"上报一个从未设置过的 cwd" 是禁止的——52-53 注释）。
+- `enter(agent, path)`(50-57)：无服务或 `agent===undefined` → `undefined`（“上报一个从未设置过的 cwd” 是禁止的——52-53 注释）。
 - `leave(agent, path, fallback)`(58-73)：仅当当前 cwd 在 `path` 内才 `set(fallback)`。
 - `isWithin(candidate, root)`(77-85)：跨平台路径包含判定。
 
@@ -358,7 +358,7 @@ tags: [git-worktree, dsh-plugin, session-checkout, console, adapters, i18n, appl
 | `worktree_list` | 会话可见 Worktree 列表；`commitOid` 空值省略键 |
 | `worktree_resume_revision` | Ready→Working，仅限未同步 Review |
 | `worktree_begin_next_iteration` | 已交付+清理完成→重建 immutable cwd 进入下一轮并重新进入 |
-| `worktree_ready_for_review` | 提交评审（summary/details/validation/tests/suggestedCommitMessage） |
+| `worktree_ready_for_review` | 提交评审 |
 | `worktree_deliver` | `autoDeliver` 关闭时抛 `worktreeDeliverDisabledByAutoDeliver`；交付前必须 `leaveCheckoutBeforeRemoval`；失败后把会话送回 checkout |
 | `worktree_cleanup` | 清理 retained 终态（CAS revision） |
 | `worktree_prune_branches` | 已合并分支安全清理（dryRun 优先） |
@@ -410,7 +410,7 @@ tags: [git-worktree, dsh-plugin, session-checkout, console, adapters, i18n, appl
 ### 8. 客户端 — `lib/client/`
 
 **基础**：
-- `i18n.js`：`readClientLanguage`(13-20，读 LocaleFace `snapshot.active`，异常回退 `zh`)、`clientTranslator`(21-23)、`defaultClientTranslator`(24)、`ClientI18nProvider`(26-33，`useSyncExternalStore`)、`useClientLanguage`(34)/`useClientTranslator`(35-38)、`translatorForServices`(40-42，命令式调用点即时解析语言)。
+- `i18n.js`：`readClientLanguage`（读 LocaleFace `snapshot.active`，异常回退 `zh`）、`clientTranslator`、`defaultClientTranslator`、`ClientI18nProvider`（`useSyncExternalStore`）、`useClientLanguage`/`useClientTranslator`、`translatorForServices`（命令式调用点即时解析语言）。
 - `model.js`：`parseCreateTool`（从日志块解析 `worktree_target_created`）、`reviewArgs`、`parseReviewTool`；生命周期 `running/ok/error/stopped`。
 - `index.js`：`WORKTREE_CONSOLE_ADAPTER_SERVICE='worktreeConsole'`、`inject`、`apply(ctx, adapterOverride)`：代理 `slots.register` 包一层 `ClientI18nProvider`、注入样式 `<style data-plugin="dsh-git-worktree">`、注册 `worktree_create`/`worktree_ready_for_review` ToolView、有 adapter 时再挂 `registerTargetConsole` 与 `registerPreSessionWorktree`。
 - `actions.js`：`samePath`(2-9)、`navigateToSession`(11-18)、`selectedSessionId`(20-29)、`openExistingSession`(31-37)、`waitForProjectedSessionPath`(38-78，2s 超时等待 Harness 投影可信 cwd)、`openIsolatedTarget`(80-111，幂等注册 workspace→创建预分配会话→等 cwd→导航)、`openAuthorizedWorktreeTarget`(116-139，先 `adapter.inspect` 路径无关授权再复用 cwd 校验导航)、`prefillSessionDraft`(141-147)、`finalizeCurrentSession`(149-162，提交 `/worktree finalize <reviewId> <revision> <retention>` 命令)。
@@ -446,7 +446,7 @@ tags: [git-worktree, dsh-plugin, session-checkout, console, adapters, i18n, appl
 - `index.js`：`mountSettingsCard(ctx)` —— fail-soft 探测 `configForms/slots`，注入 `plugins.bundle.config` 槽。
 
 **预会话开关**（`lib/client/pre-session/`）：
-- `harness-input.js`：`readHarnessInput`(1-6，兼容 `imageIds`/`attachmentIds` 双代 API)、`adaptHarnessInputActions`(8-17，经原 receiver 绑定)。
+- `harness-input.js`：`readHarnessInput`（兼容 `imageIds`/`attachmentIds` 双代 API）、`adaptHarnessInputActions`（经原 receiver 绑定）。
 - `controller.js`：`PreSessionWorktreeError`（`recoveryRequired`）；`PreSessionWorktreeController`：`prepare`（inflight 去重）、`run`（`sourceStillMatches` 最终 CAS、目标写入→导航→源清空的**无 await 关键区**、`using()` 持引用、归档源会话失败不回滚已安全交接、失败 rollback）、`rollback`（discard → 幂等 archive → 删 workspace）。
 - `PreSessionWorktreeToggle.js`：composer 工具行的开关 + 确认 Modal；渲染期即失效旧续体；令牌一次性。
 - `index.js`：`registerPreSessionWorktree` 挂 `conversation.input.left`（order 40）。
