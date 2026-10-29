@@ -498,7 +498,7 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
   ] : [
     { id: 'summary', label: summary, disabled: true },
     { type: 'separator', id: 'summary-separator' },
-    ...(overviewBranches.length > 0 && overview !== null ? [{ id: 'branches-title', label: <span className="dsh-wtc-branches-title">{t("branch.list.title")}{overview.dirtyCount > 0 ? <span className="dsh-wtc-branches-dirty">{t("branch.dirty.hint", { p0: overview.dirtyCount })}</span> : null}</span>, disabled: true } satisfies MenuEntry] : []),
+    ...(overviewBranches.length > 0 && overview !== null ? [{ id: 'branches-title', label: <span className="dsh-wtc-branches-title">{t("branch.list.title")}{overview.dirtyCount > 0 ? <span className="dsh-wtc-branches-dirty">{t("branch.dirty.hint", { p0: overview.dirtyCount })}</span> : overview.dirtyCount < 0 ? <span className="dsh-wtc-branches-dirty">{t("branch.dirty.unknown")}</span> : null}</span>, disabled: true } satisfies MenuEntry] : []),
     ...(showBranchSearch ? [{ id: 'branch-search', disabled: true, label: (
       <span className="dsh-wtc-branch-search">
         <input

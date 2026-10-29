@@ -516,6 +516,11 @@ export interface WorktreeConsoleGitOverviewResponse {
   branch: string | null
   headOid: string
   branches: WorktreeConsoleGitBranch[]
+  /**
+   * Uncommitted entries, or `-1` when `git status` could not be read. A
+   * repository can hold more untracked files than one status read can carry;
+   * reporting 0 there would claim "clean" about an unknown state.
+   */
   dirtyCount: number
 }
 

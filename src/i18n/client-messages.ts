@@ -991,6 +991,10 @@ export const clientMessages = {
     "zh": "（{p0} 处未提交改动）",
     "en": "({p0} uncommitted changes)"
   },
+  "branch.dirty.unknown": {
+    "zh": "（未提交改动数未知）",
+    "en": "(uncommitted count unknown)"
+  },
   "branch.search.placeholder": {
     "zh": "搜索分支…",
     "en": "Search branches…"

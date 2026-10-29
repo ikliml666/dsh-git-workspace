@@ -160,7 +160,8 @@ export interface SessionCheckoutGitPort {
   /**
    * Local adaptation: branch overview for the header chip popover — every
    * local branch with its tip, upstream, and the checkout marker, plus the
-   * dirty entry count. Two parallel spawns per refresh; null on git failure.
+   * dirty entry count (`-1` when the status read overflowed and the count is
+   * unknown). Two parallel spawns per refresh; null on git failure.
    */
   branchOverview?(root: string): Promise<{ branches: BranchOverviewEntry[]; dirtyCount: number } | null>
   /**

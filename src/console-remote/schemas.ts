@@ -393,7 +393,8 @@ export const gitOverviewResponseSchema: z.ZodType<WorktreeConsoleGitOverviewResp
   branch: z.string().min(1).max(300).nullable(),
   headOid: z.union([gitOidSchema, z.literal('unborn')]),
   branches: z.array(gitBranchSchema).max(2000),
-  dirtyCount: z.number().int().nonnegative(),
+  /** `-1` = unknown (the untracked read overflowed); never rendered as a count. */
+  dirtyCount: z.number().int().min(-1),
 })
 export const gitGraphResponseSchema: z.ZodType<WorktreeConsoleGitGraphResponse> = strict({
   root: z.string().min(1),

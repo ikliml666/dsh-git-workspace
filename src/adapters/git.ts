@@ -40,6 +40,21 @@ const GIT_TERMINATION_GRACE_MS = 1_000
 const GIT_COLLECT_BYTES = 1 << 20
 /** Binary WIP patches can legitimately exceed the default cap (base85 inflation). */
 const WIP_PATCH_COLLECT_BYTES = 16 << 20
+/**
+ * `status` is the one read whose size is set by the repository, not by git:
+ * `--untracked-files=all` prints one record per untracked file, and a single
+ * un-ignored dependency tree (a venv, a build cache) produces megabytes of
+ * them. A 1 MiB cap turned that into a hard "cannot read the repository"
+ * failure on every 5s poll, so status gets the wide cap.
+ */
+const STATUS_COLLECT_BYTES = 16 << 20
+/**
+ * Untracked modes for `status`, most precise first. `all` lists every file;
+ * `normal` lists an untracked directory as one record, which turns an
+ * un-ignored dependency tree from megabytes into bytes without hiding tracked
+ * edits, renames, or deletions.
+ */
+const STATUS_UNTRACKED_MODES = ['all', 'normal'] as const
 
 export interface GitPortOptions extends GitTimeoutOptions {
   /** Directory holding the empty `core.hooksPath` target; created by the caller. */
@@ -53,6 +68,12 @@ interface GitCommandResult {
   stderr: string
   /** Only true after the subprocess service confirmed whole-tree quiescence. */
   quiescent?: boolean
+  /**
+   * The collected stream exceeded its in-memory cap, so the text is a partial
+   * tail. Callers that can answer with less output must retry narrower instead
+   * of reporting a repository failure.
+   */
+  truncated?: boolean
 }
 
 /**
@@ -172,7 +193,10 @@ async function runGit(ctx: Context, cwd: string, args: string[], options: GitPor
     const stdout = stdoutRead?.text ?? ''
     const stderr = stderrRead?.text ?? ''
     if (stdoutRead?.lossy || stderrRead?.lossy) {
-      return { code: -1, stdout: '', stderr: hostMessage('repositoryInspectionFailed'), quiescent }
+      // Reported as truncated rather than fatal: a partial tail is enough for
+      // "is anything uncommitted?" (see `status`), and callers that need the
+      // whole stream retry with a shape that produces less of it.
+      return { code: -1, stdout: '', stderr: hostMessage('repositoryInspectionFailed'), quiescent, truncated: true }
     }
     if (outcome.signal === 'SIGTERM' || outcome.signal === 'SIGKILL' || controller.signal.aborted) {
       return { code: -1, stdout, stderr: hostMessage('gitTimedOutMsAndWasTerminated', { p0: args.join(' '), p1: graceMs }), quiescent }
@@ -187,8 +211,8 @@ async function runGit(ctx: Context, cwd: string, args: string[], options: GitPor
   }
 }
 
-async function runGitChecked(ctx: Context, cwd: string, args: string[], options: GitPortOptions): Promise<string> {
-  const result = await runGit(ctx, cwd, args, options)
+async function runGitChecked(ctx: Context, cwd: string, args: string[], options: GitPortOptions, collectBytes?: number): Promise<string> {
+  const result = await runGit(ctx, cwd, args, options, undefined, undefined, collectBytes)
   if (result.code !== 0) {
     throw new SessionCheckoutError(
       'git_operation_failed',
@@ -251,6 +275,22 @@ export function createDshGitPort(ctx: Context, options: GitPortOptions): Session
   const projectSkills = options.projectSkills ?? new ProjectSkillStore(join(dirname(options.hooksPath), 'project-skills'))
   const runSessionGit = (cwd: string, args: string[], input?: string | GitCommitProtocol) => runGit(ctx, cwd, args, options, input)
   const runSessionGitChecked = (cwd: string, args: string[]) => runGitChecked(ctx, cwd, args, options)
+
+  /**
+   * One `git status --porcelain=v1 -z` read, widening only as far as the
+   * collected stream allows. `all` is the only precise mode, so it stays
+   * first; `normal` collapses untracked directories into one record each,
+   * which is what keeps a tree with tens of thousands of untracked files
+   * readable. Returns `null` when even the narrowest mode overflows, and the
+   * failed result unchanged for a genuine Git error.
+   */
+  const runStatus = async (root: string): Promise<GitCommandResult | null> => {
+    for (const untracked of STATUS_UNTRACKED_MODES) {
+      const result = await runGit(ctx, root, ['status', '--porcelain=v1', '-z', `--untracked-files=${untracked}`], options, undefined, undefined, STATUS_COLLECT_BYTES)
+      if (result.code === 0 || !result.truncated) return result
+    }
+    return null
+  }
 
   const port: SessionCheckoutGitPort = {
     inspect: async (root): Promise<GitCheckoutSnapshot | null> => {
@@ -329,9 +369,23 @@ export function createDshGitPort(ctx: Context, options: GitPortOptions): Session
       return realpath(resolve(topLevel.stdout))
     },
     status: async (root) => {
-      const output = await runSessionGitChecked(root, ['status', '--porcelain=v1', '-z', '--untracked-files=all'])
       const carried = await projectSkills.scope(root)
-      return { dirty: hasDeliverableStatus(output, new Set(carried?.paths ?? []), carried?.directories) }
+      const auxiliary = new Set(carried?.paths ?? [])
+      const directories = carried?.directories ?? []
+      const result = await runStatus(root)
+      if (result === null) {
+        throw new SessionCheckoutError('git_operation_failed', hostMessage('gitOperationFailedGit', {
+          p0: 'status --porcelain=v1 -z --untracked-files=all',
+          p1: `: ${hostMessage('repositoryInspectionFailed')}`,
+        }))
+      }
+      if (result.code !== 0) {
+        throw new SessionCheckoutError('git_operation_failed', hostMessage('gitOperationFailedGit', {
+          p0: 'status --porcelain=v1 -z --untracked-files=all',
+          p1: result.stderr ? `: ${result.stderr}` : '',
+        }))
+      }
+      return { dirty: hasDeliverableStatus(result.stdout, auxiliary, directories) }
     },
     createDetachedWorktree: async (localRoot, managedRoot, baseOid, saveEvidence) => {
       const skills = await projectSkills.snapshot(localRoot)
@@ -469,7 +523,7 @@ export function createDshGitPort(ctx: Context, options: GitPortOptions): Session
     branchOverview: async (root) => {
       const [refs, status] = await Promise.all([
         runSessionGit(root, ['for-each-ref', '--format=%(refname)%00%(objectname)%00%(HEAD)%00%(upstream:short)', 'refs/heads']),
-        runSessionGit(root, ['status', '--porcelain=v1', '-z', '--untracked-files=all']),
+        runStatus(root),
       ])
       if (refs.code !== 0) return null
       const branches = refs.stdout.split(/\r?\n/).filter(Boolean).map((line) => {
@@ -481,7 +535,10 @@ export function createDshGitPort(ctx: Context, options: GitPortOptions): Session
           upstream: upstream ? upstream : null,
         }
       }).filter((branch) => branch.name && /^[0-9a-f]{40,64}$/iu.test(branch.oid))
-      return { branches, dirtyCount: status.stdout ? status.stdout.split('\0').filter(Boolean).length : 0 }
+      // A failed status must not read as "nothing uncommitted": the menu draws
+      // its dirty hint from this count, and 0 on a repository whose status
+      // could not be read is a false claim rather than an unknown.
+      return { branches, dirtyCount: status !== null && status.code === 0 ? status.stdout.split('\0').filter(Boolean).length : -1 }
     },
     defaultBranch: async (root) => {
       const symbolic = await runSessionGit(root, ['symbolic-ref', '--quiet', '--short', 'refs/remotes/origin/HEAD'])
