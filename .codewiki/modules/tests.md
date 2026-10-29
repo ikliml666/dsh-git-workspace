@@ -218,7 +218,7 @@ tags: [测试, vitest, worktree, console-host, console-contract, i18n, sidebar, 
 
 - `tests/official-workspace-client.mock.ts`：`inject`（3，含 `conversation`/`connection`）、`derivedBrowserCalls`（11-14，记录传给派生 Browser 的 props）、`resetDerivedBrowserCalls()`（13-15）、`WorkspaceBrowser(props)`（17-20，渲染 `data-derived-workspace-browser`）、`apply(ctx)`（22-38，在 `sidebar.workspaces` 与 `conversation.hero.workspace` 两个 slot 注册官方 Browser）。
 - `tests/official-workspace-client-next.mock.ts`：`inject`（1，`shortcuts` 版本）、`apply(ctx)`（3-21）——声明 `sidebar.workspaces` 完整子 seat 树（`session.menu.item`、`session.row.action`、`session.row.leading`、`session.row.hover`）与 `conversation.hero.workspace`。
-- `tests/official-workspace-client-alpha.mock.ts`：alpha 派生 mock，被 `client-console-remote-routing.test.ts:19` 以 `applyAlpha` 引入，与 legacy/next 并列参与 Browser 三分派。
+- `tests/official-workspace-client-alpha.mock.ts`：alpha 派生 mock（re-export legacy mock 的 `apply`，`inject` 为含 `remote.directoryPicker` 的七项），被 `client-console-remote-routing.test.ts:19` 以 `applyAlpha` 引入，与 legacy/next 并列参与 Browser 三分派。
 - 另有被多处引用的 `tests/support/commit-message.js`（导出 `longCommitMessage`，供 `console-host.test.ts:1`、`client-review-console.test.tsx:2`、`session-checkout-apply.test.ts:1`、`session-checkout-module.test.ts:1` 使用；源码不在本文引用范围）。
 
 ### Host 端集成测试套件

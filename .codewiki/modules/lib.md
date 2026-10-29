@@ -326,7 +326,7 @@ tags: [git-worktree, dsh-plugin, session-checkout, console, adapters, i18n, appl
 
 ### 4. Apply 引擎 — `lib/session-checkout-apply.js`
 
-常量与工具：`AMBIENT_GIT_ENV_PATTERN`、`scrubbedAmbientGitEnv`、`disabledGitHooksPath`（惰性 mkdtemp 空目录禁 hooks）、`GIT_TIMEOUT_MS=30_000`、`OID_PATTERN`、`runGit`（与 git.ts 同款清洗；`options.env` 是**有意的注入通道**如 `GIT_INDEX_FILE`）、`GitCommandFailure`、`selectEffectiveApplyBase`（recorded base 必须证明在两侧历史中才允许前移）、`snapshotFingerprint`、`captureSnapshot`（临时 index 复原 staged 语义→叠加 working tree→`add -A`+excludes→剔除携带 Skills→指纹）、`createSnapshotCommit`、`collectConflictDetails`、`computeMerge`（临时仓库三方合并 + 中心 index 回放）、`computeTreeMerge`、`treePatch`、`prepareRollbackAssessment`/`prepareFinalizeAssessment`、`writeIndexLock`（Git index.lock 协议）。
+常量与工具：`AMBIENT_GIT_ENV_PATTERN`、`scrubbedAmbientGitEnv`、`disabledGitHooksPath`（惰性 mkdtemp 空目录禁 hooks）、`GIT_TIMEOUT_MS=30_000`、`OID_PATTERN`、`runGit`（与 git.js 同款清洗；`options.env` 是**有意的注入通道**如 `GIT_INDEX_FILE`）、`GitCommandFailure`、`selectEffectiveApplyBase`（recorded base 必须证明在两侧历史中才允许前移）、`snapshotFingerprint`、`captureSnapshot`（临时 index 复原 staged 语义→叠加 working tree→`add -A`+excludes→剔除携带 Skills→指纹）、`createSnapshotCommit`、`collectConflictDetails`、`computeMerge`（临时仓库三方合并 + 中心 index 回放）、`computeTreeMerge`、`treePatch`、`prepareRollbackAssessment`/`prepareFinalizeAssessment`、`writeIndexLock`（Git index.lock 协议）。
 
 `DefaultSessionCheckoutApplyEngine`，`plans: Map`（**内存态**，重启即丢）：
 
