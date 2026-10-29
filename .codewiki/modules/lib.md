@@ -304,7 +304,7 @@ tags: [git-worktree, dsh-plugin, session-checkout, console, adapters, i18n, appl
 - `stale()`(8)、`checked`(9-14)、`identity(path, trackChanges)`(15-20，`dev:ino:birthtimeNs[:mtimeNs:ctimeNs]`，符号链接抛 stale)、`indexBytes`(21-30)。
 - `preflightInitialCommit`(31-52)：文件系统枚举**刻意不做任何 ignore**（38-39 注释：忽略文件/链接/嵌套仓库/空目录都需要用户显式决策）；`empty` 时计算覆盖 root/gitDir/HEAD/index/文件清单的 sha256 指纹(44-50)。
 - `initializeEmptyRepository`(53-113)：锁 `index.lock`(61-64，“绝不删除非自己创建的锁”，60)、三次 preflight 指纹比对(54-79)、校验 `GIT_AUTHOR_IDENT/GIT_COMMITTER_IDENT`(69-73)、`mktree` 空树(74-75)、`update-ref --stdin` 事务 + `beforeCommit` 回调中**在 HEAD 锁下**再验指纹(83-94)；`EEXIST` → `initialRepositoryBusy`(98-100)；finally 逆序清理锁且失败不掩盖主错误(103-112)。
-- `initializeProject`(114-131)：本地适配——非 Git/未出生仓库在显式确认后 `init -b main`(124) + `add -A` + `commit`；已有提交历史拒绝(119-121)；提交失败原样报错不回滚（116 注释）。
+- `initializeProject`(117-131)：本地适配——非 Git/未出生仓库在显式确认后 `init -b main`(124) + `add -A` + `commit`；已有提交历史拒绝(119-121)；提交失败原样报错不回滚（116 注释）。
 
 #### project-skills.js / project-skill-io.js / project-skill-provider.js（Project Skills 携带）
 

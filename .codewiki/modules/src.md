@@ -116,7 +116,7 @@ tags: [git-worktree, dsh-plugin, session-checkout, worktree, react-client, typer
 ### 类型面 src/types.ts
 
 - `SessionTargetRef`（11-14）：`{kind:'unselected'} | {kind:'local'} | {kind:'isolated', checkoutId}`。
-- `SessionCheckoutPhase`（18-27）：`preparing|ready|applying(已废弃,见 22 行 @deprecated)|mutating|recovery_required|finalized|retained|discarded`。
+- `SessionCheckoutPhase`（18-27）：`preparing|ready|applying(已废弃,见 21-22 行 @deprecated)|mutating|recovery_required|finalized|retained|discarded`。
 - `WorktreeValidationStatus`（29）、`WorktreeRetentionMode`（32：`cleanup|retain_24h|retain_3d|retain_manual`）、`DEFAULT_WORKTREE_RETENTION='retain_24h'`（39）。
 - `WorktreeCleanupReason`（41-47）：`directory_busy|modified_after_finalize|identity_changed|detached_residue|quarantine_busy`。
 - `WorktreeValidationItem`（48-53）：`command`/`status`/`summary?`。
@@ -127,7 +127,7 @@ tags: [git-worktree, dsh-plugin, session-checkout, worktree, react-client, typer
 - `WorktreeApplyPreflightView`（159-172）：`ready|local_advanced|already_in_local` / `conflict`（`conflictingFiles`+`conflictDetails?`）/ `blocked`（`reason`+`blocker?`），公共事实 `WorktreeApplyPreflightFacts`（139-150：`checkoutId`/`reviewId`/`revision`/`configuredBaseOid`/`effectiveBaseOid`/`baseStrategy`/`localBranch`/`localHeadOid`/`isolatedHeadOid`/`changedFiles`）。
 - `SessionTargetView`（198-216）：`project`/`checkout{id,kind,label,phase}`/`source{ref,oid}`/`current{branch|null,oid}`/`ownership:'owner'|'inherited'`/`dirty`/`revision`/`delivery?`/`checkpoints?`/`checkpointGeneration?`/`reviewSlot?`/`reviewSlotOwnerSessionId?`。
 - `WorktreePreviewRecoveryProof`（273-291）：完整恢复凭证（`generation`、`receiptFingerprint`、Local 五元树 OID、`rollback`/`finalize` 动作、`blocker?`）。
-- 操作类型（222-353）：`SessionCheckoutApplyOperation`、`FinishOperation`（含 `expectedReviewId?`）、`PreviewOperation`、`CheckpointOperation`（含 `expectedGeneration`/`requestId`）、`RollbackPreviewOperation`（`resumeRevision?`/`recoveryProof?`）、`FinalizePreviewOperation`、`RetryCleanupOperation`、`DiscardOperation`（`confirmDirty`）、`RecoverOperation`。
+- 操作类型（222-353）：`SessionCheckoutApplyOperation`、`SessionCheckoutFinishOperation`（含 `expectedReviewId?`）、`SessionCheckoutPreviewOperation`、`SessionCheckoutCheckpointOperation`（含 `expectedGeneration`/`requestId`）、`SessionCheckoutRollbackPreviewOperation`（`resumeRevision?`/`recoveryProof?`）、`SessionCheckoutFinalizePreviewOperation`、`SessionCheckoutRetryCleanupOperation`、`SessionCheckoutDiscardOperation`（`confirmDirty`）、`SessionCheckoutRecoverOperation`。
 - 结果类型（355-595）：`SessionCheckoutFinishedResult`（394-411，含 `branch?`——会话分支、`cleanup:'discarded'|'pending'|'retained'`、`push?: WorktreePushOutcome`）、`SessionCheckoutConflictResult`（550-566，含 `reason: ApplyConflictReason` 与 `resolveHint?`）等。
 - `SESSION_CHECKOUT_ERROR_CODES`（597-627）与 `SessionCheckoutErrorCode`（629）。
 - `CONFLICT_DETAIL_FILE_LIMIT=6` / `CONFLICT_DETAIL_DIFF_LIMIT=4096`（517-518）。
@@ -299,7 +299,7 @@ tags: [git-worktree, dsh-plugin, session-checkout, worktree, react-client, typer
 9. **Workspace Loader 兼容**：`workspace-provider-lifecycle.ts:140-155` 与 223-258——Loader 1.0.6 `update()` 不等待 dispose、失败 fiber 残留导致 `refresh()` 误判 running、`fiber.await()` 在已 settled 转移上自旋（2026-10-24 Windows 实测，见 225-231 注释）；每操作 10s 上限（18 行）。
 10. **已废弃/受限能力位置**：
     - `SessionCheckoutPhase` 的 `'applying'` 已废弃（`src/types.ts:22`）。
-    - `enableWorkspaceProvider` 默认 `false`（`src/index.ts:318`），接管仅显式开启；0.2.x Host 上装饰路径结构性崩溃故接管是强制的（`workspace-provider-lifecycle.ts:82-88` 注释），此时该开关仅作提示。
+    - `enableWorkspaceProvider` 默认 `false`（`src/index.ts:318`），接管仅显式开启；0.2.x Host 上装饰路径结构性崩溃故接管是强制的（`workspace-provider-lifecycle.ts:82-86` 注释），此时该开关仅作提示。
     - 旧「写回 Local」交付链（`session-checkout-apply.ts` 的 `apply`/`finish`/`preview`/`rollback`/`finalize`，1737-2655）仍存在但主路径已换为 `commitIsolated`；UI 文案 `deliveryNoLongerWritesLocalUseDeliverInstead`（`host-messages.ts:1323-1326`）明示旧路径停用。
     - worktree merge 源分支归属校验 `worktreeMergeSourceNotOwnedBySession`（`host-messages.ts:1127-1130`）——只允许合并本会话自己的 worktree 分支。
     - `client/index.tsx:36` 的 `inject` 列表与 `console-remote/index.ts:45-49` 的过滤集不同：后者刻意剔除 `remote.directoryPicker`/`remoteAccess` 以免 web boot 死锁/卡死（18-44 注释）。

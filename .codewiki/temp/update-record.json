@@ -1,34 +1,22 @@
 {
   "version": 1,
-  "jobId": "job-mvszhkdm-3",
+  "jobId": "job-mvszhmd8-4",
   "scope": "auto",
-  "startedAt": "2026-10-29T03:28:41.578Z",
-  "finishedAt": "2026-10-29T04:19:11.419Z",
+  "startedAt": "2026-10-29T03:28:44.156Z",
+  "finishedAt": "2026-10-29T04:39:43.784Z",
   "baseCommit": null,
   "headCommit": null,
   "changeSet": null,
   "plan": null,
   "results": [
     {
-      "name": "modules/scripts.md",
-      "ok": true,
-      "stopReason": "stream-error",
-      "error": null
-    },
-    {
-      "name": "modules/lib.md",
-      "ok": true,
-      "stopReason": "stream-error",
-      "error": null
-    },
-    {
-      "name": "modules/tests.md",
-      "ok": true,
-      "stopReason": "stream-error",
-      "error": null
-    },
-    {
       "name": "modules/src.md",
+      "ok": true,
+      "stopReason": "stream-error",
+      "error": null
+    },
+    {
+      "name": "modules/scripts.md",
       "ok": true,
       "stopReason": "stream-error",
       "error": null
@@ -40,13 +28,25 @@
       "error": null
     },
     {
-      "name": "_patterns.md",
+      "name": "modules/tests.md",
+      "ok": true,
+      "stopReason": "stream-error",
+      "error": null
+    },
+    {
+      "name": "modules/lib.md",
+      "ok": true,
+      "stopReason": "stream-error",
+      "error": null
+    },
+    {
+      "name": "_architecture.md",
       "ok": false,
       "stopReason": "error",
       "error": null
     },
     {
-      "name": "_architecture.md",
+      "name": "_patterns.md",
       "ok": false,
       "stopReason": "error",
       "error": null
@@ -75,12 +75,12 @@
     },
     {
       "kind": "article-failed",
-      "name": "_patterns.md",
+      "name": "_architecture.md",
       "detail": "error"
     },
     {
       "kind": "article-failed",
-      "name": "_architecture.md",
+      "name": "_patterns.md",
       "detail": "error"
     },
     {
@@ -103,20 +103,20 @@
   "writtenCount": 4,
   "failedCount": 3,
   "notes": [
+    "modules/root.md agentic 写作未产出正文（stream-error）",
     "阶段已启动：2 个请求（模型 workbuddy/hy3，并发 6）",
     "横切批次已提交：_architecture/_patterns + 0 个概念",
-    "_patterns.md 请求失败 —— llm 通道失败（error，QUOTA）：429: {\"message\":\"workbuddy 上游失败：被限流（http 429）：池中已无可用账号（5 个账号被限流）（code 6004，requestId e1b90e83-e011-4c52-b8d6-7329965799b0）。您的使用量已超出频率限制，将在 2026-10-29 12:59:16 UTC+8 重置，您也可以切换其他模型继续使用。建议换一个模型继续，或稍后等待该账号的额度恢复\",\"type\":\"soft_rate\",\"code\":\"quota_exceeded\"}",
-    "_architecture.md 请求失败 —— llm 通道失败（error，QUOTA）：429: {\"message\":\"workbuddy 上游失败：被限流（http 429）：池中已无可用账号（5 个账号被限流）（code 6004，requestId a123e227-cfea-4343-8e7b-700041692c9c）。您的使用量已超出频率限制，将在 2026-10-29 12:59:16 UTC+8 重置，您也可以切换其他模型继续使用。建议换一个模型继续，或稍后等待该账号的额度恢复\",\"type\":\"soft_rate\",\"code\":\"quota_exceeded\"}",
+    "_architecture.md 请求失败 —— llm 通道失败（error，QUOTA）：429: {\"message\":\"workbuddy 上游失败：被限流（http 429）：池中已无可用账号（5 个账号被限流）（code 6004，requestId b181baed-154e-48f8-905e-1ebfc6e19705）。您的使用量已超出频率限制，将在 2026-10-29 12:59:16 UTC+8 重置，您也可以切换其他模型继续使用。建议换一个模型继续，或稍后等待该账号的额度恢复\",\"type\":\"soft_rate\",\"code\":\"quota_exceeded\"}",
+    "_patterns.md 请求失败 —— llm 通道失败（error，QUOTA）：429: {\"message\":\"workbuddy 上游失败：被限流（http 429）：池中已无可用账号（5 个账号被限流）（code 6004，requestId 7246a0c0-8bf1-4a41-9dd6-1405abae618a）。您的使用量已超出频率限制，将在 2026-10-29 12:59:16 UTC+8 重置，您也可以切换其他模型继续使用。建议换一个模型继续，或稍后等待该账号的额度恢复\",\"type\":\"soft_rate\",\"code\":\"quota_exceeded\"}",
     "本地核对 1 处问题 —— modules/tests.md：source_files 缺 tests/support/commit-message.js",
     "3 个请求输入超单请求预算（110k），按大档装填",
     "阶段已启动：4 个请求（模型 workbuddy/hy3 + 大档 volces-ark/glm-5.3-flash（3 个），并发 6 + 大档 2）",
     "校对批次已提交：4 篇合并为 4 个请求",
-    "proof-batch-1 请求失败 —— llm 通道失败（error，QUOTA）：429: {\"message\":\"workbuddy 上游失败：被限流（http 429）：池中已无可用账号（5 个账号被限流）（code 6004，requestId 76385917-5805-4003-9835-41abbad82b09）。您的使用量已超出频率限制，将在 2026-10-29 12:59:16 UTC+8 重置，您也可以切换其他模型继续使用。建议换一个模型继续，或稍后等待该账号的额度恢复\",\"type\":\"soft_rate\",\"code\":\"quota_exceeded\"}",
-    "modules/lib.md：行号锚点存疑（未改）—— lib/index.js:127-134 符号未找到未改",
-    "modules/tests.md：自动修正 1 处行号锚点",
+    "proof-batch-2 请求失败 —— llm 通道失败（error，QUOTA）：429: {\"message\":\"workbuddy 上游失败：被限流（http 429）：池中已无可用账号（5 个账号被限流）（code 6004，requestId 639dc1e9-1b3b-4a81-9d01-820d94c5999e）。您的使用量已超出频率限制，将在 2026-10-29 12:59:16 UTC+8 重置，您也可以切换其他模型继续使用。建议换一个模型继续，或稍后等待该账号的额度恢复\",\"type\":\"soft_rate\",\"code\":\"quota_exceeded\"}",
     "modules/tests.md：行号锚点存疑（未改）—— tests/client-console-remote-routing.test.ts:19 符号歧义未改；tests/workspace-provider-lifecycle.test.ts:103-107 符号歧义未改；tests/client-workspace-sidebar-profile.test.ts:92-98 符号未找到未改 等",
     "modules/src.md：自动修正 1 处行号锚点",
     "modules/src.md：行号锚点存疑（未改）—— src/console-contract.ts:7 符号未找到未改；src/ports.ts:232-236 符号未找到未改；src/managed-worktree-path.ts:63-75 符号未找到未改 等",
+    "modules/lib.md：行号锚点存疑（未改）—— lib/index.js:127-134 符号未找到未改",
     "modules/scripts.md：批量校对输出缺席，保留原文",
     "存量文章体检：3 篇未过契约（modules/tests.md、learnings/schemastery-volatile-protocol-fork.md、learnings/workspace-takeover-truth-report.md）",
     "完整性未成立（部分完成（6 项未满足：stream-error））—— stream-error；error；error",
