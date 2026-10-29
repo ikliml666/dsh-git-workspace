@@ -1,22 +1,22 @@
 {
   "version": 1,
-  "jobId": "job-mvsi458h-c",
+  "jobId": "job-mvsv1vfb-1",
   "scope": "auto",
-  "startedAt": "2026-10-28T19:22:21.953Z",
-  "finishedAt": "2026-10-29T02:30:12.925Z",
+  "startedAt": "2026-10-29T01:24:30.935Z",
+  "finishedAt": "2026-10-29T03:28:07.294Z",
   "baseCommit": null,
   "headCommit": null,
   "changeSet": null,
   "plan": null,
   "results": [
     {
-      "name": "modules/lib.md",
+      "name": "modules/src.md",
       "ok": true,
       "stopReason": "stream-error",
       "error": null
     },
     {
-      "name": "modules/tests.md",
+      "name": "modules/scripts.md",
       "ok": true,
       "stopReason": "stream-error",
       "error": null
@@ -28,13 +28,13 @@
       "error": null
     },
     {
-      "name": "modules/src.md",
+      "name": "modules/tests.md",
       "ok": true,
       "stopReason": "stream-error",
       "error": null
     },
     {
-      "name": "modules/scripts.md",
+      "name": "modules/lib.md",
       "ok": true,
       "stopReason": "stream-error",
       "error": null
@@ -103,26 +103,26 @@
   "writtenCount": 4,
   "failedCount": 3,
   "notes": [
+    "阶段已启动：2 个请求（模型 workbuddy/hy3，并发 6）",
     "横切批次已提交：_architecture/_patterns + 0 个概念",
-    "_patterns.md 请求失败 —— llm 通道失败（error，QUOTA）：429: {\"message\":\"workbuddy 上游失败：被限流（http 429）：池中已无可用账号（1 个账号登录已失效、4 个账号被限流）（code 6004，requestId c6afcd01-b928-49f6-a4cc-02775e73079d）。您的使用量已超出频率限制，将在 2026-10-29 12:59:16 UTC+8 重置，您也可以切换其他模型继续使用。建议换一个模型继续，或稍后等待该账号的额度恢复\",\"type\":\"soft_rate\",\"code\":\"quota_exceeded\"}",
-    "_architecture.md 请求失败 —— llm 通道失败（error，QUOTA）：429: {\"message\":\"workbuddy 上游失败：被限流（http 429）：池中已无可用账号（1 个账号登录已失效、4 个账号被限流）（code 6004，requestId 0475ec77-d9ad-4f19-809a-a6039b80403e）。您的使用量已超出频率限制，将在 2026-10-29 12:59:16 UTC+8 重置，您也可以切换其他模型继续使用。建议换一个模型继续，或稍后等待该账号的额度恢复\",\"type\":\"soft_rate\",\"code\":\"quota_exceeded\"}",
+    "_patterns.md 请求失败 —— llm 通道失败（error，QUOTA）：429: {\"message\":\"workbuddy 上游失败：被限流（http 429）：池中已无可用账号（5 个账号被限流）（code 6004，requestId f7aa9c24-12e4-4311-9994-77e56b6aee04）。您的使用量已超出频率限制，将在 2026-10-29 12:59:16 UTC+8 重置，您也可以切换其他模型继续使用。建议换一个模型继续，或稍后等待该账号的额度恢复\",\"type\":\"soft_rate\",\"code\":\"quota_exceeded\"}",
+    "_architecture.md 请求失败 —— llm 通道失败（error，QUOTA）：429: {\"message\":\"workbuddy 上游失败：被限流（http 429）：池中已无可用账号（5 个账号被限流）（code 6004，requestId 3ffc294f-d826-4e9f-b481-741bd3bf19db）。您的使用量已超出频率限制，将在 2026-10-29 12:59:16 UTC+8 重置，您也可以切换其他模型继续使用。建议换一个模型继续，或稍后等待该账号的额度恢复\",\"type\":\"soft_rate\",\"code\":\"quota_exceeded\"}",
     "本地核对 1 处问题 —— modules/tests.md：source_files 缺 tests/support/commit-message.js",
     "3 个请求输入超单请求预算（110k），按大档装填",
     "阶段已启动：4 个请求（模型 workbuddy/hy3 + 大档 volces-ark/glm-5.3-flash（3 个），并发 6 + 大档 2）",
     "校对批次已提交：4 篇合并为 4 个请求",
-    "proof-batch-4 请求失败 —— llm 通道失败（error，QUOTA）：429: {\"message\":\"workbuddy 上游失败：被限流（http 429）：池中已无可用账号（4 个账号被限流）（code 6004，requestId 9a6a8c15-5c26-446d-9cdf-330655fae6ca）。您的使用量已超出频率限制，将在 2026-10-29 12:59:16 UTC+8 重置，您也可以切换其他模型继续使用。建议换一个模型继续，或稍后等待该账号的额度恢复\",\"type\":\"soft_rate\",\"code\":\"quota_exceeded\"}",
-    "proof-batch-2 请求失败 —— llm 通道失败（error，TRANSPORT）：Anthropic stream ended without a stop reason",
+    "proof-batch-2 请求失败 —— llm 通道失败（error，QUOTA）：429: {\"message\":\"workbuddy 上游失败：被限流（http 429）：池中已无可用账号（5 个账号被限流）（code 6004，requestId a99cf613-1670-4f7c-b3e5-df4832d14b8f）。您的使用量已超出频率限制，将在 2026-10-29 12:59:16 UTC+8 重置，您也可以切换其他模型继续使用。建议换一个模型继续，或稍后等待该账号的额度恢复\",\"type\":\"soft_rate\",\"code\":\"quota_exceeded\"}",
+    "modules/tests.md：自动修正 1 处行号锚点",
+    "modules/tests.md：行号锚点存疑（未改）—— tests/workspace-provider-lifecycle.test.ts:103-107 符号歧义未改；tests/client-workspace-sidebar-profile.test.ts:92-98 符号未找到未改；tests/client-target-console.test.tsx:171-172 符号歧义未改 等",
     "modules/src.md：自动修正 1 处行号锚点",
     "modules/src.md：行号锚点存疑（未改）—— src/console-contract.ts:7 符号未找到未改；src/ports.ts:232-236 符号未找到未改；src/managed-worktree-path.ts:63-75 符号未找到未改 等",
-    "modules/lib.md：自动修正 1 处行号锚点",
     "modules/lib.md：行号锚点存疑（未改）—— lib/index.js:127-134 符号未找到未改",
-    "modules/tests.md：批量校对输出缺席，保留原文",
     "modules/scripts.md：批量校对输出缺席，保留原文",
     "存量文章体检：3 篇未过契约（modules/tests.md、learnings/schemastery-volatile-protocol-fork.md、learnings/workspace-takeover-truth-report.md）",
     "完整性未成立（部分完成（6 项未满足：stream-error））—— stream-error；error；error",
     "cw index exit 0",
     "编译基线未推进（完整性未成立：未消化的变化下次编译仍会被看见）",
-    "符号快照已写入（2675 个组件），下次增量按组件级判定"
+    "符号快照无变化（2675 个组件），跳过写入"
   ],
   "wikiPath": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree\\.codewiki"
 }

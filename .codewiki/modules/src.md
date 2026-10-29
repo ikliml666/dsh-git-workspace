@@ -211,7 +211,7 @@ tags: [git-worktree, dsh-plugin, session-checkout, worktree, react-client, typer
 
 ### 工具与命令
 
-- **tools.ts**：`registerTools`（94-692）。`leaveCheckoutBeforeRemoval`（51-66，cwd 恢复失败必须中止删除）、`enterCheckout`（76-91，**优先读台账 `resolveRoots`**——70-74 注释解释验证路径失败不应困住会话）。九个 `defineTool`（行号为注册起点）：`worktree_create`(100-166，in-place，`targetSessionId = sourceSessionId`，输出 `worktree_target_created` 含 `cwdSelected`)、`worktree_list`(168-224)、`worktree_resume_revision`(226-271)、`worktree_begin_next_iteration`(273-316)、`worktree_ready_for_review`(318-403)、`worktree_deliver`(405-506，`autoDeliver` 关闭即拒 451-453；交付前 leave，失败回 enter 482-490)、`worktree_cleanup`(508-558)、`worktree_prune_branches`(560-628)、`worktree_merge`(630-692，`direction` forward/reverse)。所有 `execute` 用 `withHostLanguage(languageForInvocation(...))` 包裹。
+- **tools.ts**：`registerTools`（94-693）。`leaveCheckoutBeforeRemoval`（51-66，cwd 恢复失败必须中止删除）、`enterCheckout`（76-91，**优先读台账 `resolveRoots`**——70-74 注释解释验证路径失败不应困住会话）。九个 `defineTool`（行号为注册起点）：`worktree_create`(100-166，in-place，`targetSessionId = sourceSessionId`，输出 `worktree_target_created` 含 `cwdSelected`)、`worktree_list`(168-224)、`worktree_resume_revision`(226-271)、`worktree_begin_next_iteration`(273-316)、`worktree_ready_for_review`(318-403)、`worktree_deliver`(405-506，`autoDeliver` 关闭即拒 451-453；交付前 leave，失败回 enter 482-490)、`worktree_cleanup`(508-558)、`worktree_prune_branches`(560-628)、`worktree_merge`(630-692，`direction` forward/reverse)。所有 `execute` 用 `withHostLanguage(languageForInvocation(...))` 包裹。
 - **commands.ts**：`registerWorktreeCommand`（44-228）。`leaveCheckout`(51-61)/`enterCheckout`(62-72) 闭包。动词：`status`(84-86)、`list`(87-96)、`continue`(97-109)、`next`(110-120)、`finalize`(121-159，reviewId+revision 可选 CAS、retention 白名单 `RETENTIONS`(32))、`finish`(160-179)、`discard`(180-200)、`remove`(201-219)、未知动词报 usage(220-221)。`finishedText`(35-41) 拼 autoPush 结果。
 - **session-target-context.ts**：`registerSessionTargetContext`（14-41）——45 秒后台刷新 branch-race 缓存（21-26，保证 `runtimeContext` 同步）、注入 `['systemPrompt']`，`order:118` 的 `git-worktree:session-target` 上下文块，传入 `workingDirectory.current(agent)`（33-39）。
 
@@ -299,7 +299,7 @@ tags: [git-worktree, dsh-plugin, session-checkout, worktree, react-client, typer
 9. **Workspace Loader 兼容**：`workspace-provider-lifecycle.ts:140-155` 与 223-258——Loader 1.0.6 `update()` 不等待 dispose、失败 fiber 残留导致 `refresh()` 误判 running、`fiber.await()` 在已 settled 转移上自旋（2026-10-24 Windows 实测，见 225-231 注释）；每操作 10s 上限（18 行）。
 10. **已废弃/受限能力位置**：
     - `SessionCheckoutPhase` 的 `'applying'` 已废弃（`src/types.ts:22`）。
-    - `enableWorkspaceProvider` 默认 `false`（`src/index.ts:318`），接管仅显式开启；0.2.x Host 上装饰路径结构性崩溃故接管是强制的（`workspace-provider-lifecycle.ts:82-88` 注释），此时该开关仅作提示。
+    - `enableWorkspaceProvider` 默认 `false`（`src/index.ts:318`），接管仅显式开启；0.2.x Host 上装饰路径结构性崩溃故接管是强制的（`workspace-provider-lifecycle.ts:82-86` 注释），此时该开关仅作提示。
     - 旧「写回 Local」交付链（`session-checkout-apply.ts` 的 `apply`/`finish`/`preview`/`rollback`/`finalize`，1737-2655）仍存在但主路径已换为 `commitIsolated`；UI 文案 `deliveryNoLongerWritesLocalUseDeliverInstead`（`host-messages.ts:1323-1326`）明示旧路径停用。
     - worktree merge 源分支归属校验 `worktreeMergeSourceNotOwnedBySession`（`host-messages.ts:1127-1130`）——只允许合并本会话自己的 worktree 分支。
     - `client/index.tsx:36` 的 `inject` 列表与 `console-remote/index.ts:45-49` 的过滤集不同：后者刻意剔除 `remote.directoryPicker`/`remoteAccess` 以免 web boot 死锁/卡死（18-44 注释）。

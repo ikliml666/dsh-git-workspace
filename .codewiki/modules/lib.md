@@ -242,7 +242,7 @@ tags: [git-worktree, dsh-plugin, session-checkout, console, adapters, i18n, appl
 | `checkoutRefRoot` | 191-194 | sha256(checkoutId) 前 24 位 → `refs/dsh-worktree/session-checkouts/<key>` |
 | `assertArtifactName` | 195-201 | artifact 段必须 `[A-Za-z0-9][A-Za-z0-9._-]*` |
 | `internalArtifactRef` / `applyBaseRef` | 202-205 / 206-208 | 内部 artifact / `apply-base` ref |
-| `abandonedSnapshotRef` | 214-217 | 故意放在 `checkoutRefRoot` 之外：`refs/dsh-worktree/abandoned/<checkoutId>`，避免 discard 流程整组释放时带走安全快照(210-213 注释) |
+| `abandonedSnapshotRef` | 214-217 | 故意放在 `checkoutRefRoot` 之外：`refs/dsh-worktree/abandoned/<checkoutId>`，避免 discard 流程整组释放时带走安全快照(209-213 注释) |
 | `hasGitMetadata` | 218-234 | 向上找 `.git` 判定“是否真的不是 git 仓库” |
 | `createDshGitPort(ctx, options)` | 236-782 | 端口工厂，方法见下表 |
 
@@ -284,7 +284,7 @@ tags: [git-worktree, dsh-plugin, session-checkout, console, adapters, i18n, appl
 
 #### safe-file.js（崩溃安全 JSON 读写）
 
-`sleepSync`(15-23)、`renameAtomicWithRetry`(25-41，Windows EBUSY/EPERM/EACCES/ENOTEMPTY 指数退避重试 5 次)、`tmpPathFor`(46-48，`<file>.<pid>.<uuid>.tmp` 固定名会让并发写者互踩——43-45 注释)、`listTmpFiles`(50-64，按 mtime 新→旧)、`cleanupTmpFiles`(65-72)、`writeJsonFileAtomic`(79-95，写前备份 `.bak` + 唯一 tmp + 原子 rename)、`writeTextFileAtomic`(97-101)、`readJsonFileSafe`(106-154)：主文件 → 最新可解析 `.tmp` 残留（成功即提升为主文件并清场）→ `.bak`（恢复时 `skipBackup=true` 防止坏主文件覆盖好备份，143-144）→ 全失败返回 null 由上层从 JSONL 重建。**无跨进程锁**（76-77 ponytail 注释）。
+`sleepSync`(15-23)、`renameAtomicWithRetry`(25-41，Windows EBUSY/EPERM/EACCES/ENOTEMPTY 指数退避重试 5 次)、`tmpPathFor`(46-48，`<file>.<pid>.<uuid>.tmp` 固定名会让并发写者互踩——42-45 注释)、`listTmpFiles`(50-64，按 mtime 新→旧)、`cleanupTmpFiles`(65-72)、`writeJsonFileAtomic`(79-95，写前备份 `.bak` + 唯一 tmp + 原子 rename)、`writeTextFileAtomic`(97-101)、`readJsonFileSafe`(106-154)：主文件 → 最新可解析 `.tmp` 残留（成功即提升为主文件并清场）→ `.bak`（恢复时 `skipBackup=true` 防止坏主文件覆盖好备份，143-144）→ 全失败返回 null 由上层从 JSONL 重建。**无跨进程锁**（76-77 ponytail 注释）。
 
 #### working-directory.js（会话 cwd 端口）
 
@@ -504,7 +504,7 @@ tags: [git-worktree, dsh-plugin, session-checkout, console, adapters, i18n, appl
 
 **② worktree_create**：模型调工具（`lib/tools.js`）→ `module.createIsolatedTarget`（状态机，含 `createWorktree` 的独占 mkdir + `worktree add --detach --no-checkout --lock` + `verifyIdentity` + `read-tree/checkout-index`）→ `attachWorktreeBranch` 建会话分支 → `enterCheckout` 经 `workingDirectory.set` 真把会话 cwd 移进去 → 输出 `{kind:'worktree_target_created', ..., cwdSelected}`，客户端 `WorktreeCreateRow` 渲染并可“打开隔离会话”。
 
-**③ Ready → 交付**：模型 `worktree_ready_for_review`（`lib/tools.js`）→ `engine.reviewIsolated` 快照 → `engine.commitIsolated`（`lib/session-checkout-apply.js`）把改动提交到**会话分支**（完全不写 Local）→ 按 retention 保留/清理冻结环境 → `autoPush` 尽力推送 → 用户经 `ReviewActions.finalizeCurrentSession` 或 `/worktree finalize` 走 Local 合并路径（`worktree_merge`）。
+**③ Ready → 交付**：模型 `worktree_ready_for_review`（`lib/tools.js`）→ `engine.reviewIsolated` 快照 → `engine.commitIsolated`（`lib/session-checkout-apply.js`）把改动提交到**会话分支**（完全不写 Local）→ 按 retention 保留/清理冻结环境 → `autoPush` 尽力推送 → 用户经 `finalizeCurrentSession`（`lib/client/actions.js`）或 `/worktree finalize` 走 Local 合并路径（`worktree_merge`）。
 
 **④ Console 读取链**：客户端 `createWorktreeConsoleRemoteAdapter`（30s/180s 超时）→ Typert RPC → `WorktreeConsoleService.<method>`（`withHostLanguage` 包裹 + ndjson 诊断）→ `createWorktreeConsoleControlPlane`（`authorize` → `observe`/`observeFromCaller` → `projectRecord/projectDetails` 投影）→ 严格 zod schema 校验（`descriptors.js`）→ React 面板。胶囊轮询由 `current-polling.js` 共享 Poll 驱动（隐藏页 60s）。
 
@@ -527,7 +527,7 @@ tags: [git-worktree, dsh-plugin, session-checkout, console, adapters, i18n, appl
 1. **safe-file 无跨进程锁**（`lib/adapters/safe-file.js:76-77` ponytail 注释）：唯一 tmp + 原子 rename 消除了"tmp 互踩/半写提升"，但文件级 last-writer-wins 仍在；需要强一致时须再引入 lock 文件。
 2. **plans 仅内存**（`lib/session-checkout-apply.js`）：`plan/persistPlan` 存于进程内 Map，宿主重启即失效（调用方需重新 plan；journal 持久化由上层状态机补足）。
 3. **第三方错误信息本地原样透出**（`lib/console-host/errors.js` ponytail 注释）：`consoleFailure` 对非领域错误保留原始 message 供本地 UI/测试观测；**若未来增加远程序列化通道，必须先在此截断/替换**。
-4. **apply 引擎 30s 固定超时**（`lib/session-checkout-apply.js`）：ponytail 注释说明与 git.ts 的 120s 不一致，靠 `options.timeoutMs` 覆盖；超大仓库的合并计算可能逼近上限。
+4. **apply 引擎 30s 固定超时**（`lib/session-checkout-apply.js`）：ponytail 注释说明与 git.js 的 120s 不一致，靠 `options.timeoutMs` 覆盖；超大仓库的合并计算可能逼近上限。
 5. **Review Diff 的"Ready 后即弃"语义**（`lib/console-host/control-plane.js` 的 `reviewDiff` 端点）：读写后任一 preflight 复验失败，diff 字节即被丢弃并报 `stale_isolated`——这是刻意设计，但对用户表现为"diff 偶发消失"。
 6. **`capabilitiesSchema.returnToLocal` 兼容窗口**（`lib/console-remote/schemas.js`）：旧 Host 不输出该键，靠 `default(false)` 容忍；新增能力位必须沿用此模式，否则整条 `current` 校验失败、胶囊塌成“不可用”。
 7. **侧栏 Mode B 的 seat 限制**（`lib/client/workspace-sidebar/index.js`）：DSH 0.2.x 没有 `sidebar.session.row.trailing` 声明，注入该名字会永久等待、徽章永远不挂载——只能用 `leading`+`hover` 两个 seat。
@@ -535,4 +535,4 @@ tags: [git-worktree, dsh-plugin, session-checkout, console, adapters, i18n, appl
 9. **`hostMessages` 单体目录**（`lib/i18n/host-messages.js`）：约 880 个键集中在一个对象里；`hostPersistedCleanupMessage` 依赖 zh 原文匹配持久化判别文案——**改动这些键的 zh 文本会破坏清理恢复的本地化识别**。
 10. **隐藏窗口轮询降级依赖 `document.visibilityState`**（`lib/client/target-console/current-polling.js`）：无 DOM 的宿主按普通 5s 处理；`Poll` 的 last 快照在最后一个订阅者退出时清空，重挂载首帧必有一次真实 RPC。
 11. **分支概览缓存按 sessionId 键控但语义是仓库级**（`lib/client/target-console/branch-overview-cache.js`）：同项目多会话互相覆盖同一底层视图，这是文档化行为而非 bug，但排查“别处切了分支这边没刷新”时需知悉。
-12. **`worktree_deliver` 的 autoDeliver 闸门**（`lib/tools.js`）：`autoDeliver` 关闭时模型侧交付被硬禁用（抛 `worktreeDeliverDisabledByAutoDeliver`），只能走 `worktree_ready_for_review` 人工验收——这是功能开关而非缺陷，但排查“模型报错无法交付”时应首先检查该配置（`lib/index.js:68`，默认 true）。
+12. **`worktree_deliver` 的 autoDeliver 闸门**（`lib/tools.js`）：`autoDeliver` 关闭时模型侧交付被硬禁用（抛 `worktreeDeliverDisabledByAutoDeliver`），只能走 `worktree_ready_for_review` 人工验收——这是功能开关而非缺陷，但排查“模型报错无法交付”时应首先检查该配置（`lib/index.js:66-71`，默认 true）。
