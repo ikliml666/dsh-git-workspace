@@ -3,12 +3,12 @@
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
     "baseCommit": "e1ad9e86b7b3f58b30318b605d474ee6c6558270",
-    "headCommit": "a7252c560a31750776ad1217b4c3bcdfe62f53be"
+    "headCommit": "3f758adb1d366f03606dca4b9b7e72c33729e31f"
   },
   "pendingChanges": {
     "state": "ok",
     "baseCommit": "e1ad9e86b7b3f58b30318b605d474ee6c6558270",
-    "headCommit": "a7252c560a31750776ad1217b4c3bcdfe62f53be",
+    "headCommit": "3f758adb1d366f03606dca4b9b7e72c33729e31f",
     "committed": [
       "CHANGELOG.md",
       "README.en.md",
@@ -43,12 +43,11 @@
   "unconsumed": [],
   "engineVersion": "2.0.0",
   "scope": "auto",
-  "effectiveScope": "full",
+  "effectiveScope": "stale",
   "updateOutcome": null,
-  "fallbackReason": "还没有持久化状态（首次增量）",
+  "fallbackReason": "",
   "notes": [
-    "增量不可用，改走全量：还没有持久化状态（首次增量）",
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mvuyxx85-1-native（21 个文件）"
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mvv135cy-4-native（23 个文件）"
   ],
-  "updatedAt": "2026-10-30T13:22:06.210Z"
+  "updatedAt": "2026-10-30T14:03:19.283Z"
 }

@@ -1,0 +1,79 @@
+{
+  "started_at": "2026-10-30T22:03:18+0800",
+  "finished_at": "2026-10-30T22:03:18+0800",
+  "outcome": "no_change",
+  "options": {
+    "rung": "3",
+    "tau_ren": 0.95,
+    "max_diff_tokens": 8000,
+    "tau_nb": 0.5,
+    "tau_grow": 0.33,
+    "k_hop": 1,
+    "use_ownership_closure": true,
+    "tau_full": 0.5,
+    "tau_tree": 0.3,
+    "use_routing_agent": true,
+    "use_growth_recluster": true,
+    "use_up": true,
+    "agent_may_patch_leaf": true,
+    "agent_patches_related": true,
+    "use_stale_scan": true,
+    "extra": {}
+  },
+  "revision": {
+    "old_commit": "a7252c560a31750776ad1217b4c3bcdfe62f53be",
+    "new_commit": "3f758adb1d366f03606dca4b9b7e72c33729e31f",
+    "repo_path": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree"
+  },
+  "diff": {
+    "counts": {
+      "added": 0,
+      "deleted": 0,
+      "interface": 0,
+      "body": 0,
+      "edge": 0,
+      "renamed": 0
+    },
+    "added": [],
+    "deleted": [],
+    "interface": [],
+    "body": [],
+    "edge": [],
+    "renamed": {}
+  },
+  "repair": {},
+  "reclustered": [],
+  "reports": {},
+  "ownership": [],
+  "active": [],
+  "write_sets": {},
+  "fallback": {},
+  "verdicts": [],
+  "pages_written": [],
+  "pages_removed": [],
+  "write_set_violations": [],
+  "stale_scan": {},
+  "calls": [],
+  "detector_notes": [
+    "reference index rebuilt from pages (none saved by previous build)"
+  ],
+  "errors": [],
+  "wall_seconds": 0.16,
+  "usage_report": {
+    "schema_version": 2,
+    "scope": "this run only (modules resumed from disk cost nothing)",
+    "currency": "USD",
+    "cost_status": "complete",
+    "incomplete": true,
+    "unknown_usage_calls": 0,
+    "n_calls": 0,
+    "totals": {
+      "cost_usd": 0.0
+    },
+    "by_phase": {},
+    "by_model": {},
+    "unpriced_models": [],
+    "calls": []
+  },
+  "run_id": "a3fe7cb9-da51-4cd7-9f4a-2d665da495de"
+}
