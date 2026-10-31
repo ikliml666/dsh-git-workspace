@@ -224,8 +224,7 @@ sequenceDiagram
 - **[shared_contracts_and_domain_ports](../shared_contracts_and_domain_ports.md)**：`WorktreeCreationEvidence`、`DirectoryIdentity`、`ManagedCheckoutCreateJournal` 等端口类型定义所在；`SESSION_CHECKOUT_ERROR_CODES`（`recovery_required` / `git_operation_failed`）与 `SessionCheckoutError` 的错误码字典也在共享契约层。
 - **[worktree_lifecycle_management_core_index](worktree_lifecycle_management_core_index.md)**：模块对外门面 `SessionCheckoutModule` 接口与 `IsolatedTargetLaunch` 的定义页，创建失败最终会终止到这个接口的调用方（控制台控制面与客户端）。
 - **[managed_worktree_path](managed_worktree_path.md)**：`createManagedWorktreePathCandidates`、`createManagedWorktreeRepositoryKey` 决定「往哪儿创建」；创建失败后 sibling → fallback 的容器降级重试（`createAttempt < 1`）依赖这些候选路径。
-- **[concurrency](concurrency.md)**：`concurrent-session-guard` 负责在创建**之前**拦住「同一 Local 边界下多会话抢分支」的场景；创建**之后**的并发残余问题才由本模块的身份 CAS 处理。
-- **[host_compat](host_compat.md)** / **[workspace_provider_lifecycle](workspace_provider_lifecycle.md)**：决定「哪个 Host 世代能挂载这个插件」，属于创建动作发生之前的环境判定，不参与创建期失败语义。
+- **[host_compat](host_compat.md)** / **[workspace_provider_lifecycle](workspace_provider_lifecycle.md)**：决定「哪个 Host 世代能挂载这个插件」，属于创建动作发生之前的环境判定，不参与创建期失败语义。
 - **控制台控制面与服务层（[console_control_plane_and_services](../console_control_plane_and_services.md)）**：把 `recovery_required` 错误码与残留台账投影成「需要人工恢复」的侧栏状态；**客户端（[client](../client.md)）** 据此向用户展示恢复 / 放弃按钮。
 
 ## 设计要点速查

@@ -26,7 +26,7 @@
 
 设计要点（源码注释中的关键决策）：
 
-- **0.2.1-rc.4 是钉版现代发布**：插件 dev 依赖钉住 `@deepseek-ai/dsh-client-ui-workspace@0.2.1-rc.4`（见 `package.json`），所有 modern 分支消费的 seam（slots、sessions、workspaces、locale、remote、layout、shortcuts、`sidebar.workspaces` 及其子 slots）均对照该版本验证过。
+- **0.2.1-rc.5 是钉版现代发布**：插件 dev 依赖钉住 `@deepseek-ai/dsh-client-ui-workspace@0.2.1-rc.5`（见 `package.json`）。rc.5 是上游对 rc.4 的纯版本号重发——官方 Workspace Client 与 rc.4 逐字节相同（232824 字节，SHA-256 一致）。所有 modern 分支消费的 seam（slots、sessions、workspaces、locale、remote、layout、shortcuts、`sidebar.workspaces` 及其子 slots）均对照该版本验证过。
 - **因此非钉版 0.2.x 不归为 unsupported**：任何 `0.2.` 前缀版本都解析到同一已验证世代，避免宿主每次小版本升级就被误判。
 - **0.1.x 分裂为三个 flavor、0.3+ 一律 unsupported**：这些世代未做源码验证。
 
@@ -166,7 +166,7 @@ flowchart LR
 `package.json` 中的 `peerDependencies` 与 `devDependencies` 共同印证了 flavor 表：
 
 - `peerDependencies` 声明 `@deepseek-ai/dsh-agent` 兼容范围为 `^0.1.2-rc.1 || ^0.2.0-rc.1 || ^0.2.1-rc.1`；
-- devDependencies 钉住 `@deepseek-ai/dsh-agent@0.2.1-rc.4`（modern 世代的验证基准）；
+- devDependencies 钉住 `@deepseek-ai/dsh-agent@0.2.1-rc.5`（modern 世代的验证基准）；
 - 额外以别名形式引入两个历史版本的 ui-workspace：
   - `@deepseek-ai/dsh-client-ui-workspace-alpha` = `npm:@deepseek-ai/dsh-client-ui-workspace@0.1.6-alpha.2`
   - `@deepseek-ai/dsh-client-ui-workspace-next` = `npm:@deepseek-ai/dsh-client-ui-workspace@0.1.7-rc.2`

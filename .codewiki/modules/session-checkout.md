@@ -310,8 +310,7 @@ flowchart TD
 
 ## 8. 与其他模块的关系
 
-- **共享契约与端口**：`SessionCheckoutDependencies`、`SessionCheckoutGitPort`、`ManagedCheckoutRecord`、`ManagedPreviewReceipt`、`ManagedCheckoutMutationJournal` 等均定义于 [shared_contracts_and_domain_ports.md](../shared_contracts_and_domain_ports.md)；引擎只依赖 `SessionCheckoutApplyEngine` 自身与 `ProjectSkillStore`（见 [adapters 子页](../shared_contracts_and_domain_ports/adapters.md) 的 project-skills）。
-- **并发守卫**：模块编排层用 `detectLocalBranchRace` 决定是否要求先隔离，见 [concurrency.md](concurrency.md)。
+- **共享契约与端口**：`SessionCheckoutDependencies`、`SessionCheckoutGitPort`、`ManagedCheckoutRecord`、`ManagedPreviewReceipt`、`ManagedCheckoutMutationJournal` 等均定义于 [shared_contracts_and_domain_ports.md](../shared_contracts_and_domain_ports.md)；引擎只依赖 `SessionCheckoutApplyEngine` 自身与 `ProjectSkillStore`（见 [adapters 子页](../shared_contracts_and_domain_ports/adapters.md) 的 project-skills）。
 - **创建失败**：Worktree 创建期失败的回滚与 `recovery_required` 标记见 [creation_failure.md](creation_failure.md)。
 - **路径候选与会话分支命名**：`createSessionBranchCandidates`、`createManagedWorktreePathCandidates` 见 [managed_worktree_path.md](managed_worktree_path.md)。
 - **模块入口与完整操作面**：`SessionCheckoutModule` 接口、`SessionCheckoutError`、`createSessionCheckoutModule` 的挂载见 [worktree_lifecycle_management_core_index.md](worktree_lifecycle_management_core_index.md)。

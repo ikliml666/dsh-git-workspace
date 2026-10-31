@@ -111,7 +111,7 @@ check:sidebar-version  →  build  →  check:publish:release  →  test
 
 该脚本逐段验证"插件能否被 dsh Host 正确安装、挂载、启动"，是本模块最核心的运行时契约校验：
 
-1. **Host 单例依赖**：13 个 `@deepseek-ai/*` 包（cordis、dsh-agent、dsh-session 等）必须是 `peerDependencies` 且出现在 `devDependencies`，禁止作为私有 `dependencies`——否则会破坏 Host 服务身份。
+1. **Host 单例依赖**：13 个 `@deepseek-ai/*` 包（cordis、dsh-agent、dsh-session 等）必须是 `peerDependencies` 且出现在 `devDependencies`（当前 dev 钉版统一为 `0.2.1-rc.5`），禁止作为私有 `dependencies`——否则会破坏 Host 服务身份。
 2. **宿主挂载补丁**：`package.json` 的 `dsh.bundle.patch` 必须指向存在且被 `files` 覆盖的 `cordis.patch.yml`；补丁必须插入一个以本包命名的插件行；**不得**携带任何 `!!js` 客户端求值表达式（2026-10-17 两次 web boot 崩溃的根因），也不得直接改写官方 `ui-workspace` 条目（选举由 Host 侧 `workspace-provider-lifecycle` 持有）。同时校验 `lib/workspace-provider-lifecycle.js` 不再导出已退役的 `WORKSPACE_PROVIDER_CONDITION` 常量。
 3. **导出映射**：`exports` 中每个子路径的每个条件都必须指向包内真实存在、且被 `files` 覆盖的文件；并清理 `lib/client/review-console/` 下已删除 UI 的残留产物。
 4. **Typert / Remote 一致性**：动态 import `./typert`（Host 侧 `TYPERT` 贡献）与 `./remote`（Client 侧默认导出），断言二者共享同一个描述符数组实例、方法集合精确等于 41 个手工维护的远程方法、命名空间固定为 `gitWorktree`、每个参数与返回值都使用 Zod v4 strict 编解码。
@@ -168,7 +168,7 @@ flowchart LR
 该仓库并非多包 workspace，此文件用于两项 pnpm 安全策略：
 
 - `allowBuilds.esbuild: true`：显式放行 tsdown 底层 esbuild 的构建脚本（pnpm 默认禁止依赖包的 postinstall）。
-- `minimumReleaseAgeExclude`：逐一列出 `@deepseek-ai/*` 与 `schemastery` 的具体版本，豁免"新发布包冻结期"策略——因为这些 rc 版本发布时间很近，但团队已审过，避免每次安装被阻塞。
+- `minimumReleaseAgeExclude`：逐一列出 `@deepseek-ai/*` 与 `schemastery` 的具体版本（当前最新豁免到 `0.2.1-rc.5`），豁免"新发布包冻结期"策略——因为这些 rc 版本发布时间很近，但团队已审过，避免每次安装被阻塞。
 
 ### 测试环境（`vitest.config.ts`）
 

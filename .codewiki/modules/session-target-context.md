@@ -79,7 +79,7 @@ flowchart LR
     CA -.->|结构性投影| RA
 ```
 
-模块本身只持有装配逻辑，所有状态语义都委托给 `SessionCheckoutModule`（见 [session_checkout](session_checkout.md)），并发竞争的纯谓词见 [concurrency](concurrency.md)，工作目录适配端口详见 [shared_contracts_and_domain_ports/adapters](../shared_contracts_and_domain_ports/adapters.md)。
+模块本身只持有装配逻辑，所有状态语义都委托给 `SessionCheckoutModule`（见 [session_checkout](session_checkout.md)），工作目录适配端口详见 [shared_contracts_and_domain_ports/adapters](../shared_contracts_and_domain_ports/adapters.md)。
 
 ---
 
@@ -200,7 +200,7 @@ flowchart TD
 ```
 
 - 状态机与交付语义的完整说明：[session_checkout](session_checkout.md)。
-- 并发分支竞争的纯谓词与数据结构：[concurrency](concurrency.md)。
+工作目录适配端口
 - 工作目录适配端口与 Host 服务契约：[shared_contracts_and_domain_ports/adapters](../shared_contracts_and_domain_ports/adapters.md)。
 - 插件整体装配、配置（`branchRaceGuard` / `branchRaceWindowMs` / `autoDeliver` 等 volatile 字段如何影响播报）与启动维护定时器：[worktree_lifecycle_management_core_index](worktree_lifecycle_management_core_index.md)。
 - 工作区提供方选举（`mountWorkspaceProviderLifecycle`）在装配顺序上先于本模块，但二者无运行时依赖：[workspace_provider_lifecycle](workspace_provider_lifecycle.md)。

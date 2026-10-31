@@ -24,6 +24,7 @@
 - [[modules/client-core/client-review-console|client_review_console]]
 - [[modules/client-core/client-target-console|client_target_console]]
 - [[modules/console-control-plane-and-services|console 控制平面与服务模块概览]]
+- [[modules/console-remote|console_remote：Typert Remote 服务契约层]]
 - [[modules/lib|lib — dsh-git-worktree 插件主源码]]
 - [[modules/scripts|scripts]]
 - [[modules/src|src]]

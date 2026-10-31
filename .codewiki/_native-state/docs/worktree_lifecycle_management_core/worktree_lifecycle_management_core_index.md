@@ -112,7 +112,7 @@ flowchart TB
 - `createIsolatedTarget` 预留一个独立的 owner 会话与 checkout，**不改变**源会话的 cwd/身份；返回的 `IsolatedTargetLaunch` 是客户端创建权威隔离 Workspace/Session 的交接数据。
 - `manageManagedWorktreeForSession` 只做调用方鉴权，**绝不**把持久化的 owner id 当作授权依据。
 
-状态机与 apply 引擎的内部实现细节（receipt-first Local Preview、rollback/finalize、crash recovery、fingerprint CAS）见 [session_checkout](session_checkout.md)；并发守卫的纯谓词实现见 [concurrency](concurrency.md)。
+状态机与 apply 引擎的内部实现细节（receipt-first Local Preview、rollback/finalize、crash recovery、fingerprint CAS、分支竞争守卫的纯谓词实现）见 [session_checkout](session_checkout.md)。
 
 ## 错误模型：SessionCheckoutError 与 reconcile 汇总
 
@@ -237,7 +237,7 @@ flowchart LR
 ## 与其他模块的关系
 
 - **状态机与 apply 引擎**（本页契约的实现）：[session_checkout](session_checkout.md)
-- **并发分支守卫**（`detectLocalBranchRace` 纯谓词）：[concurrency](concurrency.md)
+- **并发分支守卫**（`detectLocalBranchRace` 纯谓词，实现见状态机页）：[session_checkout](session_checkout.md)
 - **Worktree 创建失败类型**：[creation_failure](creation_failure.md)
 - **Host 版本风味探测**：[host_compat](host_compat.md)
 - **受管 worktree 路径/分支名候选生成**：[managed_worktree_path](managed_worktree_path.md)
