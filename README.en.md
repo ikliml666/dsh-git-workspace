@@ -80,6 +80,7 @@ See the [full usage guide](docs/USAGE.en.md) for detailed actions, recovery scen
 
 | DeepSeek Harness | Plugin version |
 | --- | --- |
+| `0.2.1-rc.5` | `0.13.0` |
 | `0.2.1-rc.4` | `0.13.0` |
 | `0.2.1-rc.3` | `0.12.0` |
 | `0.2.1-rc.2` | `0.11.0` |
@@ -88,11 +89,11 @@ See the [full usage guide](docs/USAGE.en.md) for detailed actions, recovery scen
 
 Match the plugin version to your Harness version rather than installing the latest plugin on an older Harness.
 
-The DSH `0.2.1-rc.4` adaptation included in `0.13.0` passed source compatibility checks (typecheck, build, sidebar version/SHA gate, publish gate and the full test suite). Browser, real AI conversation and full desktop acceptance for this combination remain incomplete. See the [compatibility notes](docs/COMPATIBILITY.md#english) and [validation report](docs/compatibility/0.2.1-rc.4.md) for the scope. Historical validation records remain valid for their original combinations, not as acceptance evidence for newer ones.
+The DSH `0.2.1-rc.5` adaptation included in `0.13.0` passed source compatibility checks (typecheck, build, sidebar version/SHA gate, publish gate and the full test suite). Browser, real AI conversation and full desktop acceptance for this combination remain incomplete. rc.5 is a pure version-number republish of rc.4 with a byte-identical official Workspace Client, so rc.4 gets no separate record — both share `0.13.0` and the same source compatibility conclusion. See the [compatibility notes](docs/COMPATIBILITY.md#english) and [validation report](docs/compatibility/0.2.1-rc.5.md) for the scope. Historical validation records remain valid for their original combinations, not as acceptance evidence for newer ones.
 
 ### Install
 
-For DSH `0.2.1-rc.4`, install through the `dsh` Web Profile:
+For DSH `0.2.1-rc.5`, install through the `dsh` Web Profile:
 
 ```bash
 dsh plugin --profile web add dsh-git-worktree@0.13.0

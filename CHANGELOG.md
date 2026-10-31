@@ -127,6 +127,14 @@
 
 ### Changed
 
+- 适配 DSH `0.2.1-rc.5`（基线适配，2026-10-31）：插件版本保持 `0.13.0`，DSH devDependencies 精确锁定 `0.2.1-rc.5`（核心 peer 的 caret 范围 `^0.2.1-rc.1` 已覆盖该版本，locale peer 精确清单追加 `|| 0.2.1-rc.5`），`minimumReleaseAgeExclude` 同步覆盖 rc.5 的 70 条精确锁定依赖。
+  - **rc.5 是 rc.4 的纯版本号重发**：把父工作树里已装的 rc.4 与本次安装的 rc.5 全部 70 个 `@deepseek-ai/dsh-*` 包逐文件做 SHA-256 比对（探针 `.dsh-ops/rc5-compare.mjs`，1280 个文件里 1209 个字节完全相同、合计 10014178 字节），唯一差异是 70 个包各自的 `package.json` 版本字段（全部等长），以及 `@deepseek-ai/dsh-client-modules/lib/index.js` 里一个内嵌构建 commit 标记（`ec17a2c` → `d4db512`，等长 42342 字节，首个差异在第 24827 字节、无逻辑差异）。`node_modules/.bin` 的 shim 有意排除：pnpm 用绝对 store 路径重写它们，任意两次安装必然不同且不含包逻辑。
+  - 官方 Workspace Client 在 rc.4 与 rc.5 之间字节完全相同（232824 字节，SHA-256 `9c2c17a6…6544`），因此 `scripts/workspace-sidebar-upstream.mjs:5-6` 只移动 `WORKSPACE_UI_VERSION` / `WORKSPACE_LOCALE_VERSION` 到 `0.2.1-rc.5`，`WORKSPACE_CLIENT_SHA256` 保持原值——门禁仍是真检查而非假设：产物若有变，构建当场被拒。移动常量前先用 `npm pack` 独立确认 tarball（106330 字节）。`src/host-compat.ts` 的 modern generation 注释与 `tests/host-compat.test.ts` 的 flavor 映射补充 rc.5。
+  - 接缝探针（`.dsh-ops/probe-rc5-seams.mjs`）对 rc.5 `lib/client.js` 实测：源 232824 字节、派生 236427 字节（派生 SHA-256 `9b3a2e6a…77f2`，与 rc.4 派生字节相同），8 个必需接缝全部存活、装饰逻辑零改动。
+  - 先写测试再改实现：`tests/host-compat.test.ts` 的 locale peer 断言与 pinned flavor 用例先补 rc.5 得到红灯（`pnpm test` 中 1 failed，`Expected` 含 rc.5 而 `Received` 不含），再做依赖与 peer 声明转绿。
+  - 验证（Windows x64，Node 24.19.0，pnpm 12.5.1，Cordis 4.0.5 / loader 1.0.6 / include 1.0.10 / schemastery 3.18.5，TypeScript 5.9.3 / Vitest 2.1.9 / tsdown 0.17.4）：`typecheck` 0 诊断、`build` 通过（`lib/client.js` 1192.67 kB）、`check:sidebar-version` 通过（ui-workspace 0.2.1-rc.5 + 0.1.6-alpha.2 + 0.1.7-rc.2 三路 SHA-256、locale 0.2.1-rc.5）、`check:publish` 全部通过（13 Host singleton、12 导出目标、39 项 strict Remote 方法）、`pnpm test` 55 个测试文件 **800 passed / 4 skipped**，其中 focused lifecycle 27 passed。
+  - 仅源码兼容验证：未启动正式/隔离 DSH Profile，未做 rc.5 浏览器、真实 AI 对话、桌面端与 Windows 全流程验收。详见 [0.2.1-rc.5 报告](docs/compatibility/0.2.1-rc.5.md) 与 [JSON](docs/compatibility/0.2.1-rc.5-validation.json)。
+
 - 适配 DSH `0.2.1-rc.4`（基线适配，2026-10-28）：插件版本升至 `0.13.0`，DSH devDependencies 精确锁定 `0.2.1-rc.4`（核心 peer 的 caret 范围 `^0.2.1-rc.1` 已覆盖该版本，locale peer 精确清单追加 `|| 0.2.1-rc.4`），`minimumReleaseAgeExclude` 同步覆盖 rc.4 精确锁定依赖。
   - **rc.4 是 rc.3 的纯版本号重发**：用 `npm pack` 拉取全部相关 `@deepseek-ai/dsh-*` 包并与仓库已装的 rc.3 逐文件做 SHA-256 比对（探针 `.dsh-ops/rc4-compare.mjs`），唯一差异是各包 `package.json` 的版本字段，以及 `@deepseek-ai/dsh-client-modules/lib/index.js` 里一个内嵌构建 commit 标记（`be72761` → `ec17a2c`，等长 42376 字节、无逻辑差异）。官方 Workspace Client 在 rc.3 与 rc.4 之间字节完全相同（232824 字节，SHA-256 `9c2c17a6…6544`）。
   - 因此 `scripts/workspace-sidebar-upstream.mjs:5-6` 只移动 `WORKSPACE_UI_VERSION` / `WORKSPACE_LOCALE_VERSION` 到 `0.2.1-rc.4`，`WORKSPACE_CLIENT_SHA256` 保持原值——门禁仍是真检查而非假设：产物若有变，构建当场被拒。`src/host-compat.ts` 的 modern generation 注释与 `tests/host-compat.test.ts` 的 flavor 映射补充 rc.4。
