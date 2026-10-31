@@ -3,12 +3,12 @@
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
     "baseCommit": "e1ad9e86b7b3f58b30318b605d474ee6c6558270",
-    "headCommit": "12588de91f54a49acab4886063c72e2d04edd599"
+    "headCommit": "4c61dac59b2dc8402daf7a7aa6d158bb6b55c2eb"
   },
   "pendingChanges": {
     "state": "ok",
     "baseCommit": "e1ad9e86b7b3f58b30318b605d474ee6c6558270",
-    "headCommit": "12588de91f54a49acab4886063c72e2d04edd599",
+    "headCommit": "4c61dac59b2dc8402daf7a7aa6d158bb6b55c2eb",
     "committed": [
       "CHANGELOG.md",
       "README.en.md",
@@ -53,8 +53,8 @@
   "updateOutcome": null,
   "fallbackReason": "",
   "notes": [
-    "工作区未提交改动已合成临时 commit 8eb25be16e9f（1 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mvvyq8fi-4-native（25 个文件）"
+    "工作区未提交改动已合成临时 commit 00e89954669b（1 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mvvzzg24-6-native（25 个文件）"
   ],
-  "updatedAt": "2026-10-31T05:53:34.583Z"
+  "updatedAt": "2026-10-31T06:11:21.830Z"
 }
