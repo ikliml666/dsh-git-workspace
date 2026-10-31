@@ -3,12 +3,12 @@ import { describe, expect, test } from 'vitest'
 import { workspaceClientFlavorForAgentVersion } from '../src/host-compat.js'
 
 describe('Host-pinned Workspace generation', () => {
-  test('declares only the inspected rc.1, rc.2, rc.3, rc.4 and 0.2.x locale peers', () => {
+  test('declares only the inspected rc.1, rc.2, rc.3, rc.4, rc.5 and 0.2.x locale peers', () => {
     const manifest = JSON.parse(readFileSync('package.json', 'utf8')) as {
       peerDependencies: Record<string, string>
     }
     expect(manifest.peerDependencies['@deepseek-ai/dsh-client-locale'])
-      .toBe('0.1.2-rc.1 || 0.1.7-rc.2 || 0.2.0-rc.1 || 0.2.0-rc.2 || 0.2.1-alpha.1 || 0.2.1-rc.1 || 0.2.1-rc.2 || 0.2.1-rc.3 || 0.2.1-rc.4')
+      .toBe('0.1.2-rc.1 || 0.1.7-rc.2 || 0.2.0-rc.1 || 0.2.0-rc.2 || 0.2.1-alpha.1 || 0.2.1-rc.1 || 0.2.1-rc.2 || 0.2.1-rc.3 || 0.2.1-rc.4 || 0.2.1-rc.5')
   })
 
   test('only selects source-verified Browser generations and preserves the legacy path', () => {
@@ -18,6 +18,7 @@ describe('Host-pinned Workspace generation', () => {
     expect(workspaceClientFlavorForAgentVersion('0.2.1-rc.2')).toBe('modern')
     expect(workspaceClientFlavorForAgentVersion('0.2.1-rc.3')).toBe('modern')
     expect(workspaceClientFlavorForAgentVersion('0.2.1-rc.4')).toBe('modern')
+    expect(workspaceClientFlavorForAgentVersion('0.2.1-rc.5')).toBe('modern')
     expect(workspaceClientFlavorForAgentVersion('0.1.7-rc.3')).toBe('unsupported')
     expect(workspaceClientFlavorForAgentVersion(undefined)).toBe('unsupported')
   })
