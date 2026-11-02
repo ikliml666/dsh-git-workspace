@@ -12,7 +12,7 @@ import { existsSync, mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
 import type { ManagedCheckoutsRegistry, SessionCheckoutRegistryPort } from '../ports.js'
 import { SessionCheckoutError } from '../index.js'
-import { readJsonFileSafe, writeJsonFileAtomic } from './safe-file.js'
+import { readJsonFileSafe, withFileLock, writeJsonFileAtomic } from './safe-file.js'
 
 function emptyRegistry(): ManagedCheckoutsRegistry {
   return {
@@ -324,16 +324,40 @@ function isManagedCheckout(value: unknown): boolean {
     && typeof value.revision === 'number'
 }
 
+/** 顶层结构仍是注册表；单条记录由 sanitizeRegistry 分区降级。 */
 function isRegistry(value: unknown): value is ManagedCheckoutsRegistry {
-  if (
-    !isRecord(value)
-    || value.version !== 2
-    || typeof value.revision !== 'number'
-    || !isRecord(value.sessionBindings)
-    || !isRecord(value.managedCheckouts)
-  ) return false
-  return Object.values(value.sessionBindings).every(isSessionBinding)
-    && Object.values(value.managedCheckouts).every(isManagedCheckout)
+  return isRecord(value)
+    && value.version === 2
+    && typeof value.revision === 'number'
+    && isRecord(value.sessionBindings)
+    && isRecord(value.managedCheckouts)
+}
+
+/**
+ * 逐条校验，丢弃坏记录并保留其余：一条损坏不该让全部 checkout 失去访问权。
+ * 坏了也不回写原文件——用户现场保留，降级只作用于内存视图。
+ */
+function sanitizeRegistry(value: ManagedCheckoutsRegistry): ManagedCheckoutsRegistry {
+  const sessionBindings: ManagedCheckoutsRegistry['sessionBindings'] = {}
+  const managedCheckouts: ManagedCheckoutsRegistry['managedCheckouts'] = {}
+  let dropped = false
+  for (const [key, record] of Object.entries(value.sessionBindings)) {
+    if (isSessionBinding(record)) {
+      sessionBindings[key] = record
+      continue
+    }
+    dropped = true
+    console.warn(hostMessage('registryRecordDropped', { p0: 'sessionBindings', p1: key, p2: 'SessionBindingRecord' }))
+  }
+  for (const [key, record] of Object.entries(value.managedCheckouts)) {
+    if (isManagedCheckout(record)) {
+      managedCheckouts[key] = record
+      continue
+    }
+    dropped = true
+    console.warn(hostMessage('registryRecordDropped', { p0: 'managedCheckouts', p1: key, p2: 'ManagedCheckoutRecord' }))
+  }
+  return dropped ? { ...value, sessionBindings, managedCheckouts } : value
 }
 
 function migrateLegacyRegistry(value: unknown): ManagedCheckoutsRegistry | null {
@@ -398,6 +422,14 @@ export class AtomicJsonCheckoutRegistry implements SessionCheckoutRegistryPort {
   constructor(private readonly path: string) {}
 
   read(): ManagedCheckoutsRegistry {
+    return sanitizeRegistry(this.load())
+  }
+
+  /**
+   * 盘上原样，不做分区降级：降级是给调用方的内存视图，
+   * 任何写回都必须以磁盘事实为基础，否则被丢弃的记录会被这次写入悄悄抹掉。
+   */
+  private load(): ManagedCheckoutsRegistry {
     const value = readJsonFileSafe<unknown>(this.path)
     if (value && isRegistry(value)) return value
     const migrated = migrateLegacyRegistry(value)
@@ -411,6 +443,19 @@ export class AtomicJsonCheckoutRegistry implements SessionCheckoutRegistryPort {
 
   write(registry: ManagedCheckoutsRegistry): void {
     mkdirSync(dirname(this.path), { recursive: true })
-    writeJsonFileAtomic(this.path, registry)
+    withFileLock(this.path, () => writeJsonFileAtomic(this.path, registry))
+  }
+
+  /**
+   * 持锁完成「读-改-写」：跨进程并发时只有锁内那次读到的表才是 mutate 的输入，
+   * 否则两个进程各自 read 全表再 write 全表，后写者会抹掉先写者的记录。
+   * mutate 拿到的是盘上原样（含通过校验失败的记录），这些记录原样写回。
+   */
+  update(mutate: (registry: ManagedCheckoutsRegistry) => ManagedCheckoutsRegistry): ManagedCheckoutsRegistry {
+    return withFileLock(this.path, () => {
+      const next = mutate(this.load())
+      this.write(next)
+      return next
+    })
   }
 }

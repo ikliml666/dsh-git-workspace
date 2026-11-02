@@ -1,4 +1,4 @@
-import { appendFileSync } from 'node:fs'
+import { appendFileSync, renameSync, statSync, unlinkSync } from 'node:fs'
 import { withHostLanguage, languageFromSettings } from '../i18n/host.js'
 import { hostWorkspaceClientFlavor, workspaceFlavorDiagnostics } from '../host-compat.js'
 import type { Language } from '../i18n/core.js'
@@ -15,6 +15,8 @@ import type {
   WorktreeConsoleGitMutationResponse,
   WorktreeConsoleGitOverviewResponse,
   WorktreeConsoleGitPruneResponse,
+  WorktreeConsoleGitTagListResponse,
+  WorktreeConsoleGitTagMutationResponse,
   WorktreeConsoleInspectResponse,
   WorktreeConsoleListResponse,
   WorktreeConsoleMutationResponse,
@@ -31,6 +33,9 @@ import type {
 import type { WorktreePreviewRecoveryProof, WorktreeRetentionMode } from '../types.js'
 import type { WorktreeConsoleControlPlane } from './control-plane.js'
 
+/** Diagnostics log cap; rotating keeps one previous segment. */
+const DIAG_MAX_BYTES = 8 * 1024 * 1024
+
 /** Official Typert Remote service; the Gateway resolves `agentId` before business code runs. */
 export class WorktreeConsoleService extends TypertRemoteService {
   constructor(
@@ -43,12 +48,35 @@ export class WorktreeConsoleService extends TypertRemoteService {
     super(hostContext, 'gitWorktree')
   }
 
-  /** Diagnostics sink: an ndjson breadcrumb trail must never break the RPC surface. */
+  /**
+   * Diagnostics sink: an ndjson breadcrumb trail must never break the RPC surface.
+   * 顶部胶囊每 5 秒写一条 current，一天就是一万多行；不设上限时这个文件只增不减
+   * （实测 30 天 12MB）。超过上限就拆成 `.1` 备份，只留最近一段。
+   */
   private appendDiag(line: Record<string, unknown>): void {
     if (this.diagFile === undefined) return
     try {
-      appendFileSync(this.diagFile, `${JSON.stringify(line)}\n`, { encoding: 'utf8' })
+      this.rotateDiagIfNeeded()
+      appendFileSync(this.diagFile, `${JSON.stringify(line)}
+`, { encoding: 'utf8' })
     } catch { /* best effort */ }
+  }
+
+  private rotateDiagIfNeeded(): void {
+    if (this.diagFile === undefined) return
+    let size: number
+    try {
+      size = statSync(this.diagFile).size
+    } catch {
+      // 文件还不存在：第一条写入会创建它。
+      return
+    }
+    if (size < DIAG_MAX_BYTES) return
+    const backup = `${this.diagFile}.1`
+    try {
+      unlinkSync(backup)
+    } catch { /* 没有旧备份，正常路径 */ }
+    renameSync(this.diagFile, backup)
   }
 
   @Remote
@@ -287,8 +315,13 @@ export class WorktreeConsoleService extends TypertRemoteService {
   }
 
   @Remote
-  retryCleanup(agent: Agent, checkoutId: string, expectedRevision: number, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>> {
-    return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.retryCleanup({ sessionId: agent.id, checkoutId, expectedRevision }))
+  retryCleanup(agent: Agent, checkoutId: string, expectedRevision: number, discardPostDeliveryChanges?: boolean, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>> {
+    return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.retryCleanup({
+      sessionId: agent.id,
+      checkoutId,
+      expectedRevision,
+      ...(discardPostDeliveryChanges === undefined ? {} : { discardPostDeliveryChanges }),
+    }))
   }
 
   @Remote
@@ -329,6 +362,48 @@ export class WorktreeConsoleService extends TypertRemoteService {
   @Remote
   gitPruneMergedBranches(agent: Agent, dryRun: boolean, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitPruneResponse>> {
     return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.gitPruneMergedBranches(agent.id, dryRun))
+  }
+
+  @Remote
+  gitListTags(agent: Agent, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitTagListResponse>> {
+    return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.gitListTags(agent.id))
+  }
+
+  @Remote
+  gitCreateTag(
+    agent: Agent,
+    name: string,
+    message?: string,
+    target?: string,
+    push?: boolean,
+    locale?: Language,
+  ): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitTagMutationResponse>> {
+    return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.gitCreateTag({
+      sessionId: agent.id,
+      name,
+      ...(message === undefined ? {} : { message }),
+      ...(target === undefined ? {} : { target }),
+      ...(push === undefined ? {} : { push }),
+    }))
+  }
+
+  @Remote
+  gitDeleteTag(
+    agent: Agent,
+    name: string,
+    remote?: boolean,
+    locale?: Language,
+  ): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitTagMutationResponse>> {
+    return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.gitDeleteTag({
+      sessionId: agent.id,
+      name,
+      ...(remote === undefined ? {} : { remote }),
+    }))
+  }
+
+  @Remote
+  gitPushTag(agent: Agent, name: string, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitTagMutationResponse>> {
+    return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.gitPushTag({ sessionId: agent.id, name }))
   }
 
   @Remote

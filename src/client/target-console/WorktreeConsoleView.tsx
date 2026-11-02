@@ -112,6 +112,7 @@ export function WorktreeConsoleView({
   const [error, setError] = useState<string | null>(null)
   const [pendingAction, setPendingAction] = useState<string | null>(null)
   const [confirmTarget, setConfirmTarget] = useState<WorktreeConsoleTargetSummary | null>(null)
+  const [confirmCleanup, setConfirmCleanup] = useState<WorktreeConsoleTargetSummary | null>(null)
   const [createBranch, setCreateBranch] = useState('')
   const [knownBranches, setKnownBranches] = useState<string[] | null>(null)
   const [needsAttentionOnly, setNeedsAttentionOnly] = useState(false)
@@ -132,6 +133,7 @@ export function WorktreeConsoleView({
     setAbandoned(null)
     setNotice(null)
     setConfirmTarget(null)
+    setConfirmCleanup(null)
     setPendingAction(null)
     setCreateBranch('')
     setKnownBranches(null)
@@ -318,9 +320,10 @@ export function WorktreeConsoleView({
     }
   }
 
-  const retryCleanup = async (target: WorktreeConsoleTargetSummary): Promise<void> => {
+  const retryCleanup = async (target: WorktreeConsoleTargetSummary, discardPostDeliveryChanges = false): Promise<void> => {
     if (pendingAction !== null || target.checkoutId === null || !target.capabilities.retryCleanup) return
     const generation = sessionGeneration.current
+    setConfirmCleanup(null)
     setPendingAction(`cleanup:${target.checkoutId}`)
     setError(null)
     try {
@@ -328,10 +331,24 @@ export function WorktreeConsoleView({
         sessionId,
         checkoutId: target.checkoutId,
         expectedRevision: target.revision,
+        ...(discardPostDeliveryChanges ? { discardPostDeliveryChanges: true } : {}),
       })
       if (!isActive(generation)) return
       if (!outcome.ok) {
         mutationError(outcome.error.code, outcome.error.message, generation)
+        return
+      }
+      // 交付后又出现改动时清理会停下保护那些改动（还没有人取走它们），台账因此
+      // 永远清理不掉。把「放弃改动再清理」变成一次显式确认，而不是让人对着同一句
+      // 说明反复重试。
+      if (
+        !discardPostDeliveryChanges
+        && outcome.value.target.cleanupReason === 'modified_after_finalize'
+      ) {
+        // 宿主已把阻塞原因写进记录，界面也跟着更新，否则取消确认后看到的还是
+        // 上一次的旧状态。
+        applyMutation(outcome.value, generation)
+        setConfirmCleanup(target)
         return
       }
       applyMutation(outcome.value, generation)
@@ -662,6 +679,32 @@ export function WorktreeConsoleView({
             </section>
           ) : null}
         </>
+      ) : null}
+      {confirmCleanup !== null ? (
+        <div
+          className="dsh-wtc-confirm"
+          role="alertdialog"
+          aria-modal="true"
+          aria-label={t("discard.post.delivery.changes")}
+          onKeyDown={(event: KeyboardEvent<HTMLDivElement>) => {
+            if (event.key !== 'Escape') return
+            event.preventDefault()
+            setConfirmCleanup(null)
+          }}
+        >
+          <strong>{t("discard.post.delivery.changes")}</strong>
+          <p>{t("the.worktree.changed.after.delivery.cleaning.it.removes")}</p>
+          <div className="dsh-wtc-confirm-actions">
+            <button type="button" className="dsh-wtc-button" onClick={() => { setConfirmCleanup(null) }}>{t("cancel")}</button>
+            <button
+              type="button"
+              className="dsh-wtc-button dsh-wtc-danger"
+              onClick={() => { void retryCleanup(confirmCleanup, true) }}
+            >
+              <ReviewIcon name="discard" />{t("confirm.cleanup.discarding.changes")}
+            </button>
+          </div>
+        </div>
       ) : null}
       {confirmTarget !== null ? (
         <div

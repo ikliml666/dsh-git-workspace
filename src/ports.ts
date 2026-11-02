@@ -13,6 +13,7 @@ import type {
   SessionCheckoutPhase,
   SessionTargetRef,
   WorktreeValidationItem,
+  WorktreeCleanupReason,
   WorktreeRetentionMode,
   WorktreeValidationStatus,
 } from './types.js'
@@ -470,6 +471,9 @@ export type ManagedCheckoutDelivery =
       finalizedAt: number
       cleanup: 'pending' | 'blocked'
       cleanupMessage?: string
+      /** i18n key of cleanupMessage; new records always persist it. */
+      cleanupMessageKey?: string
+      cleanupReason?: WorktreeCleanupReason
     }
   | {
       state: 'retained'
@@ -482,6 +486,9 @@ export type ManagedCheckoutDelivery =
       expiresAt: number | null
       cleanup: 'scheduled' | 'blocked'
       cleanupMessage?: string
+      /** i18n key of cleanupMessage; new records always persist it. */
+      cleanupMessageKey?: string
+      cleanupReason?: WorktreeCleanupReason
     }
   | { state: 'delivered'; iteration: number; commitOid: string | null; proof?: ManagedDeliveryProof; deliveredAt: number }
 
@@ -550,6 +557,12 @@ export interface ManagedCheckoutsRegistry {
 export interface SessionCheckoutRegistryPort {
   read(): ManagedCheckoutsRegistry
   write(registry: ManagedCheckoutsRegistry): void
+  /**
+   * 在同一把跨进程锁里完成「读-改-写」并返回新表。
+   * read 与 write 之间隔着两次调用，任何在这条缝里发生的另一个进程写入都会
+   * 被后写者抹掉；单条记录更新必须走这里，而不是自己 read 完再 write。
+   */
+  update(mutate: (registry: ManagedCheckoutsRegistry) => ManagedCheckoutsRegistry): ManagedCheckoutsRegistry
 }
 
 /** Live configuration reference: volatile Cordis config fields arrive as these instead of plain values. */

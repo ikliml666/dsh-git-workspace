@@ -204,6 +204,7 @@ export const WORKTREE_CONSOLE_DESCRIPTORS: readonly InvocationDescriptor[] = Obj
   descriptor('retryCleanup', [
     json('checkoutId', checkoutIdSchema, `${PACKAGE}/console-contract#WorktreeConsoleRetryCleanupRequest.checkoutId`),
     json('expectedRevision', revisionSchema, `${PACKAGE}/console-contract#WorktreeConsoleRetryCleanupRequest.expectedRevision`),
+    json('discardPostDeliveryChanges', optionalBooleanSchema, `${PACKAGE}/console-contract#WorktreeConsoleRetryCleanupRequest.discardPostDeliveryChanges`, true),
   ], outcomeSchema(mutationResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>'),
   descriptor('beginNextIteration', [
     json('checkoutId', checkoutIdSchema, `${PACKAGE}/console-contract#WorktreeConsoleBeginNextIterationRequest.checkoutId`),

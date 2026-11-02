@@ -514,6 +514,12 @@ class AtomicJsonCheckoutRegistry implements SessionCheckoutRegistryPort {
     mkdirSync(dirname(this.path), { recursive: true })
     writeJsonFileAtomic(this.path, registry)
   }
+
+  update(mutate: (registry: ManagedCheckoutsRegistry) => ManagedCheckoutsRegistry): ManagedCheckoutsRegistry {
+    const next = mutate(this.read())
+    this.write(next)
+    return next
+  }
 }
 
 export function createNodeSessionCheckoutDependencies(

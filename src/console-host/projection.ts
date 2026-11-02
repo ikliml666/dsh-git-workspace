@@ -69,7 +69,6 @@ export function capabilities(
   const source = callerSessionId === record.sourceSessionId
   const sourceReservation = source && !ownerSessionAvailable
   const readAuthorized = owner || source || linkedRead
-  const manageAuthorized = owner || source
   const ready = record.phase === 'ready' && record.delivery.state === 'ready_for_review'
   const previewActive = record.phase === 'ready' && record.delivery.state === 'preview_active'
   const previewDetached = record.phase === 'ready' && record.delivery.state === 'preview_detached'
@@ -91,9 +90,11 @@ export function capabilities(
     rollbackPreview: owner && (previewActive || previewDetached || previewRecovery),
     finalize: owner && ready,
     finalizePreview: owner && (previewActive || previewDetached),
-    setRetention: manageAuthorized && record.delivery.state === 'retained',
-    setPermanent: manageAuthorized && active,
-    retryCleanup: manageAuthorized && cleanup,
+    // Retention/permanence/cleanup act on the frozen directory itself, so the Host gates
+    // them to the owner Session only — never offer them to the Local source Session.
+    setRetention: owner && record.delivery.state === 'retained',
+    setPermanent: owner && active,
+    retryCleanup: owner && cleanup,
     beginNextIteration: owner && delivered,
     // Only the owner Session can be rebound, and only once the Worktree has
     // actually reached delivery: releasing an in-flight Worktree would strand
@@ -154,7 +155,10 @@ export function projectRecord(
       expiresAt: delivery.expiresAt,
     } : {}),
     ...((delivery.state === 'retained' || delivery.state === 'finalized') && delivery.cleanupMessage !== undefined
-      ? { cleanupMessage: hostPersistedCleanupMessage(delivery.cleanupMessage, hostMessage) }
+      ? { cleanupMessage: hostPersistedCleanupMessage(delivery.cleanupMessage, hostMessage, delivery.cleanupMessageKey) }
+      : {}),
+    ...((delivery.state === 'retained' || delivery.state === 'finalized') && delivery.cleanupReason !== undefined
+      ? { cleanupReason: delivery.cleanupReason }
       : {}),
     ...(record.permanent === true ? { permanent: true } : {}),
     ...(projectedProof === undefined ? {} : { deliveryProof: projectedProof }),

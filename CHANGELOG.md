@@ -6,6 +6,33 @@
 
 ### Fixed
 
+- 全量缺陷审计后的 25 项修复（2026-11-02）：功能不可达、状态机死锁、跨进程竞态、无出口的阻塞态与静默失败。
+  - **Tag 管理器整块不可用**：`gitListTags` / `gitCreateTag` / `gitDeleteTag` / `gitPushTag` 四个方法在 control-plane、descriptors、console-contract 三层都齐了，唯独 `src/console-host/service.ts` 没有对应的 `@Remote` 转发。gateway 用 `Reflect.get(receiver, method)` 取方法，注册期不校验存在性，于是调用时才炸成 transport error——UI 入口（`TargetStatusAction.tsx` 的 `manage_tags`）看得见，点开永远空列表。补齐四个转发，并新增守卫用例断言「service 原型上必须实现 descriptors 声明的每一个方法」——这条只在调用时才会暴露的断层，只能靠方法集比对挡住。
+  - **创建中断后 recover 与 discard 双双 deadlock**：`finishFailedCreation` 在 `rolledBack === false` 时把记录留在 `create + creation + recovery_required`，而 `operateRecover` / `operateDiscard` 开头的 `journal.creation` 守卫排在「目录已消失则清台账」出口之前，于是注释里承诺的「手动删掉 managed 目录后重试」这个逃逸口**永远不可达**——用户只能眼看一条记录永久卡死。守卫改为按磁盘实际残留判定：新增 `hasCreationResidue` / `creationResiduePaths`，磁盘上真有东西才拒绝（绝不删除无法辨认身份的残留），一片空白时放行清台账。报错文案也从「身份无法确认」改成明确列出要手动删除的路径（`creationResidueBlocksRecovery`）。
+  - **`commitIsolated` 写完 ref 才报错，台账与磁盘脱节**：变更集范围校验排在 `update-ref HEAD` 之后，失败时上层 `restoreReady()` 把记录退回 `ready`，可分支 ref 已经前进了——下一次交付会把用户刚拿到的提交当成不存在。范围校验前移到写 ref 之前（用 `pending.treeOid` 预校验），并让错误结果携带 `committedOid` 作为「提交已落地」的证据；上层见到它就改写为 `ready_for_review` 而不是回退（撤销已落地的提交等于改写用户历史）。
+  - **`committing_session_branch` 没有任何 reconcile 分支**：进程在该步被杀后，记录停在 `mutating`，recover 永远要求「无 journal 且 ready」。新增分支直接退回 `ready` 并清 journal——提交是否真落地由下次交付按 tree 比较得出（相同则不新建提交），因此既不重复提交也不会永久卡在恢复态。
+  - **registry 跨进程丢失更新**：`updateManagedCheckout` 是「全表 read → 改一条 → 全表 write」，中间隔着两次调用；同一台机器上实测有 8 个 Harness 进程共享同一个 `managed-checkouts.json`，这条缝里的并发写入必然被后写者抹掉（`safe-file.ts` 里原本就写着「文件级 last-writer-wins 仍在」）。新增跨进程文件锁（`withFileLock`：`wx` 创建 + pid 存活判定 + 30s 陈旧回收 + token 校验释放 + 同进程重入复用），registry 增加 `update(mutate)` 在持锁区间内完成读改写，`write()` 也持锁；`updateManagedCheckout` 改走它。
+  - **`withCleanupTimeout` 超时后底层仍在写盘**：files/git 端口没有 AbortSignal，120s 超时只能返回 null、操作继续跑；同一个 checkout 下一次清理再起一个读改写周期，两次在 registry 上交错必然丢更新。改为按 checkoutId 复用在跑中的 promise。
+  - **配额统计漏掉进行中的 Worktree**：`enforceWorktreeKeepCount` 只数 `finalized/retained`，而一个 `working` 的 Worktree 一样占几百 MB，`worktreeKeepCount` 声明的「收口托管 Worktree 总量」从未成立。统计改为「所有非 discarded 且非 permanent」，逐出仍只从已交付里挑。
+  - **discarded 记录永不删除**：交付记录是台账不是日志，路径彻底空掉后没有任何人会来删它，只会让台账无限增长、并让同 topic 的新建继续撞上已放弃的旧路径。reconcile 结束时清理空记录；但**还有 binding 指向它、或别的记录把它当 predecessor 时不删**——那句话就是「这个 checkout 仍是可解析落点」，删掉会让那些会话在 `resolveBinding` 里变成 `project_mismatch`，永远打不开。
+  - **同 topic 同日撞名**：`createTopicManagedWorktreeDirectoryName` 仅在 `identityLength > 8` 时加后缀，而首选候选正是 8 位；选择侧只按「磁盘上不存在」挑，漏掉「另一条记录仍声明该路径但目录已被删」的幽灵占用。实测三条记录指向同一物理目录。选择改为「既未被台账占用、磁盘上也不存在」。
+  - **`modified_after_finalize` 无人工出口**：交付后又改了文件，清理会一直 `blocked`；`retryableCleanupBlock` 只放行 `directory_busy`/`quarantine_busy`，到期清理永远跳过它——实测有一条卡了 13.4 天、48MB 目录还在。新增 `discardPostDeliveryChanges` 确认参数，从工具/契约/descriptor/adapter 一路贯通到 `WorktreeConsoleView`：清理被阻塞时 RPC 仍返回 `ok: true`（阻塞不是错误），客户端按 `target.cleanupReason === 'modified_after_finalize'` 弹确认框，用户确认后带参重试。
+  - **自动剪枝无开关**：启动 60 秒后对每个受管项目执行真实 `git branch -d`、每 24h 重复，用户无从关闭。新增 `autoPruneMergedBranches`（默认 **false**）；手动剪枝（带 dryRun）不受影响。
+  - **剪枝会删掉活跃会话分支**：只保护 `main`/`master`/推断主干/当前分支，一条仍有会话在用的 session 分支只要已合并且过年龄就会被删。新增保护集合，跳过时给出原因（`thisBranchBelongsToALiveManagedCheckout`）。
+  - **11 处 `hostMessages.X.zh` 硬编码绕过语言注入**：常量在模块加载时就固化为中文，英文用户永远看到中文。改为持久化 `cleanupMessageKey`（连同 `cleanupReason` 结构化原因一起写入记录），渲染时按 key 翻译；`hostPersistedCleanupMessage` 保留按中文字面串反查的兜底，仅用于历史记录。
+  - **registry 一条坏记录拖垮全表**：`isRegistry` 要求每条记录全字段合法，任何一条不合法就整表 `registry_corrupt`，全部 checkout 不可访问。改为顶层结构才致命、单条记录降级丢弃并告警（`sanitizeRegistry`），且降级只在内存视图生效、不写盘——被丢弃的坏记录不会在下次写入时被抹掉。
+  - **`identity_changed` 阻塞无出口**：每次调用都重写 registry 却永不清理，也没有任何清除入口。目录已不存在时直接收尾（没有可校验身份也没有可保护字节）。
+  - **清理失败归因错误**：`checkout_mismatch`（身份对不上，重试一万次也不会变）被写成可重试的 `directory_busy`，让永远清不掉的记录长期占用配额。改为按错误码区分。
+  - **预览产物泄漏**：`artifacts_retained + preview_active` 的中断恢复路径回到 `ready` 前没有释放 preview refs（正常回滚路径释放过）。补齐。
+  - **reconcile 只修 finalized、不管 retained**：清理只在这两处发生，目录已消失的 retained 记录永远等不到清理成功。条件放宽到两者。
+  - **diag 日志无上限**：`current` 每 5 秒写一条，实测 30 天 12MB / 76k 行且只增不减。超过 8 MiB 轮转为 `.1` 备份。
+  - **恢复续跑 250ms 无退避**：每次唤醒都是一次真实 inspect RPC。改为 250ms 起、翻倍、封顶 5s，延迟状态挂在 entry 上（每次未就绪都会重建 watcher，闭包局部变量会被重置）。
+  - **`enterCheckout` 静默失败**：catch 里只 `console.warn` 后返回 undefined，与「宿主没挂 workingDirectory 服务」这个合法降级共用同一个返回值。交付失败后回迁失败尤其危险——注释承诺「会话属于那个幸存的 checkout」，实际却停在 Local 边界，后续相对路径写入全部落到原仓库。返回值改为 `{ cwd?, failure? }`，两个 tool 的 schema 暴露 `cwdError`，交付失败回迁失败时直接抛错。
+  - **管控类 RPC 缺 owner 闸**：`setRetention`/`setPermanent`/`retryCleanup` 只做 `authorize`，真正的归属判定退到模块层且带「owner 会话已不存在就放行 source」的兜底——于是 source 会话可以 `retry_cleanup` 删掉磁盘冻结目录。新增显式 `requireOwner`，capabilities 也相应从 `owner || source` 收紧为 `owner`。`clearSidebarBadge` 刻意不收紧：它只写幂等徽标标记，不删目录、不动 git。
+  - **拓扑读不出来整条挂载失败**：`sidebarTopology` 失败（最常见就是 registry 损坏）时抛错，连工具视图和控制台一起消失——而用户恰恰需要它们去修 registry。改为只放弃侧栏装配、照常挂工具。
+  - **`createWithInitialCommit` 先删 token 再校验**：一次错点或并发预检就把用户手里仍有效的 token 吃掉，只能重新预检。改为校验通过后才删。
+  - **`current` 串行 realpath**：这条路每 5 秒走一次，四个互不依赖的 `canonicalize` 却串行等待。改并行。
+
 - 配置了 `worktreesRoot` 的项目无法创建任何 Isolated Session，报 `Worktree 回退容器不是可信目录，未创建或修改任何 checkout`（2026-11-02）：容器里只要残留一个目录链接（junction/符号链接）就永远过不去。现场 `E:\ik\Documents\trae_projects\worktrae\dsh-subagent-auto-router` 全树 **0 个文件**，唯一内容是一条 `sess-session-/node_modules/@deepseek-ai/schemastery` → `E:\software\deepseek-harness\vendor\schemastery` 的 junction（`.worktreeinclude` 带进来的依赖链接），却被判成「含未知内容」。
   - `src/adapters/files.ts`：`removeEmptyDirectoryTree` 原来遇到任何符号链接就连同所在的整棵子树**一起判失败**（`if (!stat.isDirectory() || stat.isSymbolicLink()) return false`），于是一个链接就否掉了整个空树的回收。现在树内的目录链接只删除**链接本身**（`unlinkSync`），绝不跟随目标——链接指向的外部文件原样保留（已用探针实测：删除 junction 后目标 `inner/deep.txt` 与 `keep.txt` 均完好）。端口文档同步：契约从「整树不得含符号链接」改为「整树无文件；树内链接只解除、不跟随」。
   - `src/session-checkout-module.ts`：配置 `worktreesRoot` 时 `siblingContainer` 与 `fallbackContainer` 是**同一个路径**（`src/managed-worktree-path.ts:158-166`），而 `usingSibling` 的失败分支无条件 `bindTarget(..., createAttempt + 1, ...)`——所谓「换一个容器重试」面对的是同一目录、同一份内容，注定再失败一次，白跑一轮完整创建流程。新增 `fallbackContainerDiffers = !pathsEqual(siblingContainer, fallbackContainer)`，两者相同时不再重试，直接报错。

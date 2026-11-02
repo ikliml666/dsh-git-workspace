@@ -68,6 +68,11 @@ export interface ManageManagedWorktreeInput {
   permanent?: boolean
   confirmDirty?: boolean
   rollbackPreview?: boolean
+  /**
+   * 用户确认「交付后出现的那些改动我不要了」，允许清理越过
+   * modified_after_finalize 阻塞。没带确认时清理仍然停下并报告原因。
+   */
+  discardPostDeliveryChanges?: boolean
 }
 
 export interface ListManagedWorktreesInput {
@@ -301,6 +306,12 @@ export const Config = z.object({
    */
   worktreeKeepCount: volatile(z.number().min(0).max(500).step(1).default(15)),
   /**
+   * 自动剪枝已合并的陈旧分支。这是唯一在没有用户逐次确认的情况下删除分支的
+   * 机制：启动 60 秒后对每个受管项目执行一次真实 `git branch -d`。默认关闭，
+   * 需要的人显式打开。手动剪枝（带 dryRun 预览）不受影响。
+   */
+  autoPruneMergedBranches: volatile(z.boolean().default(false)),
+  /**
    * Concurrent branch-race guard: when other live Sessions share the Local
    * checkout and a new local branch appeared inside `branchRaceWindowMs`, the
    * later-started Session's runtime context directs it to isolate through
@@ -324,6 +335,7 @@ interface LocalAdaptationConfig {
   worktreesRoot?: string | LiveValue<string | undefined>
   inheritLocalChanges?: boolean | LiveValue<boolean | undefined>
   worktreeKeepCount?: number | LiveValue<number | undefined>
+  autoPruneMergedBranches?: boolean | LiveValue<boolean | undefined>
   branchRaceGuard?: boolean | LiveValue<boolean | undefined>
   branchRaceWindowMs?: number | LiveValue<number | undefined>
   enableWorkspaceProvider?: boolean
@@ -435,6 +447,7 @@ export async function apply(ctx: Context, config: { stateDir?: string } & GitTim
   }, RETENTION_MAINTENANCE_INTERVAL_MS)
   retentionTimer.unref?.()
   const autoPruneSweep = () => {
+    if (liveConfigValue(config.autoPruneMergedBranches) !== true) return
     void module.autoPruneStaleMergedBranches(AUTO_PRUNE_OLDER_THAN_DAYS)
       .then((results) => {
         const names = results.flatMap((result) => result.pruned.map((entry) => entry.name))

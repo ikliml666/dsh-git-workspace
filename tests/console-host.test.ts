@@ -82,7 +82,7 @@ function registry(record = readyRecord()): SessionCheckoutRegistryPort {
   const value: ManagedCheckoutsRegistry = {
     version: 2, revision: 1, sessionBindings: {}, managedCheckouts: { [record.checkoutId]: record },
   }
-  return { read: () => structuredClone(value), write: vi.fn() }
+  return { read: () => structuredClone(value), write: vi.fn(), update: () => { throw new Error('control plane must not update the registry') } }
 }
 
 function moduleDouble(record = readyRecord()): SessionCheckoutModule {
@@ -309,7 +309,7 @@ describe('Worktree Console Host control plane', () => {
       },
     }
     const { control } = plane(current, {
-      registry: { read: () => structuredClone(sidebarRegistry), write: vi.fn() },
+      registry: { read: () => structuredClone(sidebarRegistry), write: vi.fn(), update: () => { throw new Error('control plane must not update the registry') } },
     })
 
     await expect(control.sidebarTopology()).resolves.toEqual({
@@ -403,6 +403,7 @@ describe('Worktree Console Host control plane', () => {
     const registryPort: SessionCheckoutRegistryPort = {
       read: () => structuredClone(registryValue),
       write: nextValue => { registryValue = structuredClone(nextValue) },
+      update: mutate => { registryValue = mutate(structuredClone(registryValue)); return registryValue },
     }
     const { module, control } = plane(record, { registry: registryPort })
     vi.mocked(module.resumeRevision).mockImplementation(async () => {
@@ -442,6 +443,7 @@ describe('Worktree Console Host control plane', () => {
     const registryPort: SessionCheckoutRegistryPort = {
       read: () => structuredClone(value),
       write: nextValue => { value = structuredClone(nextValue) },
+      update: mutate => { value = mutate(structuredClone(value)); return value },
     }
     const { module, control } = plane(record, { registry: registryPort })
     vi.mocked(module.preflight!).mockResolvedValue({
@@ -506,6 +508,7 @@ describe('Worktree Console Host control plane', () => {
     const registryPort: SessionCheckoutRegistryPort = {
       read: () => structuredClone(value),
       write: nextValue => { value = structuredClone(nextValue) },
+      update: mutate => { value = mutate(structuredClone(value)); return value },
     }
     const { module, control } = plane(record, { registry: registryPort })
     vi.mocked(module.prepareReviewRegeneration!).mockImplementation(async (_sessionId, revision, reviewId, requestId) => {
@@ -545,6 +548,7 @@ describe('Worktree Console Host control plane', () => {
     const registryPort: SessionCheckoutRegistryPort = {
       read: () => structuredClone(value),
       write: nextValue => { value = structuredClone(nextValue) },
+      update: mutate => { value = mutate(structuredClone(value)); return value },
     }
     const { module, control } = plane(record, { registry: registryPort })
     vi.mocked(module.operate).mockImplementation(async operation => {
@@ -659,6 +663,7 @@ describe('Worktree Console Host control plane', () => {
     const registryPort: SessionCheckoutRegistryPort = {
       read: () => structuredClone(registryValue),
       write: nextValue => { registryValue = structuredClone(nextValue) },
+      update: mutate => { registryValue = mutate(structuredClone(registryValue)); return registryValue },
     }
     const lookup = lookupDouble()
     lookup.getSession = sessionId => ({ id: sessionId, projectId: sessionId === 'target-session' ? 'workspace-target' : 'project-1' })
@@ -737,6 +742,48 @@ describe('Worktree Console Host control plane', () => {
 
     expect(result).toMatchObject({ ok: false, error: { code: 'operation_not_allowed' } })
     expect(git.switchLocalBranch).not.toHaveBeenCalled()
+  })
+
+  it('blocks a Local branch switch while another Session delivers onto the same local root', async () => {
+    const other = readyRecord()
+    other.checkoutId = 'checkout-2'
+    other.ownerSessionId = 'other-session'
+    other.sourceSessionId = 'other-source'
+    const foreign: SessionCheckoutRegistryPort = {
+      read: () => structuredClone({
+        version: 2, revision: 1, sessionBindings: {}, managedCheckouts: { 'checkout-2': other },
+      }),
+      write: vi.fn(),
+      update: () => { throw new Error('control plane must not update the registry') },
+    }
+    const git = { ...gitDouble(), switchLocalBranch: vi.fn(async () => undefined) }
+    const { control } = plane(readyRecord(), { registry: foreign, git })
+
+    const result = await control.gitSwitchBranch('third-session', 'feature')
+
+    expect(result).toMatchObject({ ok: false, error: { code: 'operation_not_allowed' } })
+    expect(git.switchLocalBranch).not.toHaveBeenCalled()
+  })
+
+  it('still creates a Local branch while another Session delivers onto the same local root', async () => {
+    const other = readyRecord()
+    other.checkoutId = 'checkout-2'
+    other.ownerSessionId = 'other-session'
+    other.sourceSessionId = 'other-source'
+    const foreign: SessionCheckoutRegistryPort = {
+      read: () => structuredClone({
+        version: 2, revision: 1, sessionBindings: {}, managedCheckouts: { 'checkout-2': other },
+      }),
+      write: vi.fn(),
+      update: () => { throw new Error('control plane must not update the registry') },
+    }
+    const git = { ...gitDouble(), createLocalBranch: vi.fn(async () => undefined) }
+    const { control } = plane(readyRecord(), { registry: foreign, git })
+
+    const result = await control.gitCreateBranch('third-session', 'feature')
+
+    expect(result).toMatchObject({ ok: true, value: { branch: 'feature' } })
+    expect(git.createLocalBranch).toHaveBeenCalledWith('/local', 'feature')
   })
 
   it('lists local tags through the git port', async () => {
@@ -840,7 +887,7 @@ describe('Worktree Console Host control plane', () => {
       sessionBindings: {},
       managedCheckouts: { [first.checkoutId]: first, [broken.checkoutId]: broken },
     }
-    const registryPort: SessionCheckoutRegistryPort = { read: () => structuredClone(value), write: vi.fn() }
+    const registryPort: SessionCheckoutRegistryPort = { read: () => structuredClone(value), write: vi.fn(), update: () => { throw new Error('control plane must not update the registry') } }
     const lookup = lookupDouble()
     lookup.getSession = sessionId => ({
       id: sessionId,
@@ -906,7 +953,7 @@ describe('Worktree Console Host control plane', () => {
       sessionBindings: {},
       managedCheckouts: { [first.checkoutId]: first, [sibling.checkoutId]: sibling },
     }
-    const registryPort: SessionCheckoutRegistryPort = { read: () => structuredClone(value), write: vi.fn() }
+    const registryPort: SessionCheckoutRegistryPort = { read: () => structuredClone(value), write: vi.fn(), update: () => { throw new Error('control plane must not update the registry') } }
     const lookup = lookupDouble()
     lookup.getSession = sessionId => ({
       id: sessionId,
@@ -1018,7 +1065,7 @@ describe('Worktree Console Host control plane', () => {
         : projectId === 'workspace-holder' ? '/holder' : '/local',
     })
     const { module, control } = plane(waiting, {
-      registry: { read: () => structuredClone(value), write: vi.fn() },
+      registry: { read: () => structuredClone(value), write: vi.fn(), update: () => { throw new Error('control plane must not update the registry') } },
       lookup,
     })
     vi.mocked(module.resolveManagedRoot).mockImplementation(async checkoutId => checkoutId === holder.checkoutId ? '/holder' : '/managed')
@@ -1078,7 +1125,7 @@ describe('Worktree Console Host control plane', () => {
       version: 2, revision: 1, sessionBindings: {},
       managedCheckouts: { [anchor.checkoutId]: anchor, [unrelated.checkoutId]: unrelated },
     }
-    const { control } = plane(anchor, { registry: { read: () => structuredClone(value), write: vi.fn() } })
+    const { control } = plane(anchor, { registry: { read: () => structuredClone(value), write: vi.fn(), update: () => { throw new Error('control plane must not update the registry') } } })
     expect(await control.inspect('target-session', unrelated.checkoutId)).toMatchObject({ ok: false, error: { code: 'not_owner' } })
   })
 
@@ -1300,6 +1347,7 @@ describe('Worktree Console Host control plane', () => {
       registry: {
         read: () => ({ version: 2, revision: 2, sessionBindings: {}, managedCheckouts: { [currentRecord.checkoutId]: structuredClone(currentRecord) } }),
         write: vi.fn(),
+        update: () => { throw new Error('control plane must not update the registry') },
       },
     })
     const reobserve = vi.fn(async () => ({
@@ -1340,6 +1388,7 @@ describe('Worktree Console Host control plane', () => {
       registry: {
         read: () => ({ version: 2, revision: 2, sessionBindings: {}, managedCheckouts: { [currentRecord.checkoutId]: structuredClone(currentRecord) } }),
         write: vi.fn(),
+        update: () => { throw new Error('control plane must not update the registry') },
       },
     })
     vi.mocked(module.inspect).mockResolvedValue({
@@ -1577,21 +1626,38 @@ describe('Worktree Console Host control plane', () => {
     })
   })
 
-  it('routes owner Discard through the Preview-aware operation and keeps retention/cleanup caller-scoped', async () => {
+  it('routes owner Discard through the Preview-aware operation and keeps retention/cleanup owner-scoped', async () => {
     const { module, control } = plane()
     vi.mocked(module.operate).mockResolvedValueOnce({ status: 'discarded', checkoutId: 'checkout-1', changedFiles: [] })
     await control.discard({ sessionId: 'target-session', checkoutId: 'checkout-1', expectedRevision: 7, confirmDirty: true })
-    await control.setRetention({ sessionId: 'source-session', checkoutId: 'checkout-1', expectedRevision: 8, retention: 'retain_manual' })
-    await control.retryCleanup({ sessionId: 'source-session', checkoutId: 'checkout-1', expectedRevision: 9 })
+    await control.setRetention({ sessionId: 'target-session', checkoutId: 'checkout-1', expectedRevision: 8, retention: 'retain_manual' })
+    await control.retryCleanup({ sessionId: 'target-session', checkoutId: 'checkout-1', expectedRevision: 9 })
     expect(module.operate).toHaveBeenCalledWith({
       action: 'discard', sessionId: 'target-session', expectedRevision: 7, confirmDirty: true,
     })
-    expect(module.manageManagedWorktreeForSession).toHaveBeenNthCalledWith(1, 'source-session', {
+    expect(module.manageManagedWorktreeForSession).toHaveBeenNthCalledWith(1, 'target-session', {
       checkoutId: 'checkout-1', expectedRevision: 8, action: 'set_retention', retention: 'retain_manual',
     })
-    expect(module.manageManagedWorktreeForSession).toHaveBeenNthCalledWith(2, 'source-session', {
+    expect(module.manageManagedWorktreeForSession).toHaveBeenNthCalledWith(2, 'target-session', {
       checkoutId: 'checkout-1', expectedRevision: 9, action: 'retry_cleanup',
     })
+  })
+
+  it('refuses retention, permanence and cleanup for the Local source Session even once the owner Session is gone', async () => {
+    const lookup = lookupDouble()
+    lookup.getSession = vi.fn(sessionId => sessionId === 'target-session'
+      ? undefined
+      : { id: sessionId, projectId: 'project-1' })
+    const { module, control } = plane(retainedRecord(), { lookup })
+
+    for (const result of await Promise.all([
+      control.setRetention({ sessionId: 'source-session', checkoutId: 'checkout-1', expectedRevision: 9, retention: 'retain_manual' }),
+      control.setPermanent({ sessionId: 'source-session', checkoutId: 'checkout-1', expectedRevision: 9, permanent: true }),
+      control.retryCleanup({ sessionId: 'source-session', checkoutId: 'checkout-1', expectedRevision: 9 }),
+    ])) {
+      expect(result).toMatchObject({ ok: false, error: { code: 'not_owner' } })
+    }
+    expect(module.manageManagedWorktreeForSession).not.toHaveBeenCalled()
   })
 
   it('refuses to clear the sidebar badge of a non-terminal Worktree', async () => {

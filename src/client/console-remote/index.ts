@@ -104,8 +104,13 @@ export async function apply(ctx: ConsoleClientContext): Promise<void> {
   const topology = await adapter.sidebarTopology()
   const elapsedTopologyMs = Date.now() - topologyStartedAt
   if (!topology.ok) {
+    // 拓扑读不出来（最常见是 registry 损坏）时不能整条挂载失败：那会连工具视图和
+    // 控制台一起消失，而用户恰恰需要它们去修 registry。侧栏装配需要知道宿主是哪
+    // 一代 Workspace，所以这里只退化到「不挂侧栏、只挂工具」。
     reportBoot('topology-failed', false, `${topology.error.code}: ${topology.error.message}`)
-    throw new Error(createTranslator(transportMessages, getLanguage())('workspaceGenerationUnknown'))
+    console.warn('[dsh-git-worktree] topology failed, mounting tools without the Workspace sidebar', topology.error.code)
+    mountTools(ctx)
+    return
   }
   const flavor = topology.value.workspaceClientFlavor
   console.info('[dsh-git-worktree] topology resolved', flavor, 'officialWorkspaceActive=', topology.value.officialWorkspaceActive)

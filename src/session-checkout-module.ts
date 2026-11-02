@@ -1,5 +1,5 @@
 import { isValidCommitMessage } from './commit-message.js'
-import { hostMessages, hostPersistedCleanupMessage } from './i18n/host-messages.js'
+import { hostMessages, hostPersistedCleanupMessage, type PersistedCleanupKey } from './i18n/host-messages.js'
 import { hostMessage } from './i18n/host.js'
 import { createHash } from 'node:crypto'
 import { realpathSync } from 'node:fs'
@@ -100,19 +100,34 @@ const TRANSIENT_CLEANUP_RETRY_DELAYS_MS = [100, 300, 800]
  * 单个 checkout 清理/维护操作的启动收敛超时。
  * Windows 上 Worktree 被外部进程（如残留 Agent 运行）占用时，git/fs 操作可能无限期挂起；
  * 启动收敛必须在有限时间内继续，不能因为一个损坏记录卡住整个应用启动。
- * ponytail: 不做取消——超时后后台操作会继续跑完（withBindingLock 保证同进程重试串行，
- * 台账写入安全）；若实际挂起普遍超过 2min，再给 files/git ports 加 AbortSignal。
+ * 超时不能取消操作（files/git ports 没有 AbortSignal），后台仍会继续跑完并写台账。
+ * 因此同一 checkout 的在跑清理必须复用：若每次超时都新起一个 cleanupFinalized，
+ * 两个读-改-写周期就会在 registry 上交错，丢更新是必然的。
  */
 const CHECKOUT_CLEANUP_TIMEOUT_MS = 120_000
+
+/** 同一 checkout 正在进行（含已超时但仍在后台跑）的清理。 */
+const cleanupInFlight = new Map<string, Promise<unknown>>()
 
 async function withCleanupTimeout<T>(
   checkoutId: string,
   operation: () => Promise<T>,
 ): Promise<T | null> {
+  let pending = cleanupInFlight.get(checkoutId) as Promise<T> | undefined
+  if (pending === undefined) {
+    const started = operation()
+    pending = started
+    cleanupInFlight.set(checkoutId, started)
+    // 超时后调用方不再 await 它，失败必须在这里被消费，否则成为 unhandled rejection。
+    const settle = (): void => {
+      if (cleanupInFlight.get(checkoutId) === started) cleanupInFlight.delete(checkoutId)
+    }
+    started.then(settle, settle)
+  }
   let timeoutHandle: ReturnType<typeof setTimeout> | undefined
   try {
     return await Promise.race([
-      operation(),
+      pending,
       new Promise<null>((resolve) => {
         timeoutHandle = setTimeout(() => {
           console.warn(hostMessage('cleanupTimeout', { p0: checkoutId.slice(0, 8), p1: CHECKOUT_CLEANUP_TIMEOUT_MS }))
@@ -520,6 +535,22 @@ export function createSessionCheckoutModule(
     throw reported // A failed checkout is not a reason to silently repeat the entire creation deadline.
   }
 
+  /**
+   * An interrupted creation is only unsafe while its residue can still be mistaken for
+   * a checkout. Once every path the creation claimed is gone from disk there is no
+   * identity to verify and no bytes to protect, so Recover/Discard may close the record.
+   * The quarantine path is included because a failed rollback parks the Worktree there.
+   */
+  function hasCreationResidue(record: ManagedCheckoutRecord): boolean {
+    return creationResiduePaths(record).length > 0
+  }
+
+  function creationResiduePaths(record: ManagedCheckoutRecord): string[] {
+    const creation = record.journal?.operation === 'create' ? record.journal.creation : undefined
+    const claimed = [record.managedRoot, record.managedGitRoot, creation?.quarantinePath]
+    return claimed.filter((path): path is string => path !== undefined && dependencies.files.exists(path))
+  }
+
   function markRecoveryRequired(record: ManagedCheckoutRecord): ManagedCheckoutRecord {
     if (record.phase === 'recovery_required' || record.phase === 'discarded') return record
     const registry = dependencies.registry.read()
@@ -608,15 +639,17 @@ export function createSessionCheckoutModule(
     ) return { status: 'invalid' }
 
     try {
-      const canonicalManagedRoot = await dependencies.files.canonicalize(record.managedRoot)
-      const canonicalManagedGitRoot = await dependencies.files.canonicalize(record.managedGitRoot)
-      const canonicalLocalRoot = await dependencies.files.canonicalize(record.localRoot)
+      // 顶部胶囊每 5 秒走一次这条路径：四个 realpath 互不依赖，串行等四趟
+      // syscall 只是把延迟堆在一起。
       const project = dependencies.lookup.getProject(record.projectId)
-      if (project) {
-        if (!dependencies.files.exists(project.root)) return { status: 'invalid' }
-        const canonicalProjectRoot = await dependencies.files.canonicalize(project.root)
-        if (!pathsEqual(canonicalProjectRoot, canonicalLocalRoot)) return { status: 'invalid' }
-      }
+      if (project && !dependencies.files.exists(project.root)) return { status: 'invalid' }
+      const [canonicalManagedRoot, canonicalManagedGitRoot, canonicalLocalRoot, canonicalProjectRoot] = await Promise.all([
+        dependencies.files.canonicalize(record.managedRoot),
+        dependencies.files.canonicalize(record.managedGitRoot),
+        dependencies.files.canonicalize(record.localRoot),
+        project ? dependencies.files.canonicalize(project.root) : null,
+      ])
+      if (canonicalProjectRoot !== null && !pathsEqual(canonicalProjectRoot, canonicalLocalRoot)) return { status: 'invalid' }
       const statusPromise = dependencies.git.status(canonicalManagedRoot)
       statusPromise.catch(() => undefined)
       const [snapshot, localSnapshot] = await Promise.all([
@@ -680,7 +713,9 @@ export function createSessionCheckoutModule(
     if (record.journal !== null) return false
     if (record.delivery.state !== 'finalized' && record.delivery.state !== 'retained') return false
     if (record.delivery.cleanup !== 'blocked') return false
-    if (record.delivery.cleanupMessage !== CLEANUP_IDENTITY_CHANGED_MESSAGE) return false
+    if (record.delivery.cleanupMessageKey !== undefined
+      ? record.delivery.cleanupMessageKey !== 'cleanupIdentityChanged'
+      : record.delivery.cleanupMessage !== CLEANUP_IDENTITY_CHANGED_MESSAGE) return false
     const checkoutIdentity = record.checkoutId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8)
     return checkoutIdentity.length > 0 && basename(record.managedGitRoot).endsWith(`--${checkoutIdentity}`)
   }
@@ -1366,6 +1401,9 @@ export function createSessionCheckoutModule(
     const dirtyOrphanedCheckoutIds: string[] = []
     const staleRootCheckoutIds: string[] = []
     const finalizedCheckoutIds: string[] = []
+    // 空掉的已交付记录不能在本轮循环里立刻删：同一次遍历中，后续「创建中断」
+    // 记录要读它的 predecessor 决定是否恢复 binding，删早了那条分支就永远走不通。
+    const emptyDiscardedCheckoutIds: string[] = []
     let changed = false
 
     for (const [checkoutId, current] of Object.entries(registry.managedCheckouts)) {
@@ -1377,6 +1415,16 @@ export function createSessionCheckoutModule(
           && dependencies.files.removeEmptyDirectoryTree(current.managedRoot)
         ) {
           collectEmptyManagedContainer(current.managedGitRoot, current.checkoutId)
+        }
+        // 交付记录是台账，不是日志：它一旦不再指向任何磁盘内容，就没有第二个人
+        // 会来删它。留着只会让台账无限增长，并让同 topic 的新建继续撞上已被
+        // 放弃的旧路径。只有路径彻底空掉（或压根不存在）时才删记录，避免把
+        // 还有内容的目录从账上抹掉。
+        if (
+          !dependencies.files.exists(current.managedRoot)
+          && !dependencies.files.exists(current.managedGitRoot)
+        ) {
+          emptyDiscardedCheckoutIds.push(checkoutId)
         }
         continue
       }
@@ -1413,6 +1461,20 @@ export function createSessionCheckoutModule(
       if (current.delivery.state === 'finalized') {
         // 兼容旧版本曾把 cleanup 残余错误持久化为 recovery_required；Commit 事实优先，继续收口资源即可。
         finalizedCheckoutIds.push(checkoutId)
+        continue
+      }
+      if (
+        current.phase === 'mutating'
+        && current.journal?.operation === 'finish'
+        && current.journal.step === 'committing_session_branch'
+      ) {
+        // 提交可能已经写进会话分支才失败。退还就绪态而不是判定 recovery_required：
+        // 提交是否真的落地由下一次交付按 tree 比较得出（相同则不新建提交），
+        // 因此退回就绪态既不会重复提交，也不会把记录永久卡在恢复态。
+        record = { ...current, phase: 'ready', journal: null, revision: current.revision + 1 }
+        registry.managedCheckouts[checkoutId] = record
+        registry.revision += 1
+        changed = true
         continue
       }
       if (
@@ -1549,6 +1611,10 @@ export function createSessionCheckoutModule(
         && current.journal.step === 'artifacts_retained'
         && current.delivery.state === 'preview_active'
       ) {
+        // 走到 artifacts_retained 说明 preview refs 已经写进 Local 仓库；这里把
+        // 记录退回就绪态却没人释放它们，那些 ref 会一直留在仓库里。回滚路径
+        // （applying → ready）释放过，中断恢复这条路同样是回滚，也得释放。
+        await releasePreviewArtifactsBestEffort(current, current.delivery.preview.previewId)
         record = {
           ...current,
           phase: 'ready',
@@ -1587,10 +1653,23 @@ export function createSessionCheckoutModule(
       if (dirty) dirtyOrphanedCheckoutIds.push(checkoutId)
     }
 
+    for (const checkoutId of emptyDiscardedCheckoutIds) {
+      // 还有 binding 指向它、或别的记录把它当 predecessor 时不能删：那句话就是
+      // 「这个 checkout 仍然是一个可解析的落点」，删掉它会让那些会话在
+      // resolveBinding 里变成 project_mismatch，永远打不开。
+      const referenced = Object.values(registry.sessionBindings).some((binding) =>
+        binding.target.kind === 'isolated' && binding.target.checkoutId === checkoutId)
+        || Object.values(registry.managedCheckouts).some((record) => record.predecessorCheckoutId === checkoutId)
+      if (referenced) continue
+      if (delete registry.managedCheckouts[checkoutId]) changed = true
+    }
     if (changed) dependencies.registry.write(registry)
     for (const checkoutId of finalizedCheckoutIds) {
       const current = dependencies.registry.read().managedCheckouts[checkoutId]
-      if (current?.delivery.state === 'finalized') {
+      // 交付后清理只在这里和配额逐出里发生。目录已经消失的记录（用户手删、
+      // 外部清理工具）永远等不到清理成功，会一直占着 finalized 位置；先让
+      // cleanupFinalized 在无残留时收口台账，再由它自己写 discarded。
+      if (current?.delivery.state === 'finalized' || current?.delivery.state === 'retained') {
         // 启动收敛不受单个卡死记录阻塞：超时后跳过，下次启动再试。
         await withCleanupTimeout(checkoutId, () => cleanupFinalized(current))
       }
@@ -1671,14 +1750,17 @@ export function createSessionCheckoutModule(
     checkoutId: string,
     update: (record: ManagedCheckoutRecord) => ManagedCheckoutRecord,
   ): ManagedCheckoutRecord | undefined {
-    const registry = dependencies.registry.read()
-    const current = registry.managedCheckouts[checkoutId]
-    if (!current) return undefined
-    const next = update(current)
-    registry.managedCheckouts[checkoutId] = next
-    registry.revision += 1
-    dependencies.registry.write(registry)
-    return next
+    let result: ManagedCheckoutRecord | undefined
+    dependencies.registry.update((registry) => {
+      const current = registry.managedCheckouts[checkoutId]
+      if (!current) return registry
+      const next = update(current)
+      result = next
+      registry.managedCheckouts[checkoutId] = next
+      registry.revision += 1
+      return registry
+    })
+    return result
   }
 
   async function markReadyForReviewTarget(
@@ -2978,16 +3060,23 @@ export function createSessionCheckoutModule(
 
   async function cleanupFinalized(
     record: ManagedCheckoutRecord,
-    options: { allowLegacyResidue?: boolean } = {},
+    options: { allowLegacyResidue?: boolean; discardPostDeliveryChanges?: boolean } = {},
   ): Promise<{ cleaned: boolean; message?: string; reason?: WorktreeCleanupReason }> {
-    const block = (message: string, reason: WorktreeCleanupReason): { cleaned: false; message: string; reason: WorktreeCleanupReason } => {
+    const block = (key: PersistedCleanupKey, reason: WorktreeCleanupReason): { cleaned: false; message: string; reason: WorktreeCleanupReason } => {
+      const message = hostMessages[key].zh
       updateManagedCheckout(record.checkoutId, (current) => {
         const journal = current.journal?.operation === 'cleanup' ? current.journal : null
         if (current.delivery.state === 'finalized') {
           return {
             ...current,
             phase: 'finalized',
-            delivery: { ...current.delivery, cleanup: 'blocked', cleanupMessage: message, cleanupReason: reason },
+            delivery: {
+              ...current.delivery,
+              cleanup: 'blocked',
+              cleanupMessage: message,
+              cleanupMessageKey: key,
+              cleanupReason: reason,
+            },
             journal,
             revision: current.revision + 1,
           }
@@ -2996,17 +3085,52 @@ export function createSessionCheckoutModule(
           return {
             ...current,
             phase: 'retained',
-            delivery: { ...current.delivery, cleanup: 'blocked', cleanupMessage: message, cleanupReason: reason },
+            delivery: {
+              ...current.delivery,
+              cleanup: 'blocked',
+              cleanupMessage: message,
+              cleanupMessageKey: key,
+              cleanupReason: reason,
+            },
             journal,
             revision: current.revision + 1,
           }
         }
         return current
       })
-      return { cleaned: false, message: hostPersistedCleanupMessage(message, hostMessage), reason }
+      return { cleaned: false, message: hostPersistedCleanupMessage(message, hostMessage, key), reason }
     }
     if (record.delivery.state !== 'finalized' && record.delivery.state !== 'retained') {
-      return block(hostMessages.cleanupIncompleteDelivery.zh, 'directory_busy')
+      return block('cleanupIncompleteDelivery', 'directory_busy')
+    }
+    // 身份变更阻塞原本没有出口：目录换了人、记录还在，每次重试都只把同一句
+    // 说明再写一遍。目录已经不在时没有可校验的身份，也没有可保护的字节，
+    // 这时清掉台账是唯一能走完的路。
+    if (
+      (record.delivery.state === 'finalized' || record.delivery.state === 'retained')
+      && record.delivery.cleanup === 'blocked'
+      && persistedCleanupReason(record.delivery) === 'identity_changed'
+      && !dependencies.files.exists(record.managedRoot)
+      && !dependencies.files.exists(record.managedGitRoot)
+    ) {
+      await releaseApplyBaseBestEffort(record)
+      updateManagedCheckout(record.checkoutId, (current) => {
+        if (current.delivery.state !== 'finalized' && current.delivery.state !== 'retained') return current
+        return {
+          ...current,
+          phase: 'discarded',
+          delivery: {
+            state: 'delivered',
+            iteration: current.delivery.review.iteration,
+            commitOid: current.delivery.commitOid,
+            ...(current.delivery.proof ? { proof: current.delivery.proof } : {}),
+            deliveredAt: Date.now(),
+          },
+          journal: null,
+          revision: current.revision + 1,
+        }
+      })
+      return { cleaned: true }
     }
     if (
       (record.delivery.state === 'finalized' || record.delivery.state === 'retained')
@@ -3014,7 +3138,16 @@ export function createSessionCheckoutModule(
       && record.delivery.cleanupMessage
       && persistedCleanupReason(record.delivery) === 'identity_changed'
     ) {
-      return block(record.delivery.cleanupMessage, 'identity_changed')
+      // 已经是身份变更阻塞：原文可能来自旧记录，只更新原因，不重写说明。
+      return {
+        cleaned: false,
+        message: hostPersistedCleanupMessage(
+          record.delivery.cleanupMessage,
+          hostMessage,
+          record.delivery.cleanupMessageKey,
+        ),
+        reason: 'identity_changed',
+      }
     }
     if (hasLegacyCleanupResidueEvidence(record) && !options.allowLegacyResidue && dependencies.files.exists(record.managedGitRoot)) {
       return { cleaned: false, message: CLEANUP_RESIDUE_MESSAGE, reason: 'detached_residue' }
@@ -3087,7 +3220,7 @@ export function createSessionCheckoutModule(
       if (existingQuarantine) {
         await retryTransientCleanup(() => dependencies.files.removeDirectoryTree(existingQuarantine))
       } else if (record.journal?.operation === 'cleanup' && record.journal.cleanupQuarantinePath && dependencies.files.exists(record.journal.cleanupQuarantinePath)) {
-        return block(CLEANUP_IDENTITY_CHANGED_MESSAGE, 'identity_changed')
+        return block('cleanupIdentityChanged', 'identity_changed')
       } else if (dependencies.files.exists(record.managedGitRoot)) {
         const validated = dependencies.files.exists(record.managedRoot)
           ? await validateManagedCheckout(binding, record, false)
@@ -3098,26 +3231,33 @@ export function createSessionCheckoutModule(
             isolatedPath: record.managedRoot,
             localPath: record.localRoot,
           })
-          if (snapshot.status !== 'ready' || snapshot.isolatedFingerprint !== record.delivery.isolatedFingerprint) {
-            return block(hostMessages.cleanupNewChanges.zh, 'modified_after_finalize')
+          if (
+            snapshot.status !== 'ready'
+            || snapshot.isolatedFingerprint !== record.delivery.isolatedFingerprint
+          ) {
+            // 交付后的新改动默认保留：那是用户可能还没取走的工作。只有显式确认
+            // 放弃它们时，才继续走下面的删除链。
+            if (options.discardPostDeliveryChanges !== true) {
+              return block('cleanupNewChanges', 'modified_after_finalize')
+            }
           }
           const directoryIdentity = await dependencies.files.inspectDirectoryIdentity(validated.canonicalManagedGitRoot)
-          if (!directoryIdentity) return block(CLEANUP_IDENTITY_CHANGED_MESSAGE, 'identity_changed')
+          if (!directoryIdentity) return block('cleanupIdentityChanged', 'identity_changed')
           const removing = beginRemoval(record, directoryIdentity)
-          if (!removing) return block(hostMessages.cleanupMissingBeforeRemoval.zh, 'directory_busy')
+          if (!removing) return block('cleanupMissingBeforeRemoval', 'directory_busy')
           await retryTransientCleanup(() => dependencies.git.removeWorktree(removing.localRoot, removing.managedGitRoot))
           if (dependencies.files.exists(removing.managedGitRoot)) {
             const residue = await validateDetachedCleanupResidue(removing)
-            if (!residue) return block(CLEANUP_IDENTITY_CHANGED_MESSAGE, 'identity_changed')
+            if (!residue) return block('cleanupIdentityChanged', 'identity_changed')
             await quarantineAndRemove(removing, residue)
           }
         } else {
           const residue = await validateDetachedCleanupResidue(record, options.allowLegacyResidue === true)
-          if (!residue) return block(CLEANUP_IDENTITY_CHANGED_MESSAGE, 'identity_changed')
+          if (!residue) return block('cleanupIdentityChanged', 'identity_changed')
           const removing = beginRemoval(record, residue.directoryIdentity)
-          if (!removing) return block(hostMessages.cleanupMissingBeforeRemoval.zh, 'directory_busy')
+          if (!removing) return block('cleanupMissingBeforeRemoval', 'directory_busy')
           const revalidatedResidue = await validateDetachedCleanupResidue(removing)
-          if (!revalidatedResidue) return block(CLEANUP_IDENTITY_CHANGED_MESSAGE, 'identity_changed')
+          if (!revalidatedResidue) return block('cleanupIdentityChanged', 'identity_changed')
           await quarantineAndRemove(removing, revalidatedResidue)
         }
       }
@@ -3144,10 +3284,16 @@ export function createSessionCheckoutModule(
       console.warn('[session-checkout] finalized Worktree cleanup failed:', error)
       const failureRecord = dependencies.registry.read().managedCheckouts[record.checkoutId] ?? record
       const quarantineBusy = failureRecord.journal?.operation === 'cleanup' && Boolean(failureRecord.journal.cleanupQuarantinePath)
-      const reason: WorktreeCleanupReason = quarantineBusy ? 'quarantine_busy' : 'directory_busy'
+      // 归因决定这条记录以后会不会被自动重试。目录身份对不上（checkout_mismatch）
+      // 不是「暂时占用」，重试一万次也不会变；把它写成 directory_busy 会让一条
+      // 永远清不掉的记录长期占着配额。
+      const identityMismatch = error instanceof SessionCheckoutError && error.code === 'checkout_mismatch'
+      const reason: WorktreeCleanupReason = quarantineBusy
+        ? 'quarantine_busy'
+        : identityMismatch ? 'identity_changed' : 'directory_busy'
       const message = quarantineBusy
         ? hostMessages.cleanupQuarantineBusy.zh
-        : hostMessages.cleanupDirectoryBusy.zh
+        : identityMismatch ? hostMessages.cleanupIdentityChanged.zh : hostMessages.cleanupDirectoryBusy.zh
       updateManagedCheckout(record.checkoutId, (current) => {
         const journal = current.journal?.operation === 'cleanup' ? current.journal : null
         if (current.delivery.state === 'finalized') {
@@ -3503,6 +3649,30 @@ export function createSessionCheckoutModule(
       branchRef,
     })
     if (committed.status === 'error') {
+      const landedOid = committed.committedOid
+      if (landedOid !== undefined) {
+        // 提交已经写进会话分支，撤销它等于改写用户刚拿到的历史。保留 journal 与
+        // 已落地的 OID 作为恢复证据，让记录停在可检视的状态而不是退回 ready。
+        updateManagedCheckout(mutating.checkoutId, (current) => ({
+          ...current,
+          delivery: {
+            state: 'ready_for_review',
+            review: { ...reviewed, isolatedHeadOid: landedOid },
+          },
+          journal: {
+            operation: 'finish',
+            operationId,
+            step: 'committing_session_branch',
+            startedAt,
+            baseOid: applyBaseOid,
+            isolatedFingerprint: reviewed.isolatedFingerprint,
+            changedFiles: [...reviewed.changedFiles],
+            committedOid: landedOid,
+          },
+          revision: current.revision + 1,
+        }))
+        return operationError(committed.error.code, committed.error.message, await inspectIsolated(binding))
+      }
       restoreReady()
       return operationError(committed.error.code, committed.error.message, await inspectIsolated(binding))
     }
@@ -3644,9 +3814,12 @@ export function createSessionCheckoutModule(
       record = rolledBack
     }
     // An interrupted creation may still own a Git registration at a quarantined path.
-    // Missing original cwd is not proof that its process tree or residue has gone away.
-    if (record.journal?.operation === 'create' && record.journal.creation) {
-      return operationError('recovery_unsafe', hostMessage('theIsolatedCheckoutIdentityCannotBeVerifiedRecoveryIs'))
+    // Missing original cwd is not proof that its process tree or residue has gone away,
+    // so a residue on disk is never deletion authority. When nothing is left on disk
+    // there is nothing to protect, and the ledger must not stay wedged forever: every
+    // path below this point only clears the record.
+    if (record.journal?.operation === 'create' && record.journal.creation && hasCreationResidue(record)) {
+      return operationError('recovery_unsafe', hostMessage('creationResidueBlocksRecovery', { p0: creationResiduePaths(record).join(', ') }))
     }
     // Harness plugin has no inherited collaborator checkout ownership.
     if (record.phase === 'recovery_required' && !dependencies.files.exists(record.managedRoot)) {
@@ -3774,7 +3947,7 @@ export function createSessionCheckoutModule(
       return operationError('operation_not_allowed', hostMessage('thisWorktreeHasAlreadyReachedATerminalDeliveryState'))
     }
     const recoverCreate = record.journal?.operation === 'create'
-    if (record.journal?.operation === 'create' && record.journal.creation) {
+    if (record.journal?.operation === 'create' && record.journal.creation && hasCreationResidue(record)) {
       return operationError('recovery_unsafe', hostMessage('theIsolatedCheckoutIdentityCannotBeVerifiedRecoveryIs'))
     }
     if ((record.journal !== null && !recoverCreate) || record.phase === 'mutating') {
@@ -3906,9 +4079,11 @@ export function createSessionCheckoutModule(
       ? delivery.commitOid
       : null
     const cleanupMessage = cleanupResidue
-      ? CLEANUP_RESIDUE_MESSAGE
+      ? hostPersistedCleanupMessage(CLEANUP_RESIDUE_MESSAGE, hostMessage, 'cleanupResidue')
       : delivery.state === 'finalized' || delivery.state === 'retained'
-        ? delivery.cleanupMessage
+        ? delivery.cleanupMessage === undefined
+          ? undefined
+          : hostPersistedCleanupMessage(delivery.cleanupMessage, hostMessage, delivery.cleanupMessageKey)
         : undefined
     const cleanupReason = cleanupResidue
       ? 'detached_residue' as const
@@ -4133,10 +4308,23 @@ export function createSessionCheckoutModule(
     }
     const pruned: PruneMergedBranchEntry[] = []
     const skipped: PruneMergedBranchEntry[] = []
+    // 会话分支归插件管：它可能已经合并、也过了年龄门槛，但还有一条会话断言自己
+    // 在那条分支上工作。删掉它，那个会话的下一次交付就写到一个不存在的地方。
+    const activeSessionBranches = new Set(
+      Object.values(dependencies.registry.read().managedCheckouts)
+        .filter((record) => record.phase !== 'discarded')
+        .map((record) => record.sessionBranch)
+        .filter((ref): ref is string => ref !== undefined)
+        .map((ref) => ref.startsWith('refs/heads/') ? ref.slice('refs/heads/'.length) : ref),
+    )
     const headOid = mergeTarget?.oid
     if (headOid) {
       for (const branch of overview.branches) {
         if (branch.isCurrent || trunkBranches.has(branch.name)) continue
+        if (activeSessionBranches.has(branch.name)) {
+          skipped.push({ name: branch.name, oid: branch.oid, reason: hostMessage('thisBranchBelongsToALiveManagedCheckout') })
+          continue
+        }
         let merged: boolean
         try {
           merged = await isAncestor(localRoot, branch.oid, headOid)
@@ -4427,7 +4615,10 @@ export function createSessionCheckoutModule(
     if (record.delivery.state !== 'retained' && record.delivery.state !== 'finalized') {
       throw new SessionCheckoutError('operation_not_allowed', hostMessage('theCurrentWorktreeIsNotInACleanableState'))
     }
-    await cleanupFinalized(record, { allowLegacyResidue: true })
+    await cleanupFinalized(record, {
+      allowLegacyResidue: true,
+      ...(input.discardPostDeliveryChanges === true ? { discardPostDeliveryChanges: true } : {}),
+    })
     const updated = dependencies.registry.read().managedCheckouts[record.checkoutId]
     if (!updated) throw new SessionCheckoutError('checkout_missing', hostMessage('theWorktreeRecordDoesNotExist'))
     return summarizeManagedWorktree(updated)
@@ -4504,22 +4695,23 @@ export function createSessionCheckoutModule(
 
   /**
    * codex 对齐：按 worktree-keep-count LRU 收口托管 Worktree 总量。
-   * 豁免 permanent 与进行中（working/ready_for_review/preview*）的记录；
-   * 只逐出已交付（finalized/retained）的最旧记录，逐出走完整 discard 安全链
-   * （含 G2 放弃前快照），confirmDirty 跳过人工确认。
+   * 配额数的是磁盘上真实存在的托管 Worktree，进行中的会话同样占地方，
+   * 所以统计包含它们；逐出只从已交付（finalized/retained）里挑。
+   * 逐出走完整 discard 安全链（含 G2 放弃前快照），confirmDirty 跳过人工确认。
    */
   async function enforceWorktreeKeepCount(): Promise<string[]> {
     const limitRaw = liveConfigValue(dependencies.worktreeKeepCount)
     const limit = typeof limitRaw === 'number' ? Math.floor(limitRaw) : 0
     if (!Number.isFinite(limit) || limit <= 0) return []
-    const ordered = Object.values(dependencies.registry.read().managedCheckouts)
+    const managed = Object.values(dependencies.registry.read().managedCheckouts)
+      .filter((record) => record.permanent !== true && record.phase !== 'discarded')
+    const ordered = managed
       .filter((record) => (
-        record.permanent !== true
-        && (record.phase === 'finalized' || record.phase === 'retained')
+        (record.phase === 'finalized' || record.phase === 'retained')
         && (record.delivery.state === 'finalized' || record.delivery.state === 'retained')
       ))
       .sort((left, right) => managedUpdatedAt(left) - managedUpdatedAt(right))
-    const evictable = ordered.slice(0, Math.max(0, ordered.length - limit))
+    const evictable = ordered.slice(0, Math.max(0, managed.length - limit))
     const cleaned: string[] = []
     for (const record of evictable) {
       // 逐出一个已交付 Worktree 就是普通清理：走 cleanupFinalized 的目录身份校验
@@ -5048,9 +5240,14 @@ export function createSessionCheckoutModule(
           hostMessage('theFallbackWorktreeContainerIsNotATrustedDirectory', { p0: managedContainer }),
         )
       }
+      // 候选只按「磁盘上不存在」来挑会漏掉一个情形：另一条记录仍然声明着这个
+      // 路径，而它的目录已经被删掉。那种路径看起来是空的，实际属于别人的台账。
+      const claimedPaths = new Set(
+        Object.values(dependencies.registry.read().managedCheckouts).map(record => record.managedGitRoot),
+      )
       const managedGitRoot = pathCandidates
         .map(candidate => usingSibling ? candidate.siblingRoot : candidate.fallbackRoot)
-        .find(candidate => !dependencies.files.exists(candidate))
+        .find(candidate => !claimedPaths.has(candidate) && !dependencies.files.exists(candidate))
       if (managedGitRoot === undefined) {
         if (usingSibling) {
           return bindTarget(sessionId, choice, createAttempt + 1, requestStartedAt, sourceSessionId, createOptions)

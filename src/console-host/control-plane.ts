@@ -418,6 +418,15 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
     return { managedRoot, snapshot, dirty: status.dirty }
   }
 
+  // Retention, permanence and cleanup dispatch delete the frozen directory on disk.
+  // The module only falls back to the source Session while the owner Session is gone,
+  // which would let a local Session clean up a Worktree it never owned.
+  function requireOwner(record: ManagedCheckoutRecord, sessionId: string): void {
+    if (record.ownerSessionId !== sessionId) {
+      throw domainError('not_owner', hostMessage('onlyTheOwnerSessionCanManageThisWorktree'))
+    }
+  }
+
   function ownerSessionAvailable(record: ManagedCheckoutRecord): boolean {
     return options.lookup.getSession(record.ownerSessionId) !== undefined
   }
@@ -514,6 +523,24 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
 
   function sameLocalRoot(left: string, right: string): boolean {
     return process.platform === 'win32' ? left.toLowerCase() === right.toLowerCase() : left === right
+  }
+
+  /**
+   * Another Session delivering onto the same Local checkout. `gitSwitchBranch` moves that
+   * checkout's HEAD, which is the baseline every pending apply-to-local is computed against.
+   */
+  function localDeliveryHolder(root: string, sessionId: string): ManagedCheckoutRecord | undefined {
+    return Object.values(options.registry.read().managedCheckouts).find(candidate => (
+      candidate.ownerSessionId !== sessionId
+      && candidate.sourceSessionId !== sessionId
+      && candidate.phase !== 'discarded'
+      && sameLocalRoot(resolve(candidate.localRoot), resolve(root))
+      && (candidate.phase === 'recovery_required'
+        || (candidate.phase === 'ready'
+          && (candidate.delivery.state === 'ready_for_review'
+            || candidate.delivery.state === 'preview_active'
+            || candidate.delivery.state === 'preview_detached')))
+    ))
   }
 
   function acceptanceHolder(record: ManagedCheckoutRecord): ManagedCheckoutRecord | undefined {
@@ -810,6 +837,10 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
               || record.delivery.state === 'preview_active'
               || record.delivery.state === 'preview_detached'))))
       if (delivering) throw domainError('operation_not_allowed', hostMessage('localBranchSwitchBlockedDuringDelivery'))
+      const otherHolder = localDeliveryHolder(root, sessionId)
+      if (otherHolder) {
+        throw domainError('operation_not_allowed', hostMessage('localBranchSwitchBlockedByAnotherDelivery', { p0: otherHolder.ownerSessionId }))
+      }
       if (options.git.switchLocalBranch === undefined) throw domainError('git_error', hostMessage('gitOperationFailedGit', { p0: 'switch', p1: branch }))
       await options.git.switchLocalBranch(root, branch)
       return { branch }
@@ -972,11 +1003,13 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
     }),
     createWithInitialCommit: (sourceSessionId, confirmationToken) => outcome(() => withCreation(sourceSessionId, async project => {
       const confirmation = confirmations.get(sourceSessionId)
-      confirmations.delete(sourceSessionId)
       if (!confirmation || confirmation.token !== confirmationToken || confirmation.expires <= Date.now()
         || confirmation.root !== project.root || confirmation.projectId !== project.id || !options.git.initializeEmptyRepository) {
+        // 校验失败不能先报废 token：客户端拿到 stale_local 后会重新预检拿新 token，
+        // 而一次错点、一次并发预检就把用户手里那个有效 token 吃掉，只会让人反复重试。
         throw domainError('stale_local', hostMessage('initialStateChanged'))
       }
+      confirmations.delete(sourceSessionId)
       await options.git.initializeEmptyRepository(project.root, confirmation.fingerprint, async () => {
         const current = await localProject(sourceSessionId)
         if (current.id !== confirmation.projectId || current.root !== confirmation.root) {
@@ -1424,7 +1457,8 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
     },
 
     setRetention: request => outcome(async () => {
-      await authorize(request.sessionId, request.checkoutId)
+      const record = await authorize(request.sessionId, request.checkoutId)
+      requireOwner(record, request.sessionId)
       await options.module.manageManagedWorktreeForSession(request.sessionId, {
         checkoutId: request.checkoutId,
         expectedRevision: request.expectedRevision,
@@ -1435,7 +1469,8 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
     }),
 
     setPermanent: request => outcome(async () => {
-      await authorize(request.sessionId, request.checkoutId)
+      const record = await authorize(request.sessionId, request.checkoutId)
+      requireOwner(record, request.sessionId)
       await options.module.manageManagedWorktreeForSession(request.sessionId, {
         checkoutId: request.checkoutId,
         expectedRevision: request.expectedRevision,
@@ -1446,11 +1481,13 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
     }),
 
     retryCleanup: request => outcome(async () => {
-      await authorize(request.sessionId, request.checkoutId)
+      const record = await authorize(request.sessionId, request.checkoutId)
+      requireOwner(record, request.sessionId)
       await options.module.manageManagedWorktreeForSession(request.sessionId, {
         checkoutId: request.checkoutId,
         expectedRevision: request.expectedRevision,
         action: 'retry_cleanup',
+        ...(request.discardPostDeliveryChanges === true ? { discardPostDeliveryChanges: true } : {}),
       })
       return mutationResponse(request.sessionId, request.checkoutId)
     }),

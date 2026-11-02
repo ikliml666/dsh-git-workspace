@@ -41,6 +41,8 @@ interface RecoveryEntry {
   services: WorktreeClientServices
   isActive: () => boolean
   claimed: boolean
+  /** Next poll delay for the not-ready-yet chain; reset to POLL_INITIAL_MS once a send lands. */
+  pollDelayMs: number
   abort?: AbortController
   unsubscribers: Array<() => void>
   listeners: Set<() => void>
@@ -261,6 +263,37 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
+const POLL_INITIAL_MS = 250
+const POLL_MAX_MS = 5_000
+
+/**
+ * Poll while the owner Session is not ready yet. Each wake-up costs a real inspect RPC, so
+ * the interval backs off up to POLL_MAX_MS; the delay lives on the entry because every
+ * unsuccessful attempt re-enters `waitForSession` and must not restart the 250ms chain.
+ */
+function pollUntilReady(entry: RecoveryEntry): void {
+  let watching = true
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const stop = (): void => {
+    watching = false
+    if (timer !== undefined) {
+      clearTimeout(timer)
+      timer = undefined
+    }
+  }
+  const schedule = (): void => {
+    const delay = entry.pollDelayMs
+    timer = setTimeout(() => {
+      timer = undefined
+      entry.pollDelayMs = Math.min(delay * 2, POLL_MAX_MS)
+      void attempt(entry)
+      if (watching) schedule()
+    }, delay)
+  }
+  entry.unsubscribers.push(stop)
+  schedule()
+}
+
 function waitForSession(entry: RecoveryEntry, binding: ReturnType<WorktreeClientServices['sessions']['binding']>): void {
   const request = entry.snapshot.request
   entry.claimed = false
@@ -273,8 +306,7 @@ function waitForSession(entry: RecoveryEntry, binding: ReturnType<WorktreeClient
   if (binding?.session.subscribe) {
     entry.unsubscribers.push(binding.session.subscribe(() => { void attempt(entry) }))
   }
-  const timer = setInterval(() => { void attempt(entry) }, 250)
-  entry.unsubscribers.push(() => clearInterval(timer))
+  pollUntilReady(entry)
 }
 
 async function attempt(entry: RecoveryEntry): Promise<void> {
@@ -316,6 +348,8 @@ async function attempt(entry: RecoveryEntry): Promise<void> {
   stopWatching(entry)
   const abort = new AbortController()
   entry.abort = abort
+  // The Session became ready once: a later not-ready wait restarts from the initial delay.
+  entry.pollDelayMs = POLL_INITIAL_MS
   publish(entry, { status: 'sending', request })
   let stopOnSessionSwitch: () => void = () => undefined
   let stopOnInactiveScope: () => void = () => undefined
@@ -409,6 +443,7 @@ export function enqueueWorktreeRecovery(input: {
     services: input.services,
     isActive: input.isActive,
     claimed: false,
+    pollDelayMs: POLL_INITIAL_MS,
     unsubscribers: [],
     listeners: listenersFor(input.request.sessionId),
   }
@@ -479,6 +514,7 @@ export function restoreWorktreeRecovery(input: {
     services: input.services,
     isActive,
     claimed: false,
+    pollDelayMs: POLL_INITIAL_MS,
     unsubscribers: [],
     listeners: listenersFor(input.sessionId),
   }

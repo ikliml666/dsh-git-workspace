@@ -13,6 +13,7 @@ import {
   type SessionCheckoutErrorCode,
   type SessionCheckoutPhase,
   type WorktreeRetentionMode,
+  type WorktreeCleanupReason,
   type WorktreeApplyPreflightView,
   type WorktreePreviewRecoveryPreflightView,
   type WorktreePreviewRecoveryProof,
@@ -167,6 +168,11 @@ export interface WorktreeConsoleTargetSummary {
   /** codex 对齐：常驻标记的 Worktree 豁免自动清理。 */
   permanent?: boolean
   cleanupMessage?: string
+  /**
+   * 结构化清理阻塞原因。客户端据此在「交付后出现新改动」时给出放弃改动再清理的
+   * 显式确认，而不是让人对着一句说明反复点重试。
+   */
+  cleanupReason?: WorktreeCleanupReason
   deliveryProof?: WorktreeConsoleDeliveryProof
   review?: WorktreeConsoleReviewSummary
   checkpoints?: WorktreeCheckpointView[]
@@ -405,6 +411,11 @@ export interface WorktreeConsoleRetryCleanupRequest {
   sessionId: string
   checkoutId: string
   expectedRevision: number
+  /**
+   * 用户确认「交付后出现的那些改动我不要了」。清理默认在发现这类改动时停下，
+   * 只有带上这个确认才越过 modified_after_finalize。
+   */
+  discardPostDeliveryChanges?: boolean
 }
 
 export interface WorktreeConsoleBeginNextIterationRequest {
