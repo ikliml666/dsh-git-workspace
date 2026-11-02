@@ -7,7 +7,7 @@ import { hostMessage } from '../i18n/host.js'
  * @module dsh-git-worktree/adapters/files
  */
 
-import { copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmdirSync, rmSync } from 'node:fs'
+import { copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmdirSync, rmSync, unlinkSync } from 'node:fs'
 import { lstat, readdir, realpath, rename, rm } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import type { DirectoryIdentity, SessionCheckoutFilesPort } from '../ports.js'
@@ -28,7 +28,14 @@ function removeEmptyDirectoryTree(path: string): boolean {
   const stat = lstatSync(path)
   if (!stat.isDirectory() || stat.isSymbolicLink()) return false
   for (const entry of readdirSync(path)) {
-    if (!removeEmptyDirectoryTree(join(path, entry))) return false
+    const child = join(path, entry)
+    // 目录链接（junction / 符号链接）不承载用户字节：只删链接本身，绝不跟随
+    // 目标，链接指向的内容原样保留。
+    if (lstatSync(child).isSymbolicLink()) {
+      unlinkSync(child)
+      continue
+    }
+    if (!removeEmptyDirectoryTree(child)) return false
   }
   rmdirSync(path)
   return true

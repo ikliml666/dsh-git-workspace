@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmdirSync, rmSync } from 'node:fs'
+import { copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmdirSync, rmSync, unlinkSync } from 'node:fs'
 import { lstat, mkdtemp, readdir, realpath, rename, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -69,7 +69,12 @@ function removeEmptyDirectoryTree(path: string): boolean {
   const stat = lstatSync(path)
   if (!stat.isDirectory() || stat.isSymbolicLink()) return false
   for (const entry of readdirSync(path)) {
-    if (!removeEmptyDirectoryTree(join(path, entry))) return false
+    const child = join(path, entry)
+    if (lstatSync(child).isSymbolicLink()) {
+      unlinkSync(child)
+      continue
+    }
+    if (!removeEmptyDirectoryTree(child)) return false
   }
   rmdirSync(path)
   return true

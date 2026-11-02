@@ -617,8 +617,8 @@ export const hostMessages = {
     "en": "The project root is not a Git repository ({p0}). The ledger still references paths that no longer exist ({p1}) — the project was likely moved. Reopen the session from the repository's new location; stale Worktree ledger entries repair automatically on bind."
   },
   "theFallbackWorktreeContainerIsNotATrustedDirectory": {
-    "zh": "Worktree 回退容器不是可信目录，未创建或修改任何 checkout",
-    "en": "The fallback Worktree container is not a trusted directory. No checkout was created or modified."
+    "zh": "Worktree 容器 {p0} 不是可信目录：它不是普通目录，或内含本插件未登记的内容。未创建或修改任何 checkout；确认该目录归属后清空或移走它再重试。",
+    "en": "The Worktree container {p0} is not a trusted directory: it is not a plain directory, or it holds content this plugin does not manage. No checkout was created or modified. Confirm who owns it, then empty or move it before retrying."
   },
   "theWorktreeContainerCouldNotBeCreatedOrAccessed": {
     "zh": "无法创建或访问 Worktree 容器 {p0}（{p1}）。这通常是环境问题：目录 ACL 拒绝、沙箱/杀软拦截或路径不可写，而非内容不可信。请检查该目录的文件权限后重试；未创建或修改任何 checkout。",

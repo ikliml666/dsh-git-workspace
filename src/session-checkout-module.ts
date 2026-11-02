@@ -4989,6 +4989,12 @@ export function createSessionCheckoutModule(
       const outerContainingRoot = await dependencies.git.findContainingWorktreeRoot(dirname(localGitRoot))
       const siblingWouldPolluteOuter = outerContainingRoot !== null && !pathsEqual(outerContainingRoot, localGitRoot)
       const usingSibling = createAttempt === 0 && !siblingWouldPolluteOuter
+      // 配置 worktreesRoot 时 sibling 与 fallback 指向同一容器，重试只会面对
+      // 同一个目录与同一份内容，注定再失败一次。
+      const fallbackContainerDiffers = !pathsEqual(
+        pathCandidates[0]!.siblingContainer,
+        pathCandidates[0]!.fallbackContainer,
+      )
       const managedContainer = usingSibling
         ? pathCandidates[0]!.siblingContainer
         : pathCandidates[0]!.fallbackContainer
@@ -5024,7 +5030,7 @@ export function createSessionCheckoutModule(
         }
       }
       if (containerIdentity === null) {
-        if (usingSibling) {
+        if (usingSibling && fallbackContainerDiffers) {
           return bindTarget(sessionId, choice, createAttempt + 1, requestStartedAt, sourceSessionId, createOptions)
         }
         // A failed mkdir is environmental (denied permissions, sandbox or
@@ -5039,7 +5045,7 @@ export function createSessionCheckoutModule(
         }
         throw new SessionCheckoutError(
           'checkout_mismatch',
-          hostMessage('theFallbackWorktreeContainerIsNotATrustedDirectory'),
+          hostMessage('theFallbackWorktreeContainerIsNotATrustedDirectory', { p0: managedContainer }),
         )
       }
       const managedGitRoot = pathCandidates

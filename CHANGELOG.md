@@ -4,6 +4,16 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- 配置了 `worktreesRoot` 的项目无法创建任何 Isolated Session，报 `Worktree 回退容器不是可信目录，未创建或修改任何 checkout`（2026-11-02）：容器里只要残留一个目录链接（junction/符号链接）就永远过不去。现场 `E:\ik\Documents\trae_projects\worktrae\dsh-subagent-auto-router` 全树 **0 个文件**，唯一内容是一条 `sess-session-/node_modules/@deepseek-ai/schemastery` → `E:\software\deepseek-harness\vendor\schemastery` 的 junction（`.worktreeinclude` 带进来的依赖链接），却被判成「含未知内容」。
+  - `src/adapters/files.ts`：`removeEmptyDirectoryTree` 原来遇到任何符号链接就连同所在的整棵子树**一起判失败**（`if (!stat.isDirectory() || stat.isSymbolicLink()) return false`），于是一个链接就否掉了整个空树的回收。现在树内的目录链接只删除**链接本身**（`unlinkSync`），绝不跟随目标——链接指向的外部文件原样保留（已用探针实测：删除 junction 后目标 `inner/deep.txt` 与 `keep.txt` 均完好）。端口文档同步：契约从「整树不得含符号链接」改为「整树无文件；树内链接只解除、不跟随」。
+  - `src/session-checkout-module.ts`：配置 `worktreesRoot` 时 `siblingContainer` 与 `fallbackContainer` 是**同一个路径**（`src/managed-worktree-path.ts:158-166`），而 `usingSibling` 的失败分支无条件 `bindTarget(..., createAttempt + 1, ...)`——所谓「换一个容器重试」面对的是同一目录、同一份内容，注定再失败一次，白跑一轮完整创建流程。新增 `fallbackContainerDiffers = !pathsEqual(siblingContainer, fallbackContainer)`，两者相同时不再重试，直接报错。
+  - `src/i18n/host-messages.ts`：`theFallbackWorktreeContainerIsNotATrustedDirectory` 原来不带参数，用户只看到「回退容器不是可信目录」，既不知道是哪个目录、也不知道下一步做什么；且 `worktreesRoot` 模式下根本没有「回退」这回事。改为带回 `{p0}` 容器绝对路径，文案指出「不是普通目录，或内含本插件未登记的内容」并给出处置动作（确认归属后清空或移走再重试）。
+  - 新增回归用例（`tests/session-checkout-module.test.ts`，均带反证）：`Given a worktreesRoot container left behind by an earlier run holds only a directory link When creating a target Then it is reclaimed without following the link`——容器内放一条指向外部目录的 junction，断言创建成功、残骸清掉、**外部目标文件仍在**；把逻辑改回「遇链接即 false」后该用例正好以用户截图那条文案失败。`Given a worktreesRoot container holds foreign bytes When creating a target Then the error names the container and the same path is not retried`——断言报错含容器路径、外来文件未被删、容器回收只被尝试 **1** 次；把 `fallbackContainerDiffers` 改成 `true` 后实测为 2 次、用例失败。
+  - **验证**：`npx tsc --noEmit` 通过；`npx vitest run` 全量 **52 文件 / 769 用例通过、4 跳过**，3 个失败文件（`client-workspace-sidebar-profile` / `-actions` / `-status`）在 `git stash` 后的无改动基线上同样失败——它们要求 `@deepseek-ai/dsh-client-ui-workspace@0.2.1-rc.5`，本机装的是 rc.4，与本次改动无关。
+  - 教训：「空目录才可回收」的安全边界本身成立，但判定单位错了——一个零字节的链接就被当成用户字节，把整条创建链路锁死，而报错文案又指向「不可信内容」。安全判据要盯住「是否真的会丢数据」，而不是「树里有没有链接这种形态」。
+
 ### Performance
 
 - 顶部胶囊读取分支明显卡顿（2026-10-27，消除 `current` 链路里的重复 Git 校验）：用户报告「顶部胶囊读取分支速度太慢」。一次 `current` 原本要跑 **12 次 git 子进程**，其中 7 次是纯重复劳动（`git --version` 这种纯 spawn 在 Windows 上就要 25–37ms）：

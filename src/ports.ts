@@ -241,7 +241,7 @@ export interface SessionCheckoutFilesPort {
   canonicalize(path: string): Promise<string>
   inspectDirectoryIdentity(path: string): Promise<DirectoryIdentity | null>
   ensureDirectory(path: string): void
-  /** Deletes only when the whole tree contains no files or symlinks; used to collect empty `git worktree add` residue. */
+  /** Deletes only when the whole tree contains no files; links inside it are unlinked, never followed. Used to collect empty `git worktree add` residue. */
   removeEmptyDirectoryTree(path: string): boolean
   /** Atomically moves residue whose file identity matches into the plugin quarantine. */
   quarantineDirectoryTree(path: string, expectedIdentity: DirectoryIdentity, quarantinePath: string): Promise<void>

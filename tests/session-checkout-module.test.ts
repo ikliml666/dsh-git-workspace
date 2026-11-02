@@ -10,6 +10,7 @@ import type { SessionCheckoutModule } from '../src/index.js'
 import { createSessionCheckoutApplyEngine, type SessionCheckoutApplyEngine } from '../src/session-checkout-apply.ts'
 
 import { createSessionCheckoutModule } from '../src/session-checkout-module.ts'
+import { createManagedWorktreeRepositoryKey } from '../src/managed-worktree-path.ts'
 import { AtomicJsonCheckoutRegistry } from '../src/adapters/registry.ts'
 import { createNodeSessionCheckoutDependencies } from './support/production-adapters.ts'
 
@@ -49,6 +50,7 @@ interface TestContext {
   getRemoveWorktreeCallCount(): number
   getCreateWorktreeCallCount(): number
   getMeasureDirectoryCallCount(): number
+  getContainerReclaimAttempts(): number
   setSessionProject(sessionId: string, projectId: string): void
   setProjectRoot(projectId: string, root: string): void
   addProject(projectId: string, name: string, root: string): void
@@ -240,6 +242,14 @@ function createContext(options: {
     return ensureDirectory(path)
   }
   if (options.applyEngine) dependencies.applyEngine = options.applyEngine
+  // 容器回收是「未知内容不删」的判定点：记录它被调了几次，才能断言
+  // worktreesRoot 模式下同一容器的第二次尝试根本没有发生。
+  const removeEmptyDirectoryTree = dependencies.files.removeEmptyDirectoryTree
+  let containerReclaimAttempts = 0
+  dependencies.files.removeEmptyDirectoryTree = (path) => {
+    containerReclaimAttempts += 1
+    return removeEmptyDirectoryTree(path)
+  }
   const measureDirectoryBytes = dependencies.files.measureDirectoryBytes
   let measureDirectoryCallCount = 0
   let nextDirectoryMeasurePause: {
@@ -313,6 +323,7 @@ function createContext(options: {
     getRemoveWorktreeCallCount: () => removeWorktreeCallCount,
     getCreateWorktreeCallCount: () => createWorktreeCallCount,
     getMeasureDirectoryCallCount: () => measureDirectoryCallCount,
+    getContainerReclaimAttempts: () => containerReclaimAttempts,
     setSessionProject: (sessionId, projectId) => {
       const session = sessions.get(sessionId)
       if (session) session.projectId = projectId
@@ -1425,6 +1436,50 @@ describe('SessionCheckoutModule', () => {
     })
     expect(second.revision).toBe(recordBefore.revision)
     expect(recordOf().sidebarBadgeClearedRevision).toBe(recordBefore.revision)
+  })
+
+  test('Given a worktreesRoot container left behind by an earlier run holds only a directory link When creating a target Then it is reclaimed without following the link', async () => {
+    const context = createContext({ worktreesRoot: true })
+    const worktreesRoot = context.worktreesRoot
+    if (!worktreesRoot) throw new Error('expected worktreesRoot')
+    const external = join(context.root, 'external-deps')
+    mkdirSync(join(external, 'inner'), { recursive: true })
+    writeFileSync(join(external, 'inner', 'keep.txt'), 'external\\n')
+    const container = join(
+      worktreesRoot,
+      createManagedWorktreeRepositoryKey(realpathSync.native(context.repositoryRoot)),
+    )
+    const residue = join(container, 'sess-session-', 'node_modules', '@deepseek-ai')
+    mkdirSync(residue, { recursive: true })
+    symlinkSync(external, join(residue, 'schemastery'), process.platform === 'win32' ? 'junction' : 'dir')
+
+    const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')
+
+    expect(dirname(launch.managedRoot)).toBe(container)
+    expect(existsSync(join(container, 'sess-session-'))).toBe(false)
+    expect(readFileSync(join(external, 'inner', 'keep.txt'), 'utf8')).toBe('external\\n')
+  })
+
+  test('Given a worktreesRoot container holds foreign bytes When creating a target Then the error names the container and the same path is not retried', async () => {
+    const context = createContext({ worktreesRoot: true })
+    const worktreesRoot = context.worktreesRoot
+    if (!worktreesRoot) throw new Error('expected worktreesRoot')
+    const container = join(
+      worktreesRoot,
+      createManagedWorktreeRepositoryKey(realpathSync.native(context.repositoryRoot)),
+    )
+    mkdirSync(container, { recursive: true })
+    writeFileSync(join(container, 'foreign.txt'), 'foreign\\n')
+
+    const creationError: unknown = await context.module.createIsolatedTarget('session-1', 'target-session-1').then(
+      () => undefined,
+      (error: unknown) => error,
+    )
+
+    expect(String((creationError as Error).message)).toContain(container)
+    expect(readFileSync(join(container, 'foreign.txt'), 'utf8')).toBe('foreign\\n')
+    // sibling 与 fallback 是同一个容器，重试注定以同一份内容再失败一次。
+    expect(context.getContainerReclaimAttempts()).toBe(1)
   })
 
   test('Given the project container holds user bytes When the last checkout is discarded Then the container survives', async () => {
