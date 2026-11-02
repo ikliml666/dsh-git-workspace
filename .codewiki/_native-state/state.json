@@ -3,12 +3,12 @@
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
     "baseCommit": "e1ad9e86b7b3f58b30318b605d474ee6c6558270",
-    "headCommit": "4d31866f5a1897dfea876da63a3baf7519cad828"
+    "headCommit": "7ad11a226d47c1b29478cc32fc3b20b107c3df62"
   },
   "pendingChanges": {
     "state": "ok",
     "baseCommit": "e1ad9e86b7b3f58b30318b605d474ee6c6558270",
-    "headCommit": "4d31866f5a1897dfea876da63a3baf7519cad828",
+    "headCommit": "7ad11a226d47c1b29478cc32fc3b20b107c3df62",
     "committed": [
       "CHANGELOG.md",
       "README.en.md",
@@ -24,6 +24,7 @@
       "pnpm-workspace.yaml",
       "scripts/check-publish.mjs",
       "scripts/workspace-sidebar-upstream.mjs",
+      "src/adapters/files.ts",
       "src/adapters/git.ts",
       "src/client/target-console/TargetStatusAction.tsx",
       "src/client/workspace-sidebar/UPSTREAM.md",
@@ -31,9 +32,13 @@
       "src/console-remote/schemas.ts",
       "src/host-compat.ts",
       "src/i18n/client-messages.ts",
+      "src/i18n/host-messages.ts",
       "src/ports.ts",
+      "src/session-checkout-module.ts",
       "tests/git-status-cap.test.ts",
-      "tests/host-compat.test.ts"
+      "tests/host-compat.test.ts",
+      "tests/session-checkout-module.test.ts",
+      "tests/support/production-adapters.ts"
     ],
     "staged": [],
     "unstaged": [],
@@ -50,11 +55,11 @@
   "engineVersion": "2.0.0",
   "scope": "auto",
   "effectiveScope": "stale",
-  "updateOutcome": null,
+  "updateOutcome": "incremental",
   "fallbackReason": "",
   "notes": [
-    "工作区未提交改动已合成临时 commit 40b24418cc3e（1 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mvxmzvu2-1-native（25 个文件）"
+    "工作区未提交改动已合成临时 commit 190a62a8eb2e（1 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mvz5ukg1-1-native（26 个文件）"
   ],
-  "updatedAt": "2026-11-01T09:50:06.367Z"
+  "updatedAt": "2026-11-02T11:27:37.532Z"
 }

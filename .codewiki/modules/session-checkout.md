@@ -282,6 +282,7 @@ flowchart LR
 - **`ResolvedSessionProject`**：`{ session: SessionCheckoutSessionRecord, project: SessionCheckoutProjectRecord }`，由 `resolveSessionProject()` 经 `lookup.getSession → getProject → files.exists(project.root)` 解析；任一步缺失即抛 `SessionCheckoutError`（`session_not_found` / `project_not_found` / `project_root_missing`）。
 - **journal 与引擎回调的咬合**：模块在调用引擎的 `beforeCommit` / `beforeWrite` 回调里推进 `ManagedCheckoutMutationJournal` 的 `step`（`planning → artifacts_retained → committing_session_branch → writing_local → updating_ref → replacing_index`）。引擎保证「致命 Git 写发生在回调 resolve 之后」，模块则保证「journal 永远先于写落盘」——两者共同构成崩溃一致性。
 - **reconcile 恢复策略**：启动时遍历 `phase === 'mutating'` 的记录，按 `journal.operation + step` 精确恢复，例如 `checkpoint` 停在 `updating_ref` 就调用 `recoverCheckpoint`；停在 `planning` 判定 Local 未被触碰则直接回到 `ready`。
+- **sibling → fallback 的受控容器降级（`bindTarget`）**：首次创建（`createAttempt === 0`）且 sibling 容器不会污染外层仓库时，优先使用 sibling 容器；若容器身份校验失败（`containerIdentity === null`），仅当 **sibling 容器与 fallback 容器不是同一个目录**（`fallbackContainerDiffers`，经 `pathsEqual` 比对 `pathCandidates[0].siblingContainer` 与 `fallbackContainer`）时才允许 `createAttempt + 1` 重试一次。配置了 `worktreesRoot` 时 sibling 与 fallback 指向同一容器，重试只会面对同一个目录与同一份内容、注定再失败一次，因此不再重试，而是直接抛出 `checkout_mismatch`，消息经 `hostMessage('theFallbackWorktreeContainerIsNotATrustedDirectory', { p0: managedContainer })` 携带具体容器路径，引导人工处理。
 
 ---
 

@@ -35,5 +35,6 @@
 - [[modules/host-compat|宿主版本兼容（host_compat）]]
 - [[modules/workspace-provider-lifecycle|工作区 Provider 生命周期]]
 - [[modules/worktree-lifecycle-management-core-index|工作树生命周期管理核心入口（src/index.ts）]]
+- [[modules/concurrency|并发与会话分支竞争防护（Concurrency）]]
 - [[modules/build-and-configuration|构建与配置（build_and_configuration）]]
 - [[modules/core-types-and-ports|核心类型与端口（core_types_and_ports）]]

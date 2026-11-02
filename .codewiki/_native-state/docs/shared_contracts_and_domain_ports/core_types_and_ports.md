@@ -193,6 +193,7 @@ classDiagram
 2. **可选方法 = 本地适配能力**：大量方法带 `?` 标记（`pushBranch`、`mergeLocalBranch`、`snapshotAbandonedWorktree`、`branchCreationTimes` 等）。注释规定：不支持的端口**不得初始化**；缺失能力时守卫逻辑保持沉默（silent）而非猜测行为。例如 `branchCreationTimes` 缺失时并发分支竞争守卫不启用，而不是用错误数据去判断。
 3. **保留引用（retained refs）作为恢复证据**：`retainApplyBase` / `retainInternalArtifact` 把 apply 基线与内部产物固化为 Git 引用（如 `refs/dsh-worktree/...`），使崩溃后的预览恢复能从对象库取回快照；`readInternalArtifact` 只读、不触碰引用与对象存储。
 4. **目录身份（DirectoryIdentity）**：`device + inode + birthtimeNs` 三元组用于删除前的 CAS 校验——只有目录身份完全匹配才允许清理/隔离（quarantine）残留，防止误删用户目录。
+5. **`removeEmptyDirectoryTree` 的空树判定**：只有整棵树**不包含任何普通文件**时才递归 `rmdir`；树内若出现链接（符号链接）则直接解除（unlink），**绝不跟随链接**。它用于收集 `git worktree add` 失败后留下的空目录残骸。
 
 ### 持久化注册表（v2）
 

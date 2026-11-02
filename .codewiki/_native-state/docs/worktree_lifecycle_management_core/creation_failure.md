@@ -174,8 +174,8 @@ flowchart TB
 状态机在 `finishFailedCreation` 之后还有一段「残余探测」逻辑（`bindTarget` 第 5151–5199 行、`beginNextIterationTarget` 第 4706–4743 行），它是 `rolledBack` 语义的最后一道兜底：
 
 1. 检查 `<managedGitRoot>/.git` 是否还在——存在则说明 git 认为这里曾是一个有效 worktree，**绝不自动删除**，直接 `markRecoveryRequired` 并把原始错误抛给用户。
-2. 否则尝试 `removeEmptyDirectoryTree(managedGitRoot)`（`src/adapters/files.ts`：只有整棵树完全没有文件/符号链接时才递归 `rmdir`）。
-   - 删除成功：从注册表删除台账、把 session binding 还原到 `previousBinding`，首次创建路径还允许再 `createAttempt + 1` 重试一次（sibling 容器降级到 fallback 容器）。
+2. 否则尝试 `removeEmptyDirectoryTree(managedGitRoot)`（`src/adapters/files.ts`：只有整棵树完全没有普通文件时才递归 `rmdir`；树内的符号链接会被直接解除而不是跟随）。
+   - 删除成功：从注册表删除台账、把 session binding 还原到 `previousBinding`，首次创建路径还允许再 `createAttempt + 1` 重试一次（sibling 容器降级到 fallback 容器；但当 sibling 与 fallback 指向同一容器时——例如配置了 `worktreesRoot`——重试注定再失败一次，故跳过重试直接抛 `checkout_mismatch`）。
    - 删除失败：`markRecoveryRequired`，抛 `recovery_required`，消息明确指出「残余目录包含未知内容」。
 
 ```mermaid
@@ -222,5 +222,5 @@ sequenceDiagram
 
 1. **保守优先于自动清理**：`rolledBack = true` 必须由「连续三道验证全部通过」换来，而不是「目录看起来空」。
 2. **证据先于删除**：任何回滚动作发生之前，目录身份与元数据指纹已经通过 `saveEvidence` 持久化到注册表 journal，这样即使回滚过程本身崩溃，下次启动 `reconcile` 也能基于证据判断现场状态。
-3. **失败是收口而非重试**：注释中明确写道「A failed checkout is not a reason to silently repeat the entire creation deadline」——只有 sibling→fallback 容器降级这一种受控重试，其余一律以错误码终止，把决策权交还给用户或上层工具。
+3. **失败是收口而非重试**：注释中明确写道「A failed checkout is not a reason to silently repeat the entire creation deadline」——只有 sibling→fallback 容器降级这一种受控重试（且仅限两个容器确为不同目录时），其余一律以错误码终止，把决策权交还给用户或上层工具。
 4. **与 `SessionCheckoutError` 分层**：`WorktreeCreationFailure` 是**内部**的、携带 `rolledBack` 语义；对外抛出的永远是 `SessionCheckoutError`（`recovery_required` 或 `git_operation_failed`），工具层与控制台不需要感知 `rolledBack` 这个布尔。
