@@ -3,13 +3,14 @@
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
     "baseCommit": "e1ad9e86b7b3f58b30318b605d474ee6c6558270",
-    "headCommit": "7ad11a226d47c1b29478cc32fc3b20b107c3df62"
+    "headCommit": "36c61128ef92ca9aa975db60c92a38c1dd8fa635"
   },
   "pendingChanges": {
     "state": "ok",
     "baseCommit": "e1ad9e86b7b3f58b30318b605d474ee6c6558270",
-    "headCommit": "7ad11a226d47c1b29478cc32fc3b20b107c3df62",
+    "headCommit": "36c61128ef92ca9aa975db60c92a38c1dd8fa635",
     "committed": [
+      ".gitignore",
       "CHANGELOG.md",
       "README.en.md",
       "README.md",
@@ -26,25 +27,47 @@
       "scripts/workspace-sidebar-upstream.mjs",
       "src/adapters/files.ts",
       "src/adapters/git.ts",
+      "src/adapters/registry.ts",
+      "src/adapters/safe-file.ts",
+      "src/client/console-remote/adapter.ts",
+      "src/client/console-remote/index.ts",
+      "src/client/review-console/recovery-continuation.ts",
       "src/client/target-console/TargetStatusAction.tsx",
+      "src/client/target-console/WorktreeConsoleView.tsx",
       "src/client/workspace-sidebar/UPSTREAM.md",
+      "src/commands.ts",
       "src/console-contract.ts",
+      "src/console-host/control-plane.ts",
+      "src/console-host/projection.ts",
+      "src/console-host/service.ts",
+      "src/console-remote/descriptors.ts",
+      "src/console-remote/remote.ts",
       "src/console-remote/schemas.ts",
       "src/host-compat.ts",
       "src/i18n/client-messages.ts",
       "src/i18n/host-messages.ts",
+      "src/index.ts",
       "src/ports.ts",
+      "src/session-checkout-apply.ts",
       "src/session-checkout-module.ts",
+      "src/tools.ts",
+      "src/types.ts",
+      "tests/adapters-registry.test.ts",
+      "tests/adapters-safe-file.test.ts",
+      "tests/client-console-remote-routing.test.ts",
+      "tests/client-recovery-continuation.test.ts",
+      "tests/console-host.test.ts",
+      "tests/console-remote.test.ts",
       "tests/git-status-cap.test.ts",
       "tests/host-compat.test.ts",
       "tests/session-checkout-module.test.ts",
-      "tests/support/production-adapters.ts"
+      "tests/support/production-adapters.ts",
+      "tests/support/ts-resolve-hooks.mjs",
+      "tests/support/update-worker.mjs"
     ],
     "staged": [],
     "unstaged": [],
-    "untracked": [
-      ".dsh-progress/session-fbec1dbd-8e3b-4407-a10c-e281eb0189aa/dl-mvvy4og8-1c2n.jsonl"
-    ],
+    "untracked": [],
     "deleted": [],
     "renamed": [],
     "reason": ""
@@ -58,8 +81,7 @@
   "updateOutcome": "incremental",
   "fallbackReason": "",
   "notes": [
-    "工作区未提交改动已合成临时 commit 190a62a8eb2e（1 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mvz5ukg1-1-native（26 个文件）"
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mvzes37o-1-native（28 个文件）"
   ],
-  "updatedAt": "2026-11-02T11:27:37.532Z"
+  "updatedAt": "2026-11-02T16:23:14.752Z"
 }
