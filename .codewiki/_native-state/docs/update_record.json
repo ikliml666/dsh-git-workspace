@@ -1,6 +1,6 @@
 {
-  "started_at": "2026-11-03T00:23:14+0800",
-  "finished_at": "2026-11-03T00:23:14+0800",
+  "started_at": "2026-11-03T01:22:16+0800",
+  "finished_at": "2026-11-03T01:22:16+0800",
   "outcome": "no_change",
   "options": {
     "rung": "3",
@@ -20,13 +20,12 @@
     "use_stale_scan": true,
     "extra": {
       "moduleConcurrency": 2,
-      "resume": true,
-      "resumeBaselineDocsDir": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree\\.codewiki\\_native-state\\docs"
+      "resume": false
     }
   },
   "revision": {
-    "old_commit": "190a62a8eb2e63610aacf567d9ad64b5712b061e",
-    "new_commit": "36c61128ef92ca9aa975db60c92a38c1dd8fa635",
+    "old_commit": "36c61128ef92ca9aa975db60c92a38c1dd8fa635",
+    "new_commit": "47e5c936b731ff7058a37039fd178be3f14a160f",
     "repo_path": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree"
   },
   "diff": {
@@ -60,7 +59,7 @@
   "calls": [],
   "detector_notes": [],
   "errors": [],
-  "wall_seconds": 0.07,
+  "wall_seconds": 0.1,
   "usage_report": {
     "schema_version": 2,
     "scope": "this run only (modules resumed from disk cost nothing)",
@@ -77,5 +76,5 @@
     "unpriced_models": [],
     "calls": []
   },
-  "run_id": "54923b70-eb11-4f1d-b5d4-1fd1a904c6b5"
+  "run_id": "d8fad98d-9258-4245-af10-f476ca5404d1"
 }
