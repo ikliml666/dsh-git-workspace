@@ -108,6 +108,8 @@ export type WorktreeDeliveryView =
       proof?: WorktreeDeliveryProofView
       cleanup: 'pending' | 'blocked'
       cleanupMessage?: string
+      /** i18n key of cleanupMessage; new records always persist it. */
+      cleanupMessageKey?: string
       /** Structured cause of the blocked cleanup; new records always persist it. */
       cleanupReason?: WorktreeCleanupReason
     }
@@ -121,6 +123,8 @@ export type WorktreeDeliveryView =
       expiresAt: number | null
       cleanup: 'scheduled' | 'blocked'
       cleanupMessage?: string
+      /** i18n key of cleanupMessage; new records always persist it. */
+      cleanupMessageKey?: string
       /** Structured cause of the blocked cleanup; new records always persist it. */
       cleanupReason?: WorktreeCleanupReason
     }

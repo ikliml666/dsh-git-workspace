@@ -418,4 +418,37 @@ describe('Worktree recovery continuation', () => {
     expect(prompt).not.toMatch(/merge.*Local HEAD/)
     expect(getWorktreeRecoverySnapshot('target-session')).toMatchObject({ status: 'sent', request })
   })
+
+  test('backs off the not-ready poll instead of re-inspecting the Host every 250ms', async () => {
+    const fixture = createWorktreeConsoleAdapterFixture()
+    const request = conflictRequest(8, 'backoff')
+    const working = authorizedTarget({ ...fixture.target, state: 'working' as const, revision: 8, review: undefined }, request)
+    fixture.adapter.inspect = vi.fn(async () => ({ ok: true as const, value: { target: working } }))
+    const client = runtime(working, { running: true })
+
+    vi.useFakeTimers()
+    try {
+      enqueueWorktreeRecovery({ adapter: fixture.adapter, services: client.services, request, isActive: () => true })
+      await vi.advanceTimersByTimeAsync(0)
+      expect(fixture.adapter.inspect).toHaveBeenCalledTimes(1)
+
+      await vi.advanceTimersByTimeAsync(249)
+      expect(fixture.adapter.inspect).toHaveBeenCalledTimes(1)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(fixture.adapter.inspect).toHaveBeenCalledTimes(2)
+
+      await vi.advanceTimersByTimeAsync(499)
+      expect(fixture.adapter.inspect).toHaveBeenCalledTimes(2)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(fixture.adapter.inspect).toHaveBeenCalledTimes(3)
+
+      await vi.advanceTimersByTimeAsync(999)
+      expect(fixture.adapter.inspect).toHaveBeenCalledTimes(3)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(fixture.adapter.inspect).toHaveBeenCalledTimes(4)
+    } finally {
+      vi.useRealTimers()
+    }
+    expect(client.prompt).not.toHaveBeenCalled()
+  })
 })

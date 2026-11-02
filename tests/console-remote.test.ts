@@ -115,6 +115,16 @@ describe('manual strict Worktree Console Remote contribution', () => {
     }
   })
 
+  it('implements every declared descriptor method on the Host service', () => {
+    // The Gateway resolves methods with `Reflect.get(receiver, method).apply(...)`, so a
+    // descriptor without a matching service method only fails at call time. Keep the two
+    // lists in lockstep here instead of discovering the gap from a dead UI affordance.
+    const missing = WORKTREE_CONSOLE_DESCRIPTORS
+      .map((descriptor) => descriptor.method)
+      .filter((method) => typeof (WorktreeConsoleService.prototype as unknown as Record<string, unknown>)[method] !== 'function')
+    expect(missing).toEqual([])
+  })
+
   it('supplies the same strict schema through both legacy and lazy codec contracts', () => {
     for (const descriptor of WORKTREE_CONSOLE_DESCRIPTORS) {
       for (const codec of [...descriptor.parameters.map(parameter => parameter.codec), descriptor.result]) {

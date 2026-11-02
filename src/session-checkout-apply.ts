@@ -76,6 +76,11 @@ export interface ApplySuccessResult {
 export interface ApplyErrorResult {
   status: 'error'
   error: ApplyError
+  /**
+   * 交付提交已经写入分支 ref 之后才失败的证据。带上它，调用方才知道磁盘上已经
+   * 多了一个提交，不能把记录当成「什么都没发生」退回交付前的状态。
+   */
+  committedOid?: string
 }
 
 export type ApplyResult = ApplySuccessResult | ApplyErrorResult
@@ -1528,6 +1533,7 @@ class DefaultSessionCheckoutApplyEngine implements SessionCheckoutApplyEngine {
       return { status: 'error', error: { code: 'invalid_input', message: hostMessage('worktreeFinishCommitMessageRequired') } }
     }
     let tempRoot: string | null = null
+    let committedOid: string | undefined
     try {
       const isolatedGitRoot = await resolveGitRoot(input.isolatedPath)
       const prefix = projectPrefix(isolatedGitRoot, input.isolatedPath)
@@ -1563,11 +1569,19 @@ class DefaultSessionCheckoutApplyEngine implements SessionCheckoutApplyEngine {
         excludes,
       )
       const created = pending.treeOid !== headTreeOid
+      // 变更集范围在动 ref 之前就校验：提交一旦写进分支就不可撤回，
+      // 任何能提前判死的检查都不该排在它后面。
+      const pendingTree = await changedTreePaths(isolatedGitRoot, input.baseOid, pending.treeOid, null, null)
+      if (pendingTree.some((path) => !isProjectPath(path, prefix))) {
+        return { status: 'error', error: { code: 'invalid_input', message: hostMessage('isolatedContainsChangesOutsideTheProjectRootAReview') } }
+      }
       let commitOid = headOid
       if (created) {
         commitOid = await createUserCommit(isolatedGitRoot, pending.treeOid, headOid, commitMessage)
         // HEAD 通常是符号引用，默认 deref 会把分支一起推到新提交。
         await runGit(isolatedGitRoot, ['update-ref', 'HEAD', commitOid, headOid])
+        // 从这里往下分支 ref 已经前进；再失败也不能让调用方当成交付没发生。
+        committedOid = commitOid
         // index 归位到新 HEAD；工作区文件不动。
         await runGit(isolatedGitRoot, ['reset', '--quiet'])
       }
@@ -1581,11 +1595,19 @@ class DefaultSessionCheckoutApplyEngine implements SessionCheckoutApplyEngine {
         excludes,
       )
       if (snapshot.headOid !== commitOid) {
-        return { status: 'error', error: { code: 'git_error', message: hostMessage('theWorktreeHeadDidNotAdvanceToTheDeliveryCommit') } }
+        return {
+          status: 'error',
+          error: { code: 'git_error', message: hostMessage('theWorktreeHeadDidNotAdvanceToTheDeliveryCommit') },
+          ...(committedOid === undefined ? {} : { committedOid }),
+        }
       }
       const changedTree = await changedTreePaths(isolatedGitRoot, input.baseOid, snapshot.treeOid, null, null)
       if (changedTree.some((path) => !isProjectPath(path, prefix))) {
-        return { status: 'error', error: { code: 'invalid_input', message: hostMessage('isolatedContainsChangesOutsideTheProjectRootAReview') } }
+        return {
+          status: 'error',
+          error: { code: 'invalid_input', message: hostMessage('isolatedContainsChangesOutsideTheProjectRootAReview') },
+          ...(committedOid === undefined ? {} : { committedOid }),
+        }
       }
       return {
         status: 'committed',
@@ -1597,11 +1619,12 @@ class DefaultSessionCheckoutApplyEngine implements SessionCheckoutApplyEngine {
       }
     } catch (error) {
       const message = this.errorMessage(error)
+      const residue = committedOid === undefined ? {} : { committedOid }
       // git 没配好提交身份时给一句可执行的提示，而不是让模型盯着 "empty ident" 猜。
       if (/empty ident|who you are|please tell me who/i.test(message)) {
-        return { status: 'error', error: { code: 'invalid_input', message: hostMessage('initialIdentityMissing') } }
+        return { status: 'error', error: { code: 'invalid_input', message: hostMessage('initialIdentityMissing') }, ...residue }
       }
-      return { status: 'error', error: { code: 'git_error', message } }
+      return { status: 'error', error: { code: 'git_error', message }, ...residue }
     } finally {
       if (tempRoot) await this.cleanup(tempRoot)
     }

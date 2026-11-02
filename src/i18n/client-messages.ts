@@ -1376,6 +1376,18 @@ export const clientMessages = {
     "zh": "放弃有修改的 Worktree？",
     "en": "Discard modified Worktree?"
   },
+  "discard.post.delivery.changes": {
+    "zh": "放弃交付后的改动并清理？",
+    "en": "Discard post-delivery changes and clean up?"
+  },
+  "the.worktree.changed.after.delivery.cleaning.it.removes": {
+    "zh": "Worktree 在交付后又出现了修改。清理会一并丢弃这些改动，它们还没有被取走。",
+    "en": "The Worktree changed after delivery. Cleaning up discards those changes too, and nobody has taken them yet."
+  },
+  "confirm.cleanup.discarding.changes": {
+    "zh": "丢弃改动并清理",
+    "en": "Discard changes and clean up"
+  },
   "local.source.will.discard.reserved.target.and.all": {
     "zh": "Local source 将放弃预留目标 {p0} 及其全部未提交修改。",
     "en": "Local source will discard reserved target {p0} and all its uncommitted changes."

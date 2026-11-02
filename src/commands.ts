@@ -59,17 +59,26 @@ export function registerWorktreeCommand(ctx: Context, module: SessionCheckoutMod
       return error instanceof Error ? error.message : String(error)
     }
   }
-  const enterCheckout = async (agent: unknown, checkoutId: string): Promise<string | undefined> => {
+  // `cwd: undefined` = the host mounts no workingDirectory service (legitimate);
+  // a real failure travels in `failure` so the command can report it instead of
+  // claiming the Session works inside a Worktree it never entered.
+  const enterCheckout = async (agent: unknown, checkoutId: string): Promise<{ cwd?: string; failure?: string }> => {
     try {
       const managedRoot = module.resolveRoots?.(checkoutId)?.managedRoot
         ?? await module.resolveManagedRoot?.(checkoutId)
-      if (!managedRoot) return undefined
-      return await workingDirectory.enter(agent, managedRoot)
+      if (!managedRoot) return {}
+      const cwd = await workingDirectory.enter(agent, managedRoot)
+      return cwd === undefined ? {} : { cwd }
     } catch (error) {
       console.warn('[dsh-git-worktree] could not move this Session into the Worktree:', error)
-      return undefined
+      return { failure: error instanceof Error ? error.message : String(error) }
     }
   }
+  // A failed move back into the surviving checkout must reach the user: the
+  // Session is now standing in the Local boundary, where relative-path writes
+  // hit the original repository.
+  const enterNote = (failure: string | undefined): string =>
+    failure === undefined ? '' : `\n${hostMessage('worktreeCwdCouldNotBeEntered', { p0: failure })}`
   ctx.commands.register({
     name: 'worktree',
     description: hostRegistrationMessage('inspectAndExplicitlyAcceptManagedWorktreeDelivery'),
@@ -111,11 +120,14 @@ export function registerWorktreeCommand(ctx: Context, module: SessionCheckoutMod
             const current = await module.inspect(sessionId)
             const target = await module.beginNextIteration(sessionId, current.revision)
             // The recreated checkout is the Session's cwd again (official parity).
-            const cwd = await enterCheckout(invocation.agent, target.checkout.id)
+            const entered = await enterCheckout(invocation.agent, target.checkout.id)
             const iteration = target.delivery?.state === 'working' ? target.delivery.iteration : 0
+            const started = hostMessage('startedWorktreeIterationInTheCurrentSession', { p0: iteration })
             return {
               kind: 'success',
-              text: `${hostMessage('startedWorktreeIterationInTheCurrentSession', { p0: iteration })}${cwd ? `\n${cwd}` : ''}`,
+              text: entered.failure !== undefined
+                ? `${started}\n${hostMessage('worktreeCwdCouldNotBeEntered', { p0: entered.failure })}`
+                : `${started}${entered.cwd ? `\n${entered.cwd}` : ''}`,
             }
           }
           case 'finalize': {
@@ -150,12 +162,12 @@ export function registerWorktreeCommand(ctx: Context, module: SessionCheckoutMod
             })
             if (result.status === 'finished') return { kind: 'success', text: finishedText(result) }
             // The checkout outlived the failed finish: put the Session back in it.
-            await enterCheckout(invocation.agent, target.checkout.id)
+            const back = await enterCheckout(invocation.agent, target.checkout.id)
             if (result.status === 'conflict') {
-              return { kind: 'error', text: hostMessage('conflictNLocalHEADSyncAndResolveConflictsInWorktree', { p0: result.conflictingFiles.join('、'), p1: result.localHeadOid.slice(0, 7) }) }
+              return { kind: 'error', text: `${hostMessage('conflictNLocalHEADSyncAndResolveConflictsInWorktree', { p0: result.conflictingFiles.join('、'), p1: result.localHeadOid.slice(0, 7) })}${enterNote(back.failure)}` }
             }
-            if (result.status === 'error') return { kind: 'error', text: `${result.code}: ${result.message}` }
-            return { kind: 'error', text: hostMessage('finalizeDidNotReturnTheExpectedResult') }
+            if (result.status === 'error') return { kind: 'error', text: `${result.code}: ${result.message}${enterNote(back.failure)}` }
+            return { kind: 'error', text: `${hostMessage('finalizeDidNotReturnTheExpectedResult')}${enterNote(back.failure)}` }
           }
           case 'finish': {
             const commitMessage = rawInput.slice(verb.length).trim()
@@ -172,10 +184,10 @@ export function registerWorktreeCommand(ctx: Context, module: SessionCheckoutMod
               commitMessage,
             })
             if (result.status === 'finished') return { kind: 'success', text: finishedText(result) }
-            await enterCheckout(invocation.agent, target.checkout.id)
-            if (result.status === 'conflict') return { kind: 'error', text: hostMessage('commandConflict', { files: result.conflictingFiles.join('、') }) }
-            if (result.status === 'error') return { kind: 'error', text: `${result.code}: ${result.message}` }
-            return { kind: 'error', text: hostMessage('finishDidNotReturnTheExpectedResult') }
+            const back = await enterCheckout(invocation.agent, target.checkout.id)
+            if (result.status === 'conflict') return { kind: 'error', text: `${hostMessage('commandConflict', { files: result.conflictingFiles.join('、') })}${enterNote(back.failure)}` }
+            if (result.status === 'error') return { kind: 'error', text: `${result.code}: ${result.message}${enterNote(back.failure)}` }
+            return { kind: 'error', text: `${hostMessage('finishDidNotReturnTheExpectedResult')}${enterNote(back.failure)}` }
           }
           case 'discard': {
             const target = await module.inspect(sessionId)
@@ -191,12 +203,12 @@ export function registerWorktreeCommand(ctx: Context, module: SessionCheckoutMod
               ...(target.delivery?.state === 'preview_active' ? { rollbackPreview: true } : {}),
             })
             // A failed discard keeps the checkout; return the Session into it.
-            if (result.status !== 'discarded') await enterCheckout(invocation.agent, target.checkout.id)
+            const back = result.status === 'discarded' ? {} : await enterCheckout(invocation.agent, target.checkout.id)
             return result.status === 'discarded'
               ? { kind: 'success', text: hostMessage('worktreeDiscardedThisSessionTargetIsNoLongerAvailable') }
               : result.status === 'error'
-                ? { kind: 'error', text: `${result.code}: ${result.message}` }
-                : { kind: 'error', text: hostMessage('discardDidNotReturnTheExpectedResult') }
+                ? { kind: 'error', text: `${result.code}: ${result.message}${enterNote(back.failure)}` }
+                : { kind: 'error', text: `${hostMessage('discardDidNotReturnTheExpectedResult')}${enterNote(back.failure)}` }
           }
           case 'remove': {
             const checkoutId = tokens[1]

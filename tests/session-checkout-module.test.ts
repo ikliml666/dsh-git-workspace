@@ -2758,6 +2758,55 @@ describe('SessionCheckoutModule', () => {
     }
   })
 
+  test('Given an interrupted evidenced creation When the residue is already gone Then Recover no longer reports recovery_unsafe', async () => {
+    const context = createContext()
+    const target = await context.module.bind('session-1', { kind: 'isolated' })
+    const managedRoot = await context.module.resolveManagedRoot(target.checkout.id)
+    const path = join(context.configDir, 'managed-checkouts.json')
+    const registry = JSON.parse(readFileSync(path, 'utf8'))
+    const record = registry.managedCheckouts[target.checkout.id]
+    const identity = { device: 'test', inode: 'test', birthtimeNs: 'test' }
+    record.phase = 'recovery_required'
+    record.journal = { operation: 'create', operationId: 'interrupted', step: 'creating_worktree', startedAt: Date.now(),
+      creation: { root: managedRoot, commonDir: join(context.repositoryRoot, '.git'), lockReason: 'dsh-create-test',
+        rootIdentity: identity, parentIdentity: identity, commonIdentity: identity } }
+    registry.revision++
+    writeFileSync(path, JSON.stringify(registry))
+    // The user already deleted the residue by hand, so nothing on disk needs protecting.
+    rmSync(managedRoot, { recursive: true, force: true })
+    const restarted = context.restart()
+    await restarted.reconcile()
+    const current = await restarted.inspect('session-1')
+    const result = await restarted.operate({ action: 'recover', sessionId: 'session-1', expectedRevision: current.revision })
+    // Recover cannot resurrect a directory that is gone, but it must route the user to
+    // Discard instead of reporting an unsafe identity it can no longer inspect.
+    expect(result).toMatchObject({ status: 'error', code: 'recovery_required' })
+  })
+
+  test('Given an interrupted evidenced creation When the residue is already gone Then Discard clears the ledger', async () => {
+    const context = createContext()
+    const target = await context.module.bind('session-1', { kind: 'isolated' })
+    const managedRoot = await context.module.resolveManagedRoot(target.checkout.id)
+    const path = join(context.configDir, 'managed-checkouts.json')
+    const registry = JSON.parse(readFileSync(path, 'utf8'))
+    const record = registry.managedCheckouts[target.checkout.id]
+    const identity = { device: 'test', inode: 'test', birthtimeNs: 'test' }
+    record.phase = 'recovery_required'
+    record.journal = { operation: 'create', operationId: 'interrupted', step: 'creating_worktree', startedAt: Date.now(),
+      creation: { root: managedRoot, commonDir: join(context.repositoryRoot, '.git'), lockReason: 'dsh-create-test',
+        rootIdentity: identity, parentIdentity: identity, commonIdentity: identity } }
+    registry.revision++
+    writeFileSync(path, JSON.stringify(registry))
+    rmSync(managedRoot, { recursive: true, force: true })
+    const restarted = context.restart()
+    await restarted.reconcile()
+    const current = await restarted.inspect('session-1')
+    const result = await restarted.operate({ action: 'discard', sessionId: 'session-1', expectedRevision: current.revision })
+    expect(result.status).toBe('discarded')
+    const settled = JSON.parse(readFileSync(path, 'utf8')).managedCheckouts[target.checkout.id]
+    expect(settled.phase).toBe('discarded')
+  })
+
   test('Given preparing journal 且 worktree 已完整创建 When 重启后 Recover Then 恢复 ready 而不覆盖文件', async () => {
     const context = createContext({ crashAfterWorktreeCreate: true })
     await expect(context.module.bind('session-1', { kind: 'isolated' }))

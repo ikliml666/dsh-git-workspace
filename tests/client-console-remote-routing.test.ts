@@ -73,11 +73,19 @@ describe('one Host-pinned Browser provider per Client startup', () => {
     expect(spies.applyTools).toHaveBeenCalledTimes(1)
   })
 
-  test('fails before registering a mismatched or unidentifiable Browser', async () => {
+  test('fails before registering a mismatched Browser', async () => {
     spies.topology.mockResolvedValueOnce({ ok: true, value: { projects: [], workspaceClientFlavor: 'legacy' } })
     await expect(apply(clientContext())).rejects.toThrow(/sessions\.open/u)
-    spies.topology.mockResolvedValueOnce({ ok: false, error: { code: 'unavailable' } })
-    await expect(apply(clientContext())).rejects.toThrow(/无法识别|identify/u)
     expect(spies.register).not.toHaveBeenCalled()
+  })
+
+  test('still mounts the tools when the topology cannot be read', async () => {
+    // 拓扑读不出来通常意味着 registry 损坏，而这正是用户需要工具视图去修的东西：
+    // 整条挂载失败会连修复入口一起带走，所以这里只放弃侧栏装配。
+    spies.topology.mockResolvedValueOnce({ ok: false, error: { code: 'unavailable', message: 'unreadable' } })
+    await apply(clientContext())
+    expect(spies.register).not.toHaveBeenCalled()
+    expect(spies.decorate).not.toHaveBeenCalled()
+    expect(spies.applyTools).toHaveBeenCalledTimes(1)
   })
 })

@@ -60,6 +60,10 @@ export const hostMessages = {
     "zh": "Isolated Checkout 身份无法确认，需要恢复",
     "en": "The Isolated Checkout identity cannot be verified; recovery is required."
   },
+  "creationResidueBlocksRecovery": {
+    "zh": "创建中断后仍有残留，插件无法确认其身份，因此不会自动删除。确认这些路径没有要保留的内容后手动删除，再重试恢复或放弃: {p0}",
+    "en": "The interrupted creation left residue that the plugin cannot identify, so it does not delete it. Confirm nothing there needs keeping, delete these paths by hand, then retry Recover or Discard: {p0}"
+  },
   "onlyTheOwnerIsolatedSessionCanSaveACheckpoint": {
     "zh": "只有 owner Isolated 会话可以保存阶段",
     "en": "Only the owner Isolated Session can save a checkpoint."
@@ -535,6 +539,10 @@ export const hostMessages = {
   "thePreviousIterationSWorktreeRecordDoesNotExist": {
     "zh": "上一轮 Worktree 记录不存在",
     "en": "The previous iteration's Worktree record does not exist."
+  },
+  "onlyTheOwnerSessionCanManageThisWorktree": {
+    "zh": "只有 owner Session 可以管理该 Worktree 的保留策略与清理",
+    "en": "Only the owner Session can manage this Worktree's retention and cleanup."
   },
   "onlyTheOwnerSessionCanBeginTheNextIteration": {
     "zh": "只有 owner Session 可以开始下一轮",
@@ -1096,6 +1104,10 @@ export const hostMessages = {
     "zh": "无法验证该分支是否已完全合并，已跳过。",
     "en": "Could not verify whether this branch is fully merged; skipped."
   },
+  "thisBranchBelongsToALiveManagedCheckout": {
+    "zh": "该分支仍被一个进行中的托管 Worktree 占用，已跳过。",
+    "en": "A live managed checkout still uses this branch; skipped."
+  },
   "thisBranchHasCommitsNotYetMergedInto": {
     "zh": "该分支还有提交未合并进 {p0}，已跳过。",
     "en": "This branch has commits not yet merged into {p0}; skipped."
@@ -1187,6 +1199,14 @@ export const hostMessages = {
   "worktreeDeliverUnexpectedResult": {
     "zh": "worktree_deliver 未返回预期结果: {p0}",
     "en": "worktree_deliver did not return the expected result: {p0}"
+  },
+  "worktreeCwdCouldNotBeRestoredAfterFailedDelivery": {
+    "zh": "交付失败（{p0}），且无法把本会话 cwd 移回仍然存在的 Worktree（{p1}）：当前 cwd 仍在 Local 检出里，相对路径写入会打到原仓库，请手动 cd 回该 Worktree 后重试。",
+    "en": "The delivery failed ({p0}) and the Session cwd could not be moved back into the surviving Worktree ({p1}): the cwd is still inside the Local checkout, where relative-path writes hit the original repository. Move back into the Worktree manually and retry."
+  },
+  "worktreeCwdCouldNotBeEntered": {
+    "zh": "无法把本会话 cwd 切入 Worktree（{p0}）。相对路径写入仍会落在当前目录，请手动 cd 到该 Worktree 后重试。",
+    "en": "The Session cwd could not be moved into the Worktree ({p0}). Relative-path writes still land in the current directory; change into the Worktree manually and retry."
   },
   "worktreeDeliverRequiresCommitMessage": {
     "zh": "worktree_deliver 需要提交信息（1-500 字符）；当前状态没有可用的 suggestedCommitMessage。",
@@ -1616,6 +1636,10 @@ export const hostMessages = {
     "zh": "本会话正在验收 Worktree 交付，暂不能切换本地分支",
     "en": "This session has a Worktree delivery under review; the local branch cannot be switched right now."
   },
+  "localBranchSwitchBlockedByAnotherDelivery": {
+    "zh": "另一个会话（{p0}）正在这个 Local 检出上交付 Worktree，切换分支会改变它的交付基线；等那个会话交付或放弃后再切换",
+    "en": "Another session ({p0}) is delivering a Worktree on this Local checkout, and switching the branch would move its delivery baseline. Wait until that session delivers or discards."
+  },
   "branchCheckedOutInAnotherWorktree": {
     "zh": "分支 {p0} 已被另一个 Worktree 检出（{p1}）：Git 不允许同一分支同时检出在多处，请换一个分支，或先在那个会话交付/放弃后再试",
     "en": "Branch {p0} is already checked out in another Worktree ({p1}): Git forbids checking out the same branch in more than one place. Pick another branch, or deliver/discard that session first."
@@ -1751,6 +1775,26 @@ export const hostMessages = {
   "internalRefsCleanupFailed": {
     "zh": "[session-checkout] 清理内部 Session Checkout refs 失败，已保守保留不可见引用",
     "en": "[session-checkout] Failed to clean up internal Session Checkout refs; conservatively retained the hidden refs."
+  },
+  "checkoutRegistryLockTimeout": {
+    "zh": "等待 checkout 注册表跨进程锁超时（{p0}ms）：{p1}",
+    "en": "Timed out after {p0}ms waiting for the cross-process checkout registry lock: {p1}"
+  },
+  "lockFileUnreadableReclaimed": {
+    "zh": "锁文件无法解析，按陈旧锁回收：{p0}",
+    "en": "Lock file is unreadable and was reclaimed as stale: {p0}"
+  },
+  "lockFileOwnedByAnother": {
+    "zh": "锁文件已不属于本进程，跳过释放：{p0}",
+    "en": "Lock file is no longer owned by this process; released nothing: {p0}"
+  },
+  "lockFileReleaseFailed": {
+    "zh": "锁文件释放失败，需要人工清理：{p0}",
+    "en": "Failed to release the lock file; it needs manual cleanup: {p0}"
+  },
+  "registryRecordDropped": {
+    "zh": "managed-checkouts.json 中 {p0} 的记录 {p1} 校验失败（{p2}），已丢弃该条并以内存视图继续",
+    "en": "Dropped invalid {p0} record {p1} from managed-checkouts.json ({p2}); continuing with an in-memory view."
   }
 
 } as const satisfies MessageCatalog
@@ -1765,9 +1809,21 @@ export function hostRegistrationMessage(key: keyof typeof hostMessages): string 
  * Keep their stored values unchanged; localize only their public projection.
  * This finite allowlist never interprets or rewrites third-party error text.
  */
-const persistedCleanupKeys = ["cleanupIdentityChanged","cleanupResidue","cleanupIncompleteDelivery","cleanupIncompleteReceipt","cleanupMissingBeforeQuarantine","cleanupQuarantineIdentity","cleanupNewChanges","cleanupMissingBeforeRemoval","cleanupQuarantineBusy","cleanupDirectoryBusy"] as const
+export const persistedCleanupKeys = ["cleanupIdentityChanged","cleanupResidue","cleanupIncompleteDelivery","cleanupIncompleteReceipt","cleanupMissingBeforeQuarantine","cleanupQuarantineIdentity","cleanupNewChanges","cleanupMissingBeforeRemoval","cleanupQuarantineBusy","cleanupDirectoryBusy"] as const
 
-export function hostPersistedCleanupMessage(message: string, translate: Translator<typeof hostMessages>): string {
-  const key = persistedCleanupKeys.find(key => hostMessages[key].zh === message)
-  return key ? translate(key) : message
+export type PersistedCleanupKey = typeof persistedCleanupKeys[number]
+
+/**
+ * 持久化的清理说明。新记录把 key 一起存下来，读的时候按当前语言翻译；
+ * 只有历史记录才只有一段定死的文本，用中文字面串反查兜底。
+ */
+export function hostPersistedCleanupMessage(
+  message: string,
+  translate: Translator<typeof hostMessages>,
+  key?: string,
+): string {
+  const named = persistedCleanupKeys.find(candidate => candidate === key)
+  if (named) return translate(named)
+  const legacy = persistedCleanupKeys.find(candidate => hostMessages[candidate].zh === message)
+  return legacy ? translate(legacy) : message
 }

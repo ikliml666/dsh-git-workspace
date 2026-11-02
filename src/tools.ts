@@ -67,6 +67,12 @@ async function leaveCheckoutBeforeRemoval(
 
 /**
  * Enter a checkout (or keep the guidance fallback) after resolving its root.
+ * `cwd: undefined` means the host mounts no workingDirectory service, which is
+ * a legitimate degradation. A real error is reported through `failure` instead
+ * of being folded into that same undefined: after a failed delivery the Session
+ * belongs back inside the surviving checkout, and a silent no-op would send
+ * every relative-path write into the original repository.
+ *
  * The root is read from the ledger first: `resolveManagedRoot` runs a full Git
  * validation under the global lock, and a validation failure (mid-recovery
  * checkout, transient git error) must not strand the Session outside the
@@ -78,15 +84,16 @@ async function enterCheckout(
   module: SessionCheckoutModule,
   agent: unknown,
   checkoutId: string,
-): Promise<string | undefined> {
+): Promise<{ cwd?: string; failure?: string }> {
   try {
     const managedRoot = module.resolveRoots?.(checkoutId)?.managedRoot
       ?? await module.resolveManagedRoot?.(checkoutId)
-    if (!managedRoot) return undefined
-    return await port.enter(agent, managedRoot)
+    if (!managedRoot) return {}
+    const cwd = await port.enter(agent, managedRoot)
+    return cwd === undefined ? {} : { cwd }
   } catch (error) {
     console.warn('[dsh-git-worktree] could not move this Session into the Worktree:', error)
-    return undefined
+    return { failure: error instanceof Error ? error.message : String(error) }
   }
 }
 
@@ -125,6 +132,7 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
           sourceSessionId: { type: 'string', required: true },
           cwd: { type: 'string' },
           cwdSelected: { type: 'boolean', required: true },
+          cwdError: { type: 'string' },
         },
       },
       render: (_args, value) => renderJson(value),
@@ -143,9 +151,11 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
           topic || branch ? { ...(topic ? { topic } : {}), ...(branch ? { branch } : {}) } : {},
         )
         // Official-mechanism parity: enter the new checkout so relative paths,
-        // file tools and subprocesses all resolve inside it. Best-effort — a
-        // host without the workingDirectory service keeps the guidance path.
-        const cwd = await enterCheckout(workingDirectory, module, exec.agent, launch.target.checkout.id)
+        // file tools and subprocesses all resolve inside it. A host without the
+        // workingDirectory service keeps the guidance path; a real failure is
+        // reported in `cwdError` so the caller is not told the cwd moved when it
+        // did not.
+        const entered = await enterCheckout(workingDirectory, module, exec.agent, launch.target.checkout.id)
         return {
           kind: 'worktree_target_created',
           checkoutId: launch.target.checkout.id,
@@ -157,8 +167,9 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
           // 与后续交付目标都来自这里。
           ...(launch.target.current.branch ? { branch: launch.target.current.branch } : {}),
           sourceSessionId,
-          cwdSelected: cwd !== undefined,
-          ...(cwd === undefined ? {} : { cwd }),
+          cwdSelected: entered.cwd !== undefined,
+          ...(entered.cwd === undefined ? {} : { cwd: entered.cwd }),
+          ...(entered.failure === undefined ? {} : { cwdError: entered.failure }),
         }
       })
     },
@@ -286,6 +297,7 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
           currentOid: { type: 'string', required: true },
           sessionId: { type: 'string', required: true },
           cwd: { type: 'string' },
+          cwdError: { type: 'string' },
         },
       },
       render: (_args, value) => renderJson(value),
@@ -299,8 +311,10 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
           throw new Error(hostMessage('theNextWorktreeIterationDidNotEnterWorkingState', { p0: target.delivery?.state ?? 'unknown' }))
         }
         // The previous iteration cleaned this cwd up, so the host restored the
-        // original project. Re-enter the recreated checkout (official parity).
-        const cwd = await enterCheckout(workingDirectory, module, exec.agent, target.checkout.id)
+        // original project. Re-enter the recreated checkout (official parity);
+        // a failure is reported rather than silently leaving the Session in the
+        // Local boundary while the iteration is already running.
+        const entered = await enterCheckout(workingDirectory, module, exec.agent, target.checkout.id)
         return {
           kind: 'worktree_next_iteration_started',
           checkoutId: target.checkout.id,
@@ -308,7 +322,8 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
           phase: target.checkout.phase,
           currentOid: target.current.oid,
           sessionId,
-          ...(cwd === undefined ? {} : { cwd }),
+          ...(entered.cwd === undefined ? {} : { cwd: entered.cwd }),
+          ...(entered.failure === undefined ? {} : { cwdError: entered.failure }),
         }
       })
     },
@@ -482,11 +497,16 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
         if (result.status !== 'finished') {
           // The checkout survived the failed delivery, so the Session belongs
           // back inside it: leaving it in the Local boundary would send every
-          // relative-path write into the original repository.
-          await enterCheckout(workingDirectory, module, exec.agent, current.checkout.id)
+          // relative-path write into the original repository. When that move
+          // back fails the caller must hear both facts, not just the delivery
+          // error.
+          const entered = await enterCheckout(workingDirectory, module, exec.agent, current.checkout.id)
           const detail = result.status === 'error' ? result.message
             : result.status === 'conflict' ? `${result.code}: ${result.conflictingFiles.join(', ')}`
             : result.status
+          if (entered.failure !== undefined) {
+            throw new Error(hostMessage('worktreeCwdCouldNotBeRestoredAfterFailedDelivery', { p0: detail, p1: entered.failure }))
+          }
           throw new Error(hostMessage('worktreeDeliverUnexpectedResult', { p0: detail }))
         }
         return {
