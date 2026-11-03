@@ -102,19 +102,19 @@ flowchart LR
 
 | 文件 | 一句话职责 | 归属子模块 |
 | --- | --- | --- |
-| `WorktreeReviewPanel.tsx` | 渲染一次评审的证据（摘要 / 校验 / 文件 / 阶段数），并判定该快照是否已过期 | [client_review_console_review_surfaces.md](client_review_console/review_surfaces.md) |
-| `ReviewDetailsModal.tsx` | 全屏详情弹窗：冲突文件、变更文件、校验命令、版本标识；含 Tab 焦点陷阱与折叠列表 | [client_review_console_review_surfaces.md](client_review_console/review_surfaces.md) |
-| `ReviewIcon.tsx` | `lucide-react` 图标到语义名（`preview` / `rollback` / `discard` …）的唯一注册表 | [client_review_console_review_surfaces.md](client_review_console/review_surfaces.md) |
-| `review-console.styles.ts` | `REVIEW_CONSOLE_STYLES`：面板 / dock / 弹窗 / 按钮 / 状态条的样式令牌 | [client_review_console_review_surfaces.md](client_review_console/review_surfaces.md) |
-| `index.ts` | `reviewEvidenceFromTarget()` 与 `reviewIdentityFromTarget()`：从 Host target 投影出证据与 CAS 身份 | [client_review_console_review_surfaces.md](client_review_console/review_surfaces.md) |
-| `PreflightStatus.tsx` | 只读预检的可视化：`ready` / `local_advanced` / `already_in_local` / `conflict` / `blocked`，并暴露恢复入口 | [client_review_console_status_readouts.md](client_review_console/status_readouts.md) |
-| `DeliveryProof.tsx` | 交付后的不可篡改凭据（本地分支、before→after、文件数、校验状态、是否仍在历史中），支持 compact 单行 | [client_review_console_status_readouts.md](client_review_console/status_readouts.md) |
-| `ReviewActions.tsx` | 所有写操作与对话框的唯一编排者（约 700 行的状态机式回调集合） | [client_review_console_review_actions.md](client_review_console/review_actions.md) |
-| `request-cache.ts` | `createRequestCache()`：per-adapter WeakMap + 身份键 + single-flight + generation 隔离 | [client_review_console_read_caches.md](client_review_console/read_caches.md) |
-| `preflight-cache.ts` | 评审预检的缓存实例 | [client_review_console_read_caches.md](client_review_console/read_caches.md) |
-| `preview-recovery-cache.ts` | 分离态恢复评估的缓存实例 | [client_review_console_read_caches.md](client_review_console/read_caches.md) |
-| `recovery-continuation.ts` | 恢复请求的排队投递 + `localStorage` 持久化 + 双重 Host 重校验 | [client_review_console_recovery_delivery.md](client_review_console/recovery_delivery.md) |
-| `status-events.ts` | `requestWorktreeReviewRefresh()`：让所有已挂载的验收面重新读取 Host 权威 | [client_review_console_recovery_delivery.md](client_review_console/recovery_delivery.md) |
+| `WorktreeReviewPanel.tsx` | 渲染一次评审的证据（摘要 / 校验 / 文件 / 阶段数），并判定该快照是否已过期 | [client_review_console_review_surfaces.md](client_review_console/client_review_console_review_surfaces.md) |
+| `ReviewDetailsModal.tsx` | 全屏详情弹窗：冲突文件、变更文件、校验命令、版本标识；含 Tab 焦点陷阱与折叠列表 | [client_review_console_review_surfaces.md](client_review_console/client_review_console_review_surfaces.md) |
+| `ReviewIcon.tsx` | `lucide-react` 图标到语义名（`preview` / `rollback` / `discard` …）的唯一注册表 | [client_review_console_review_surfaces.md](client_review_console/client_review_console_review_surfaces.md) |
+| `review-console.styles.ts` | `REVIEW_CONSOLE_STYLES`：面板 / dock / 弹窗 / 按钮 / 状态条的样式令牌 | [client_review_console_review_surfaces.md](client_review_console/client_review_console_review_surfaces.md) |
+| `index.ts` | `reviewEvidenceFromTarget()` 与 `reviewIdentityFromTarget()`：从 Host target 投影出证据与 CAS 身份 | [client_review_console_review_surfaces.md](client_review_console/client_review_console_review_surfaces.md) |
+| `PreflightStatus.tsx` | 只读预检的可视化：`ready` / `local_advanced` / `already_in_local` / `conflict` / `blocked`，并暴露恢复入口 | client_review_console_status_readouts.md |
+| `DeliveryProof.tsx` | 交付后的不可篡改凭据（本地分支、before→after、文件数、校验状态、是否仍在历史中），支持 compact 单行 | client_review_console_status_readouts.md |
+| `ReviewActions.tsx` | 所有写操作与对话框的唯一编排者（约 700 行的状态机式回调集合） | [client_review_console_review_actions.md](client_review_console/client_review_console_review_actions.md) |
+| `request-cache.ts` | `createRequestCache()`：per-adapter WeakMap + 身份键 + single-flight + generation 隔离 | [client_review_console_read_caches.md](client_review_console/client_review_console_read_caches.md) |
+| `preflight-cache.ts` | 评审预检的缓存实例 | [client_review_console_read_caches.md](client_review_console/client_review_console_read_caches.md) |
+| `preview-recovery-cache.ts` | 分离态恢复评估的缓存实例 | [client_review_console_read_caches.md](client_review_console/client_review_console_read_caches.md) |
+| `recovery-continuation.ts` | 恢复请求的排队投递 + `localStorage` 持久化 + 双重 Host 重校验 | [client_review_console_recovery_delivery.md](client_review_console/client_review_console_recovery_delivery.md) |
+| `status-events.ts` | `requestWorktreeReviewRefresh()`：让所有已挂载的验收面重新读取 Host 权威 | [client_review_console_recovery_delivery.md](client_review_console/client_review_console_recovery_delivery.md) |
 
 ---
 
@@ -212,11 +212,11 @@ stateDiagram-v2
 
 | 子模块 | 内容 |
 | --- | --- |
-| [client_review_console_review_surfaces.md](client_review_console/review_surfaces.md) | 评审证据面板、详情弹窗、图标注册表、样式令牌、投影与身份工厂 |
-| [client_review_console_status_readouts.md](client_review_console/status_readouts.md) | `PreflightStatus` 五种预检态的呈现与恢复入口、`DeliveryProof` 完整版与 compact 版 |
-| [client_review_console_review_actions.md](client_review_console/review_actions.md) | `ReviewActions`：变更编排、模态、冲突/过期/不匹配的分类处理、分离态恢复分析与交接 |
-| [client_review_console_read_caches.md](client_review_console/read_caches.md) | `createRequestCache()` 的 WeakMap/single-flight/generation 机制及两个缓存实例 |
-| [client_review_console_recovery_delivery.md](client_review_console/recovery_delivery.md) | 恢复续作的排队投递、`localStorage` 持久化与严格校验、刷新广播事件 |
+| [client_review_console_review_surfaces.md](client_review_console/client_review_console_review_surfaces.md) | 评审证据面板、详情弹窗、图标注册表、样式令牌、投影与身份工厂 |
+| client_review_console_status_readouts.md | `PreflightStatus` 五种预检态的呈现与恢复入口、`DeliveryProof` 完整版与 compact 版 |
+| [client_review_console_review_actions.md](client_review_console/client_review_console_review_actions.md) | `ReviewActions`：变更编排、模态、冲突/过期/不匹配的分类处理、分离态恢复分析与交接 |
+| [client_review_console_read_caches.md](client_review_console/client_review_console_read_caches.md) | `createRequestCache()` 的 WeakMap/single-flight/generation 机制及两个缓存实例 |
+| [client_review_console_recovery_delivery.md](client_review_console/client_review_console_recovery_delivery.md) | 恢复续作的排队投递、`localStorage` 持久化与严格校验、刷新广播事件 |
 
 相关外部文档：
 - 挂载本模块的三个宿主槽位与 dock：[client_target_console.md](client_target_console.md)

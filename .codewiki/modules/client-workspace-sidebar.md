@@ -266,4 +266,4 @@ flowchart LR
 - **协议层**：`sidebarTopology()`、`clearSidebarBadge()` 与全部 `WorktreeSidebar*` 类型的定义见 [控制台协议契约](worktree-console-contract.md)；适配器的远程实现见 [客户端控制台远程层](client-console-remote.md)。
 - **共享基建**：`selectedSessionId` 等会话选择逻辑、`ClientI18nProvider`、行卡片样式注册见 [客户端核心](client-core.md)。
 - **刷新事件**：`WORKTREE_REVIEW_REFRESH_EVENT` 的产生方（评审面板、恢复延续）见 [评审控制台](client-review-console.md) 及其 [恢复与投递子模块](client-review-console-recovery-delivery.md)。
-- **上层关系**：本模块是 客户端界面层（`worktree_client_interface_layer`）的六个客户端子模块之一，与 [目标控制台](client-target-console.md)、[评审控制台](client-review-console.md)、[设置卡片](client-settings-card.md) 并列，共同构成托管 worktree 在客户端的全部可见面。
+- **上层关系**：本模块是 [客户端界面层](worktree-client-interface-layer.md)（`worktree_client_interface_layer`）的六个客户端子模块之一，与 [目标控制台](client-target-console.md)、[评审控制台](client-review-console.md)、[设置卡片](client-settings-card.md) 并列，共同构成托管 worktree 在客户端的全部可见面。

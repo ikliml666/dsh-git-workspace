@@ -3,12 +3,12 @@
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
     "baseCommit": "e1ad9e86b7b3f58b30318b605d474ee6c6558270",
-    "headCommit": "959cca164e68cdab720b9b5607338d8d14cf02ce"
+    "headCommit": "2143132bdd94eb634ac4b2e9d9d4c5dabbe98b5d"
   },
   "pendingChanges": {
     "state": "ok",
     "baseCommit": "e1ad9e86b7b3f58b30318b605d474ee6c6558270",
-    "headCommit": "959cca164e68cdab720b9b5607338d8d14cf02ce",
+    "headCommit": "2143132bdd94eb634ac4b2e9d9d4c5dabbe98b5d",
     "committed": [
       ".gitignore",
       "CHANGELOG.md",
@@ -88,7 +88,10 @@
   "fallbackReason": "",
   "missingRepair": null,
   "notes": [
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw0tq6pg-0-native（47 个文件）"
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw0vsxn2-0-native（47 个文件）",
+    "worktree_client_interface_layer/client_review_console.md：校对改写 5 处失效链接（剩余 0 处）",
+    "worktree_client_interface_layer/client_workspace_sidebar.md：校对改写 1 处失效链接（剩余 0 处）",
+    "语义校对改写了 2 篇（worktree_client_interface_layer/client_review_console.md、worktree_client_interface_layer/client_workspace_sidebar.md），改后重新判门"
   ],
-  "updatedAt": "2026-11-03T15:11:00.583Z"
+  "updatedAt": "2026-11-03T16:14:38.423Z"
 }
