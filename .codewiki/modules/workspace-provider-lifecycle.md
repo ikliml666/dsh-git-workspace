@@ -1,180 +1,255 @@
 ---
-title: 工作区 Provider 生命周期
+title: 工作区提供者生命周期与会话目标上下文
 type: module
 source_files:
+  - src/session-target-context.ts
   - src/workspace-provider-lifecycle.ts
 tags: []
 generated_by: fsoft-native
-fsoft_page: worktree_lifecycle_management_core/workspace_provider_lifecycle.md
+fsoft_page: core_worktree_domain_and_infrastructure/session_checkout_domain/session_checkout_runtime/workspace_provider_lifecycle.md
 ---
-# 工作区 Provider 生命周期
+# 工作区提供者生命周期与会话目标上下文
 
-本模块负责在 Host（dsh-agent）侧完成「官方 `ui-workspace` 入口与本插件受管 Workspace Provider 之间二选一」的选举（takeover）：通过 Cordis Loader 的 `entry.update({ disabled: true })` / `entry.update({ disabled: null })` 操作，确定性地禁用或恢复官方入口 `@deepseek-ai/dsh-client-ui-workspace`，并在插件 fiber 卸载时回滚全部变更。它是插件启动序列中最先执行的环节之一（见 `src/index.ts` 的 `apply()`），其结果 `officialWorkspaceActive` 随后被注入 [控制台宿主](../console_control_plane_and_services/console_host.md)，用于 Sidebar 拓扑投影的真实上报。
+## 简介
 
-源码位置：[`src/workspace-provider-lifecycle.ts`](../../repo/src/workspace-provider-lifecycle.ts)
+本模块是会话结账运行时（session checkout runtime）的最后一块装配，包含两个文件：
 
-## 为什么需要这个模块
-
-早期版本用条件补丁（`disabled: !!get('worktreeWorkspaceProvider') && ...`，即 `__jsExpr` 表达式）做选举。该表达式在两个不同步的时刻被求值：
-
-- 插件 Host apply 阶段，插件 fiber 仍处于 LOADING，Cordis 严格 service 读取返回 `undefined`，选举始终失败（只能 decorate 共存）；
-- Web 渲染器后续审计时插件已 ACTIVE，同一表达式被求值为 `true`，跳过官方入口。
-
-结果是渲染端不再拥有任何 `uiWorkspace` Provider，直接撑爆 0.2.x 的 Web 启动（2026-10-17 的两次崩溃事故，各有 17 个入口 pending）。本模块因此把选举收敛到 Host 侧一次性决策：写入的是普通布尔值，后续所有读取（Host 审计、序列化渲染树、模块事件）都是确定的，不再依赖表达式求值时机。
-
-## 核心组件
-
-| 组件 | 角色 |
+| 文件 | 职责 |
 | --- | --- |
-| `mountWorkspaceProviderLifecycle(ctx, flavor, options)` | 主挂载函数：完成首pass 选举、注册 effect 清理钩子与 Loader 事件重入，返回真实选举结果 |
-| `WorkspaceProviderLifecycleOptions` | 调优接缝，目前仅 `operationTimeoutMs`（单次 Loader 操作的超时上限，默认 10 000ms） |
-| `WorkspaceProviderLifecycleResult` | 选举结果，唯一字段 `officialWorkspaceActive`；仅当本插件真正禁用了所有官方入口（takeover）时为 `false` |
-| `Context`（声明合并） | 通过 `declare module '@deepseek-ai/cordis'` 在全局 `Context` 上注入 `worktreeWorkspaceProvider: boolean`，由 `ctx.provide('worktreeWorkspaceProvider', true)` 发布 |
+| `src/workspace-provider-lifecycle.ts` | Host 侧的 `uiWorkspace` 提供者选举：通过 Cordis Loader 操作（`entry.update({ disabled: true })` / `disabled: null`）禁用或还原官方 `@deepseek-ai/dsh-client-ui-workspace` 条目，保证全局只有一个 Workspace 提供者。 |
+| `src/session-target-context.ts` | 向模型 system prompt 注入"当前会话目标"动态上下文：同步读取注册表快照，告诉模型该会话已位于托管 checkout 之内还是仍在 Local。 |
 
-辅助常量与模块级状态：
+这两者都不属于结账状态机本身——它们是把状态机"接到"Host 运行时上的适配层：前者决定插件能否接管官方 Workspace UI，后者决定模型每轮对话时能看到怎样的目标状态。
 
-- `OFFICIAL_WORKSPACE = '@deepseek-ai/dsh-client-ui-workspace'` —— 被选举对象；
-- `DEFAULT_OPERATION_TIMEOUT_MS = 10_000` —— 单次 disable/restore 的天花板，防止 Loader 卡死拖垮插件激活链；
-- `ownedDisables = new WeakSet<Entry>()` —— **跨代所有权记录**：Entry 对象在插件多次重启之间被复用，重启后新生 lifecycle 的 `adopted` 集合为空，必须靠 WeakSet 认出「这个 pending disable 是我们自己上一代写的」，而不是用户或市场的决定；
-- `adopted` / `overridden`（按 entry id）—— 本代禁用的入口 / 首次见到时已被外部禁用的入口，后者永远不碰。
+---
 
-## 前置门控
+## 模块架构
 
-函数在执行任何 Loader 操作前依次检查两道门：
+```mermaid
+flowchart TB
+    subgraph Entry["插件入口（apply 装配）"]
+        Apply["src/index.ts::apply"]
+    end
 
-1. **`options.enabled`**：由插件 Config 的 `enableWorkspaceProvider`（默认 `false`，见 [插件入口](worktree_lifecycle_management_core_index.md) 的 Config schema）传入。legacy 0.1.x Host 上 takeover 曾破坏「新建会话」流程，因此默认不接管；不满足时直接返回 `{ officialWorkspaceActive: true }`。
-2. **`flavor !== 'unsupported'`**：Host 代际探针（详见 [Host 兼容代际](host_compat.md)）判断当前 dsh-agent 版本是否有 pinned 的 Workspace Browser；不满足时同样放行官方入口。
+    subgraph This["本模块"]
+        Lifecycle["mountWorkspaceProviderLifecycle<br/>Loader 选举与还原"]
+        TargetCtx["registerSessionTargetContext<br/>system prompt 动态上下文"]
+    end
 
-在 modern 0.2.x Host 上，takeover 实际上是结构性必需：decorated 注册拿不到官方 Browser 的 child-slot 席位（0.2.x 的 Browser 对声明的 child slot 调用 `renderSlot`，缺失即崩 `renderSlot is not a function`，连带会话行与新建会话的 Workspace 选择面板）。
+    subgraph Domain["会话结账域"]
+        Module["SessionCheckoutModule<br/>runtimeContext / refreshBranchRaceGuards"]
+        Flavor["host-compat.ts<br/>hostWorkspaceClientFlavor"]
+    end
 
-## 所有权模型
+    subgraph Adapters["适配器层"]
+        WD["createSessionWorkingDirectoryPort<br/>working-directory.ts"]
+        I18N["i18n/host.ts<br/>withHostLanguage / languageForInvocation"]
+    end
+
+    subgraph Console["控制台 Host 服务"]
+        Service["WorktreeConsoleService<br/>sidebarTopology 响应"]
+    end
+
+    Apply -->|"第一步：先于一切装配"| Lifecycle
+    Apply -->|"module 创建之后"| TargetCtx
+    Lifecycle --> Flavor
+    Lifecycle -->|"providerLifecycle.officialWorkspaceActive"| Service
+    TargetCtx --> Module
+    TargetCtx --> WD
+    TargetCtx --> I18N
+    Module --> WD
+```
+
+要点：`mountWorkspaceProviderLifecycle` 在 `apply()` 中**最先执行**——官方条目必须在页面加载之前被禁用，否则 Web 渲染器会观察到两个 `uiWorkspace` 提供者；其选举结果通过构造参数传入 `WorktreeConsoleService`，最终在 Sidebar 拓扑响应中回报给客户端。
+
+---
+
+## 组件说明
+
+### 1. `workspace-provider-lifecycle.ts`
+
+#### 导出类型
+
+| 类型 | 说明 |
+| --- | --- |
+| `WorkspaceProviderLifecycleOptions` | 调优接缝，目前仅 `operationTimeoutMs?: number`——单次 Loader disable/restore 操作的超时上限，默认 `DEFAULT_OPERATION_TIMEOUT_MS = 10_000` 毫秒。专为测试暴露。 |
+| `WorkspaceProviderLifecycleResult` | 选举结果，`officialWorkspaceActive: boolean`——**仅当本插件真正禁用了官方条目（接管成功）时为 `false`**；否则官方保持激活。由 Sidebar 拓扑响应消费。 |
+| `Context`（模块增强） | 通过 `declare module '@deepseek-ai/cordis'` 给 `Context` 增加 `worktreeWorkspaceProvider: boolean`。`mountWorkspaceProviderLifecycle` 用 `ctx.provide('worktreeWorkspaceProvider', true)` 注册该服务标记，并在卸载时显式撤回。 |
+
+#### 核心函数：`mountWorkspaceProviderLifecycle(ctx, flavor, options)`
+
+```mermaid
+flowchart TB
+    Start(["mountWorkspaceProviderLifecycle 被调用"]) --> Gate1{"options.enabled === true?"}
+    Gate1 -->|"否：enableWorkspaceProvider 未开启"| ReturnActive["返回 officialWorkspaceActive: true<br/>官方保持激活，直接跳过"]
+    Gate1 -->|"是"| Gate2{"flavor === 'unsupported'?"}
+    Gate2 -->|"Host 代际不受支持"| ReturnActive
+    Gate2 -->|"legacy / alpha / next / modern"| Ownership["建立所有权账本：<br/>adopted Set / overridden Set / ownedDisables WeakSet"]
+    Ownership --> FirstReconcile["await reconcile 第一遍<br/>禁用所有未归他人所有的官方条目"]
+    FirstReconcile --> RegisterEvents["注册事件重入：<br/>internal/status、internal/plugin"]
+    RegisterEvents --> Verdict{"逐条核验 disabled 已提交为布尔 true?"}
+    Verdict -->|"全部已禁用"| Takeover["takeover = true<br/>返回 officialWorkspaceActive: false"]
+    Verdict -->|"任一未禁用或自 fiber 被禁用"| Coexist["takeover = false<br/>告警并回退装饰共存路径<br/>返回 officialWorkspaceActive: true"]
+```
+
+**为什么不用条件表达式？** 旧实现使用 `disabled: !!get('worktreeWorkspaceProvider') && ...` 这种客户端求值表达式：Host apply 期间插件 fiber 还在 LOADING，Cordis strict service 读取返回 `undefined`，选举恒败；而 Web 渲染器稍后审计时插件已 ACTIVE，同一表达式求值为 `true`，又跳过官方条目——两边相反的求值结果导致 `uiWorkspace` 无人提供，17 个下游条目 pending，2026-10-17 18:11 与 20:25 两次 Web 启动崩溃。现在选举只在 Host 侧决定一次，写入的是普通布尔值，后续所有读取（Host 审计、序列化渲染树、模块事件）都是确定性的。
+
+#### 所有权账本（三条规则）
 
 ```mermaid
 flowchart LR
-    A["遍历 loader.entries()"] --> B{"entry.name ===<br/>@deepseek-ai/dsh-client-ui-workspace<br/>且未被 overridden?"}
-    B -- 否 --> A
-    B -- 是 --> C{"disabled 是 __jsExpr<br/>条件补丁对象?"}
-    C -- 是 --> D["视为可接管入口<br/>(旧版本遗留表达式被 reconcile 掉)"]
-    C -- 否 --> E{"disabled 为真值<br/>且非 adopted、非 ownedDisables?"}
-    E -- 是 --> F["overridden.add(id)<br/>永远不碰（用户/市场决定）"]
-    E -- 否 --> D
+    subgraph Classification["official() 遍历 loader.entries()"]
+        E["官方条目<br/>name === @deepseek-ai/dsh-client-ui-workspace"]
+    end
+
+    E --> C1{"disabled 是 __jsExpr<br/>旧条件补丁?"}
+    C1 -->|"是"| Adopt["纳入选举（adopted 候选）<br/>禁用时替换为确定性布尔"]
+    C1 -->|"否"| C2{"已被 adopted / ownedDisables<br/>或自己的 WeakSet 记录?"}
+    C2 -->|"是"| Adopt
+    C2 -->|"否"| C3{"disabled 为真值但非本插件写的?"}
+    C3 -->|"是：用户或市场决定"| Override["overridden Set：永不触碰"]
+    C3 -->|"否：未禁用"| Adopt
 ```
 
-关键不变量：
+| 账本 | 键 | 含义 |
+| --- | --- | --- |
+| `adopted` | entry id（字符串） | **本生命周期亲手禁用**的条目——也是唯一允许还原的条目。 |
+| `overridden` | entry id（字符串） | 首次见到时已被禁用、且并非本插件所写的官方条目——视为用户/市场决定，永不触碰。 |
+| `ownedDisables` | `Entry` 对象（`WeakSet`） | 跨代际所有权：Entry 对象被重启后的新一代共享，WeakSet 记录"这个禁用是我们写的"，避免新一代把自己尚未落地的还原误判为外部决定。 |
 
-- 只有「本次禁用操作真的把 `options.disabled` 提交为 `true`」的入口才会进入 `adopted` / `ownedDisables`；卡住或失败的操作保持「非我所有」，留给后续 Loader 事件重试。
-- `selfDisabled()` 检查插件自身入口是否已被市场/持久化禁用——市场在入口 bundle 一出现就回放持久化禁用列表，选举可能在本插件尚未激活时被外部禁用；此时选举直接让位并等待 `internal/plugin` 事件重入。
-
-## 操作执行与超时天花板
-
-`operate(entry, 'disable' | 'restore')` 封装单次 Loader 操作，并处理 Loader 1.0.6 的两个行为修正：
-
-```mermaid
-flowchart TD
-    subgraph disable["disable 分支"]
-        D1["entry.update({ disabled: true }, false, true)"] --> D2["await entry.fiber?.await()<br/>等旧 fiber 真正卸下"]
-    end
-    subgraph restore["restore 分支"]
-        R1["entry.update({ disabled: null }, false, true)<br/>删除 disabled 键"] --> R2{"entry.fiber<br/>为空或 uid 为 null?"}
-        R2 -- 是 --> R3["entry.init()<br/>重建死掉的一代"]
-        R2 -- 否 --> R4["entry.refresh()"]
-    end
-    disable --> T{"超过<br/>operationTimeoutMs?"}
-    restore --> T
-    T -- 否 --> S["settle: 从 inFlight 移除<br/>resolve"]
-    T -- 是 --> W["warn 一次<br/>继续 resolve<br/>激活链不被阻塞"]
-    W --> S
-```
-
-设计要点：
-
-- **永不阻塞激活**：Host 并发启动入口，官方入口的 disable 可能与仍在启动的 fiber 竞争；Loader 各版本对这种 dispose 的 settle 行为不一致，因此每个操作都与超时天花板赛跑，卡住的操作只告警一次，入口保持受保护直到真实操作 settle，下一个 Loader 事件再重试。
-- **每入口至多一个在飞操作**：`inFlight` 集合让后续 reconcile 跳过尚未 settle 的入口。
-- **restore 必须 init 而非 refresh**：Loader 1.0.6 的 `update()` 不 await 地 dispose fiber 并把死掉的 fiber 留在 entry 上，`refresh()` 会把残留引用当作仍在运行；只有 `init()` 能替换死去的一代。
-
-## 选举循环（reconcile）与结果判定
+#### 守卫与容错（永不阻塞插件激活）
 
 ```mermaid
 sequenceDiagram
-    participant APP as 插件 apply()
-    participant L as Cordis Loader
-    participant W as 官方 ui-workspace 入口
-    participant R as renderer / Sidebar 拓扑
+    participant R as reconcile()
+    participant O as operate(entry, disable)
+    participant L as Loader Entry
+    participant T as 超时计时器
 
-    APP->>L: mountWorkspaceProviderLifecycle(ctx, flavor, {enabled})
-    APP->>APP: 门控检查 enabled / flavor
-    APP->>W: reconcile() 首 pass
-    W-->>APP: entry.disabled 仍为 false
-    APP->>W: operate(disable)
-    W-->>APP: options.disabled = true (同步提交)
-    APP->>W: adopted.add(id), ownedDisables.add(entry)
-    APP->>L: ctx.provide(worktreeWorkspaceProvider, true)
-    APP->>R: 返回 { officialWorkspaceActive: !takeover }
-    Note over APP,R: takeover 仅在所有 owned 入口<br/>确实 disabled 时才为 true
+    R->>O: inFlight 无该条目才进入
+    O->>L: entry.update({ disabled: true }, false, true)
+    O->>L: 随后 await entry.fiber?.await()
+    par 操作挂起点
+        L-->>O: 正常 settle
+    and
+        T->>O: operationTimeoutMs（默认 10s）到
+        Note over T,O: 告警一次，resolve 放行<br/>激活继续，等下次 Loader 事件重选
+    end
+    O->>R: 仅当 options.disabled === true 已提交<br/>才加入 adopted / ownedDisables
 ```
 
-首 pass 在 `apply()` 返回前 settle，保证 Sidebar 拓扑上报真实结果。结果判定必须逐入口复核 `entry.disabled`：
+- `inFlight` Set 保证同一 entry 任意时刻至多一个 Loader 变异在跑，后续 reconcile 直接跳过。
+- `pending` Promise 链把所有 reconcile 串行化，避免并发禁用同一个条目。
+- `selfDisabled()` 检查插件自身条目是否已被市场（持久化禁用列表）外部禁用——被禁用的主人不得再接管任何条目，若日后被重新启用则事件重入选举。
+- Loader 1.0.6 适配：`update()` 不等待 fiber 完成且保留已 dispose 的 fiber（`refresh()` 会把残留引用当成仍在运行），所以 disable 必须额外 `fiber.await()`；restore 遇到死亡代际必须用 `entry.init()` 重建而非 `refresh()`。
 
-- 若任一 owned 入口仍未禁用（含 inFlight 未 settle），`takeover = false`，回退到「decorated 共存」安全路径——这会避免 Web 客户端重演官方 apply 时撞上 `service "uiWorkspace" has been registered` 的崩溃（2026-10-11 事故）。
-
-## 重入与卸载清理
+#### 卸载（fiber dispose）还原流程
 
 ```mermaid
-flowchart TD
-    E1["ctx.on('internal/status', fiber)<br/>本代 fiber 状态变更且未 released"] --> RC["reconcile()"]
-    E2["ctx.on('internal/plugin', fiber)<br/>官方入口被外部重新 enable/重启"] --> RC
-    RC --> OP["对未在飞的官方入口执行 disable"]
-
-    F["ctx.effect 卸载钩子"] --> R1["released = true"]
-    R1 --> R2["await releaseMarker()<br/>先撤回 worktreeWorkspaceProvider 标记"]
-    R2 --> R3{"fiber.uid === null<br/>(激活失败)?"}
-    R3 -- 是 --> R4["withdraw(): 清掉残留 fiber 引用<br/>并 emit internal/plugin"]
-    R3 -- 否 --> R5{"根 fiber 仍在 UNLOADING?"}
-    R5 -- 是 --> R6["直接返回<br/>不复活那棵树"]
-    R5 -- 否 --> R7["await pending 排空在飞操作"]
-    R7 --> R8["对 adopted 中仍 disabled 的入口 restore"]
-    R8 --> R9["轮询 settle:<br/>等 fiber 离开 UNLOADING 后 withdraw"]
+flowchart TB
+    Unload["ctx.effect 卸载回调触发"] --> Mark["released = true"]
+    Mark --> WithdrawMarker["先于一切 await releaseMarker()<br/>Cordis 4.0.5 并发卸载非 LIFO"]
+    WithdrawMarker --> Failed{"ctx.fiber.uid === null<br/>激活失败?"}
+    Failed -->|"是"| WithdrawFiber["withdraw()：清除 entry.fiber<br/>并 emit internal/plugin"]
+    Failed -->|"否：正常重启，复用活 fiber"| Keep["不清空 fiber 引用"]
+    Keep --> RootCheck{"root fiber 已死或 UNLOADING?"}
+    RootCheck -->|"是"| Skip["Root/Include 拆除拥有这些条目<br/>直接返回，不复活那棵树"]
+    RootCheck -->|"否"| RestoreLoop["遍历 official()：<br/>adopted 且仍 disabled 且父 fiber 健康 → operate(restore)"]
+    RestoreLoop --> Settle["异步 settle：<br/>等离开 UNLOADING 状态后<br/>失败激活才 withdraw fiber 引用"]
 ```
 
-清理顺序的细节均来自真实 Loader/Cordis 版本的行为修正：
+设计原因：Loader 只检查 entry 引用而不检查 fiber 状态；Cordis 4.0.5 并发卸载时若不先撤回 `worktreeWorkspaceProvider` 标记，恢复官方 Workspace 的求值会读到已不存在的提供者。在 Windows 上实测，对已保留的失败 fiber 直接 `fiber.await()` 会死循环（`while (inertia)` 重复 await 已完成的 promise），所以必须轮询等状态离开 UNLOADING 再动手。
 
-- Cordis 4.0.5 的 effect 卸载是并发而非 LIFO，所以标记撤回必须显式排在恢复官方入口之前；
-- Loader 1.0.6 把失败/已 dispose 的 fiber 留在 entry 上，而 Web registry 只检查引用是否存在——本代卸载必须清掉残留引用并发布 registry 消费的 `internal/plugin` 事件；
-- 重启复用 live fiber（`uid !== null`），干净卸载不能清引用；激活失败 fiber 的 `fiber.await()` 会在残留 transition 上空转（2026-10-24 Windows 实测），所以只在 fiber 离开 UNLOADING 后才 withdraw；
-- Root/Include 拆卸时拥有这些入口，不能在根仍在 UNLOADING 时复活那棵树。
+#### 事件驱动重入
 
-## 与其他模块的关系
+| 事件 | 触发条件 | 动作 |
+| --- | --- | --- |
+| `internal/status` | 本 fiber 状态变化且未 released | 重新 `reconcile()`——Includes 可能在接管激活之后才把官方行加进来。 |
+| `internal/plugin` | 一个新的官方条目 fiber 带 uid 启动 | 重新 `reconcile()`——外部参与者可能重新启用了被禁用的官方条目。 |
+
+---
+
+### 2. `session-target-context.ts`
+
+#### 导出类型
+
+| 类型 | 说明 |
+| --- | --- |
+| `ContextAgent` | 结构类型 `{ session?: { id?: unknown } }`——从 Cordis agent 对象上读会话 id 的最小视图，避免与具体 Agent 类型耦合。 |
+
+#### 核心函数：`registerSessionTargetContext(ctx, module)`
 
 ```mermaid
-flowchart LR
-    subgraph 上游["上游依赖"]
-        HC["host-compat.ts<br/>Host 代际探针"]
-        CORDIS["@deepseek-ai/cordis<br/>Context / FiberState"]
-        LOADER["@deepseek-ai/cordis-plugin-loader<br/>Entry"]
-    end
-    subgraph 本模块
-        WPL["mountWorkspaceProviderLifecycle"]
-    end
-    subgraph 下游["下游消费方"]
-        IDX["src/index.ts apply()<br/>enableWorkspaceProvider 配置"]
-        SVC["WorktreeConsoleService<br/>官方入口激活态上报 Sidebar 拓扑"]
-    end
-    HC --> WPL
-    CORDIS --> WPL
-    LOADER --> WPL
-    IDX -->|"传入 flavor 与 enabled"| WPL
-    WPL -->|"officialWorkspaceActive"| SVC
+sequenceDiagram
+    participant Apply as apply() 装配
+    participant RTC as registerSessionTargetContext
+    participant WD as workingDirectory 端口
+    participant SP as systemPrompt 服务
+    participant Model as 模型（每轮调用）
+
+    Apply->>RTC: 传入 SessionCheckoutModule
+    RTC->>WD: createSessionWorkingDirectoryPort(ctx)
+    Note over RTC: 建立 45 秒后台轮询：<br/>module.refreshBranchRaceGuards()
+    RTC->>SP: inject systemPrompt，注入 context<br/>name=git-worktree:session-target, order=118
+    Model->>SP: 渲染上下文文本
+    SP->>SP: 从 agent 读取 session.id（字符串才渲染）
+    SP->>SP: languageForInvocation 确定语言，<br/>withHostLanguage 包裹
+    SP->>WD: current(agent) 取实时 cwd
+    SP->>Model: module.runtimeContext(sessionId, cwd) 文本
 ```
 
-- **[Host 兼容代际](host_compat.md)**：提供 `WorkspaceClientFlavor`，决定本模块是否需要执行接管。
-- **[插件入口与模块契约](worktree_lifecycle_management_core_index.md)**：`apply()` 中的配置 `enableWorkspaceProvider` 与 `hostWorkspaceClientFlavor()` 是本模块唯一的外部输入。
-- **[控制台宿主](../console_control_plane_and_services/console_host.md)**：`providerLifecycle.officialWorkspaceActive` 被传入 `WorktreeConsoleService`，决定 Sidebar 拓扑响应如何向客户端描述当前 Workspace Provider 的归属。
-- **共享契约中的 Sidebar 类型**（[console 契约](../shared_contracts_and_domain_ports/core_types_and_ports.md) 的 `WorktreeSidebarTopologyResponse` 等）：是该结果在客户端侧的投影出口，本模块不直接构造。
+三个设计要点：
 
-## 关键设计不变量小结
+1. **同步快照、无 Git/文件 I/O**：`runtimeContext` 必须同步返回（system prompt 文本是同步求值的），所以分支竞争守卫的 reflog 探测被挪到 45 秒一次的后台 `setInterval` 里，喂给守卫缓存。
+2. **cwd 判定"是否已进 checkout"**：`worktree_create` 可能已把会话移进托管目录，上下文文本据此决定是否仍要宣布绝对路径规则。工作目录端口本身是可选服务——Host 不挂载 `workingDirectory` 时返回 `undefined`，降级为纯引导模式。详见 [主机绑定适配器](src-adapters-host-binding.md)。
+3. **语言隔离**：每个调用从 Agent 的 ctx 读取 settings.locale，经 `withHostLanguage` 的 `AsyncLocalStorage` 隔离，避免跨用户串语言。语言基础设施见 [国际化模块](src-i18n.md)。
 
-1. 选举决策只有一次、在 Host 侧；写入的是普通布尔值，杜绝表达式求值竞态。
-2. 本插件的激活永远不会被单次 Loader 操作拖垮或卡死（超时天花板 + 告警 + 重入）。
-3. 只有自己禁用的入口（`adopted` + `ownedDisables`）才会被恢复；外部禁用的入口始终让位。
-4. takeover 只在逐入口复核后才声明，否则安全回退 decorated 共存——宁可双 Provider 共存，也不能没有 Provider。
-5. 跨代所有权用 WeakSet 记录在共享的 Entry 对象上，重启后新生 lifecycle 不会把上代的 pending disable 误判为外部决定。
+---
+
+## 在系统中的位置
+
+```mermaid
+flowchart TB
+    subgraph Index["src/index.ts::apply（装配入口）"]
+        A1["① mountWorkspaceProviderLifecycle<br/>选举先行"]
+        A2["② 建 adapters / registry / module"]
+        A3["③ WorktreeConsoleService<br/>注入 officialWorkspaceActive"]
+        A4["④ registerTools / registerWorktreeCommand"]
+        A5["⑤ registerSessionTargetContext"]
+    end
+
+    A1 --> A2 --> A3 --> A4 --> A5
+
+    A1 -.->|"结果"| Svc["sidebarTopology Remote 响应<br/>附带 officialWorkspaceActive 与 workspaceClientFlavor"]
+    A5 -.->|"每轮"| Prompt["模型 system prompt<br/>git-worktree:session-target"]
+    Svc --> Client["客户端 Sidebar 拓扑<br/>决定是否渲染本插件的 Workspace UI"]
+```
+
+- 装配顺序详见 [运行时入口（src/index.ts / src/session-checkout-module.ts）](session-checkout-runtime-entry.md)。
+- `SessionCheckoutModule` 的完整契约（`runtimeContext`、`refreshBranchRaceGuards` 等方法）在 [运行时入口页](src-index-ts.md) 定义；状态机主体属于 [结账应用引擎](session-checkout-apply-engine.md)。
+- `WorktreeConsoleService` 如何把 `officialWorkspaceActive` 编入 `sidebarTopology` 响应，见 [控制台 RPC 服务](worktree-console-host-rpc-service.md)。
+- Host 代际探测（`legacy` / `alpha` / `next` / `modern` / `unsupported`）的判定规则在 [Worktree 核心操作](worktree-core-operations.md) 的 `host-compat.ts` 一节。
+
+### 配置开关
+
+选举行为由插件配置 `enableWorkspaceProvider` 控制（定义于 `src/index.ts` 的 `Config` schema，默认 `false`，**非 volatile**——改它需要重挂载）：
+
+| Host 代际 | 行为 |
+| --- | --- |
+| 0.1.x（legacy/alpha/next） | 接管 opt-in：仅当显式设为 `true` 才禁用官方条目（历史上接管曾破坏新会话创建）。 |
+| 0.2.x（modern） | 装饰路径结构性崩溃（Browser 对声明 child slot 调 `renderSlot`），接管实为必需——配置标志仅作建议性闸门。 |
+| unsupported（0.3+ 等未验证代际） | 直接返回官方保持激活，绝不触碰。 |
+
+历史背景：`cordis.patch.yml` 已彻底移除旧的 `ui-workspace` 条件禁用表达式块，并由本生命周期在禁用时把残留的 `__jsExpr` 旧补丁 reconcile 成确定性布尔。
+
+---
+
+## 关键常量速查
+
+| 常量 | 值 | 含义 |
+| --- | --- | --- |
+| `OFFICIAL_WORKSPACE` | `@deepseek-ai/dsh-client-ui-workspace` | 被选举/被禁用的官方条目名。 |
+| `DEFAULT_OPERATION_TIMEOUT_MS` | `10_000` | 单次 Loader 操作超时上限；wedged 操作只告警一次，下次 Loader 事件重选。 |
+| `UNLOADING` | `FiberState = 5` | Cordis 以声明性 const enum 暴露，代码内手写常量。 |
+| system prompt 名 | `git-worktree:session-target` | 注入上下文的名称，`order: 118`。 |
+| 守卫轮询间隔 | `45_000` ms | 后台刷新分支竞争守卫缓存的周期。 |

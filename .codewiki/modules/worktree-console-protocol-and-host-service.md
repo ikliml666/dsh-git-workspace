@@ -1,0 +1,72 @@
+---
+title: Worktree Console 协议与宿主服务总览
+type: module
+source_files:
+  - src/console-contract.ts
+  - src/console-host/control-plane.ts
+  - src/console-host/errors.ts
+  - src/console-host/projection.ts
+  - src/console-host/review-diff.ts
+  - src/console-host/service.ts
+  - src/console-remote/descriptors.ts
+  - src/console-remote/remote.ts
+  - src/console-remote/schemas.ts
+  - src/console-remote/typert.ts
+tags: []
+generated_by: fsoft-native
+fsoft_page: worktree_console_protocol_and_host_service.md
+---
+# Worktree Console 协议与宿主服务总览
+
+本模块是连接核心工作树领域层与浏览器侧客户端 UI 的桥接层，为 Worktree Console 提供完整的跨边界命令面。它的核心目标是把运行在 Node 宿主进程内的会话检出、Git 操作、持久化管理能力，安全、类型安全地暴露给浏览器端控制台，同时严格执行全模块的核心权威规则：**每一次跨边界调用都必须先在 Host 侧解析出确切的调用方 Session，并在执行时重新校验项目归属、工作目录、revision 与评审身份，客户端永远无法自证身份或绕过服务端授权直接变更状态**。
+
+模块内部刻意拆分为三个职责完全分离的子层，分别承担类型契约、线上协议、服务实现的职责，避免实现细节污染共享类型，也避免协议层混入业务逻辑。
+
+## 模块架构
+下图展示了本模块在系统中的位置，以及三个内部子层与上下游模块的依赖关系：
+
+```mermaid
+flowchart TB
+  subgraph UPSTREAM["上游：核心工作树领域与基础设施层"]
+    U1["SessionCheckout 运行时与 Apply 引擎"]
+    U2["Git/持久化/文件系统 Node 适配器"]
+    U3["领域状态与端口契约类型"]
+  end
+
+  subgraph MODULE["本模块：Worktree Console 协议与宿主服务"]
+    direction TB
+    C["共享契约层<br/>纯 JSON DTO + 状态投影函数 + 错误码表 + 适配器接口<br/>无框架、传输或文件系统实现依赖"]
+    R["远程协议绑定层<br/>严格 Zod schema + 39 个 Typert 调用描述符 + 远端类型映射"]
+    H["宿主服务实现层<br/>授权控制面 + 投影计算 + RPC 端点 + 评审 diff 读取器"]
+  end
+
+  subgraph DOWNSTREAM["下游：客户端接口层（浏览器侧）"]
+    D1["Remote 调用适配器"]
+    D2["目标控制台/评审控制台 UI"]
+    D3["工作区侧边栏聚合视图"]
+  end
+
+  U1 --> H
+  U2 --> H
+  U3 --> C
+  C --> H
+  C --> R
+  H -->|"实现契约定义的 RPC 方法集合"| R
+  R -->|"严格编解码与 Gateway 身份解析"| D1
+  D1 --> D2
+  D1 --> D3
+```
+
+## 核心组件文档参考
+本模块的三个核心子组件分别有独立的详细文档，覆盖实现细节、设计决策与操作流程：
+
+1. **[Worktree Console 共享契约](worktree-console-contract.md)**
+   作为 Host 与 Client 两条轨道共享的纯净类型层，定义了目标状态机、分层投影 DTO、16 个能力位模型、请求/响应载荷结构、错误码元数据与统一适配器接口。该层刻意不含任何运行时实现，确保同一份类型可以同时在 Node 与浏览器环境中编译运行，杜绝两侧对领域状态的解释漂移。
+
+2. **[Worktree Console 宿主服务](worktree-console-host.md)**
+   运行在 Node 宿主进程内的服务端实现，负责完成调用方身份授权、持久化记录到投影 DTO 的转换、能力位的权威计算、Typert RPC 端点暴露，以及带字节预算限制的评审 diff 取证。该层是所有跨边界操作的唯一授权执行者，所有异常都会被折叠为结构化的结果信封，绝不允许异常跨越 Host/Client 边界。
+
+3. **[Worktree Console Remote 绑定](worktree-console-remote.md)**
+   零业务逻辑的线上协议层，把共享契约定义的类型翻译为严格 Zod 线格式 schema 与冻结的 Typert 调用描述符集合。该层通过身份消毒、载荷大小限制、双向严格 schema 校验，保证跨版本部署的 Host 与 Client 之间不会出现静默接口漂移，所有协议变更都会在发布门禁环节被机器校验拦截。
+
+整体设计上，本模块遵循"权威在服务端"的原则：客户端只负责渲染 Host 计算好的状态、能力位与投影结果，所有授权、状态变更、身份校验都在 Host 侧完成，确保跨浏览器的工作树操作不会出现越权、状态不一致或协议漂移问题。
