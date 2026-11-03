@@ -1,96 +1,58 @@
-# dsh-git-worktree 概述
+# dsh-git-worktree 仓库总览
 
-## 仓库定位
+## 仓库定位与核心价值
+dsh-git-worktree 是 DeepSeek Harness (DSH) 平台的官方插件，核心定位是为 AI 辅助开发会话提供全生命周期的 Git Worktree 隔离能力。它通过为每个独立会话创建专属的隔离 Git 工作区，彻底消除多会话并行开发过程中的分支冲突、未提交代码污染、跨会话资源串扰问题，覆盖工作区创建、分支检出、变更评审、交付合并、检查点保存、崩溃恢复与过期资源清理的完整流程。
 
-`dsh-git-worktree` 是 dsh（Deep Shell）生态中的 **Git worktree 工作区生命周期管理插件**。它为 dsh 提供完整的 `git worktree` 操作能力：基于会话目标上下文自动创建、托管、复用并清理隔离的 Git 工作树，支持多会话并发、主机兼容性适配、创建失败回滚，以及控制台侧的工作区宿主（console host）与远程（console remote）服务控制。
+项目严格遵循「服务端持有业务权威、客户端仅负责状态渲染」的设计原则，内置多重生产级安全机制：Git 命令直传不经 Shell 解析、原子文件写入、跨进程文件锁、目录身份校验、Worktree 误删防护；同时为 Host 与 Client 两侧提供统一的类型安全通信契约，从结构上消除跨进程的状态漂移与越权操作风险。
 
-## 核心架构
+## 端到端架构总览
+仓库整体采用分层单向依赖架构，从底层基础支撑到顶层用户界面共分为四个内聚模块层，各层通过稳定契约解耦，严格禁止反向依赖。整体架构与数据流向如下图所示：
 
 ```mermaid
 flowchart TB
-    subgraph 构建与配置["构建与配置"]
-        PKG["package.json#59 pnpm-workspace.yaml#59 tsconfig.json#59 CI#59 vitest"]
+    subgraph BASE["基础支撑层"]
+        PFL["项目基础与本地化<br/>构建/CI/打包闸门 + 类型安全 i18n 消息目录"]
     end
 
-    subgraph 共享契约["共享契约与领域端口 (src)"]
-        TYPES["核心类型与端口"]
-        ADAPTERS["适配器 (src/adapters)"]
+    subgraph CORE["核心领域层"]
+        COREMOD["Worktree 核心领域与基础设施<br/>会话状态机/Git 安全适配器/持久化/纯规则引擎"]
     end
 
-    subgraph 生命周期核心["工作区生命周期管理核心 (src)"]
-        INDEX["入口 index.ts"]
-        SESSION["会话 checkout"]
-        CONCUR["并发控制"]
-        FAIL["creation-failure.ts 创建失败处理"]
-        HOSTC["host-compat.ts 主机兼容"]
-        PATH["managed-worktree-path.ts 托管路径"]
-        TARGET["session-target-context.ts 目标上下文"]
-        WSP["workspace-provider-lifecycle.ts 提供器生命周期"]
+    subgraph BRIDGE["跨边界桥接层"]
+        CONSOLEMOD["Worktree Console 协议与宿主服务<br/>共享类型契约/严格 schema 校验/服务端授权/RPC 端点"]
     end
 
-    subgraph 控制台["控制台控制面与服务 (src)"]
-        HOST["console-host 工作区宿主"]
-        REMOTE["console-remote 远程控制"]
+    subgraph UI["浏览器界面层"]
+        CLIENTMOD["客户端界面层<br/>目标控制台/验收面板/侧栏徽章/设置卡片/预会话开关"]
     end
 
-    CLIENT["客户端 (src/client)"]
+    subgraph EXTERNAL["外部运行时环境"]
+        DSH["DeepSeek Harness 宿主<br/>Cordis 服务/UI 槽位/会话管理"]
+        GIT["系统 Git 可执行文件"]
+        DISK[("本地文件系统与持久化状态目录")]
+    end
 
-    PKG --> INDEX
-    TYPES --> ADAPTERS
-    ADAPTERS --> INDEX
-    INDEX --> SESSION
-    INDEX --> CONCUR
-    SESSION --> FAIL
-    SESSION --> HOSTC
-    SESSION --> PATH
-    SESSION --> TARGET
-    INDEX --> WSP
-    HOST --> WSP
-    REMOTE --> HOST
-    CLIENT --> REMOTE
+    PFL -->|"提供构建校验与本地化支撑"| COREMOD
+    PFL -->|"提供构建校验与本地化支撑"| CONSOLEMOD
+    PFL -->|"提供构建校验与本地化支撑"| CLIENTMOD
+
+    COREMOD -->|"调用 Git 能力"| GIT
+    COREMOD -->|"崩溃安全原子写入"| DISK
+    COREMOD -->|"桥接宿主服务接口"| DSH
+    COREMOD -->|"暴露领域能力接口"| CONSOLEMOD
+
+    CONSOLEMOD -->|"类型安全 RPC 传输"| CLIENTMOD
+    CLIENTMOD -->|"读取/写入宿主 UI 槽位"| DSH
 ```
 
-## 端到端调用流
-
-```mermaid
-sequenceDiagram
-    participant U as dsh 会话目标
-    participant C as 客户端 (src/client)
-    participant R as console-remote
-    participant H as console-host
-    participant W as 工作区提供器生命周期
-    participant L as 生命周期核心 (index.ts)
-    participant G as git worktree / 文件系统
-
-    U->>C: 发起会话工作区请求
-    C->>R: 远程调用控制面
-    R->>H: 派发宿主任务
-    H->>W: 托管并复用工作区提供器
-    W->>L: 创建/复用会话工作树
-    L->>L: 解析 session-target-context
-    L->>L: 计算 managed-worktree-path
-    L->>L: host-compat 主机适配
-    L->>G: git worktree add#59 checkout
-    G-->>L: 工作树就绪或失败
-    alt 创建失败
-        L->>L: creation-failure 回滚/清理
-    end
-    L-->>W: 返回工作区句柄
-    W-->>H: 宿主状态同步
-    H-->>R: 结果回执
-    R-->>C: 返回可操作的工作区
-```
-
-## 核心模块文档
-
-| 模块 | 职责 | 文档 |
-| --- | --- | --- |
-| 构建与配置 | 包清单、pnpm workspace、TypeScript 编译、CI、测试基础设施与 Cordis 补丁 | [build_and_configuration.md](build_and_configuration.md) |
-| 共享契约与领域端口 | 核心类型、领域端口及 `src/adapters` 适配器实现 | [shared_contracts_and_domain_ports.md](shared_contracts_and_domain_ports.md) |
-| 工作区生命周期管理核心 | 会话 checkout、并发、创建失败回滚、主机兼容、托管路径、目标上下文与提供器生命周期 | [worktree_lifecycle_management_core.md](worktree_lifecycle_management_core.md) |
-| 控制台控制面与服务 | `console-host` 工作区宿主与 `console-remote` 远程控制服务 | [console_control_plane_and_services.md](console_control_plane_and_services.md) |
-| 客户端 | 面向调用方的客户端封装 | [client.md](client.md) |
+## 核心模块文档导航
+仓库按领域职责拆分为四个独立文档化的核心模块，各模块的详细设计与实现说明可通过以下链接查看：
+- **[项目基础与本地化模块](project_foundation_and_localization.md)**：全仓库的基础支撑层，负责构建、CI、打包与发布校验，同时维护类型安全的中英文消息目录与统一的语言回落规则，保证业务文案在 Host 与 Client 两侧可确定解析渲染。
+- **[核心 Worktree 领域与基础设施模块](core_worktree_domain_and_infrastructure.md)**：插件的业务核心，实现宿主无关的会话检出状态机、Git 安全执行适配器、崩溃安全持久化层、纯函数规则引擎，通过契约层分离领域逻辑与外部基础设施，保证核心规则可独立测试、适配器可按需替换。
+- **[Worktree Console 协议与宿主服务模块](worktree_console_protocol_and_host_service.md)**：连接核心领域与浏览器客户端的跨边界桥接层，维护 Host 与 Client 共享的纯类型契约、严格的线格式 schema、服务端授权控制面与 RPC 端点实现，是所有跨边界操作的唯一权威入口。
+- **[Worktree 客户端界面层模块](worktree_client_interface_layer.md)**：薄适配层负责所有浏览器端用户界面渲染，包括目标控制台、验收评审面板、工作区侧栏徽章、设置卡片、预会话创建开关等，本身不持有任何业务权威状态，仅消费 Host 侧计算好的投影 DTO 完成渲染。
 
 ## 构建、测试与部署
+项目基于 pnpm 工作区与 TypeScript 构建，通过 GitHub Actions 运行持续集成校验，使用 Vitest 作为测试运行器，并针对 Cordis 插件框架提供定制化补丁集成。核心构建入口覆盖类型检查、单元测试、发布完整性校验、本地开发插件安装/卸载/冒烟测试等全流程。
 
-本仓库采用 pnpm workspace + TypeScript 构建，通过 `package.json` 中的脚本（`build`、`check:publish`、`dev:dsh`、`dev:dsh:smoke` 等）完成编译、发布前检查与本地 dsh 集成联调；CI 由 `.github/workflows/ci.yml` 的 `check` 工作流驱动，测试基础设施基于 `vitest.config.ts`。详细的构建、打包、发布与配置说明请参见 [Build, Deployment and Configuration 模块文档](build_and_configuration.md)。
+详细的构建配置、CI 流水线规则、打包流程与部署操作说明可参考 [构建、CI 与打包子模块文档](project_foundation_and_localization/build_ci_and_packaging.md)，该模块定义了所有发布闸门与本地开发操作的具体规范。

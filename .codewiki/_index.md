@@ -32,6 +32,7 @@
 - [[modules/worktree-console-host-control-plane|Worktree Console 控制面（`src/console-host/control-plane.ts`）]]
 - [[modules/worktree-core-operations|Worktree 核心操作与纯函数工具层（worktree_core_operations）]]
 - [[modules/client-settings-card|Worktree 设置卡（client_settings_card）]]
+- [[modules/src-index-ts|`src/index.ts` —— dsh-git-worktree 插件入口与装配根]]
 - [[modules/src-session-checkout-module-ts|`src/session-checkout-module.ts` —— 会话检出状态机工厂]]
 - [[modules/client-core|client_core：Worktree 浏览器端入口与会话编排核心]]
 - [[modules/client-core/client-pre-session|client_pre_session]]
