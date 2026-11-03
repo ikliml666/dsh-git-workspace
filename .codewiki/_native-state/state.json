@@ -3,12 +3,12 @@
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
     "baseCommit": "e1ad9e86b7b3f58b30318b605d474ee6c6558270",
-    "headCommit": "f9c6cfd56190943359153d9cd96a15d50f53c293"
+    "headCommit": "28c1c561bb020a312996415e48a775f2c208a61e"
   },
   "pendingChanges": {
     "state": "ok",
     "baseCommit": "e1ad9e86b7b3f58b30318b605d474ee6c6558270",
-    "headCommit": "f9c6cfd56190943359153d9cd96a15d50f53c293",
+    "headCommit": "28c1c561bb020a312996415e48a775f2c208a61e",
     "committed": [
       ".gitignore",
       "CHANGELOG.md",
@@ -83,26 +83,12 @@
   ],
   "engineVersion": "2.0.0",
   "scope": "auto",
-  "effectiveScope": "full",
+  "effectiveScope": "stale",
   "updateOutcome": "no_change",
   "fallbackReason": "",
-  "missingRepair": {
-    "baseCommit": "e1ad9e86b7b3f58b30318b605d474ee6c6558270",
-    "modules": [],
-    "overviewLinks": [
-      "build_and_configuration.md",
-      "build_and_configuration.md",
-      "client.md",
-      "console_control_plane_and_services.md",
-      "shared_contracts_and_domain_ports.md",
-      "worktree_lifecycle_management_core.md"
-    ],
-    "attempts": 1,
-    "at": "2026-11-03T11:51:44.375Z"
-  },
+  "missingRepair": null,
   "notes": [
-    "overview 有 6 条指向已消失页面的链接（build_and_configuration.md、shared_contracts_and_domain_ports.md、worktree_lifecycle_management_core.md 等），删除后转全量重建",
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw0mnpsy-1-native（47 个文件）"
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw0osvw9-7-native（47 个文件）"
   ],
-  "updatedAt": "2026-11-03T11:55:04.174Z"
+  "updatedAt": "2026-11-03T12:53:16.694Z"
 }

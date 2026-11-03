@@ -1,11 +1,11 @@
 {
   "generation_info": {
-    "timestamp": "2026-11-03T11:55:03.434339+00:00",
+    "timestamp": "2026-11-03T12:53:15.988630+00:00",
     "provider": "openai-compatible",
     "main_model": "doubao-seed-2.1-lite",
     "generator_version": "2.0.0",
     "repo_path": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
-    "commit_id": "f9c6cfd56190943359153d9cd96a15d50f53c293",
+    "commit_id": "28c1c561bb020a312996415e48a775f2c208a61e",
     "language": "中文",
     "layout": "hierarchical"
   },
@@ -61,63 +61,112 @@
     "schema_version": 2,
     "scope": "this run only (modules resumed from disk cost nothing)",
     "currency": "USD",
-    "cost_status": "unknown",
+    "cost_status": "complete",
     "incomplete": false,
     "unknown_usage_calls": 0,
-    "n_calls": 1,
+    "n_calls": 0,
     "totals": {
-      "input_tokens": 6958,
-      "output_tokens": 6680,
-      "cache_read_tokens": 0,
-      "cache_write_tokens": 0,
-      "requests": 1,
-      "total_tokens": 13638
+      "cost_usd": 0.0
     },
-    "by_phase": {
-      "overview": {
-        "calls": 1,
-        "input_tokens": 6958,
-        "output_tokens": 6680,
-        "cache_read_tokens": 0,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 13638,
-        "unpriced_calls": 1
-      }
+    "by_phase": {},
+    "by_model": {},
+    "unpriced_models": [],
+    "calls": []
+  },
+  "last_update": {
+    "run_id": "ddc5830b-36b0-4ce8-89f0-dcb1590cef13",
+    "started_at": "2026-11-03T20:53:15+0800",
+    "outcome": "no_change",
+    "finished_at": "2026-11-03T20:53:15+0800",
+    "rung": "3",
+    "revision": {
+      "old_commit": "f9c6cfd56190943359153d9cd96a15d50f53c293",
+      "new_commit": "28c1c561bb020a312996415e48a775f2c208a61e",
+      "repo_path": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree"
     },
-    "by_model": {
-      "doubao-seed-2.1-lite": {
-        "calls": 1,
-        "input_tokens": 6958,
-        "output_tokens": 6680,
-        "cache_read_tokens": 0,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 13638,
-        "unpriced_calls": 1
-      }
+    "diff_counts": {
+      "added": 0,
+      "deleted": 0,
+      "interface": 0,
+      "body": 0,
+      "edge": 0,
+      "renamed": 0
     },
-    "unpriced_models": [
-      "doubao-seed-2.1-lite"
-    ],
-    "calls": [
-      {
-        "phase": "overview",
-        "kind": "complete",
-        "target": "dsh-git-worktree",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 101.17,
-        "input_tokens": 6958,
-        "output_tokens": 6680,
-        "cache_read_tokens": 0,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 13638,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      }
-    ]
-  }
+    "n_active": 0,
+    "n_adopted": 0,
+    "n_adopted_by_agent": 0,
+    "fallback": {},
+    "n_calls": 0,
+    "usage_total": {
+      "cost_usd": 0.0
+    },
+    "usage": {
+      "schema_version": 2,
+      "scope": "this run only (modules resumed from disk cost nothing)",
+      "currency": "USD",
+      "cost_status": "complete",
+      "incomplete": false,
+      "unknown_usage_calls": 0,
+      "n_calls": 0,
+      "totals": {
+        "cost_usd": 0.0
+      },
+      "by_phase": {},
+      "by_model": {},
+      "unpriced_models": [],
+      "calls": []
+    },
+    "pages_written": [],
+    "pages_removed": [],
+    "wall_seconds": 0.09
+  },
+  "update_history": [
+    {
+      "run_id": "ddc5830b-36b0-4ce8-89f0-dcb1590cef13",
+      "started_at": "2026-11-03T20:53:15+0800",
+      "outcome": "no_change",
+      "finished_at": "2026-11-03T20:53:15+0800",
+      "rung": "3",
+      "revision": {
+        "old_commit": "f9c6cfd56190943359153d9cd96a15d50f53c293",
+        "new_commit": "28c1c561bb020a312996415e48a775f2c208a61e",
+        "repo_path": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree"
+      },
+      "diff_counts": {
+        "added": 0,
+        "deleted": 0,
+        "interface": 0,
+        "body": 0,
+        "edge": 0,
+        "renamed": 0
+      },
+      "n_active": 0,
+      "n_adopted": 0,
+      "n_adopted_by_agent": 0,
+      "fallback": {},
+      "n_calls": 0,
+      "usage_total": {
+        "cost_usd": 0.0
+      },
+      "usage": {
+        "schema_version": 2,
+        "scope": "this run only (modules resumed from disk cost nothing)",
+        "currency": "USD",
+        "cost_status": "complete",
+        "incomplete": false,
+        "unknown_usage_calls": 0,
+        "n_calls": 0,
+        "totals": {
+          "cost_usd": 0.0
+        },
+        "by_phase": {},
+        "by_model": {},
+        "unpriced_models": [],
+        "calls": []
+      },
+      "pages_written": [],
+      "pages_removed": [],
+      "wall_seconds": 0.09
+    }
+  ]
 }
