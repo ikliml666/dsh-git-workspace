@@ -38,3 +38,4 @@
 - [[modules/concurrency|并发与会话分支竞争防护（Concurrency）]]
 - [[modules/build-and-configuration|构建与配置（build_and_configuration）]]
 - [[modules/core-types-and-ports|核心类型与端口（core_types_and_ports）]]
+- [[modules/project-foundation-and-localization|项目基础与本地化模块概览]]

@@ -271,7 +271,52 @@
                     "src\\adapters\\working-directory.ts::WorkingDirectoryServiceLike",
                     "src\\adapters\\worktree-creation.ts::Result"
                 ],
-                "children": {}
+                "children": {
+                    "src_adapters_persistence": {
+                        "components": [
+                            "src\\adapters\\files.ts::createNodeFilesPort",
+                            "src\\adapters\\registry.ts::AtomicJsonCheckoutRegistry",
+                            "src\\adapters\\safe-file.ts::FileLockOptions",
+                            "src\\adapters\\safe-file.ts::FileLockPayload"
+                        ],
+                        "children": {}
+                    },
+                    "src_adapters_git_execution": {
+                        "components": [
+                            "src\\adapters\\git-options.ts::GitTimeoutOptions",
+                            "src\\adapters\\git.ts::GitCommandResult",
+                            "src\\adapters\\git.ts::GitPortOptions",
+                            "src\\adapters\\initial-commit.ts::GitCommitProtocol",
+                            "src\\adapters\\worktree-creation.ts::Result"
+                        ],
+                        "children": {}
+                    },
+                    "src_adapters_host_binding": {
+                        "components": [
+                            "src\\adapters\\lookup.ts::LiveSessionLike",
+                            "src\\adapters\\lookup.ts::SessionStoreLike",
+                            "src\\adapters\\lookup.ts::WorkspaceLike",
+                            "src\\adapters\\lookup.ts::WorkspaceRegistryLike",
+                            "src\\adapters\\working-directory.ts::SessionWorkingDirectoryPort",
+                            "src\\adapters\\working-directory.ts::WorkingDirectoryServiceLike"
+                        ],
+                        "children": {}
+                    },
+                    "src_adapters_project_skills": {
+                        "components": [
+                            "src\\adapters\\project-skill-io.ts::SkillBytes",
+                            "src\\adapters\\project-skill-io.ts::SkillRead",
+                            "src\\adapters\\project-skill-provider.ts::ClaudeProjectSkillProvider",
+                            "src\\adapters\\project-skill-provider.ts::Locator",
+                            "src\\adapters\\project-skills.ts::CarriedSkillState",
+                            "src\\adapters\\project-skills.ts::Entry",
+                            "src\\adapters\\project-skills.ts::Manifest",
+                            "src\\adapters\\project-skills.ts::ProjectSkillStore",
+                            "src\\adapters\\project-skills.ts::SkillSnapshot"
+                        ],
+                        "children": {}
+                    }
+                }
             },
             "worktree_core_operations": {
                 "path": "",
@@ -812,7 +857,38 @@
                     "src\\console-host\\review-diff.ts::WorktreeReviewDiffReader",
                     "src\\console-host\\service.ts::WorktreeConsoleService"
                 ],
-                "children": {}
+                "children": {
+                    "worktree_console_host_control_plane": {
+                        "components": [
+                            "src\\console-host\\control-plane.ts::WorktreeConsoleControlPlane",
+                            "src\\console-host\\control-plane.ts::WorktreeConsoleControlPlaneOptions"
+                        ],
+                        "children": {}
+                    },
+                    "worktree_console_host_projection_and_errors": {
+                        "components": [
+                            "src\\console-host\\errors.ts::consoleFailure",
+                            "src\\console-host\\projection.ts::capabilities"
+                        ],
+                        "children": {}
+                    },
+                    "worktree_console_host_review_diff": {
+                        "components": [
+                            "src\\console-host\\review-diff.ts::ChangedEntry",
+                            "src\\console-host\\review-diff.ts::GitOutput",
+                            "src\\console-host\\review-diff.ts::ReviewDiffReadInput",
+                            "src\\console-host\\review-diff.ts::ReviewDiffStaleError",
+                            "src\\console-host\\review-diff.ts::WorktreeReviewDiffReader"
+                        ],
+                        "children": {}
+                    },
+                    "worktree_console_host_rpc_service": {
+                        "components": [
+                            "src\\console-host\\service.ts::WorktreeConsoleService"
+                        ],
+                        "children": {}
+                    }
+                }
             },
             "worktree_console_remote": {
                 "path": "",
@@ -995,7 +1071,48 @@
                     "src\\client\\review-console\\review-console.styles.ts::__file__",
                     "src\\client\\review-console\\status-events.ts::requestWorktreeReviewRefresh"
                 ],
-                "children": {}
+                "children": {
+                    "client_review_console_review_actions": {
+                        "components": [
+                            "src\\client\\review-console\\ReviewActions.tsx::__file__"
+                        ],
+                        "children": {}
+                    },
+                    "client_review_console_review_surfaces": {
+                        "components": [
+                            "src\\client\\review-console\\ReviewDetailsModal.tsx::validationIcon",
+                            "src\\client\\review-console\\ReviewIcon.tsx::ReviewIcon",
+                            "src\\client\\review-console\\WorktreeReviewPanel.tsx::WorktreeReviewEvidence",
+                            "src\\client\\review-console\\WorktreeReviewPanel.tsx::WorktreeReviewIdentity",
+                            "src\\client\\review-console\\WorktreeReviewPanel.tsx::WorktreeReviewPanelProps",
+                            "src\\client\\review-console\\index.ts::reviewEvidenceFromTarget",
+                            "src\\client\\review-console\\review-console.styles.ts::__file__"
+                        ],
+                        "children": {}
+                    },
+                    "client_review_console_read_caches": {
+                        "components": [
+                            "src\\client\\review-console\\DeliveryProof.tsx::__file__",
+                            "src\\client\\review-console\\PreflightStatus.tsx::PreflightStatus",
+                            "src\\client\\review-console\\preflight-cache.ts::PreflightSnapshot",
+                            "src\\client\\review-console\\preview-recovery-cache.ts::PreviewRecoverySnapshot",
+                            "src\\client\\review-console\\request-cache.ts::Entry",
+                            "src\\client\\review-console\\request-cache.ts::RequestCache"
+                        ],
+                        "children": {}
+                    },
+                    "client_review_console_recovery_delivery": {
+                        "components": [
+                            "src\\client\\review-console\\recovery-continuation.ts::PersistedRecovery",
+                            "src\\client\\review-console\\recovery-continuation.ts::RecoveryEntry",
+                            "src\\client\\review-console\\recovery-continuation.ts::WorktreeApplyConflictRecoveryRequest",
+                            "src\\client\\review-console\\recovery-continuation.ts::WorktreeRecoverySnapshot",
+                            "src\\client\\review-console\\recovery-continuation.ts::WorktreeReviewRegenerationRequest",
+                            "src\\client\\review-console\\status-events.ts::requestWorktreeReviewRefresh"
+                        ],
+                        "children": {}
+                    }
+                }
             },
             "client_settings_card": {
                 "path": "",
