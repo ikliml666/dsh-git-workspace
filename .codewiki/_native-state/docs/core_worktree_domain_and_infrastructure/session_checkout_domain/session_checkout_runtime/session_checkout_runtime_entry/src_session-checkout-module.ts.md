@@ -430,7 +430,7 @@ flowchart TD
 
 ## 12. 相关文档
 
-- [会话检出运行时（父级模块）](../session_checkout_runtime.md)
+- [会话检出运行时（父级模块）](../../session_checkout_runtime.md)
 - [运行时入口 `src/index.ts`](src_index.ts.md)
 - [Workspace Provider 生命周期](../workspace_provider_lifecycle.md)
 - [Apply 引擎（plan/apply/preview/checkpoint/finalize 的 Git 实现）](../../session_checkout_apply_engine.md)

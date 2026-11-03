@@ -13,7 +13,7 @@ session-checkout 领域本身（状态机、apply 引擎、端口契约）是从
 
 模块文档级声明：`@module dsh-git-worktree`（见文件顶部注释块）。
 
-- 上层层级：[session_checkout_runtime_entry](../session_checkout_runtime_entry.md) → [session_checkout_runtime](../session_checkout_runtime.md) → [session_checkout_domain](../../session_checkout_domain.md) → [core_worktree_domain_and_infrastructure](../../../core_worktree_domain_and_infrastructure.md)
+- 上层层级：[session_checkout_runtime_entry](../session_checkout_runtime_entry.md) → [session_checkout_runtime](../../session_checkout_runtime.md) → [session_checkout_domain](../../../session_checkout_domain.md) → [core_worktree_domain_and_infrastructure](../../../../core_worktree_domain_and_infrastructure.md)
 - 同级实现页：[src/session-checkout-module.ts](src_session-checkout-module.md)（状态机实现细节）
 - 契约来源页：[session_checkout_domain_contracts](../../session_checkout_domain_contracts.md)（`ports.ts` / `types.ts`）
 

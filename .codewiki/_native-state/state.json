@@ -3,12 +3,12 @@
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
     "baseCommit": "e1ad9e86b7b3f58b30318b605d474ee6c6558270",
-    "headCommit": "a939810b9d1f2639525c2b8133c5cb7bc92677e4"
+    "headCommit": "e5c393e113871c16ef076095c7e129972cb1f100"
   },
   "pendingChanges": {
     "state": "ok",
     "baseCommit": "e1ad9e86b7b3f58b30318b605d474ee6c6558270",
-    "headCommit": "a939810b9d1f2639525c2b8133c5cb7bc92677e4",
+    "headCommit": "e5c393e113871c16ef076095c7e129972cb1f100",
     "committed": [
       ".gitignore",
       "CHANGELOG.md",
@@ -90,12 +90,14 @@
   ],
   "engineVersion": "2.0.0",
   "scope": "auto",
-  "effectiveScope": "stale",
+  "effectiveScope": "full",
   "updateOutcome": "incremental",
   "fallbackReason": "",
   "notes": [
-    "工作区未提交改动已合成临时 commit eb7ae117d038（6 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw03b3gt-c-native（28 个文件）"
+    "产物缺页 24 个模块（project_foundation_and_localization、build_ci_and_packaging、src_i18n 等），转全量修复（复用已有页面）",
+    "清理 17 个不属于当前模块树的旧页（build_and_configuration.md、client.md、console_control_plane_and_services/console_host.md 等）",
+    "工作区未提交改动已合成临时 commit eda54ed6356e（6 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw03x37j-0-native（14 个文件）"
   ],
-  "updatedAt": "2026-11-03T02:51:35.379Z"
+  "updatedAt": "2026-11-03T03:25:45.264Z"
 }
