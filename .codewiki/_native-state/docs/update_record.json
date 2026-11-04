@@ -1,6 +1,6 @@
 {
-  "started_at": "2026-11-04T22:10:28+0800",
-  "finished_at": "2026-11-04T22:10:29+0800",
+  "started_at": "2026-11-04T23:16:19+0800",
+  "finished_at": "2026-11-04T23:16:19+0800",
   "outcome": "no_change",
   "options": {
     "rung": "3",
@@ -20,12 +20,13 @@
     "use_stale_scan": true,
     "extra": {
       "moduleConcurrency": 2,
-      "resume": false
+      "resume": true,
+      "resumeBaselineDocsDir": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree\\.codewiki\\_native-state\\docs"
     }
   },
   "revision": {
-    "old_commit": "cf0a228db6e2687740053a58f8d6fe5319081e64",
-    "new_commit": "2d84bac16eac1018e663efd58c6881e83bce7242",
+    "old_commit": "2d84bac16eac1018e663efd58c6881e83bce7242",
+    "new_commit": "b664964d8e11b9feed3e0f285c27a0c1aa0bba87",
     "repo_path": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree"
   },
   "diff": {
@@ -76,5 +77,5 @@
     "unpriced_models": [],
     "calls": []
   },
-  "run_id": "1dc2e77f-87ec-4f3d-b6d7-5562ec4ed6e0"
+  "run_id": "c510fd6e-1786-40f6-8b6f-0a96ea94803c"
 }
