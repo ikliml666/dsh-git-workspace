@@ -2,13 +2,13 @@
   "stateVersion": 1,
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
-    "baseCommit": "ce8473a852f2fd0f56310759d55466008321bc9c",
-    "headCommit": "8cafbeaa79f64d95f624f41ae2642ad199fdf422"
+    "baseCommit": "8cafbeaa79f64d95f624f41ae2642ad199fdf422",
+    "headCommit": "80596532a6afd9acc43d54d8a547c7ededd21589"
   },
   "pendingChanges": {
     "state": "ok",
-    "baseCommit": "ce8473a852f2fd0f56310759d55466008321bc9c",
-    "headCommit": "8cafbeaa79f64d95f624f41ae2642ad199fdf422",
+    "baseCommit": "8cafbeaa79f64d95f624f41ae2642ad199fdf422",
+    "headCommit": "80596532a6afd9acc43d54d8a547c7ededd21589",
     "committed": [],
     "staged": [],
     "unstaged": [],
@@ -33,8 +33,8 @@
   "fallbackReason": "",
   "missingRepair": null,
   "notes": [
-    "持久化基线 9aa8e3c 与本次 cw 基线 ce8473a 不同（以 cw 基线为准，未消费变化仍会并入）",
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw1h0uue-6-native（47 个文件）"
+    "持久化基线 ce8473a 与本次 cw 基线 8cafbea 不同（以 cw 基线为准，未消费变化仍会并入）",
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw1hun2w-0-native（47 个文件）"
   ],
-  "updatedAt": "2026-11-04T02:03:23.548Z"
+  "updatedAt": "2026-11-04T02:29:47.962Z"
 }
