@@ -1,11 +1,11 @@
 {
   "generation_info": {
-    "timestamp": "2026-11-04T18:12:51.682624+00:00",
+    "timestamp": "2026-11-04T19:12:53.428345+00:00",
     "provider": "openai-compatible",
     "main_model": "doubao-seed-2.1-lite",
     "generator_version": "2.0.0",
     "repo_path": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
-    "commit_id": "3f88aad4bb9e0081656bbe6d2a37ebeab4759f55",
+    "commit_id": "2719b680006003cd5042dfc6821f3c55e4dcf61b",
     "language": "中文",
     "layout": "hierarchical"
   },
@@ -74,14 +74,14 @@
     "calls": []
   },
   "last_update": {
-    "run_id": "b3508e7a-ef46-4b83-b1ee-ccf528f7349c",
-    "started_at": "2026-11-05T02:12:51+0800",
+    "run_id": "d305bc89-2605-468f-ac21-a4963ce330df",
+    "started_at": "2026-11-05T03:12:53+0800",
     "outcome": "no_change",
-    "finished_at": "2026-11-05T02:12:51+0800",
+    "finished_at": "2026-11-05T03:12:53+0800",
     "rung": "3",
     "revision": {
-      "old_commit": "01db9491f7837f782e6c7270f2fee4bfee9c4be0",
-      "new_commit": "3f88aad4bb9e0081656bbe6d2a37ebeab4759f55",
+      "old_commit": "3f88aad4bb9e0081656bbe6d2a37ebeab4759f55",
+      "new_commit": "2719b680006003cd5042dfc6821f3c55e4dcf61b",
       "repo_path": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree"
     },
     "diff_counts": {
@@ -118,7 +118,7 @@
     },
     "pages_written": [],
     "pages_removed": [],
-    "wall_seconds": 0.08
+    "wall_seconds": 0.09
   },
   "update_history": [
     {
@@ -1624,6 +1624,53 @@
       "pages_written": [],
       "pages_removed": [],
       "wall_seconds": 0.08
+    },
+    {
+      "run_id": "d305bc89-2605-468f-ac21-a4963ce330df",
+      "started_at": "2026-11-05T03:12:53+0800",
+      "outcome": "no_change",
+      "finished_at": "2026-11-05T03:12:53+0800",
+      "rung": "3",
+      "revision": {
+        "old_commit": "3f88aad4bb9e0081656bbe6d2a37ebeab4759f55",
+        "new_commit": "2719b680006003cd5042dfc6821f3c55e4dcf61b",
+        "repo_path": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree"
+      },
+      "diff_counts": {
+        "added": 0,
+        "deleted": 0,
+        "interface": 0,
+        "body": 0,
+        "edge": 0,
+        "renamed": 0
+      },
+      "n_active": 0,
+      "n_adopted": 0,
+      "n_adopted_by_agent": 0,
+      "fallback": {},
+      "n_calls": 0,
+      "usage_total": {
+        "cost_usd": 0.0
+      },
+      "usage": {
+        "schema_version": 2,
+        "scope": "this run only (modules resumed from disk cost nothing)",
+        "currency": "USD",
+        "cost_status": "complete",
+        "incomplete": false,
+        "unknown_usage_calls": 0,
+        "n_calls": 0,
+        "totals": {
+          "cost_usd": 0.0
+        },
+        "by_phase": {},
+        "by_model": {},
+        "unpriced_models": [],
+        "calls": []
+      },
+      "pages_written": [],
+      "pages_removed": [],
+      "wall_seconds": 0.09
     }
   ]
 }
