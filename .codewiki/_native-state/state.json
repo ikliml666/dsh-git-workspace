@@ -3,12 +3,12 @@
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
     "baseCommit": "2d84bac16eac1018e663efd58c6881e83bce7242",
-    "headCommit": "ffe2834afaf0461ba8c2d786b4b4b7cf14f88f47"
+    "headCommit": "d9b12266798fc26a6f0dd916c369e257c06b8f2b"
   },
   "pendingChanges": {
     "state": "ok",
     "baseCommit": "2d84bac16eac1018e663efd58c6881e83bce7242",
-    "headCommit": "ffe2834afaf0461ba8c2d786b4b4b7cf14f88f47",
+    "headCommit": "d9b12266798fc26a6f0dd916c369e257c06b8f2b",
     "committed": [],
     "staged": [],
     "unstaged": [],
@@ -33,7 +33,7 @@
   "fallbackReason": "",
   "missingRepair": null,
   "notes": [
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw2x5z5d-7-native（47 个文件）"
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw2ymg7v-1-native（47 个文件）"
   ],
-  "updatedAt": "2026-11-05T02:22:59.508Z"
+  "updatedAt": "2026-11-05T03:03:43.362Z"
 }
