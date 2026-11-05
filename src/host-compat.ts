@@ -10,12 +10,16 @@ export function workspaceClientFlavorForAgentVersion(version: string | undefined
   if (version === '0.1.7-rc.2') return 'next'
   if (version === '0.2.0-rc.2') return 'modern'
   // The modern derivative ships from the 0.2.1 source line, not the previous
-  // 0.2.0 line, so 0.2.1-rc.5 is the pinned modern release upstream (rc.5 is a
-  // pure version-number republish of rc.4: the official Workspace Client is
-  // byte-identical, 232824 bytes, same SHA-256 as rc.4).
-  // Every service and slot the modern branch consumes (slots, sessions,
-  // workspaces, locale, remote, layout, shortcuts; sidebar.workspaces and its
-  // sub-slots) is verified unchanged against the 0.2.1-rc.5 Host sources —
+  // 0.2.0 line; 0.2.2-rc.1 is the pinned modern release upstream. It is a real
+  // source change rather than a republish (official Workspace Client 232824 →
+  // 284999 bytes): built-in Session actions move from slot entries onto
+  // `ctx.contextMenus.register`, `apply` reads `ctx.remoteAccess` as a property
+  // instead of through `ctx.get`, and both the Session node and its hover card
+  // gain a `cwd` field. The two broken seams were narrowed to the rc.5/rc.1
+  // common prefix, so one decoration still covers both generations.
+  // Every service and slot the modern branch consumes (contextMenus, slots,
+  // sessions, workspaces, locale, remote, layout, shortcuts; sidebar.workspaces
+  // and its sub-slots) is verified against the 0.2.2-rc.1 Host sources —
   // including every seam the decorated official Browser needs — so unpinned
   // 0.2.x agents resolve to the same verified generation instead of going
   // unsupported on every Host bump. 0.1.x maps to three different flavors and

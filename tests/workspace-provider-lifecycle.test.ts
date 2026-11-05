@@ -190,7 +190,10 @@ describe('Workspace provider lifecycle (real Cordis Loader and Web module regist
     const { ctx, graph } = await boot(entries(false))
     const replacement = [...ctx.loader.entries()].find(entry => entry.options.name === WORKTREE)!
     const official = [...ctx.loader.entries()].find(entry => entry.options.name === OFFICIAL)!
-    const write = vi.spyOn(official.parent.tree, 'write')
+    // Loader 1.1.0 replaces the tree's `write()` persistence hook with
+    // `commit(change)`; only `EntryTree` mutations report through it, so a
+    // lifecycle that touches entries directly must leave it untouched.
+    const commit = vi.spyOn(official.parent.tree, 'commit')
     for (const disabled of [true, false, true]) {
       await replacement.update({ disabled }, false, true)
       await ctx.loader.await()
@@ -201,7 +204,7 @@ describe('Workspace provider lifecycle (real Cordis Loader and Web module regist
       // never bakes a flag into the entry options beyond ownership itself.
       expect(official.options.disabled).toBe(disabled ? undefined : true)
     }
-    expect(write).not.toHaveBeenCalled()
+    expect(commit).not.toHaveBeenCalled()
   })
 
   test('restarting a live replacement retains its fiber and elects only its provider', async () => {

@@ -3,12 +3,12 @@ import { describe, expect, test } from 'vitest'
 import { workspaceClientFlavorForAgentVersion } from '../src/host-compat.js'
 
 describe('Host-pinned Workspace generation', () => {
-  test('declares only the inspected rc.1, rc.2, rc.3, rc.4, rc.5 and 0.2.x locale peers', () => {
+  test('declares the inspected Workspace generations as open peer ranges', () => {
     const manifest = JSON.parse(readFileSync('package.json', 'utf8')) as {
       peerDependencies: Record<string, string>
     }
     expect(manifest.peerDependencies['@deepseek-ai/dsh-client-locale'])
-      .toBe('0.1.2-rc.1 || 0.1.7-rc.2 || 0.2.0-rc.1 || 0.2.0-rc.2 || 0.2.1-alpha.1 || 0.2.1-rc.1 || 0.2.1-rc.2 || 0.2.1-rc.3 || 0.2.1-rc.4 || 0.2.1-rc.5')
+      .toBe('^0.1.2-rc.1 || ^0.1.6-alpha.2 || ^0.1.7-rc.2 || ^0.2.0-rc.1')
   })
 
   test('only selects source-verified Browser generations and preserves the legacy path', () => {

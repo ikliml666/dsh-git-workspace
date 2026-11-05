@@ -54,7 +54,7 @@ describe('Managed Workspace profile ownership', () => {
       guard.sessionIds = new Set(['managed'])
       const slots = (proxied as unknown as { slots: typeof ctx.slots }).slots
       for (const seat of ['sidebar.workspaces.session.menu.item', 'sidebar.workspaces.session.row.action']) {
-        for (const id of ['pin', 'rename', 'fork', 'archive', 'session-id', 'unknown-action']) {
+        for (const id of ['pin', 'rename', 'fork', 'archive', 'unknown-action']) {
           const Action = ({ sessionId, displayTitle, injectedAction }: ActionProps) =>
             createElement('span', null, `${id}:${sessionId}:${displayTitle}:${injectedAction(sessionId)}`)
           originals.set(`${seat}:${id}`, Action)
@@ -66,7 +66,7 @@ describe('Managed Workspace profile ownership', () => {
       sessionId, displayTitle: '官方标题', injectedAction: id => `injected-${id}`,
     })
     for (const seat of ['sidebar.workspaces.session.menu.item', 'sidebar.workspaces.session.row.action']) {
-      for (const id of ['pin', 'rename', 'archive', 'session-id']) {
+      for (const id of ['pin', 'rename', 'archive']) {
         const Component = registered.get(`${seat}:${id}`)!
         expect(Component).toBe(originals.get(`${seat}:${id}`))
         for (const sessionId of ['managed', 'ordinary']) {
@@ -143,7 +143,10 @@ describe('Managed Workspace profile ownership', () => {
     expect(derived).toContain('options?.allowMigration === void 0 ? {} : { allowMigration: options.allowMigration }')
     expect(derived).toContain('const { agentPreset, ...draft } = options ?? {}')
     expect(derived).toContain('conversation.input.requestDraftInitialization(binding, options)')
-    expect(derived).toContain('id: "session-id"')
+    // 0.2.2-rc.1 moved the built-in Session actions from slot entries to
+    // `contextMenus.register({ id: 'session.<action>' })` contributions.
+    expect(derived).toContain('id: `session.${id}`')
+    expect(derived).toContain('ctx.contextMenus.register({')
     expect(derived).toContain('writeClipboard)(sessionId)')
   })
 
@@ -203,6 +206,29 @@ describe('Managed Workspace profile ownership', () => {
       'conversation.hero.workspace', 'conversation.hero.workspace.directoryFlow',
     ])
     expect(descriptors).toHaveLength(2)
+  })
+
+  test('answers the 0.2.2-rc.1 remoteAccess property read with a usable source', () => {
+    const { context } = strictSlotLedger()
+    let seen: unknown
+    registerManagedWorkspaceSidebar(context, createWorktreeConsoleAdapterFixture().adapter, proxied => {
+      // rc.1 reads `ctx.remoteAccess.source(...)` directly inside the slot-root
+      // keyed hook; a proxy that only intercepts `ctx.get` leaves that read as
+      // a hard `cannot get property "remoteAccess" without inject` crash.
+      seen = (proxied as unknown as { remoteAccess: unknown }).remoteAccess
+    })
+    expect(typeof (seen as { source: unknown }).source).toBe('function')
+  })
+
+  test('passes the host remoteAccess service through when one is provided', () => {
+    const hostService = { source: () => ({ describe: () => [] }) }
+    const { context } = strictSlotLedger()
+    ;(context as unknown as { get(name: string): unknown }).get = name => name === 'remoteAccess' ? hostService : undefined
+    let seen: unknown
+    registerManagedWorkspaceSidebar(context, createWorktreeConsoleAdapterFixture().adapter, proxied => {
+      seen = (proxied as unknown as { remoteAccess: unknown }).remoteAccess
+    })
+    expect(seen).toBe(hostService)
   })
 
   test('declares each official Workspace Slot tree exactly once', () => {

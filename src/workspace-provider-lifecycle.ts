@@ -214,9 +214,15 @@ export async function mountWorkspaceProviderLifecycle(
     // the entry reference, not fiber state. Withdraw this generation alone and
     // publish the same owning-fiber event the registry consumes on disposal.
     // A later activation must never be cleared by this generation's cleanup.
+    // Cordis 4.1.0 returns `Object.create(fiber)` from `ctx.plugin()`, and
+    // Loader stores that wrapper on `entry.fiber`, so the entry reference is no
+    // longer identical to `ctx.fiber`; it only inherits from it. Cordis 4.0.5
+    // stored the fiber itself, so both forms stay recognised.
+    const sameFiber = (candidate: typeof ctx.fiber | undefined): boolean =>
+      candidate !== undefined && (candidate === ctx.fiber || Object.getPrototypeOf(candidate) === ctx.fiber)
     const withdraw = (): void => {
       const replacement = ctx.fiber.entry
-      if (replacement?.fiber !== ctx.fiber) return
+      if (replacement === undefined || !sameFiber(replacement.fiber)) return
       replacement.fiber = undefined
       ctx.emit('internal/plugin', ctx.fiber)
     }

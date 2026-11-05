@@ -15,7 +15,7 @@ import { projectManagedWorkspaceSidebar, sidebarBadgeTasks } from './model.js'
 const EMPTY_TOPOLOGY: WorktreeSidebarTopologyResponse = { projects: [] }
 // These official actions do not create another Session or change its Workspace
 // ownership. Keep their native menus, overlays and injected callbacks intact.
-const OWNER_SAFE_SESSION_ACTIONS = new Set(['pin', 'rename', 'archive', 'session-id'])
+const OWNER_SAFE_SESSION_ACTIONS = new Set(['pin', 'rename', 'archive'])
 
 /**
  * Latest sidebar topology, shared with slot-registered menu entries that live
@@ -289,6 +289,15 @@ function officialContextProxy(
   return new Proxy(ctx, {
     get(target, key, receiver) {
       if (key === 'slots') return proxySlots
+      if (key === 'remoteAccess') {
+        // 0.2.2-rc.1 reads `ctx.remoteAccess.source(...)` as a property, not
+        // through `ctx.get`, so answering only the `get` form leaves the
+        // official row hooks crashing on a missing service. Both forms defer
+        // to the host; the stub covers hosts older than 0.2.1.
+        return (typeof target.get === 'function'
+          ? (target.get as (service: string) => unknown).call(target, key as string)
+          : undefined) ?? { source: () => ({}) }
+      }
       if (key === 'remote' && target.remote !== undefined && target.remote !== null) {
         // The official apply reads `ctx.remote.directoryPicker` once while
         // constructing `uiWorkspace`; hand back a deferred facade so that the

@@ -58,6 +58,7 @@ describe.each(variants)('$name official Session actions', variant => {
     vi.stubGlobal('AbortSignal', abort.signal.constructor)
     const ctx = new Context()
     const descriptors: { name: string; id?: string; inject?: () => ActionInjection }[] = []
+    const contextMenuContributions: string[] = []
     const source = <T,>(snapshot: T) => ({ getSnapshot: () => snapshot, subscribe: () => () => {} })
     const rename = vi.fn(async () => {})
     const archive = vi.fn(async () => {})
@@ -91,6 +92,15 @@ describe.each(variants)('$name official Session actions', variant => {
     ctx.provide('remote.directoryPicker', {} as never)
     ctx.provide('layout', { beginNavigation: () => new AbortController().signal } as never)
     ctx.provide('shortcuts', { register: () => () => {}, catalog: {} } as never)
+    ctx.provide('contextMenus', {
+      active: source(null),
+      register: (contribution: { id: string }) => {
+        contextMenuContributions.push(contribution.id)
+        return () => {}
+      },
+      resolve: () => ({ actions: [], select: () => {}, dispose: () => {} }),
+      open: () => {}, close: () => {}, notify: () => {},
+    } as never)
 
     let guard!: Guard
     const apply = officialApply(variant.source())
@@ -133,7 +143,7 @@ describe.each(variants)('$name official Session actions', variant => {
         const onCreated = vi.fn()
         await expect(navigation.forkSession('ordinary', onCreated, { allowMigration: false })).rejects.toBe(forkFailure)
         expect(fork).toHaveBeenLastCalledWith({ sessionId: 'ordinary', increaseTitle: true, onCreated, allowMigration: false })
-        expect(descriptors.some(descriptor => descriptor.id === 'session-id')).toBe(true)
+        expect(contextMenuContributions).toContain('session.id')
       }
       if (variant.name !== 'alpha') {
         const confirm = descriptors.find(descriptor => descriptor.id === 'workspace.session-archive')!

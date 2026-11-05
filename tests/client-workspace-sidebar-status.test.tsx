@@ -55,6 +55,11 @@ function renderRow(Row: ComponentType<Record<string, unknown>>, state?: TaskStat
   const container = document.createElement('div')
   container.innerHTML = renderToStaticMarkup(createElement(Row, {
     node, now: 2000, onOpen: () => {}, renderSlot: () => null,
+    // DSH 0.2.2 moved the row's menu plumbing and access checks onto props
+    // supplied by the Browser root; supply the inert shape they render under.
+    useContextMenu: () => ({ getTriggerProps: () => ({}) }),
+    useContextMenuTarget: () => false,
+    useSessionAccess: () => false,
     t: (key: string) => key.startsWith('dshGitWorktree.state.')
       ? labels[key.slice('dshGitWorktree.state.'.length) as TaskState] : key,
   }))

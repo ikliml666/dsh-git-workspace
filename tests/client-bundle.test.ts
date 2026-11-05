@@ -70,6 +70,18 @@ function configFormsStub() {
   }
 }
 
+/** Minimal shared context-menu service: no popup is opened by these boots. */
+function contextMenusStub() {
+  return {
+    active: { getSnapshot: () => null, subscribe: () => () => {} },
+    register: () => () => {},
+    resolve: () => ({ actions: [], select: () => {}, dispose: () => {} }),
+    open: () => {},
+    close: () => {},
+    notify: () => {},
+  }
+}
+
 describe('built Client ModuleLoader artifact', () => {
   test('inlines strict Remote codecs instead of requiring packages absent from the browser module table', () => {
     const source = readFileSync(resolve('lib/client.js'), 'utf8')
@@ -90,6 +102,7 @@ describe('built Client ModuleLoader artifact', () => {
     const clientExports = handoff.factory(specifier => platformRequire(nodeRequire, specifier))
     expect(clientExports.apply).toBeTypeOf('function')
     expect(clientExports.inject).toEqual([
+      'contextMenus',
       'slots',
       'sessions',
       'workspaces',
@@ -162,6 +175,7 @@ describe('built Client ModuleLoader artifact', () => {
     // slot-root keyed hook; the real service comes from the gateway client.
     ctx.provide('layout', { beginNavigation: () => new AbortController().signal } as never)
     ctx.provide('shortcuts', { register: vi.fn(() => () => {}) } as never)
+    ctx.provide('contextMenus', contextMenusStub())
 
     await mountAccess(ctx, access)
     const fiber = ctx.plugin({ inject: worktree.inject, apply: worktree.apply })
@@ -270,6 +284,7 @@ describe('built Client ModuleLoader artifact', () => {
     // slot-root keyed hook; the real service comes from the gateway client.
     ctx.provide('layout', { beginNavigation: () => new AbortController().signal } as never)
     ctx.provide('shortcuts', { register: vi.fn(() => () => {}) } as never)
+    ctx.provide('contextMenus', contextMenusStub())
 
     await mountAccess(ctx, access)
     const fiber = ctx.plugin({ inject: worktree.inject, apply: worktree.apply })
