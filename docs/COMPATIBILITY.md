@@ -117,11 +117,47 @@
 
 **仅源码兼容验证**：本轮未启动正式或隔离 DSH Profile，未完成 `0.2.1-rc.5` 浏览器渲染与交互、API Key 下的真实 AI 对话、Review/预览/交付/回滚/恢复/清理全流程、桌面端与 Windows 端到端验收。旧版本的浏览器与运行时证据不可转用为本组合的验收证据。4 个 skipped 均为平台条件跳过（`tests/git-unborn.test.ts:72`、`tests/session-checkout-apply.test.ts:1225`、`:1241`、`tests/project-skills.test.ts:88` 为非 Windows 专用用例），`tests/git-unborn.test.ts:253` 的 Windows 长路径用例在本轮平台实际执行而非跳过。详见 [0.2.1-rc.5 报告](compatibility/0.2.1-rc.5.md)，机器结果见 [JSON](compatibility/0.2.1-rc.5-validation.json)。
 
+### 0.2.2-rc.1 适配（插件 0.14.0；源码兼容 + 隔离运行时冒烟）
+
+插件 `0.14.0` 将 DSH 开发依赖精确锁定到 `0.2.2-rc.1`，vendor 线整体跟随上游升级（Cordis `4.0.5 → 4.1.0`、loader `1.0.6 → 1.1.0`、include `1.0.10 → 1.1.0`、schemastery `3.18.5 → 3.19.0`），并把 DSH peers 从「精确枚举」改成开区间 `^0.1.2-rc.1 || ^0.1.6-alpha.2 || ^0.1.7-rc.2 || ^0.2.0-rc.1`。`engines.node` 同步提到 `>=24.9.0`。
+
+**rc.5 → rc.1 是真实源码变更，不是版本号重发**：官方 Workspace Client 从 232824 字节涨到 284999 字节，SHA-256 也变了。三处上游契约切换直接影响本插件：
+
+1. **内置 Session 动作离开 slot 台账**。rc.5 注册 `{ name: 'sidebar.workspaces.session.menu.item', id: 'session-id', order: 450 }`；rc.1 产物里 `session-id` 字面量归零，改为 `ctx.contextMenus.register({ id: 'session.<id>', target: 'session', order, observe, resolve })` 依次注册 pin(100)/rename(200)/fork(300)/id(450)/archive(600)。
+2. **行组件新增 contextMenus 钩子、上下文新增该服务**。官方 `inject` 变 10 项且 `contextMenus` 排首位；插件通过过滤 `officialWorkspaceInject` 自动继承。
+3. **`apply` 直接读 `ctx.remoteAccess` 属性**，不再走 `ctx.get('remoteAccess')`。注册代理原先只应答 `get` 形式，导致官方行钩子崩成 `slot entry crashed in 'sidebar.workspaces'`——**这个缺陷单元测试测不出来（测试注入了真实服务），只在真实浏览器里暴露**，本轮已修并补两条回归。
+
+38 个装饰接缝中 2 个因 rc.1 插入 `cwd` 字段而失效，均收窄到 rc.5/rc.1 公共前缀，一份装饰同时覆盖两代：
+
+- `session node metadata`：rc.1 在 `updatedAt` 与 `pendingInteraction` 之间插入 `...s.cwd === void 0 || s.cwd === "" ? {} : { cwd: s.cwd },`，锚点收窄为 `archived: archived.has(s.id),
+				updatedAt: s.updatedAt,`。
+- `hover Worktree identity`：rc.1 在 `displayTitle` children 块与 `!node.blank` 之间插入渲染 `cwd` 的 `hoverPath` div，锚点收窄为 `children: displayTitle(node, t)
+					}),`。
+
+依赖侧两个契约也变了：**Cordis 4.1.0 的 `ctx.plugin()` 返回 `Object.create(fiber)`**，Loader 把该包装对象存进 `entry.fiber`，于是 `entry.fiber === ctx.fiber` 为假、`Object.getPrototypeOf(entry.fiber) === ctx.fiber` 为真（4.0.5 存的是 fiber 本身）。生命周期原本只做恒等比较，导致失败激活后 `entry.fiber` 永不清空、Web 图上留下插件死行；现同时接受两种形态。**Loader 1.1.0 把 `EntryTree.write()` 换成 `commit(change)`**，回归测试相应改为 spy `commit`。
+
+本轮**启动了隔离 Host 做浏览器验收**（这不只是源码兼容）：在 `DSH_HOME=E:/tmp/dsh-rc1-home` 的 `probe` profile 里 link 本插件，以 0.2.2-rc.1 源码树启动 Web，用 Chromium 自动化验证两条分支——装饰共存（官方 Browser 在、`decorated sidebar registered`、无 page error）与接管（官方 Browser 退出模块图、侧栏渲染出「工作区 / 默认工作区 / 新会话 / 更多」、无 page error）均通过。接管分支就是在这里暴露了第 3 条契约切换。
+
+| 验证项 | 结果 |
+| --- | --- |
+| 平台 | Windows x64，Node 24.19.0，pnpm 12.5.1 |
+| 依赖解析 | Cordis 4.1.0、cordis-plugin-loader 1.1.0、cordis-plugin-include 1.1.0、schemastery 3.19.0、全部 `@deepseek-ai/dsh-*` 为 0.2.2-rc.1；TypeScript 5.9.3 / Vitest 2.1.9 / tsdown 0.17.4 |
+| `typecheck` | 通过，0 诊断 |
+| `build` | 通过，`lib/client.js` 1247.67 kB |
+| `check:sidebar-version` | 通过：ui-workspace 0.2.2-rc.1 + 0.1.6-alpha.2 + 0.1.7-rc.2 三路 SHA-256，locale 0.2.2-rc.1 |
+| `check:publish` | 通过：13 Host singleton、12 导出目标、39 项 strict Remote 方法、挂载补丁、NOTICE 与浏览器 ModuleLoader/惰性 directory-picker |
+| `pnpm test` | 56 个测试文件 **829 passed / 4 skipped**，无失败 |
+| focused lifecycle | `tests/workspace-provider-lifecycle.test.ts` 27 passed |
+| 接缝探针（对 rc.1 `lib/client.js`） | 源 284999 字节，`ALL 8 REQUIRED SEAMS OK`，派生 288602 字节 |
+| 隔离 Host + 真实 Chromium | 装饰共存与接管两条分支均渲染通过，无 page error |
+
+**未验收（不声明完整运行时兼容）**：隔离 profile 未配置 API Key，真实 AI 对话与 Review/预览/交付/回滚/恢复/清理全流程未跑；Host 启动目录不在受管工作树内，浏览器里未做受管 checkout 的创建与交付（侧栏按预期报 `not_git_repository`）；桌面端、发布打包未验收；`alpha`（`0.1.6-alpha.2`）与 `next`（`0.1.7-rc.2`）两条派生过了门禁与单测，但未做浏览器冒烟。详见 [0.2.2-rc.1 报告](compatibility/0.2.2-rc.1.md)，机器结果见 [JSON](compatibility/0.2.2-rc.1-validation.json)。
+
 ### 三种版本约束不要混淆（当前源码）
 
-1. **开发基线**：DSH 开发依赖精确为 `0.2.1-rc.5`；Cordis `4.0.5`、loader `1.0.6`、include `1.0.10`、schemastery `3.18.5`。旧 alpha/next Browser 别名仅用于构建来源门禁，不是私有 Host singleton。
-2. **安装声明**：当前 DSH 核心 peers 为 `^0.1.2-rc.1 || ^0.2.0-rc.1 || ^0.2.1-rc.1`（caret 范围，覆盖 `0.2.1-rc.5`），locale peer 为精确枚举并在本版追加 `|| 0.2.1-rc.5`；Cordis peer 为 `^4.0.5`。这是 package.json 的安装声明，不是所有 peer patch 版本的运行时证明。`0.9.3` 历史上的多数 DSH `^0.1.2-rc.1` 与 locale `0.1.2-rc.1 || 0.1.7-rc.2` 不再是当前声明；历史记录仍保留。官方 Profile 由 Host 提供运行时，不能为了消除 peer 警告补装另一套 singleton。
-3. **Workspace 派生**：当前 bundle 来源为 `0.2.1-rc.5`、`0.1.6-alpha.2`、`0.1.7-rc.2`，逐一经过版本/SHA-256 门禁。Host 实际解析的 `dsh-agent` 版本选择单一派生；新 modern 不复用于 `0.2.0`，未知版本保留官方 Provider。保留旧派生不等于当前 peers 支持旧 Host，来源门禁也不是浏览器验收。
+1. **开发基线**：DSH 开发依赖精确为 `0.2.2-rc.1`；Cordis `4.1.0`、loader `1.1.0`、include `1.1.0`、schemastery `3.19.0`。旧 alpha/next Browser 别名仅用于构建来源门禁，不是私有 Host singleton。
+2. **安装声明**：当前 DSH peers 统一为开区间 `^0.1.2-rc.1 || ^0.1.6-alpha.2 || ^0.1.7-rc.2 || ^0.2.0-rc.1`（含原先精确枚举的 locale）。Harness 用 `semver.satisfies(..., { includePrerelease: true })` 判定，该范围放行 `0.2.2-rc.1`、拒绝 `0.3.x`；Cordis peer 为 `^4.0.5`（4.1.0 满足）。这是 package.json 的安装声明，不是所有 peer patch 版本的运行时证明。`0.9.3` 历史上的多数 DSH `^0.1.2-rc.1` 与 locale `0.1.2-rc.1 || 0.1.7-rc.2` 不再是当前声明；历史记录仍保留。官方 Profile 由 Host 提供运行时，不能为了消除 peer 警告补装另一套 singleton。
+3. **Workspace 派生**：当前 bundle 来源为 `0.2.2-rc.1`、`0.1.6-alpha.2`、`0.1.7-rc.2`，逐一经过版本/SHA-256 门禁。Host 实际解析的 `dsh-agent` 版本选择单一派生；新 modern 不复用于 `0.2.0`，未知版本保留官方 Provider。保留旧派生不等于当前 peers 支持旧 Host，来源门禁也不是浏览器验收。
 
 历史可用组合不因当前源码升级被撤销；未覆盖的运行时生命周期仍需单独验收。
 
@@ -241,7 +277,43 @@ All eight required text seams reach the derived artifact and the decoration logi
 
 **Source compatibility only:** no formal or isolated DSH Profile was started this round, and no `0.2.1-rc.5` browser rendering/interaction, API-key AI conversation, full review/preview/delivery/rollback/recovery/cleanup lifecycle, desktop or Windows end-to-end acceptance was performed. Earlier browser and runtime evidence does not accept this combination. All four skips are platform-conditional (`tests/git-unborn.test.ts:72`, `tests/session-checkout-apply.test.ts:1225`, `:1241`, `tests/project-skills.test.ts:88` are non-Windows-only cases), while the Windows long-path case at `tests/git-unborn.test.ts:253` actually ran on this platform instead of skipping. See the [0.2.1-rc.5 report](compatibility/0.2.1-rc.5.md) and the [machine-readable JSON](compatibility/0.2.1-rc.5-validation.json).
 
-**Separate three current constraints:** (1) DSH dev dependencies are exact `0.2.1-rc.5`, with Cordis `4.0.5`, loader `1.0.6`, include `1.0.10` and schemastery `3.18.5`. (2) DSH core peers are the caret range `^0.1.2-rc.1 || ^0.2.0-rc.1 || ^0.2.1-rc.1` (which covers `0.2.1-rc.5`), the locale peer is an exact enumeration extended with `|| 0.2.1-rc.5`, and the Cordis peer is `^4.0.5`. This does not prove every permitted patch version. The historical `0.9.3` caret/locale constraints above are not the current manifest; never install private Host singletons merely to suppress Profile peer warnings. (3) Current Browser sources are individually version/SHA-gated `0.2.1-rc.5`, `0.1.6-alpha.2` and `0.1.7-rc.2`. Host-resolved agent version selects one derivative; the new modern source is not reused on `0.2.0`, and unknown versions keep the official Provider. Keeping old derivations does not extend current peer support to old Hosts. Neither gate nor package selection proves browser acceptance. Historical working combinations are not withdrawn.
+### 0.2.2-rc.1 adaptation (plugin 0.14.0; source compatibility plus isolated runtime smoke)
+
+Plugin `0.14.0` pins DSH dev dependencies to exact `0.2.2-rc.1`, follows the vendor line upstream (Cordis `4.0.5 → 4.1.0`, loader `1.0.6 → 1.1.0`, include `1.0.10 → 1.1.0`, schemastery `3.18.5 → 3.19.0`), and replaces the exact DSH peer enumeration with the open range `^0.1.2-rc.1 || ^0.1.6-alpha.2 || ^0.1.7-rc.2 || ^0.2.0-rc.1`. `engines.node` moves to `>=24.9.0`.
+
+**rc.5 → rc.1 is a real source change, not a version-number republish**: the official Workspace Client grows from 232824 to 284999 bytes and its SHA-256 changes. Three upstream contract changes bear on this plugin:
+
+1. **Built-in Session actions leave the slot ledger.** rc.5 registered `{ name: 'sidebar.workspaces.session.menu.item', id: 'session-id', order: 450 }`; the rc.1 artifact contains no `session-id` literal at all and registers `ctx.contextMenus.register({ id: 'session.<id>', target: 'session', order, observe, resolve })` for pin(100)/rename(200)/fork(300)/id(450)/archive(600).
+2. **Row components gain contextMenus hooks and the context gains the service.** The official `inject` list is now 10 entries with `contextMenus` first; the plugin inherits it by filtering `officialWorkspaceInject`.
+3. **`apply` reads `ctx.remoteAccess` as a property**, not through `ctx.get('remoteAccess')`. The registration proxy answered only the `get` form, so the official row hook crashed as `slot entry crashed in 'sidebar.workspaces'` — **a defect unit tests could not catch, because they inject a real service; only the real browser exposed it.** Fixed this round with two new regressions.
+
+Two of the 38 decoration seams broke because rc.1 inserted a `cwd` field. Both were narrowed to the rc.5/rc.1 common prefix so one decoration covers both generations:
+
+- `session node metadata`: rc.1 inserts `...s.cwd === void 0 || s.cwd === "" ? {} : { cwd: s.cwd },` between `updatedAt` and `pendingInteraction`; the anchor narrowed to `archived: archived.has(s.id),
+				updatedAt: s.updatedAt,`.
+- `hover Worktree identity`: rc.1 inserts a `hoverPath` div rendering `cwd` between the `displayTitle` children block and the `!node.blank` guard; the anchor narrowed to `children: displayTitle(node, t)
+					}),`.
+
+Two dependency contracts moved as well. **Cordis 4.1.0's `ctx.plugin()` returns `Object.create(fiber)`**, and Loader stores that wrapper on `entry.fiber`, so `entry.fiber === ctx.fiber` is false while `Object.getPrototypeOf(entry.fiber) === ctx.fiber` is true (4.0.5 stored the fiber itself). The lifecycle compared by identity only, so a failed activation never cleared `entry.fiber` and the Web graph kept a dead plugin row; the comparison now accepts both forms. **Loader 1.1.0 replaces the `EntryTree.write()` persistence hook with `commit(change)`**, so the lifecycle regression now spies on `commit`.
+
+This round **launched an isolated Host and smoked the UI in a real browser** — not source compatibility alone: a `probe` profile under `DSH_HOME=E:/tmp/dsh-rc1-home` with the plugin linked in, started from the 0.2.2-rc.1 source tree, driven by Chromium automation on both branches. Decorate (`enableWorkspaceProvider: false`) kept the official Browser in the module graph with `decorated sidebar registered` and no page error; takeover (`enableWorkspaceProvider: true`) removed the official Browser from the module graph, rendered the sidebar (工作区 / 默认工作区 / 新会话 / 更多) and showed no page error. The takeover branch is what exposed item 3 above.
+
+| Check | Result |
+| --- | --- |
+| Platform | Windows x64, Node 24.19.0, pnpm 12.5.1 |
+| Resolved dependencies | Cordis 4.1.0, cordis-plugin-loader 1.1.0, cordis-plugin-include 1.1.0, schemastery 3.19.0, every `@deepseek-ai/dsh-*` at 0.2.2-rc.1; TypeScript 5.9.3 / Vitest 2.1.9 / tsdown 0.17.4 |
+| `typecheck` | Passed, no diagnostics |
+| `build` | Passed, `lib/client.js` 1247.67 kB |
+| `check:sidebar-version` | Passed: ui-workspace 0.2.2-rc.1 + 0.1.6-alpha.2 + 0.1.7-rc.2 SHA-256 gates, locale 0.2.2-rc.1 |
+| `check:publish` | Passed: 13 Host singletons, 12 export targets, 39 strict Remote methods, mount patch, NOTICE and browser ModuleLoader/lazy directory-picker |
+| `pnpm test` | 56 test files, **829 passed / 4 skipped**, no failures |
+| Focused lifecycle | `tests/workspace-provider-lifecycle.test.ts` 27 passed |
+| Seam probe against rc.1 `lib/client.js` | 284999 source bytes, `ALL 8 REQUIRED SEAMS OK`, 288602 derived bytes |
+| Isolated Host + real Chromium | Both branches render with no page error |
+
+**Not accepted (no complete runtime compatibility claim):** the isolated profile had no API key, so real AI conversation and the full review/preview/delivery/rollback/recovery/cleanup lifecycle did not run; the Host started outside a managed checkout, so managed-checkout creation and delivery were not exercised in the browser (the sidebar correctly reported `not_git_repository`); desktop and release packaging remain unaccepted; the `alpha` (`0.1.6-alpha.2`) and `next` (`0.1.7-rc.2`) derivations passed the gates and unit tests but were not browser-smoked. See the [0.2.2-rc.1 report](compatibility/0.2.2-rc.1.md) and the [machine-readable JSON](compatibility/0.2.2-rc.1-validation.json).
+
+**Separate three current constraints:** (1) DSH dev dependencies are exact `0.2.2-rc.1`, with Cordis `4.1.0`, loader `1.1.0`, include `1.1.0` and schemastery `3.19.0`. (2) Every DSH peer is the open range `^0.1.2-rc.1 || ^0.1.6-alpha.2 || ^0.1.7-rc.2 || ^0.2.0-rc.1` (including the formerly exact locale enumeration). Harness resolves compatibility with `semver.satisfies(..., { includePrerelease: true })`, so the range admits `0.2.2-rc.1` and rejects `0.3.x`; the Cordis peer stays `^4.0.5` (4.1.0 satisfies it). This does not prove every permitted patch version. The historical `0.9.3` caret/locale constraints above are not the current manifest; never install private Host singletons merely to suppress Profile peer warnings. (3) Current Browser sources are individually version/SHA-gated `0.2.2-rc.1`, `0.1.6-alpha.2` and `0.1.7-rc.2`. Host-resolved agent version selects one derivative; the new modern source is not reused on `0.2.0`, and unknown versions keep the official Provider. Keeping old derivations does not extend current peer support to old Hosts. Neither gate nor package selection proves browser acceptance. Historical working combinations are not withdrawn.
 
 **Migration:** rc.1 of the 0.1.5 line uses Session V3; older Hosts cannot read upgraded logs. Back up the original environment and test with an isolated `DSH_HOME`/repository. Rollback requires original data, not just an older npm package. The 0.1.2-rc.1 line also removed the optional SQLite backend; export old data with the original version first. Record resolved packages rather than the CLI version alone: a caret may resolve a later RC. This run found no rc.2 mixing. Registry tags observed on 2026-09-11 were `latest=0.1.5-rc.1`, `next=0.1.5-rc.2`.
 

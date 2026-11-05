@@ -81,6 +81,7 @@ flowchart LR
 
 | DeepSeek Harness | 插件版本 |
 | --- | --- |
+| `0.2.2-rc.1` | `0.14.0` |
 | `0.2.1-rc.5` | `0.13.0` |
 | `0.2.1-rc.4` | `0.13.0` |
 | `0.2.1-rc.3` | `0.12.0` |
@@ -90,14 +91,14 @@ flowchart LR
 
 插件版本与 Harness 版本需要匹配，不建议在旧版 Harness 上直接安装最新版插件。
 
-`0.13.0` 对应的 DSH `0.2.1-rc.5` 适配已通过源码兼容检查（typecheck、build、sidebar 版本/SHA 门禁、发布门禁与全量测试），但尚未完成该组合的浏览器、真实 AI 对话、桌面端完整流程验收。rc.5 相对 rc.4 是纯版本号重发，官方 Workspace Client 字节相同，因此不再单列 rc.4 记录——两者共用 `0.13.0` 与同一份源码兼容结论。详细验证范围见[兼容性说明](docs/COMPATIBILITY.md#中文)与[验证报告](docs/compatibility/0.2.1-rc.5.md)；旧组合的验证记录仍保留，不自动转为新组合的验收证据。
+`0.14.0` 对应的 DSH `0.2.2-rc.1` 适配已通过源码兼容检查（typecheck、build、sidebar 版本/SHA 门禁、发布门禁与全量测试），并在隔离 `DSH_HOME` + 0.2.2-rc.1 源码 Host 上用真实 Chromium 冒烟了装饰共存与接管两条侧栏分支。`0.2.2-rc.1` 相对 rc.5 是**真实源码变更**（官方 Workspace Client 232824 → 284999 字节）：内置会话动作迁到 `contextMenus`、官方 `apply` 改读 `ctx.remoteAccess` 属性、会话节点与悬停卡新增 `cwd` 字段；Cordis 4.1.0 改变了 `ctx.plugin()` 的 fiber 身份，loader 1.1.0 把 `EntryTree.write()` 换成 `commit(change)`。真实 AI 对话、Review/交付/清理全流程与桌面端仍未验收。详细验证范围见[兼容性说明](docs/COMPATIBILITY.md#中文)与[验证报告](docs/compatibility/0.2.2-rc.1.md)；旧组合的验证记录仍保留，不自动转为新组合的验收证据。
 
 ### 安装
 
-以下命令适用于 DSH `0.2.1-rc.5`，通过 `dsh` 的 Web Profile 安装：
+以下命令适用于 DSH `0.2.2-rc.1`，通过 `dsh` 的 Web Profile 安装：
 
 ```bash
-dsh plugin --profile web add dsh-git-worktree@0.13.0
+dsh plugin --profile web add dsh-git-worktree@0.14.0
 ```
 
 如果使用其他 Harness 版本，请先按上表选择匹配的插件版本。

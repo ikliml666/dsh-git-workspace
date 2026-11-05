@@ -1,0 +1,157 @@
+{
+  "target": "0.2.2-rc.1",
+  "pluginVersion": "0.14.0",
+  "status": "source-compatibility-passed-with-isolated-runtime-smoke",
+  "validatedAt": "2026-11-05",
+  "environment": {
+    "platform": "win32",
+    "arch": "x64",
+    "node": "24.19.0",
+    "pnpm": "12.5.1",
+    "cordis": "4.1.0",
+    "cordisPluginLoader": "1.1.0",
+    "cordisPluginInclude": "1.1.0",
+    "schemastery": "3.19.0",
+    "typescript": "5.9.3",
+    "vitest": "2.1.9",
+    "tsdown": "0.17.4",
+    "dshPackages": "0.2.2-rc.1"
+  },
+  "checks": [
+    {
+      "name": "typecheck",
+      "command": "pnpm run typecheck",
+      "exit": 0,
+      "result": "no diagnostics"
+    },
+    {
+      "name": "build",
+      "command": "pnpm run build",
+      "exit": 0,
+      "result": "lib/client.js 1247.67 kB"
+    },
+    {
+      "name": "sidebar-version-gate",
+      "command": "pnpm run check:sidebar-version",
+      "exit": 0,
+      "result": "ui-workspace 0.2.2-rc.1 + 0.1.6-alpha.2 + 0.1.7-rc.2 SHA-256 gates, locale 0.2.2-rc.1"
+    },
+    {
+      "name": "publish-gate",
+      "command": "pnpm run check:publish",
+      "exit": 0,
+      "result": "13 Host singletons, 12 export targets, 39 strict Remote methods, mount patch, NOTICE, browser ModuleLoader and lazy directory-picker"
+    },
+    {
+      "name": "test-suite",
+      "command": "pnpm test",
+      "exit": 0,
+      "files": 56,
+      "passed": 829,
+      "skipped": 4,
+      "failed": 0
+    },
+    {
+      "name": "focused-lifecycle",
+      "command": "node node_modules/vitest/vitest.mjs run tests/workspace-provider-lifecycle.test.ts",
+      "exit": 0,
+      "passed": 27,
+      "failed": 0
+    },
+    {
+      "name": "seam-probe",
+      "command": "node .dsh-ops/probe-rc1-seams.mjs",
+      "exit": 0,
+      "result": "source bytes 284999; derived bytes 288602; RESULT: ALL 8 REQUIRED SEAMS OK (visibleSessionMenuItems absent as expected: it is introduced only by the plugin decoration)"
+    }
+  ],
+  "isolatedRuntime": {
+    "dshHome": "E:/tmp/dsh-rc1-home",
+    "profile": "probe",
+    "hostSource": "E:/software/deepseek-harness at 0.2.2-rc.1",
+    "launch": "DSH_HOME=E:/tmp/dsh-rc1-home node --import tsx/esm apps/cli/src/bin.ts --profile probe --port 0 --no-open",
+    "browser": "Chromium 1243, Playwright 1.64.1 automation",
+    "branches": [
+      {
+        "name": "decorate",
+        "config": "enableWorkspaceProvider: false",
+        "result": "PASS",
+        "observed": "module graph carries both dsh-git-worktree/client.js and @deepseek-ai/dsh-client-ui-workspace/client.js; console: topology resolved modern officialWorkspaceActive= true / decorate branch: requesting inject / decorated sidebar registered / boot report result {\"ok\":true,\"value\":true}; no page error; merged bundle 3824231 bytes with 30 __dshGitWorktree and 11 contextMenus occurrences"
+      },
+      {
+        "name": "takeover",
+        "config": "enableWorkspaceProvider: true",
+        "result": "PASS after fix",
+        "observed": "official Browser removed from the module graph; sidebar rendered 工作区 / 默认工作区 / 新会话 / 更多; no page error; merged bundle 3765376 bytes with 42 __dshGitWorktree occurrences; sidebar diag reports not_git_repository for the launch cwd, which is correct because the Host started outside a managed checkout",
+        "initialFailure": "Error: cannot get property \"remoteAccess\" without inject, raised from the official workspaceAccess hook and surfaced as `slot entry crashed in 'sidebar.workspaces'`"
+      }
+    ]
+  },
+  "skippedTests": [
+    {
+      "file": "tests/git-unborn.test.ts",
+      "line": 72,
+      "reason": "non-Windows-only case"
+    },
+    {
+      "file": "tests/session-checkout-apply.test.ts",
+      "line": 1225,
+      "reason": "non-Windows-only case"
+    },
+    {
+      "file": "tests/session-checkout-apply.test.ts",
+      "line": 1241,
+      "reason": "non-Windows-only case"
+    },
+    {
+      "file": "tests/project-skills.test.ts",
+      "line": 88,
+      "reason": "non-Windows-only case"
+    }
+  ],
+  "notValidated": [
+    "AI conversation and the complete review/preview/delivery/rollback/recovery/cleanup runtime lifecycle",
+    "Managed-checkout creation and delivery end to end in the browser",
+    "Desktop end-to-end behaviour",
+    "Release packaging and publishing",
+    "The alpha (0.1.6-alpha.2) and next (0.1.7-rc.2) derivations were gated and unit-tested but not browser-smoked"
+  ],
+  "sourceDifference": {
+    "from": "0.2.1-rc.5",
+    "to": "0.2.2-rc.1",
+    "summary": "Real source change, not a version-number republish. The official Workspace Client grows 232824 -> 284999 bytes with a new SHA-256. Three upstream contract changes matter: built-in Session actions moved from the sidebar.workspaces.session.menu.item slot entries onto ctx.contextMenus.register (the literal 'session-id' is gone, replaced by 'session.<id>'); row components gained useContextMenu/useContextMenuTarget/useSessionAccess/openSessionMenu/home and the official inject list gained contextMenus; and apply reads ctx.remoteAccess as a property instead of through ctx.get. Two of the 38 decoration seams broke because rc.1 inserted a cwd field into the Session node metadata and the hover card; both were narrowed to the rc.5/rc.1 common prefix. Cordis 4.1.0 makes ctx.plugin() return Object.create(fiber) which Loader stores on entry.fiber, breaking identity comparison with ctx.fiber; Loader 1.1.0 replaced the EntryTree.write() persistence hook with commit(change).",
+    "officialWorkspaceClientBytes": 284999,
+    "officialWorkspaceClientSha256": "bb31f7870381f737b2cb45db4c7911a08a4949856bc86b648a10d3e85a3e9f89",
+    "previousOfficialWorkspaceClientBytes": 232824,
+    "previousOfficialWorkspaceClientSha256": "9c2c17a66a5c20de00ac2852cb76debb5237439e97f877403bcaa2a471086544",
+    "derivedBytes": 288602,
+    "derivedSha256": "a77ce5be7e39fa3b18ba393e2297f934bcf1a0356962c2af3d359d7bcd620171",
+    "decorationAnchorsTotal": 38,
+    "decorationAnchorsBroken": 2,
+    "brokenAnchors": [
+      {
+        "label": "session node metadata",
+        "why": "rc.1 inserts `...s.cwd === void 0 || s.cwd === \"\" ? {} : { cwd: s.cwd },` between updatedAt and the pendingInteraction spread",
+        "fix": "anchor narrowed to 'archived: archived.has(s.id),\\n\\t\\t\\t\\tupdatedAt: s.updatedAt,'"
+      },
+      {
+        "label": "hover Worktree identity",
+        "why": "rc.1 inserts a hoverPath div rendering cwd between the displayTitle children block and the !node.blank guard",
+        "fix": "anchor narrowed to 'children: displayTitle(node, t)\\n\\t\\t\\t\\t\\t}),'"
+      }
+    ],
+    "seamsSurvived": 8,
+    "seamsMissed": [
+      {
+        "marker": "visibleSessionMenuItems",
+        "note": "optional replaceIfPresent seam; the marker is introduced by the plugin's own decoration, so it cannot appear in upstream source on any generation"
+      }
+    ]
+  },
+  "peerRange": {
+    "previous": "exact enumeration '0.1.2-rc.1 || 0.1.7-rc.2 || 0.2.0-rc.1 || 0.2.0-rc.2 || 0.2.1-alpha.1 || 0.2.1-rc.1 || 0.2.1-rc.2 || 0.2.1-rc.3 || 0.2.1-rc.4 || 0.2.1-rc.5' on @deepseek-ai/dsh-client-locale",
+    "current": "^0.1.2-rc.1 || ^0.1.6-alpha.2 || ^0.1.7-rc.2 || ^0.2.0-rc.1",
+    "why": "Harness resolves compatibility with semver.satisfies(runtimeVersion, range, { includePrerelease: true }). Under that semantic the open range admits 0.2.1-rc.5, 0.2.2-alpha.3 and 0.2.2-rc.1 while rejecting 0.3.0-alpha.1. The exact locale enumeration was the only peer that failed against 0.2.2-rc.1 and required a manual edit on every Host RC.",
+    "rejected": ["0.3.0-alpha.1"]
+  }
+}
