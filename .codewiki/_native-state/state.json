@@ -2,23 +2,43 @@
   "stateVersion": 1,
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
-    "baseCommit": "9c739a220381a598d280c6eb6dd7f2a83bb8a29f",
-    "headCommit": "f6873563e7071839b828e25edf73ac4f935ff896"
+    "baseCommit": "f6873563e7071839b828e25edf73ac4f935ff896",
+    "headCommit": "6d1efd0fb86602dfdf4a82cf33a0106400761b89"
   },
   "pendingChanges": {
     "state": "ok",
-    "baseCommit": "9c739a220381a598d280c6eb6dd7f2a83bb8a29f",
-    "headCommit": "f6873563e7071839b828e25edf73ac4f935ff896",
-    "committed": [],
-    "staged": [],
-    "unstaged": [
+    "baseCommit": "f6873563e7071839b828e25edf73ac4f935ff896",
+    "headCommit": "6d1efd0fb86602dfdf4a82cf33a0106400761b89",
+    "committed": [
+      "CHANGELOG.md",
+      "README.en.md",
+      "README.md",
+      "docs/COMPATIBILITY.md",
+      "docs/compatibility/0.2.2-rc.1-validation.json",
+      "docs/compatibility/0.2.2-rc.1.md",
       "package.json",
       "pnpm-lock.yaml",
-      "src/host-compat.ts"
+      "scripts/check-workspace-sidebar-version.mjs",
+      "scripts/workspace-sidebar-upstream-rc5.mjs",
+      "src/client/console-remote/index.ts",
+      "src/client/harness-platform.d.ts",
+      "src/client/workspace-sidebar/UPSTREAM.md",
+      "src/console-contract.ts",
+      "src/console-remote/schemas.ts",
+      "src/host-compat.ts",
+      "tests/client-bundle.test.ts",
+      "tests/client-workspace-sidebar-actions.test.ts",
+      "tests/client-workspace-sidebar-status.test.tsx",
+      "tests/console-remote.test.ts",
+      "tests/host-compat.test.ts",
+      "tests/official-workspace-client-rc5.mock.ts",
+      "tests/workspace-provider-lifecycle.test.ts",
+      "tsdown.config.ts",
+      "vitest.config.ts"
     ],
-    "untracked": [
-      "scripts/workspace-sidebar-upstream-rc5.mjs"
-    ],
+    "staged": [],
+    "unstaged": [],
+    "untracked": [],
     "deleted": [],
     "renamed": [],
     "reason": ""
@@ -30,11 +50,7 @@
     ".diag-tmp/mt_6a23e34.json",
     ".diag-tmp/mt_HEAD.json",
     ".diag-tmp/mt_cffc502.json",
-    ".dsh-progress/session-fbec1dbd-8e3b-4407-a10c-e281eb0189aa/dl-mvvy4og8-1c2n.jsonl",
-    "package.json",
-    "pnpm-lock.yaml",
-    "scripts/workspace-sidebar-upstream-rc5.mjs",
-    "src/host-compat.ts"
+    ".dsh-progress/session-fbec1dbd-8e3b-4407-a10c-e281eb0189aa/dl-mvvy4og8-1c2n.jsonl"
   ],
   "engineVersion": "2.0.0",
   "scope": "auto",
@@ -43,10 +59,8 @@
   "fallbackReason": "",
   "missingRepair": null,
   "notes": [
-    "持久化基线 2f766fc 与本次 cw 基线 9c739a2 不同（以 cw 基线为准，未消费变化仍会并入）",
-    "工作区未提交改动已合成临时 commit 3778bfa5fad4（4 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw3f6aax-i-native（47 个文件）",
-    "本轮把 16 个未提交源码改动一并写进产物（快照 3778bfa5fad4）：package.json、pnpm-lock.yaml、scripts/check-workspace-sidebar-version.mjs、src/client/console-remote/index.ts、src/client/harness-platform.d.ts 等"
+    "持久化基线 9c739a2 与本次 cw 基线 f687356 不同（以 cw 基线为准，未消费变化仍会并入）",
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw3ginxa-p-native（47 个文件）"
   ],
-  "updatedAt": "2026-11-05T10:56:24.186Z"
+  "updatedAt": "2026-11-05T12:02:59.463Z"
 }

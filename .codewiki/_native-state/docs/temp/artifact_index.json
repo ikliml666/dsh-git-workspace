@@ -1,6 +1,6 @@
 {
     "token_budget": 200000,
-    "tokens_used": 11109,
+    "tokens_used": 11150,
     "caps": {
         "per_file_bytes": 16384,
         "per_class_files": 40,
@@ -67,7 +67,7 @@
             "files": [
                 {
                     "path": "vitest.config.ts",
-                    "bytes": 1131,
+                    "bytes": 1292,
                     "truncated": false,
                     "loaded": true,
                     "units": []

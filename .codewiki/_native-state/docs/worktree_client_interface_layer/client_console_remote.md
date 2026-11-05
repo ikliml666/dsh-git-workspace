@@ -61,7 +61,7 @@ flowchart LR
 | --- | --- | --- |
 | `createWorktreeConsoleRemoteAdapter(remote, getLanguage?)` | `src/client/console-remote/adapter.ts` | 将 `GitWorktreeRemote` 命名空间代理转换为 `WorktreeConsoleAdapter`（约 40 个方法） |
 | `apply(ctx: ConsoleClientContext)` | `src/client/console-remote/index.ts` | 客户端 bundle 入口：挂载 Remote、提供 `worktreeConsole`、按 flavor 分支装配侧栏与工具 |
-| `inject` | `src/client/console-remote/index.ts` | 该 fiber 声明依赖的服务名集合（过滤掉会导致死锁的 `remote.directoryPicker` 与 `remoteAccess`） |
+| `inject` | `src/client/console-remote/index.ts` | 该 fiber 声明依赖的服务名集合（过滤掉会导致死锁的 `remote.directoryPicker`、`remoteAccess`，以及只存在于 0.2.2-rc.1 起的 `contextMenus`）；modern-rc1 分支另用 `MODERN_RC1_INJECT`（= `inject` + `contextMenus`） |
 | `ConsoleClientContext`（接口） | `src/client/console-remote/index.ts` | `Context` + `remote: ClientRemote & { gitWorktree: GitWorktreeRemote }` |
 | `declare module '@deepseek-ai/cordis'` | `src/client/console-remote/index.ts` | 为 `Context` 增加 `worktreeConsole: WorktreeConsoleAdapter` 类型面 |
 
@@ -185,9 +185,9 @@ flowchart TD
   FL -->|legacy| LE{"typeof sessions.open === 'function'"}
   LE -->|否| LF["reportBoot('legacy', false)<br/>throw"]
   LE -->|是| LT["registerManagedWorkspaceSidebar(ctx, adapter)<br/>mountTools(ctx)"]
-  FL -->|modern| MA{"officialWorkspaceActive === true"}
-  MA -->|是| MD["ctx.inject(inject, child =><br/>registerDecoratedWorkspaceSidebar + mountTools)"]
-  MA -->|否| MT["ctx.inject(inject, child =><br/>registerManagedWorkspaceSidebar(applyOfficialWorkspace) + mountTools)"]
+  FL -->|modern-rc5 / modern-rc1| MA{"officialWorkspaceActive === true"}
+  MA -->|是| MD["ctx.inject(required, child =><br/>registerDecoratedWorkspaceSidebar + mountTools)<br/>required: rc5=inject · rc1=MODERN_RC1_INJECT"]
+  MA -->|否| MT["ctx.inject(required, child =><br/>registerManagedWorkspaceSidebar(applyWorkspace) + mountTools)<br/>applyWorkspace: rc5=applyRc5Workspace · rc1=applyOfficialWorkspace"]
   FL -->|"alpha / next"| AN["按 flavor 选 required inject 与 applyWorkspace"]
   AN --> AA{"officialWorkspaceActive === true"}
   AA -->|是| AD["registerDecoratedWorkspaceSidebar"]
@@ -195,20 +195,25 @@ flowchart TD
   FL -->|"其它 / 缺失"| UP["reportBoot('unsupported', false)<br/>mountTools(ctx)"]
 ```
 
-### 4.1 `inject` 声明：两处必须过滤的服务
+### 4.1 `inject` 声明：三处必须过滤的服务
 
 ```typescript
 export const inject = [...new Set([
-  ...officialWorkspaceInject.filter(service => service !== 'remote.directoryPicker' && service !== 'remoteAccess'),
+  ...officialWorkspaceInject.filter(service =>
+    service !== 'remote.directoryPicker' && service !== 'remoteAccess' && service !== 'contextMenus'),
   'slots',
   'configForms',
 ])]
+// contextMenus 只存在于 0.2.2-rc.1 及之后：入口若静态声明，0.2.1 宿主会永远等待
+// 一个该世代从不提供的服务；因此只在 modern-rc1 分支的子 fiber 上追加。
+const MODERN_RC1_INJECT = [...inject, 'contextMenus']
 ```
 
 | 服务名 | 处理 | 原因 |
 | --- | --- | --- |
 | `remote.directoryPicker` | 静态声明中**移除**，运行时通过 `officialContextProxy` / `deferredRemoteDirectoryPicker` 懒解析 | 现代（0.2.x）官方 Browser 的 picker provider 自身等待 `uiWorkspace`；本入口要提供 `uiWorkspace`，静态声明会形成环形等待，直接把 web boot 卡死 |
 | `remoteAccess` | 静态声明中**移除**，由代理在 `ctx.get('remoteAccess')` 时回退成 `{ source: () => ({}) }` 桩 | 桌面 profile 通过 junction 加载刚构建的产物；0.2.0-rc.2 宿主没有该服务，静态声明会让整个 web boot 永久 pending（"waiting for service: remoteAccess" → "14 entries did not activate"） |
+| `contextMenus` | 入口 `inject` 中**移除**，仅 modern-rc1 分支经 `MODERN_RC1_INJECT` 在其自身子 fiber 追加 | 该服务只存在于 0.2.2-rc.1 及之后；入口静态声明会让 0.2.1 宿主永远等待一个它从不提供的服务。rc.1 分片经此服务注册内置 Session 动作并渲染额外行 |
 | `slots`、`configForms` | **显式追加** | cordis 只允许读取本 fiber 已声明的名字；不声明则 `ctx.get('slots')` 恒为 `undefined`，Plugins 页设置卡片静默不挂载。代价是宿主早于设置栈版本时整条客户端会等待这两个名字——因为宿主生态里所有 slot 消费者都以同样方式声明，这个取舍被接受 |
 
 ### 4.2 flavor × 接管选举 → 装配模式
@@ -218,8 +223,9 @@ export const inject = [...new Set([
 | flavor | `officialWorkspaceActive` | 采用的注册函数 | 使用的官方 Workspace apply | 说明 |
 | --- | --- | --- | --- | --- |
 | `legacy` | — | `registerManagedWorkspaceSidebar` | 未显式传入，走默认 `applyOfficialWorkspace` | 前提是先校验 `sessions.open()` 可用，否则 `reportBoot('legacy', false, 'sessions.open() unavailable')` 并抛错 |
-| `modern` | `true` | `registerDecoratedWorkspaceSidebar` | 不重放（官方保持存活） | 只装饰运行中的注册，重放会重复 provide `uiWorkspace` 而崩溃 |
-| `modern` | `false`/缺失 | `registerManagedWorkspaceSidebar` | `applyOfficialWorkspace`（虚拟模块） | 接管：内联官方 apply 并替换其 Browser 组件 |
+| `modern-rc5` / `modern-rc1` | `true` | `registerDecoratedWorkspaceSidebar` | 不重放（官方保持存活） | 只装饰运行中的注册，重放会重复 provide `uiWorkspace` 而崩溃；子 fiber `required`：rc5 = `inject`，rc1 = `MODERN_RC1_INJECT`（= `inject` + `contextMenus`） |
+| `modern-rc5` | `false`/缺失 | `registerManagedWorkspaceSidebar` | `applyRc5Workspace`（`virtual:dsh-official-workspace-client-rc5`） | 接管：内联 rc.5 派生 apply 并替换其 Browser 组件 |
+| `modern-rc1` | `false`/缺失 | `registerManagedWorkspaceSidebar` | `applyOfficialWorkspace`（`virtual:dsh-official-workspace-client`） | 接管：内联 rc.1 派生 apply；单一装饰无法跨 rc 代，因按构建期钉定的官方 Client 编译 |
 | `alpha` | `true` | `registerDecoratedWorkspaceSidebar` | 不重放 | 同 modern 装饰路径 |
 | `alpha` | `false`/缺失 | `registerManagedWorkspaceSidebar` | `applyAlphaWorkspace` | |
 | `next` | `true` | `registerDecoratedWorkspaceSidebar` | 不重放 | |
@@ -294,6 +300,7 @@ flowchart LR
   IDX --> V1["virtual:dsh-official-workspace-client"]
   IDX --> V2["virtual:dsh-official-workspace-client-next"]
   IDX --> V3["virtual:dsh-official-workspace-client-alpha"]
+  IDX --> V4["virtual:dsh-official-workspace-client-rc5"]
   IDX --> ADPT
 ```
 
@@ -301,7 +308,7 @@ flowchart LR
 
 - `RemoteResult`（`@deepseek-ai/dsh-typert-protocol`）—— RPC 外层信封，`carrier.ok` 判定的是这一层，与业务 `Outcome.ok` 是两回事。
 - `Context`（`@deepseek-ai/cordis`）、`ClientRemote`（`@deepseek-ai/dsh-api-gateway/client`）—— 宿主 DI 与 Remote 挂载面。
-- 三个 `virtual:dsh-official-workspace-client*` 模块由 `tsdown.config.ts` 中的插件在构建期从官方包源码派生，并在版本 + SHA-256 双门禁下才允许内联（`scripts/check-workspace-sidebar-version.mjs`，由 `pnpm check:sidebar-version` / `prepublishOnly` 执行）。
+- 四个 `virtual:dsh-official-workspace-client*` 模块（official / next / alpha / rc5）由 `tsdown.config.ts` 中的插件在构建期从官方包源码派生，并在版本 + SHA-256 双门禁下才允许内联（`scripts/check-workspace-sidebar-version.mjs`，由 `pnpm check:sidebar-version` / `prepublishOnly` 执行）。
 
 ---
 
@@ -351,7 +358,7 @@ flowchart LR
 - `tsdown.config.ts` 的入口就是本模块：`entry: { client: 'src/client/console-remote/index.ts' }`，`format: 'cjs'`、`platform: 'neutral'`、`target: 'es2022'`，并用 `window.__ModuleLoader__.load({ id: 'dsh-git-worktree', ... })` 包裹输出，因此本模块的 `apply` / `inject` 是宿主 ModuleLoader 看到的唯一面。
 - `external` 保留 `react`、`@deepseek-ai/cordis`、`@deepseek-ai/dsh-client-store`、`@deepseek-ai/dsh-client-ui-primitives`（宿主提供），而 `zod`、`lucide-react` 被 `noExternal` 打进 bundle —— 这正是 strict codec 能在浏览器侧独立再校验的原因。
 - `package.json` 的 `exports["./client"]` 运行时指向 `./lib/client.js`，类型指向 `./lib/client/console-remote/index.d.ts`；`exports["./typert"]` 与 `exports["./remote"]` 暴露同一批 descriptor 给 Host 侧，保证两端的 strict 契约同源。
-- 单测通过 `vitest.config.ts` 把三个 `virtual:dsh-*` 模块 alias 成 mock，因此本模块的分支逻辑（flavor × 接管选举）可以在 jsdom 里被完整驱动，而无需真实宿主。
+- 单测通过 `vitest.config.ts` 把四个 `virtual:dsh-*` 模块 alias 成 mock，因此本模块的分支逻辑（flavor × 接管选举）可以在 jsdom 里被完整驱动，而无需真实宿主。
 
 ---
 

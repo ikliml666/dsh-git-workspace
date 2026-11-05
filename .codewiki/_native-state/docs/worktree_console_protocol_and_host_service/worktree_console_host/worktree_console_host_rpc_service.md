@@ -6,7 +6,7 @@
 
 1. **薄**：每个方法体的形态高度统一——`withHostLanguage(...)` 包裹一次 `this.controlPlane.<method>(...)` 转发，不做任何授权、状态判断或数据加工。业务规则的权威实现全部在控制面（见 [worktree_console_host_control_plane](worktree_console_host_control_plane.md)）。
 2. **可观测**：`sidebarTopology` / `clientBootReport` / `current` 三个端点带 ndjson 诊断落盘，是排查「顶部胶囊为什么一直显示不可用」「侧栏为什么挂不起来」的唯一现场证据。
-3. **可协商**：`sidebarTopology` 的响应里由本层回填 `workspaceClientFlavor` 与 `officialWorkspaceActive` 两个字段，浏览器据此决定走 legacy / alpha / next / modern 哪一条侧栏装配分支（见 [client_console_remote](../../worktree_client_interface_layer/client_console_remote.md)）。
+3. **可协商**：`sidebarTopology` 的响应里由本层回填 `workspaceClientFlavor` 与 `officialWorkspaceActive` 两个字段，浏览器据此决定走 legacy / alpha / next / modern-rc5 / modern-rc1 哪一条侧栏装配分支（见 [client_console_remote](../../worktree_client_interface_layer/client_console_remote.md)）。
 
 方法总数 **39**（控制面 38 个方法 + 本层独有的 `clientBootReport`），这个数字被发布门禁逐字节校验（`scripts/check-publish.mjs` 第 4 步的 `expectedRemoteMethods` 数组）。
 
@@ -227,7 +227,7 @@ sequenceDiagram
 
 三点值得强调：
 
-- **`flavor` 不来自控制面，而来自 `src/host-compat.ts`**（`workspaceFlavorDiagnostics()` 按三个锚点解析宿主 `@deepseek-ai/dsh-agent` 版本，再映射成 `legacy | alpha | next | modern | unsupported`）。把这段判断放在 Host 侧是刻意的：浏览器无法读取宿主包版本，而**未知代际绝不能挂载一个猜测出来的 Client Browser**。
+- **`flavor` 不来自控制面，而来自 `src/host-compat.ts`**（`workspaceFlavorDiagnostics()` 按三个锚点解析宿主 `@deepseek-ai/dsh-agent` 版本，再映射成 `legacy | alpha | next | modern-rc5 | modern-rc1 | unsupported`）。把这段判断放在 Host 侧是刻意的：浏览器无法读取宿主包版本，而**未知代际绝不能挂载一个猜测出来的 Client Browser**。
 - **失败时不回填**。`outcome.ok === false` 时原样返回失败，不带 `workspaceClientFlavor`。Client 侧 `topology.ok === false` 走 `topology-failed` 分支——只挂工具视图、不挂侧栏，因为「registry 读不出来」时用户恰恰需要控制台去修 registry，整条挂载失败反而帮倒忙。
 - **`officialWorkspaceActive` 是选举结果的搬运**：它为 `true` 时 Client 必须走 decorate（装饰官方 Workspace 注册）而不是重新 `provide('uiWorkspace')`，否则 Web 启动会以 `service "uiWorkspace" has been registered` 崩溃。这个字段的权威来源见 [workspace_provider_lifecycle](../../core_worktree_domain_and_infrastructure/session_checkout_domain/session_checkout_runtime/workspace_provider_lifecycle.md)。
 
