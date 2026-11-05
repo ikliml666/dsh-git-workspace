@@ -2,40 +2,14 @@
   "stateVersion": 1,
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
-    "baseCommit": "f6873563e7071839b828e25edf73ac4f935ff896",
-    "headCommit": "6d1efd0fb86602dfdf4a82cf33a0106400761b89"
+    "baseCommit": "6d1efd0fb86602dfdf4a82cf33a0106400761b89",
+    "headCommit": "4919165f44bc357f7afae2a2e5399f9443d9ff30"
   },
   "pendingChanges": {
     "state": "ok",
-    "baseCommit": "f6873563e7071839b828e25edf73ac4f935ff896",
-    "headCommit": "6d1efd0fb86602dfdf4a82cf33a0106400761b89",
-    "committed": [
-      "CHANGELOG.md",
-      "README.en.md",
-      "README.md",
-      "docs/COMPATIBILITY.md",
-      "docs/compatibility/0.2.2-rc.1-validation.json",
-      "docs/compatibility/0.2.2-rc.1.md",
-      "package.json",
-      "pnpm-lock.yaml",
-      "scripts/check-workspace-sidebar-version.mjs",
-      "scripts/workspace-sidebar-upstream-rc5.mjs",
-      "src/client/console-remote/index.ts",
-      "src/client/harness-platform.d.ts",
-      "src/client/workspace-sidebar/UPSTREAM.md",
-      "src/console-contract.ts",
-      "src/console-remote/schemas.ts",
-      "src/host-compat.ts",
-      "tests/client-bundle.test.ts",
-      "tests/client-workspace-sidebar-actions.test.ts",
-      "tests/client-workspace-sidebar-status.test.tsx",
-      "tests/console-remote.test.ts",
-      "tests/host-compat.test.ts",
-      "tests/official-workspace-client-rc5.mock.ts",
-      "tests/workspace-provider-lifecycle.test.ts",
-      "tsdown.config.ts",
-      "vitest.config.ts"
-    ],
+    "baseCommit": "6d1efd0fb86602dfdf4a82cf33a0106400761b89",
+    "headCommit": "4919165f44bc357f7afae2a2e5399f9443d9ff30",
+    "committed": [],
     "staged": [],
     "unstaged": [],
     "untracked": [],
@@ -55,12 +29,12 @@
   "engineVersion": "2.0.0",
   "scope": "auto",
   "effectiveScope": "stale",
-  "updateOutcome": "incremental",
+  "updateOutcome": "no_change",
   "fallbackReason": "",
   "missingRepair": null,
   "notes": [
-    "持久化基线 9c739a2 与本次 cw 基线 f687356 不同（以 cw 基线为准，未消费变化仍会并入）",
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw3ginxa-p-native（47 个文件）"
+    "持久化基线 f687356 与本次 cw 基线 6d1efd0 不同（以 cw 基线为准，未消费变化仍会并入）",
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw3jgmbm-x-native（47 个文件）"
   ],
-  "updatedAt": "2026-11-05T12:02:59.463Z"
+  "updatedAt": "2026-11-05T12:47:01.892Z"
 }
