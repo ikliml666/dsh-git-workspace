@@ -8,6 +8,8 @@
 - [[decisions/non-git-incremental-enablement|非 Git 目录渐进增强：显式确认下的 init + 首次提交，而非静默或死路]]
 ## Learning
 
+- [[learnings/schemastery-volatile-protocol-fork|Learning: schemastery 版本分叉让 volatile 热更新静默失效]]
+- [[learnings/workspace-takeover-truth-report|Learning: 接管谎报 —— patch 未合并时必须上报 officialWorkspaceActive: true]]
 - [[learnings/web-rpc-transport-has-no-timeout|Web RPC 传输层超时修复：从永久卡死到时中断]]
 - [[learnings/git-spawn-budget-list-latency|git spawn 预算与 list 延迟]]
 - [[learnings/host-rc-bump-breaks-exact-pin-peers|宿主 rc 升级会拒载精确钉版本的 dsh-* peer]]
@@ -33,7 +35,6 @@
 - [[modules/client-review-console-review-actions|client_review_console_review_actions：`ReviewActions` 交付动作编排器]]
 - [[modules/client-review-console|client_review_console：受管 Worktree 验收控制台（浏览器端）]]
 - [[modules/client-target-console|client_target_console：会话目标控制台（浏览器端）]]
-- [[modules/lib|lib — dsh-git-worktree 插件主源码]]
 - [[modules/src-adapters|src_adapters：会话检出（Session Checkout）的宿主适配层]]
 - [[modules/src-i18n|src_i18n 国际化与消息目录模块]]
 - [[modules/worktree-client-interface-layer|worktree_client_interface_layer：Worktree 浏览器端客户端界面层总览]]

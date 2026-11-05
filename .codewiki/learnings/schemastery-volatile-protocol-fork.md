@@ -1,3 +1,10 @@
+---
+title: "Learning: schemastery 版本分叉让 volatile 热更新静默失效"
+type: learning
+source_files: []
+tags: []
+---
+
 # Learning: schemastery 版本分叉让 volatile 热更新静默失效
 
 日期：2026-10-04 · 关联：插件页设置卡保存回显旧值

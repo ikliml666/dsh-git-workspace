@@ -1,3 +1,10 @@
+---
+title: "Learning: 接管谎报 —— patch 未合并时必须上报 officialWorkspaceActive: true"
+type: learning
+source_files: []
+tags: []
+---
+
 # Learning: 接管谎报 —— patch 未合并时必须上报 officialWorkspaceActive: true
 
 日期：2026-10-11　提交：edce4a7　分支：fix/sess-session--workspace-takeover-fallback

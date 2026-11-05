@@ -1,11 +1,11 @@
 {
   "generation_info": {
-    "timestamp": "2026-11-05T06:09:31.981849+00:00",
+    "timestamp": "2026-11-05T06:36:54.769446+00:00",
     "provider": "openai-compatible",
     "main_model": "doubao-seed-2.1-lite",
     "generator_version": "2.0.0",
     "repo_path": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
-    "commit_id": "60383cdd5b03f7b19b5b94893a14227678480c8b",
+    "commit_id": "acd44bbc4b83a37bdc5c01ac5fb5828c4f365ddd",
     "language": "中文",
     "layout": "hierarchical"
   },
@@ -74,14 +74,14 @@
     "calls": []
   },
   "last_update": {
-    "run_id": "89e51171-247f-4f92-ae58-597c9f3803bb",
-    "started_at": "2026-11-05T14:09:31+0800",
+    "run_id": "92cb29af-d9ba-4875-9eef-12fbb060182f",
+    "started_at": "2026-11-05T14:36:54+0800",
     "outcome": "no_change",
-    "finished_at": "2026-11-05T14:09:31+0800",
+    "finished_at": "2026-11-05T14:36:54+0800",
     "rung": "3",
     "revision": {
-      "old_commit": "20e6ce668e467de629e2b8cf9a21fe641891cd06",
-      "new_commit": "60383cdd5b03f7b19b5b94893a14227678480c8b",
+      "old_commit": "60383cdd5b03f7b19b5b94893a14227678480c8b",
+      "new_commit": "acd44bbc4b83a37bdc5c01ac5fb5828c4f365ddd",
       "repo_path": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree"
     },
     "diff_counts": {
@@ -2245,6 +2245,53 @@
       "revision": {
         "old_commit": "20e6ce668e467de629e2b8cf9a21fe641891cd06",
         "new_commit": "60383cdd5b03f7b19b5b94893a14227678480c8b",
+        "repo_path": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree"
+      },
+      "diff_counts": {
+        "added": 0,
+        "deleted": 0,
+        "interface": 0,
+        "body": 0,
+        "edge": 0,
+        "renamed": 0
+      },
+      "n_active": 0,
+      "n_adopted": 0,
+      "n_adopted_by_agent": 0,
+      "fallback": {},
+      "n_calls": 0,
+      "usage_total": {
+        "cost_usd": 0.0
+      },
+      "usage": {
+        "schema_version": 2,
+        "scope": "this run only (modules resumed from disk cost nothing)",
+        "currency": "USD",
+        "cost_status": "complete",
+        "incomplete": false,
+        "unknown_usage_calls": 0,
+        "n_calls": 0,
+        "totals": {
+          "cost_usd": 0.0
+        },
+        "by_phase": {},
+        "by_model": {},
+        "unpriced_models": [],
+        "calls": []
+      },
+      "pages_written": [],
+      "pages_removed": [],
+      "wall_seconds": 0.08
+    },
+    {
+      "run_id": "92cb29af-d9ba-4875-9eef-12fbb060182f",
+      "started_at": "2026-11-05T14:36:54+0800",
+      "outcome": "no_change",
+      "finished_at": "2026-11-05T14:36:54+0800",
+      "rung": "3",
+      "revision": {
+        "old_commit": "60383cdd5b03f7b19b5b94893a14227678480c8b",
+        "new_commit": "acd44bbc4b83a37bdc5c01ac5fb5828c4f365ddd",
         "repo_path": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree"
       },
       "diff_counts": {
