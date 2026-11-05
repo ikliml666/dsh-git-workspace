@@ -150,7 +150,7 @@ flowchart TB
     Unload["ctx.effect 卸载回调触发"] --> Mark["released = true"]
     Mark --> WithdrawMarker["先于一切 await releaseMarker()<br/>Cordis 4.0.5 并发卸载非 LIFO"]
     WithdrawMarker --> Failed{"ctx.fiber.uid === null<br/>激活失败?"}
-    Failed -->|"是"| WithdrawFiber["withdraw()：清除 entry.fiber<br/>并 emit internal/plugin"]
+    Failed -->|"是"| WithdrawFiber["withdraw()：按 fiber 身份核验<br/>清除 entry.fiber 并 emit internal/plugin"]
     Failed -->|"否：正常重启，复用活 fiber"| Keep["不清空 fiber 引用"]
     Keep --> RootCheck{"root fiber 已死或 UNLOADING?"}
     RootCheck -->|"是"| Skip["Root/Include 拆除拥有这些条目<br/>直接返回，不复活那棵树"]
@@ -158,7 +158,7 @@ flowchart TB
     RestoreLoop --> Settle["异步 settle：<br/>等离开 UNLOADING 状态后<br/>失败激活才 withdraw fiber 引用"]
 ```
 
-设计原因：Loader 只检查 entry 引用而不检查 fiber 状态；Cordis 4.0.5 并发卸载时若不先撤回 `worktreeWorkspaceProvider` 标记，恢复官方 Workspace 的求值会读到已不存在的提供者。在 Windows 上实测，对已保留的失败 fiber 直接 `fiber.await()` 会死循环（`while (inertia)` 重复 await 已完成的 promise），所以必须轮询等状态离开 UNLOADING 再动手。
+设计原因：Loader 只检查 entry 引用而不检查 fiber 状态；Cordis 4.0.5 并发卸载时若不先撤回 `worktreeWorkspaceProvider` 标记，恢复官方 Workspace 的求值会读到已不存在的提供者。另需注意 Cordis 版本差异：Cordis 4.1.0 的 `ctx.plugin()` 返回 `Object.create(fiber)` 包装对象，Loader 将该包装存入 `entry.fiber`，入口引用与 `ctx.fiber` 不再同一（仅原型继承自它）；因此 `withdraw()` 的归属判定从单纯的引用相等放宽为「`entry.fiber` 与 `ctx.fiber` 相同，或其原型链直接指向 `ctx.fiber`」，Cordis 4.0.5 直接存 fiber 本体的旧形态同样被识别。在 Windows 上实测，对已保留的失败 fiber 直接 `fiber.await()` 会死循环（`while (inertia)` 重复 await 已完成的 promise），所以必须轮询等状态离开 UNLOADING 再动手。
 
 #### 事件驱动重入
 

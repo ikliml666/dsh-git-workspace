@@ -14,7 +14,7 @@ session-checkout 领域本身（状态机、apply 引擎、端口契约）是从
 模块文档级声明：`@module dsh-git-worktree`（见文件顶部注释块）。
 
 - 上层层级：[session_checkout_runtime_entry](../session_checkout_runtime_entry.md) → [session_checkout_runtime](../../session_checkout_runtime.md) → [session_checkout_domain](../../../session_checkout_domain.md) → [core_worktree_domain_and_infrastructure](../../../../core_worktree_domain_and_infrastructure.md)
-- 同级实现页：[src/session-checkout-module.ts](src_session-checkout-module.md)（状态机实现细节）
+- 同级实现页：[src/session-checkout-module.ts](src_session-checkout-module.ts.md)（状态机实现细节）
 - 契约来源页：[session_checkout_domain_contracts](../../session_checkout_domain_contracts.md)（`ports.ts` / `types.ts`）
 
 ---
@@ -279,7 +279,7 @@ flowchart TB
 - **首次剪枝提前 60 秒**：重启频繁的宿主也能做到每天一次扫掠。
 - **剪枝开关每次读取活引用**：`autoPruneMergedBranches` 关掉后下一轮扫掠立即停止，无需重装。
 - **竞态守卫缓存与 prompt 同步性分离**：`runtimeContext` 必须同步，因此 reflog 探测放到 45 秒的后台周期里（实现在 `src/session-target-context.ts`，见 [workspace_provider_lifecycle](../workspace_provider_lifecycle.md)）。
-- **`reconcile` 失败只告警**：启动收敛不能因单条损坏记录阻断整个应用启动（状态机内部还有 `CHECKOUT_CLEANUP_TIMEOUT_MS` 兜底，见 [src_session-checkout-module.ts](src_session-checkout-module.md)）。
+- **`reconcile` 失败只告警**：启动收敛不能因单条损坏记录阻断整个应用启动（状态机内部还有 `CHECKOUT_CLEANUP_TIMEOUT_MS` 兜底，见 [src_session-checkout-module.ts](src_session-checkout-module.ts.md)）。
 
 ### 4.3 状态目录布局（`apply()` 建立的文件族）
 
@@ -324,7 +324,7 @@ sequenceDiagram
 授权与并发相关的两处入口级约束（均由本文件选定的适配器组合决定）：
 
 - **caller-scoped 方法**（`*ForSession`）永不把持久化的 `ownerSessionId` 当授权证据；
-- **`runExclusiveSessionMutation`** 让跨模块写操作复用与 bind/apply/discard/cleanup 相同的互斥队列（锁实现见 [src_session-checkout-module.ts](src_session-checkout-module.md)）。
+- **`runExclusiveSessionMutation`** 让跨模块写操作复用与 bind/apply/discard/cleanup 相同的互斥队列（锁实现见 [src_session-checkout-module.ts](src_session-checkout-module.ts.md)）。
 
 ---
 
@@ -378,7 +378,7 @@ export const inject = { tools: {}, commands: {}, subprocess: {}, loader: { await
 | --- | --- | --- | --- |
 | `createDshGitPort`、`createNodeFilesPort`、`AtomicJsonCheckoutRegistry`、`createDshLookupPort`、`ProjectSkillStore`、`mountProjectSkillProvider` | `src/adapters/*` | 构建 `SessionCheckoutDependencies` 的四类端口实现 | [src_adapters](../../../src_adapters.md) |
 | `DEFAULT_GIT_TIMEOUT_MS`、`MAX_GIT_TIMEOUT_MS`、`validateGitTimeouts`、`GitTimeoutOptions` | `src/adapters/git-options.ts` | 配置校验与超时默认值来源 | [src_adapters](../../../src_adapters.md) |
-| `createSessionCheckoutModule`（含 `ResolvedSessionProject` 等） | `src/session-checkout-module.ts` | 状态机实例，即 `SessionCheckoutModule` 实现 | [src_session-checkout-module.ts](src_session-checkout-module.md) |
+| `createSessionCheckoutModule`（含 `ResolvedSessionProject` 等） | `src/session-checkout-module.ts` | 状态机实例，即 `SessionCheckoutModule` 实现 | [src_session-checkout-module.ts](src_session-checkout-module.ts.md) |
 | `createSessionCheckoutApplyEngine` | `src/session-checkout-apply.ts` | Preview/Apply/Checkpoint/Finish 引擎 | [session_checkout_apply_engine](../../session_checkout_apply_engine.md) |
 | `mountWorkspaceProviderLifecycle`、`hostWorkspaceClientFlavor` | `src/workspace-provider-lifecycle.ts`、`src/host-compat.ts` | 宿主代际判定与 `uiWorkspace` 唯一提供者选举 | [workspace_provider_lifecycle](../workspace_provider_lifecycle.md)、[worktree_core_operations](../../../worktree_core_operations.md) |
 | `registerTools`、`registerWorktreeCommand` | `src/tools.ts`、`src/commands.ts` | 模型工具面、人类命令面（二者内部再经 `adapters/working-directory.ts` 移动 Session cwd） | [worktree_core_operations](../../../worktree_core_operations.md) |

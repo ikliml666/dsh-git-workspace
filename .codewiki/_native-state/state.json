@@ -2,16 +2,29 @@
   "stateVersion": 1,
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
-    "baseCommit": "0f5bf4b51781f7b5ea60d7c41114a971716cfb45",
-    "headCommit": "89717bdd4a4400c5aa94c2b7236fe704f4a00f1e"
+    "baseCommit": "89717bdd4a4400c5aa94c2b7236fe704f4a00f1e",
+    "headCommit": "2f766fc3268e33fca26d1063fa569315b95ce6f4"
   },
   "pendingChanges": {
     "state": "ok",
-    "baseCommit": "0f5bf4b51781f7b5ea60d7c41114a971716cfb45",
-    "headCommit": "89717bdd4a4400c5aa94c2b7236fe704f4a00f1e",
+    "baseCommit": "89717bdd4a4400c5aa94c2b7236fe704f4a00f1e",
+    "headCommit": "2f766fc3268e33fca26d1063fa569315b95ce6f4",
     "committed": [],
-    "staged": [],
-    "unstaged": [],
+    "staged": [
+      "package.json"
+    ],
+    "unstaged": [
+      "pnpm-lock.yaml",
+      "scripts/workspace-sidebar-upstream.mjs",
+      "src/client/workspace-sidebar/index.tsx",
+      "src/workspace-provider-lifecycle.ts",
+      "tests/client-bundle.test.ts",
+      "tests/client-workspace-sidebar-actions.test.ts",
+      "tests/client-workspace-sidebar-profile.test.ts",
+      "tests/client-workspace-sidebar-status.test.tsx",
+      "tests/host-compat.test.ts",
+      "tests/workspace-provider-lifecycle.test.ts"
+    ],
     "untracked": [],
     "deleted": [],
     "renamed": [],
@@ -24,17 +37,30 @@
     ".diag-tmp/mt_6a23e34.json",
     ".diag-tmp/mt_HEAD.json",
     ".diag-tmp/mt_cffc502.json",
-    ".dsh-progress/session-fbec1dbd-8e3b-4407-a10c-e281eb0189aa/dl-mvvy4og8-1c2n.jsonl"
+    ".dsh-progress/session-fbec1dbd-8e3b-4407-a10c-e281eb0189aa/dl-mvvy4og8-1c2n.jsonl",
+    "package.json",
+    "pnpm-lock.yaml",
+    "scripts/workspace-sidebar-upstream.mjs",
+    "src/client/workspace-sidebar/index.tsx",
+    "src/workspace-provider-lifecycle.ts",
+    "tests/client-bundle.test.ts",
+    "tests/client-workspace-sidebar-actions.test.ts",
+    "tests/client-workspace-sidebar-profile.test.ts",
+    "tests/client-workspace-sidebar-status.test.tsx",
+    "tests/host-compat.test.ts",
+    "tests/workspace-provider-lifecycle.test.ts"
   ],
   "engineVersion": "2.0.0",
   "scope": "auto",
   "effectiveScope": "stale",
-  "updateOutcome": "no_change",
+  "updateOutcome": "incremental",
   "fallbackReason": "",
   "missingRepair": null,
   "notes": [
-    "持久化基线 0830899 与本次 cw 基线 0f5bf4b 不同（以 cw 基线为准，未消费变化仍会并入）",
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw3avy1f-1-native（47 个文件）"
+    "持久化基线 0f5bf4b 与本次 cw 基线 89717bd 不同（以 cw 基线为准，未消费变化仍会并入）",
+    "工作区未提交改动已合成临时 commit 0d60f9be14be（11 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw3d1451-a-native（47 个文件）",
+    "本轮把 12 个未提交源码改动一并写进产物（快照 0d60f9be14be）：package.json、pnpm-lock.yaml、pnpm-workspace.yaml、scripts/workspace-sidebar-upstream.mjs、src/client/workspace-sidebar/index.tsx 等"
   ],
-  "updatedAt": "2026-11-05T08:51:04.746Z"
+  "updatedAt": "2026-11-05T10:01:55.297Z"
 }

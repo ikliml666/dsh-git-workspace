@@ -91,7 +91,7 @@ flowchart TB
   CLIENT --> BROWSER
 ```
 
-数据流上有两条严格分离的编译通道：**tsc 通道**产出 Host 侧的原生 ESM + 类型声明（Node 22/24 直接运行，由 Cordis Loader 装载）；**tsdown 通道**只产出单个 `lib/client.js`，它是为浏览器 `window.__ModuleLoader__` 定制的 CJS 闭包，外部依赖被压到最小集合。
+数据流上有两条严格分离的编译通道：**tsc 通道**产出 Host 侧的原生 ESM + 类型声明（Node 24 直接运行，由 Cordis Loader 装载）；**tsdown 通道**只产出单个 `lib/client.js`，它是为浏览器 `window.__ModuleLoader__` 定制的 CJS 闭包，外部依赖被压到最小集合。
 
 ---
 
@@ -100,7 +100,7 @@ flowchart TB
 ### 3.1 身份与引擎约束
 
 - `name`: `dsh-git-worktree`，`version`: `0.13.0`，`type`: `module`，`license`: `MIT`。
-- `engines.node`: `^22.19.0 || >=24.0.0`。CI 固定使用 Node 22，见 [§7 CI 流水线](#7-ci-流水线-githubworkflowsciyml)。
+- `engines.node`: `>=24.9.0`。CI 固定使用 Node 22，见 [§7 CI 流水线](#7-ci-流水线-githubworkflowsciyml)。
 
 ### 3.2 `exports` 子路径映射
 
@@ -157,7 +157,7 @@ flowchart TB
 本仓库是单包项目，该文件不承担多包 `packages:` 声明，而是 pnpm 的行为配置：
 
 - `allowBuilds.esbuild: true` —— 允许 esbuild（`tsdown`/`vitest` 的原生依赖）执行构建脚本。
-- `minimumReleaseAgeExclude` —— 一份按 `包名@精确版本` 列举的白名单（覆盖 `@deepseek-ai/*` 的 `0.1.2-rc.1`、`0.2.1-rc.2 … rc.5`、`0.1.6-alpha.2`、`0.1.7-rc.2` 以及 `@deepseek-ai/schemastery@3.18.5`），用于绕过 pnpm 的最小发布时长限制，使插件能与尚未"足够老"的 rc/alpha Host 版本共同安装。新增 Host 版本时必须同步追加条目，否则 CI 的 `pnpm install --frozen-lockfile` 会被拦截。
+- `minimumReleaseAgeExclude` —— 一份按 `包名@精确版本` 列举的白名单（覆盖 `@deepseek-ai/*` 的 `0.1.2-rc.1`、`0.2.1-rc.2 … rc.5`、`0.2.2-rc.1`、`0.1.6-alpha.2`、`0.1.7-rc.2`、`cordis@4.1.0`、`cordis-plugin-include@1.1.0`、`cordis-plugin-loader@1.1.0` 以及 `@deepseek-ai/schemastery@3.19.0`），用于绕过 pnpm 的最小发布时长限制，使插件能与尚未"足够老"的 rc/alpha Host 版本共同安装。新增 Host 版本时必须同步追加条目，否则 CI 的 `pnpm install --frozen-lockfile` 会被拦截。
 
 ---
 
@@ -251,7 +251,7 @@ flowchart TD
 ```mermaid
 flowchart TB
   subgraph UP["上游 npm 包（devDependencies）"]
-    O["dsh-client-ui-workspace@0.2.1-rc.5 (official)"]
+    O["dsh-client-ui-workspace@0.2.2-rc.1 (official)"]
     N["dsh-client-ui-workspace-next -> 0.1.7-rc.2"]
     AL["dsh-client-ui-workspace-alpha -> 0.1.6-alpha.2"]
   end
@@ -282,7 +282,7 @@ flowchart TB
 
 - **闸门语义**：`readOfficialWorkspaceClient()` 先 `require.resolve('@deepseek-ai/dsh-client-ui-workspace/package.json')` 比对版本号，再读取其 `client` 入口并计算 SHA-256 与常量比对；不一致即抛错。next / alpha 两个文件同样先校验 `packageJson.name === '@deepseek-ai/dsh-client-ui-workspace'` 与版本，再校验哈希。这使得"上游悄悄改版"在构建期就变成硬失败，而不是运行期的静默行为漂移。
 - **装饰语义（fail-closed）**：每个替换要求 needle 在源中**恰好出现一次**（`replaceExactlyOnce` / `once`），找不到或出现多次立即抛错。官方路径还区分了 `replaceIfPresent`（DSH 0.2 已移除的旧搜索/菜单接缝等可选装饰，未命中则跳过，可用环境变量 `WT_DEBUG_SEAMS` 打印 HIT/SKIP）。装饰内容包括：实例级 `__dshGitWorktreeManagedGuard` 注入（拦截 fork Session / 新建 Session）、`__dshGitWorktree` 与 `__dshGitWorktreeProtected` 元数据透传、`ManagedWorktreeIdentity` 分支图标与状态徽标、托管行禁用拖拽/菜单/新建、中英文 locale 字典追加等。装饰后的工厂体重建为 ESM 模块，只导出 `apply` / `inject`（官方版本另导出派生 `WorkspaceBrowser`，供 shadow 注册使用），并且**不**重新登记上游的 ModuleLoader 行。
-- **检查入口**：`pnpm run check:sidebar-version` → `scripts/check-workspace-sidebar-version.mjs`，它额外比对已安装的 `@deepseek-ai/dsh-client-locale` 版本是否等于 `WORKSPACE_LOCALE_VERSION`，然后依次读取三份官方源（触发哈希校验），成功打印形如 `✓ Workspace Sidebar compatibility gate: ui-workspace 0.2.1-rc.5 + 0.1.6-alpha.2 + 0.1.7-rc.2 SHA-256, locale 0.2.1-rc.5`。该脚本挂在 `prepublishOnly` 上，作为发布前第一道闸门。
+- **检查入口**：`pnpm run check:sidebar-version` → `scripts/check-workspace-sidebar-version.mjs`，它额外比对已安装的 `@deepseek-ai/dsh-client-locale` 版本是否等于 `WORKSPACE_LOCALE_VERSION`，然后依次读取三份官方源（触发哈希校验），成功打印形如 `✓ Workspace Sidebar compatibility gate: ui-workspace 0.2.2-rc.1 + 0.1.6-alpha.2 + 0.1.7-rc.2 SHA-256, locale 0.2.2-rc.1`。该脚本挂在 `prepublishOnly` 上，作为发布前第一道闸门。
 - **测试侧替身**：`vitest.config.ts` 把三个 virtual id alias 到 `tests/official-workspace-client*.mock.ts`，其中 `derivedBrowserCalls` 等导出用于断言 shadow 注册确实把投影元数据传给了**派生** Browser 而不是官方 Browser。UI 侧边栏行为见 [client_workspace_sidebar](client-workspace-sidebar.md)。
 
 ### 6.1 接管选举：为什么补丁里没有条件表达式
