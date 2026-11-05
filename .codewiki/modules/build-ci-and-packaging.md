@@ -29,13 +29,13 @@ fsoft_page: project_foundation_and_localization/build_ci_and_packaging.md
 | `package.json` | 包清单与脚本入口 | `name`/`version`、`exports` 子路径映射、`files` 白名单、`dsh.bundle.patch`、`dsh.client`、`engines`、`build` / `typecheck` / `test` / `prepare` / `prepublishOnly` / `check:*` / `dev:dsh*` |
 | `tsconfig.json` | Host 侧（ESM）编译配置 | `NodeNext`、`strict`、`declaration`、`outDir: lib`、`rootDir: src`、`jsx: react-jsx` |
 | `tsdown.config.ts` | 浏览器 Client Bundle 打包（`defineConfig`） | 单入口 `client`、CJS + `platform: neutral`、`external`/`noExternal`、virtual module 插件、`banner`/`intro`/`footer` ModuleLoader 闭包 |
-| `vitest.config.ts` | 测试基础设施 | `resolve.alias`（ui-primitives 与三个 `virtual:dsh-official-workspace-client*` mock）、`test.include`、`fileParallelism`、60s 超时 |
+| `vitest.config.ts` | 测试基础设施 | `resolve.alias`（ui-primitives 与四个 `virtual:dsh-official-workspace-client*` mock）、`test.include`、`fileParallelism`、60s 超时 |
 | `cordis.patch.yml` | Host 装载补丁（随包发布） | 仅向 bundle 插入一行 `dsh-git-worktree` 插件；**不再**包含任何 client 侧 `!!js` 条件表达式 |
 | `pnpm-workspace.yaml` | pnpm 行为配置 | `allowBuilds.esbuild`、超长的 `minimumReleaseAgeExclude` 白名单（放行 rc/alpha 版本） |
 | `screenshots.json` | README 截图清单 | 三张文档截图的路径数组 |
 | `.github/workflows/ci.yml` | CI 流水线 | 单一 `check` job：`pnpm install --frozen-lockfile` → `typecheck` → `build` → `check:publish:release` → `test` |
 
-相关脚本（`files` 白名单中被打包发布，见 §5、§6）：`scripts/clean-lib.mjs`、`scripts/check-publish.mjs`、`scripts/check-workspace-sidebar-version.mjs`、`scripts/workspace-sidebar-upstream{,-next,-alpha}.mjs`、`scripts/dev-dsh.mjs`、`scripts/dev-dsh-lib.mjs`、`scripts/dsh-source-runner.mjs`。
+相关脚本（`files` 白名单中被打包发布，见 §5、§6）：`scripts/clean-lib.mjs`、`scripts/check-publish.mjs`、`scripts/check-workspace-sidebar-version.mjs`、`scripts/workspace-sidebar-upstream{,-next,-alpha,-rc5}.mjs`、`scripts/dev-dsh.mjs`、`scripts/dev-dsh-lib.mjs`、`scripts/dsh-source-runner.mjs`。
 
 ---
 
@@ -123,7 +123,7 @@ flowchart TB
 发布内容被显式收窄为：`lib`、`scripts`、`CHANGELOG.md`、`docs/i18n.md`、`NOTICE`、`cordis.patch.yml`。
 
 - `scripts` 被打包，是因为 `package.json.scripts` 中的 `check:publish` / `check:sidebar-version` / `dev:dsh*` 都指向 `node scripts/*.mjs`，安装方（含 npm `prepublishOnly`）需要在磁盘上找到它们。
-- `NOTICE` 是强制项：浏览器 Bundle 内联了官方 Workspace Client 的派生代码，`check-publish.mjs` 要求 `files` 含 `NOTICE` 且文件存在，否则发布失败。`NOTICE` 中列出四个被派生/封装的上游版本（`0.1.2-rc.1`、`0.1.6-alpha.2`、`0.1.7-rc.2` 及版权与 MIT 许可信息）。
+- `NOTICE` 是强制项：浏览器 Bundle 内联了官方 Workspace Client 的派生代码，`check-publish.mjs` 要求 `files` 含 `NOTICE` 且文件存在，否则发布失败。`NOTICE` 中列出五个被派生/封装的上游版本（`0.1.2-rc.1`、`0.1.6-alpha.2`、`0.1.7-rc.2`、`0.2.1-rc.5` 及版权与 MIT 许可信息）。
 
 ### 3.4 `dsh` 字段：Host 挂载与 Client 注入声明
 
@@ -150,7 +150,7 @@ flowchart TB
 2. 必须出现在 `peerDependencies`；
 3. 必须出现在 `devDependencies`（保证本地可测）。
 
-`devDependencies` 中还通过 npm alias 固定了两份"非当前"的官方 Workspace Client，用于多版本派生：`@deepseek-ai/dsh-client-ui-workspace-alpha` → `npm:@deepseek-ai/dsh-client-ui-workspace@0.1.6-alpha.2`，`@deepseek-ai/dsh-client-ui-workspace-next` → `npm:@deepseek-ai/dsh-client-ui-workspace@0.1.7-rc.2`。
+`devDependencies` 中还通过 npm alias 固定了三份"非当前"的官方 Workspace Client，用于多版本派生：`@deepseek-ai/dsh-client-ui-workspace-alpha` → `npm:@deepseek-ai/dsh-client-ui-workspace@0.1.6-alpha.2`，`@deepseek-ai/dsh-client-ui-workspace-next` → `npm:@deepseek-ai/dsh-client-ui-workspace@0.1.7-rc.2`，`@deepseek-ai/dsh-client-ui-workspace-rc5` → `npm:@deepseek-ai/dsh-client-ui-workspace@0.2.1-rc.5`。
 
 ### 3.6 `pnpm-workspace.yaml`
 
@@ -199,7 +199,7 @@ flowchart TB
   CFG["format: cjs · platform: neutral · target: es2022<br/>dts: false · sourcemap: false · clean: false<br/>outExtensions: js -> .js<br/>mainFields: module, main"]
   EXT["external（由浏览器 ModuleLoader 提供）<br/>react · react/jsx-runtime · @deepseek-ai/cordis<br/>@deepseek-ai/dsh-client-store · @deepseek-ai/dsh-client-ui-primitives"]
   NOEXT["noExternal（内联进 Bundle）<br/>zod · lucide-react"]
-  PLUG["plugin official-workspace-client-source<br/>resolveId + load 三个 virtual id"]
+  PLUG["plugin official-workspace-client-source<br/>resolveId + load 四个 virtual id"]
   WRAP["outputOptions<br/>banner: window.__ModuleLoader__.load({ id: 'dsh-git-worktree', factory: (require) => {<br/>intro: var module = { exports: {} }; var exports = module.exports;<br/>footer: return module.exports; } });"]
 
   ENTRY --> CFG --> EXT --> NOEXT --> PLUG --> WRAP --> OUT["lib/client.js"]
@@ -211,7 +211,7 @@ flowchart TB
 - **`external` 集合与 `check-publish.mjs` 第 6 组的 `allowedBrowserRequires` 集合必须一致**：Bundle 内出现的每个 `require("...")` 只允许是 `react`、`react/jsx-runtime`、`@deepseek-ai/dsh-client-ui-primitives`、`@deepseek-ai/cordis`、`@deepseek-ai/dsh-client-store`。任何新依赖若不内联（`noExternal`）也不在此白名单内，发布检查会失败。
 - **`noExternal: ['zod', 'lucide-react']`**：这两个包浏览器侧不可得，必须被打进 Bundle。
 - **`dts: false`**：Client 的类型声明由 tsc 通道产出（`lib/client/console-remote/index.d.ts`），避免两条通道重复生成。
-- **virtual module 插件**：把三个官方 Workspace Client 源（official / next / alpha）以 `virtual:dsh-official-workspace-client{,-next,-alpha}` 的形式在打包期内联进 Bundle。三个 virtual id 与它们的 `materialize*WorkspaceClientModule()` 来自 `scripts/workspace-sidebar-upstream*.mjs`，详见 §6。`vitest.config.ts` 用同名 alias 把这三个 id 指向 mock，从而让单测无需真实上游包即可运行。
+- **virtual module 插件**：把四个官方 Workspace Client 源（official / next / alpha / rc5）以 `virtual:dsh-official-workspace-client{,-next,-alpha,-rc5}` 的形式在打包期内联进 Bundle。四个 virtual id 与它们的 `materialize*WorkspaceClientModule()` 来自 `scripts/workspace-sidebar-upstream*.mjs`，详见 §6。`vitest.config.ts` 用同名 alias 把这四个 id 指向 mock，从而让单测无需真实上游包即可运行。
 - **banner/intro/footer**：最终 `lib/client.js` 是一个自注册的浏览器闭包脚本，其 `id` 常量 `CLIENT_PLUGIN_ID = 'dsh-git-worktree'` 必须等于 `package.json.name`，否则 `check-publish.mjs` 的沙箱执行（见 §5 第 6 组）会报"client bundle registered more than one ModuleLoader handoff"或 id 不匹配。
 
 ---
@@ -254,18 +254,21 @@ flowchart TB
     O["dsh-client-ui-workspace@0.2.2-rc.1 (official)"]
     N["dsh-client-ui-workspace-next -> 0.1.7-rc.2"]
     AL["dsh-client-ui-workspace-alpha -> 0.1.6-alpha.2"]
+    R5["dsh-client-ui-workspace-rc5 -> 0.2.1-rc.5"]
   end
 
   subgraph GATE["版本 + SHA-256 闸门"]
     GO["workspace-sidebar-upstream.mjs<br/>WORKSPACE_UI_VERSION / WORKSPACE_LOCALE_VERSION / WORKSPACE_CLIENT_SHA256"]
     GN["workspace-sidebar-upstream-next.mjs<br/>NEXT_WORKSPACE_VERSION / NEXT_WORKSPACE_SHA256"]
     GA["workspace-sidebar-upstream-alpha.mjs<br/>ALPHA_WORKSPACE_VERSION / ALPHA_WORKSPACE_SHA256"]
+    GR["workspace-sidebar-upstream-rc5.mjs<br/>RC5_WORKSPACE_VERSION / RC5_WORKSPACE_SHA256"]
   end
 
   subgraph DEC["fail-closed 装饰器"]
     DO["decorateOfficialWorkspaceClient<br/>replaceExactlyOnce（必需接缝）+ replaceIfPresent（可选接缝）"]
     DN["decorateNextWorkspaceClient · once()"]
     DA["decorateAlphaWorkspaceClient · once()"]
+    DR["decorateRc5WorkspaceClient · once()"]
   end
 
   MAT["materializeWorkspaceFactory(source)<br/>截取 'factory: (require) => {' … 尾部，<br/>重建 ESM 壳：cordis / dsh-client-store / react / jsx-runtime / ui-primitives<br/>导出 apply · inject (official 另导出 WorkspaceBrowser)"]
@@ -273,17 +276,19 @@ flowchart TB
   O --> GO --> DO
   N --> GN --> DN
   AL --> GA --> DA
+  R5 --> GR --> DR
   DO --> MAT
   DN --> MAT
   DA --> MAT
-  MAT --> V["virtual:dsh-official-workspace-client{,-next,-alpha}"]
+  DR --> MAT
+  MAT --> V["virtual:dsh-official-workspace-client{,-next,-alpha,-rc5}"]
   V --> TSD["tsdown 插件 resolveId/load"] --> CJ["lib/client.js 内联派生实现"]
 ```
 
-- **闸门语义**：`readOfficialWorkspaceClient()` 先 `require.resolve('@deepseek-ai/dsh-client-ui-workspace/package.json')` 比对版本号，再读取其 `client` 入口并计算 SHA-256 与常量比对；不一致即抛错。next / alpha 两个文件同样先校验 `packageJson.name === '@deepseek-ai/dsh-client-ui-workspace'` 与版本，再校验哈希。这使得"上游悄悄改版"在构建期就变成硬失败，而不是运行期的静默行为漂移。
+- **闸门语义**：`readOfficialWorkspaceClient()` 先 `require.resolve('@deepseek-ai/dsh-client-ui-workspace/package.json')` 比对版本号，再读取其 `client` 入口并计算 SHA-256 与常量比对；不一致即抛错。next / alpha / rc5 三个文件同样先校验 `packageJson.name === '@deepseek-ai/dsh-client-ui-workspace'` 与版本，再校验哈希。这使得"上游悄悄改版"在构建期就变成硬失败，而不是运行期的静默行为漂移。
 - **装饰语义（fail-closed）**：每个替换要求 needle 在源中**恰好出现一次**（`replaceExactlyOnce` / `once`），找不到或出现多次立即抛错。官方路径还区分了 `replaceIfPresent`（DSH 0.2 已移除的旧搜索/菜单接缝等可选装饰，未命中则跳过，可用环境变量 `WT_DEBUG_SEAMS` 打印 HIT/SKIP）。装饰内容包括：实例级 `__dshGitWorktreeManagedGuard` 注入（拦截 fork Session / 新建 Session）、`__dshGitWorktree` 与 `__dshGitWorktreeProtected` 元数据透传、`ManagedWorktreeIdentity` 分支图标与状态徽标、托管行禁用拖拽/菜单/新建、中英文 locale 字典追加等。装饰后的工厂体重建为 ESM 模块，只导出 `apply` / `inject`（官方版本另导出派生 `WorkspaceBrowser`，供 shadow 注册使用），并且**不**重新登记上游的 ModuleLoader 行。
-- **检查入口**：`pnpm run check:sidebar-version` → `scripts/check-workspace-sidebar-version.mjs`，它额外比对已安装的 `@deepseek-ai/dsh-client-locale` 版本是否等于 `WORKSPACE_LOCALE_VERSION`，然后依次读取三份官方源（触发哈希校验），成功打印形如 `✓ Workspace Sidebar compatibility gate: ui-workspace 0.2.2-rc.1 + 0.1.6-alpha.2 + 0.1.7-rc.2 SHA-256, locale 0.2.2-rc.1`。该脚本挂在 `prepublishOnly` 上，作为发布前第一道闸门。
-- **测试侧替身**：`vitest.config.ts` 把三个 virtual id alias 到 `tests/official-workspace-client*.mock.ts`，其中 `derivedBrowserCalls` 等导出用于断言 shadow 注册确实把投影元数据传给了**派生** Browser 而不是官方 Browser。UI 侧边栏行为见 [client_workspace_sidebar](client-workspace-sidebar.md)。
+- **检查入口**：`pnpm run check:sidebar-version` → `scripts/check-workspace-sidebar-version.mjs`，它额外比对已安装的 `@deepseek-ai/dsh-client-locale` 版本是否等于 `WORKSPACE_LOCALE_VERSION`，然后依次读取四份官方源（触发哈希校验），成功打印形如 `✓ Workspace Sidebar compatibility gate: ui-workspace 0.2.2-rc.1 + 0.1.6-alpha.2 + 0.1.7-rc.2 + 0.2.1-rc.5 SHA-256, locale 0.2.2-rc.1`。该脚本挂在 `prepublishOnly` 上，作为发布前第一道闸门。
+- **测试侧替身**：`vitest.config.ts` 把四个 virtual id alias 到 `tests/official-workspace-client*.mock.ts`，其中 `derivedBrowserCalls` 等导出用于断言 shadow 注册确实把投影元数据传给了**派生** Browser 而不是官方 Browser。UI 侧边栏行为见 [client_workspace_sidebar](client-workspace-sidebar.md)。
 
 ### 6.1 接管选举：为什么补丁里没有条件表达式
 
@@ -328,7 +333,7 @@ sequenceDiagram
 | --- | --- | --- |
 | `resolve.alias['@deepseek-ai/dsh-client-ui-primitives']` | `tests/support/ui-primitives.tsx` | 提供受控的 `Menu`/`Modal` 等测试替身（含 `MenuEntry` 类型），避免真实设计系统的 DOM/焦点行为干扰断言 |
 | `resolve.alias['virtual:dsh-official-workspace-client']` | `tests/official-workspace-client.mock.ts` | 让 shadow 注册路径在测试中可断言（`derivedBrowserCalls`） |
-| `resolve.alias['virtual:dsh-official-workspace-client-alpha' / '-next']` | 对应 `.mock.ts` | 同上，覆盖两个 legacy Host flavor |
+| `resolve.alias['virtual:dsh-official-workspace-client-alpha' / '-next' / '-rc5']` | 对应 `.mock.ts` | 同上，覆盖三个 legacy Host flavor |
 | `test.include` | `tests/**/*.test.{ts,tsx}` | `src/` 内不内联测试文件 |
 | `test.fileParallelism` | `process.platform !== 'win32'` | Windows 上重量级 Git fixture 套件并发争用进程与文件句柄，可能超出超时并锁死临时目录 |
 | `testTimeout` / `hookTimeout` | `60_000` | 真实 `git` 子进程 fixture 的耗时余量 |
@@ -418,7 +423,7 @@ flowchart TD
 | 新增/删除 Remote 方法 | `src/console-remote/descriptors.ts` 与 `scripts/check-publish.mjs` 的 `expectedRemoteMethods`（顺序敏感） |
 | 新增浏览器侧依赖 | `tsdown.config.ts` 的 `external` 或 `noExternal`，以及 `check-publish.mjs` 的 `allowedBrowserRequires` |
 | 新增 Host 侧运行时依赖 | 判断是否为 Host 单例：是则进 `peerDependencies` + `devDependencies`（且**不得**进 `dependencies`），并补进 `hostSingletonPackages` |
-| 升级官方 Workspace Client | 三个 `workspace-sidebar-upstream*.mjs` 的版本与 SHA-256 常量、接缝字符串、`NOTICE` 版本列表、`devDependencies` alias、`pnpm-workspace.yaml` 的 `minimumReleaseAgeExclude` |
+| 升级官方 Workspace Client | 四个 `workspace-sidebar-upstream*.mjs` 的版本与 SHA-256 常量、接缝字符串、`NOTICE` 版本列表、`devDependencies` alias、`pnpm-workspace.yaml` 的 `minimumReleaseAgeExclude` |
 | 新增 `exports` 子路径 | 确认目标在 `lib/`（`files` 覆盖），且 Host/Client 通道都会产出该文件 |
 | 新增脚本或文档到发布物 | `package.json.files`（`check-publish.mjs` 的 `includedByFiles` 会拒绝未覆盖的导出目标） |
 | 调整挂载策略 | 只能改 `cordis.patch.yml` 的插件行；条件禁用逻辑必须留在 Host 侧生命周期，不得写入 `!!js` |

@@ -84,7 +84,7 @@ flowchart TB
     Gate1 -->|"否：enableWorkspaceProvider 未开启"| ReturnActive["返回 officialWorkspaceActive: true<br/>官方保持激活，直接跳过"]
     Gate1 -->|"是"| Gate2{"flavor === 'unsupported'?"}
     Gate2 -->|"Host 代际不受支持"| ReturnActive
-    Gate2 -->|"legacy / alpha / next / modern"| Ownership["建立所有权账本：<br/>adopted Set / overridden Set / ownedDisables WeakSet"]
+    Gate2 -->|"legacy / alpha / next / modern-rc5 / modern-rc1"| Ownership["建立所有权账本：<br/>adopted Set / overridden Set / ownedDisables WeakSet"]
     Ownership --> FirstReconcile["await reconcile 第一遍<br/>禁用所有未归他人所有的官方条目"]
     FirstReconcile --> RegisterEvents["注册事件重入：<br/>internal/status、internal/plugin"]
     RegisterEvents --> Verdict{"逐条核验 disabled 已提交为布尔 true?"}
@@ -228,7 +228,7 @@ flowchart TB
 - 装配顺序详见 [运行时入口（src/index.ts / src/session-checkout-module.ts）](session-checkout-runtime-entry.md)。
 - `SessionCheckoutModule` 的完整契约（`runtimeContext`、`refreshBranchRaceGuards` 等方法）在 [运行时入口页](src-index-ts.md) 定义；状态机主体属于 [结账应用引擎](session-checkout-apply-engine.md)。
 - `WorktreeConsoleService` 如何把 `officialWorkspaceActive` 编入 `sidebarTopology` 响应，见 [控制台 RPC 服务](worktree-console-host-rpc-service.md)。
-- Host 代际探测（`legacy` / `alpha` / `next` / `modern` / `unsupported`）的判定规则在 [Worktree 核心操作](worktree-core-operations.md) 的 `host-compat.ts` 一节。
+- Host 代际探测（`legacy` / `alpha` / `next` / `modern-rc5` / `modern-rc1` / `unsupported`）的判定规则在 [Worktree 核心操作](worktree-core-operations.md) 的 `host-compat.ts` 一节。
 
 ### 配置开关
 
