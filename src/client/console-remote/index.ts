@@ -9,6 +9,7 @@ import { apply as applyToolViews, inject as toolViewInject } from '../index.js'
 import { registerDecoratedWorkspaceSidebar, registerManagedWorkspaceSidebar } from '../workspace-sidebar/index.js'
 import { mountSettingsCard } from '../settings-card/index.js'
 import { apply as applyOfficialWorkspace, inject as officialWorkspaceInject } from 'virtual:dsh-official-workspace-client'
+import { apply as applyRc5Workspace } from 'virtual:dsh-official-workspace-client-rc5'
 import { apply as applyNextWorkspace, inject as nextWorkspaceInject } from 'virtual:dsh-official-workspace-client-next'
 import { apply as applyAlphaWorkspace, inject as alphaWorkspaceInject } from 'virtual:dsh-official-workspace-client-alpha'
 import { createWorktreeConsoleRemoteAdapter } from './adapter.js'
@@ -43,10 +44,18 @@ export { createWorktreeConsoleRemoteAdapter } from './adapter.js'
  * registerManagedWorkspaceSidebar.
  */
 export const inject = [...new Set([
-  ...officialWorkspaceInject.filter(service => service !== 'remote.directoryPicker' && service !== 'remoteAccess'),
+  ...officialWorkspaceInject.filter(service =>
+    service !== 'remote.directoryPicker' && service !== 'remoteAccess' && service !== 'contextMenus'),
   'slots',
   'configForms',
 ])]
+
+/**
+ * `contextMenus` exists only on 0.2.2-rc.1 and later: declaring it at the entry
+ * would leave every 0.2.1 Host waiting forever on a service that generation
+ * never provides, so only the 0.2.2 branch adds it, on its own child fiber.
+ */
+const MODERN_RC1_INJECT = [...inject, 'contextMenus']
 
 interface ConsoleClientContext extends Context {
   remote: ClientRemote & { gitWorktree: GitWorktreeRemote }
@@ -124,15 +133,23 @@ export async function apply(ctx: ConsoleClientContext): Promise<void> {
       ctx as unknown as Parameters<typeof registerManagedWorkspaceSidebar>[0], adapter,
     )
     mountTools(ctx)
-  } else if (flavor === 'modern') {
+  } else if (flavor === 'modern-rc5' || flavor === 'modern-rc1') {
+    // Each modern generation applies its OWN derivative: 0.2.2-rc.1 added the
+    // `contextMenus` service and a `cwd` field, so its shard registers the
+    // built-in Session actions through that service and renders the extra row.
+    // A single decoration cannot span the two, because it is compiled in
+    // against one pinned official Client at build time.
     // Same filtered subset as the entry inject: providing `uiWorkspace` must
     // never wait for the directory picker (see the inject comment above).
     // Local adaptation mirrors alpha/next: with the official Workspace kept
     // live (takeover disabled), decorate instead of re-providing uiWorkspace.
+    const [required, applyWorkspace] = flavor === 'modern-rc5'
+      ? [inject, applyRc5Workspace] as const
+      : [MODERN_RC1_INJECT, applyOfficialWorkspace] as const
     if (topology.value.officialWorkspaceActive === true) {
-      reportBoot('modern', false, 'decorate-pending')
+      reportBoot(flavor, false, 'decorate-pending')
       console.info('[dsh-git-worktree] decorate branch: requesting inject')
-      ctx.inject(inject, child => {
+      ctx.inject(required, child => {
         try {
           registerDecoratedWorkspaceSidebar(
             child as unknown as Parameters<typeof registerDecoratedWorkspaceSidebar>[0],
@@ -141,25 +158,25 @@ export async function apply(ctx: ConsoleClientContext): Promise<void> {
           console.info('[dsh-git-worktree] decorated sidebar registered')
           mountTools(child)
           console.info('[dsh-git-worktree] tools mounted')
-          reportBoot('modern', true)
+          reportBoot(flavor, true)
         } catch (error) {
-          reportBoot('modern', false, error instanceof Error ? error.message : String(error))
+          reportBoot(flavor, false, error instanceof Error ? error.message : String(error))
           throw error
         }
       })
     } else {
-      reportBoot('modern', false, 'inject-pending')
-      ctx.inject(inject, child => {
+      reportBoot(flavor, false, 'inject-pending')
+      ctx.inject(required, child => {
         try {
           registerManagedWorkspaceSidebar(
             child as unknown as Parameters<typeof registerManagedWorkspaceSidebar>[0],
             adapter,
-            applyOfficialWorkspace,
+            applyWorkspace,
           )
           mountTools(child)
-          reportBoot('modern', true)
+          reportBoot(flavor, true)
         } catch (error) {
-          reportBoot('modern', false, error instanceof Error ? error.message : String(error))
+          reportBoot(flavor, false, error instanceof Error ? error.message : String(error))
           throw error
         }
       })

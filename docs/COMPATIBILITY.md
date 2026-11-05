@@ -127,7 +127,7 @@
 2. **行组件新增 contextMenus 钩子、上下文新增该服务**。官方 `inject` 变 10 项且 `contextMenus` 排首位；插件通过过滤 `officialWorkspaceInject` 自动继承。
 3. **`apply` 直接读 `ctx.remoteAccess` 属性**，不再走 `ctx.get('remoteAccess')`。注册代理原先只应答 `get` 形式，导致官方行钩子崩成 `slot entry crashed in 'sidebar.workspaces'`——**这个缺陷单元测试测不出来（测试注入了真实服务），只在真实浏览器里暴露**，本轮已修并补两条回归。
 
-38 个装饰接缝中 2 个因 rc.1 插入 `cwd` 字段而失效，均收窄到 rc.5/rc.1 公共前缀，一份装饰同时覆盖两代：
+38 个装饰接缝中 2 个因 rc.1 插入 `cwd` 字段而失效，均收窄到 rc.5/rc.1 公共前缀。**收窄锚点不等于一份产物能跨两代运行**：装饰是构建期编译进产物的，绑定一份选定版本的官方 Client，所以现在发两套派生 —— `virtual:dsh-official-workspace-client-rc5`（来源 `0.2.1-rc.5`，SHA-256 `9c2c17a6…6544`）与 `virtual:dsh-official-workspace-client`（来源 `0.2.2-rc.1`，SHA-256 `bb31f787…9f89`）。两处失效锚点因此被收窄成一份接缝定义，供两套派生共用：
 
 - `session node metadata`：rc.1 在 `updatedAt` 与 `pendingInteraction` 之间插入 `...s.cwd === void 0 || s.cwd === "" ? {} : { cwd: s.cwd },`，锚点收窄为 `archived: archived.has(s.id),
 				updatedAt: s.updatedAt,`。
@@ -146,7 +146,7 @@
 | `build` | 通过，`lib/client.js` 1247.67 kB |
 | `check:sidebar-version` | 通过：ui-workspace 0.2.2-rc.1 + 0.1.6-alpha.2 + 0.1.7-rc.2 三路 SHA-256，locale 0.2.2-rc.1 |
 | `check:publish` | 通过：13 Host singleton、12 导出目标、39 项 strict Remote 方法、挂载补丁、NOTICE 与浏览器 ModuleLoader/惰性 directory-picker |
-| `pnpm test` | 56 个测试文件 **829 passed / 4 skipped**，无失败 |
+| `pnpm test` | 56 个测试文件 **840 passed / 4 skipped**，无失败 |
 | focused lifecycle | `tests/workspace-provider-lifecycle.test.ts` 27 passed |
 | 接缝探针（对 rc.1 `lib/client.js`） | 源 284999 字节，`ALL 8 REQUIRED SEAMS OK`，派生 288602 字节 |
 | 隔离 Host + 真实 Chromium | 装饰共存与接管两条分支均渲染通过，无 page error |
@@ -287,7 +287,7 @@ Plugin `0.14.0` pins DSH dev dependencies to exact `0.2.2-rc.1`, follows the ven
 2. **Row components gain contextMenus hooks and the context gains the service.** The official `inject` list is now 10 entries with `contextMenus` first; the plugin inherits it by filtering `officialWorkspaceInject`.
 3. **`apply` reads `ctx.remoteAccess` as a property**, not through `ctx.get('remoteAccess')`. The registration proxy answered only the `get` form, so the official row hook crashed as `slot entry crashed in 'sidebar.workspaces'` — **a defect unit tests could not catch, because they inject a real service; only the real browser exposed it.** Fixed this round with two new regressions.
 
-Two of the 38 decoration seams broke because rc.1 inserted a `cwd` field. Both were narrowed to the rc.5/rc.1 common prefix so one decoration covers both generations:
+Two of the 38 decoration seams broke because rc.1 inserted a `cwd` field. Both were narrowed to the rc.5/rc.1 common prefix which now form ONE seam definition shared by BOTH derivatives.. Narrowed anchors do not make a single artifact run on both generations: decoration is compiled into the artifact at build time and binds one official Client version, so the plugin now ships two derivatives — `virtual:dsh-official-workspace-client-rc5` (from `0.2.1-rc.5`, SHA-256 `9c2c17a6…6544`) and `virtual:dsh-official-workspace-client` (from `0.2.2-rc.1`, SHA-256 `bb31f787…9f89`):
 
 - `session node metadata`: rc.1 inserts `...s.cwd === void 0 || s.cwd === "" ? {} : { cwd: s.cwd },` between `updatedAt` and `pendingInteraction`; the anchor narrowed to `archived: archived.has(s.id),
 				updatedAt: s.updatedAt,`.
@@ -306,7 +306,7 @@ This round **launched an isolated Host and smoked the UI in a real browser** —
 | `build` | Passed, `lib/client.js` 1247.67 kB |
 | `check:sidebar-version` | Passed: ui-workspace 0.2.2-rc.1 + 0.1.6-alpha.2 + 0.1.7-rc.2 SHA-256 gates, locale 0.2.2-rc.1 |
 | `check:publish` | Passed: 13 Host singletons, 12 export targets, 39 strict Remote methods, mount patch, NOTICE and browser ModuleLoader/lazy directory-picker |
-| `pnpm test` | 56 test files, **829 passed / 4 skipped**, no failures |
+| `pnpm test` | 56 test files, **840 passed / 4 skipped**, no failures |
 | Focused lifecycle | `tests/workspace-provider-lifecycle.test.ts` 27 passed |
 | Seam probe against rc.1 `lib/client.js` | 284999 source bytes, `ALL 8 REQUIRED SEAMS OK`, 288602 derived bytes |
 | Isolated Host + real Chromium | Both branches render with no page error |

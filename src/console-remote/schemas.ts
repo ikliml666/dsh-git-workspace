@@ -245,7 +245,7 @@ export const createResponseSchema: z.ZodType<WorktreeConsoleCreateResponse> = st
 export const inspectResponseSchema: z.ZodType<WorktreeConsoleInspectResponse> = strict({ target: targetDetailsSchema })
 export const listResponseSchema: z.ZodType<WorktreeConsoleListResponse> = strict({ project: projectSchema, worktrees: z.array(targetSummarySchema) })
 export const sidebarTopologyResponseSchema: z.ZodType<WorktreeSidebarTopologyResponse> = strict({
-  workspaceClientFlavor: z.enum(['legacy', 'alpha', 'next', 'modern', 'unsupported']).optional(),
+  workspaceClientFlavor: z.enum(['legacy', 'alpha', 'next', 'modern-rc5', 'modern-rc1', 'unsupported']).optional(),
   officialWorkspaceActive: z.boolean().optional(),
   projects: z.array(strict({
     project: projectSchema,
@@ -264,7 +264,7 @@ export const sidebarTopologyResponseSchema: z.ZodType<WorktreeSidebarTopologyRes
 })
 export const clientBootReportSchema: z.ZodType<WorktreeClientBootReport> = strict({
   flavor: z.string(),
-  branch: z.enum(['legacy', 'alpha', 'next', 'modern', 'unsupported', 'topology-failed', 'boot-failed']),
+  branch: z.enum(['legacy', 'alpha', 'next', 'modern-rc5', 'modern-rc1', 'unsupported', 'topology-failed', 'boot-failed']),
   registered: z.boolean(),
   detail: z.string().max(2000).optional(),
   elapsedMountMs: z.number().int().nonnegative().optional(),

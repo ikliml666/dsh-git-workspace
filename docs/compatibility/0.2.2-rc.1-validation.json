@@ -28,13 +28,13 @@
       "name": "build",
       "command": "pnpm run build",
       "exit": 0,
-      "result": "lib/client.js 1247.67 kB"
+      "result": "lib/client.js 1478.00 kB (two modern derivatives)"
     },
     {
       "name": "sidebar-version-gate",
       "command": "pnpm run check:sidebar-version",
       "exit": 0,
-      "result": "ui-workspace 0.2.2-rc.1 + 0.1.6-alpha.2 + 0.1.7-rc.2 SHA-256 gates, locale 0.2.2-rc.1"
+      "result": "ui-workspace 0.2.2-rc.1 + 0.2.1-rc.5 + 0.1.6-alpha.2 + 0.1.7-rc.2 SHA-256 gates, locale 0.2.2-rc.1"
     },
     {
       "name": "publish-gate",
@@ -62,28 +62,55 @@
       "name": "seam-probe",
       "command": "node .dsh-ops/probe-rc1-seams.mjs",
       "exit": 0,
-      "result": "source bytes 284999; derived bytes 288602; RESULT: ALL 8 REQUIRED SEAMS OK (visibleSessionMenuItems absent as expected: it is introduced only by the plugin decoration)"
+      "result": "rc.1: source 284999 -> derived 288602 bytes, ALL 8 REQUIRED SEAMS OK; rc.5: source 232824 -> derived 236367 bytes, ALL 8 REQUIRED SEAMS OK (visibleSessionMenuItems absent in both, it is introduced only by the plugin decoration)"
     }
   ],
   "isolatedRuntime": {
-    "dshHome": "E:/tmp/dsh-rc1-home",
-    "profile": "probe",
-    "hostSource": "E:/software/deepseek-harness at 0.2.2-rc.1",
-    "launch": "DSH_HOME=E:/tmp/dsh-rc1-home node --import tsx/esm apps/cli/src/bin.ts --profile probe --port 0 --no-open",
-    "browser": "Chromium 1243, Playwright 1.64.1 automation",
-    "branches": [
+    "hosts": [
       {
-        "name": "decorate",
-        "config": "enableWorkspaceProvider: false",
-        "result": "PASS",
-        "observed": "module graph carries both dsh-git-worktree/client.js and @deepseek-ai/dsh-client-ui-workspace/client.js; console: topology resolved modern officialWorkspaceActive= true / decorate branch: requesting inject / decorated sidebar registered / boot report result {\"ok\":true,\"value\":true}; no page error; merged bundle 3824231 bytes with 30 __dshGitWorktree and 11 contextMenus occurrences"
+        "host": "0.2.2-rc.1",
+        "dshHome": "E:/tmp/dsh-rc1-home",
+        "profile": "probe",
+        "hostSource": "E:/software/deepseek-harness at 0.2.2-rc.1",
+        "launch": "DSH_HOME=E:/tmp/dsh-rc1-home node --import tsx/esm apps/cli/src/bin.ts --profile probe --port 0 --no-open",
+        "browser": "Chromium 1243, Playwright 1.64.1 automation",
+        "branches": [
+          {
+            "name": "decorate",
+            "config": "enableWorkspaceProvider: false",
+            "result": "PASS",
+            "observed": "module graph carries both dsh-git-worktree/client.js and @deepseek-ai/dsh-client-ui-workspace/client.js; console: topology resolved modern-rc1 officialWorkspaceActive= true / decorate branch: requesting inject / decorated sidebar registered / boot report result {\"ok\":true,\"value\":true}; no page error; merged bundle 3824231 bytes with 30 __dshGitWorktree and 11 contextMenus occurrences"
+          },
+          {
+            "name": "takeover",
+            "config": "enableWorkspaceProvider: true",
+            "result": "PASS after fix",
+            "observed": "official Browser removed from the module graph; sidebar rendered 工作区 / 默认工作区 / 新会话 / 更多; no page error; merged bundle 3765376 bytes with 42 __dshGitWorktree occurrences; sidebar diag reports not_git_repository for the launch cwd, which is correct because the Host started outside a managed checkout",
+            "initialFailure": "Error: cannot get property \"remoteAccess\" without inject, raised from the official workspaceAccess hook and surfaced as `slot entry crashed in 'sidebar.workspaces'`"
+          }
+        ]
       },
       {
-        "name": "takeover",
-        "config": "enableWorkspaceProvider: true",
-        "result": "PASS after fix",
-        "observed": "official Browser removed from the module graph; sidebar rendered 工作区 / 默认工作区 / 新会话 / 更多; no page error; merged bundle 3765376 bytes with 42 __dshGitWorktree occurrences; sidebar diag reports not_git_repository for the launch cwd, which is correct because the Host started outside a managed checkout",
-        "initialFailure": "Error: cannot get property \"remoteAccess\" without inject, raised from the official workspaceAccess hook and surfaced as `slot entry crashed in 'sidebar.workspaces'`"
+        "host": "0.2.1-rc.5",
+        "dshHome": "E:/tmp/dsh-rc5-home",
+        "profile": "probe5",
+        "hostSource": "published @deepseek-ai/dsh@0.2.1-rc.5 installed at E:/tmp/dsh-rc5-host",
+        "launch": "DSH_HOME=E:/tmp/dsh-rc5-home node E:/tmp/dsh-rc5-host/node_modules/@deepseek-ai/dsh/lib/bin.js --profile probe5 --port 0 --no-open",
+        "browser": "Chromium 1243, Playwright 1.64.1 automation",
+        "branches": [
+          {
+            "name": "decorate",
+            "config": "enableWorkspaceProvider: false",
+            "result": "PASS",
+            "observed": "console: topology resolved modern-rc5 officialWorkspaceActive= true / decorate branch: requesting inject / decorated sidebar registered / tools mounted / boot report result {\"ok\":true,\"value\":true}; no page error and no failed request; sidebar diag records flavor modern-rc5 and resolves the entry anchor to 0.2.1-rc.5"
+          },
+          {
+            "name": "takeover",
+            "config": "enableWorkspaceProvider: true",
+            "result": "PASS",
+            "observed": "topology resolved modern-rc5 officialWorkspaceActive= false; sidebar rendered 工作区 / 默认工作区 / 新会话 / 更多 (screenshot E:/tmp/shot-rc5-takeover.png); no page error; diag records branch modern-rc5 registered true and not_git_repository for the launch cwd"
+          }
+        ]
       }
     ]
   },
@@ -119,7 +146,7 @@
   "sourceDifference": {
     "from": "0.2.1-rc.5",
     "to": "0.2.2-rc.1",
-    "summary": "Real source change, not a version-number republish. The official Workspace Client grows 232824 -> 284999 bytes with a new SHA-256. Three upstream contract changes matter: built-in Session actions moved from the sidebar.workspaces.session.menu.item slot entries onto ctx.contextMenus.register (the literal 'session-id' is gone, replaced by 'session.<id>'); row components gained useContextMenu/useContextMenuTarget/useSessionAccess/openSessionMenu/home and the official inject list gained contextMenus; and apply reads ctx.remoteAccess as a property instead of through ctx.get. Two of the 38 decoration seams broke because rc.1 inserted a cwd field into the Session node metadata and the hover card; both were narrowed to the rc.5/rc.1 common prefix. Cordis 4.1.0 makes ctx.plugin() return Object.create(fiber) which Loader stores on entry.fiber, breaking identity comparison with ctx.fiber; Loader 1.1.0 replaced the EntryTree.write() persistence hook with commit(change).",
+    "summary": "Real source change, not a version-number republish. The official Workspace Client grows 232824 -> 284999 bytes with a new SHA-256. Three upstream contract changes matter: built-in Session actions moved from the sidebar.workspaces.session.menu.item slot entries onto ctx.contextMenus.register (the literal 'session-id' is gone, replaced by 'session.<id>'); row components gained useContextMenu/useContextMenuTarget/useSessionAccess/openSessionMenu/home and the official inject list gained contextMenus; and apply reads ctx.remoteAccess as a property instead of through ctx.get. Two of the 38 decoration seams broke because rc.1 inserted a cwd field into the Session node metadata and the hover card; both were narrowed to the rc.5/rc.1 common prefix, which now forms one seam definition shared by two separate derivatives. Cordis 4.1.0 makes ctx.plugin() return Object.create(fiber) which Loader stores on entry.fiber, breaking identity comparison with ctx.fiber; Loader 1.1.0 replaced the EntryTree.write() persistence hook with commit(change).",
     "officialWorkspaceClientBytes": 284999,
     "officialWorkspaceClientSha256": "bb31f7870381f737b2cb45db4c7911a08a4949856bc86b648a10d3e85a3e9f89",
     "previousOfficialWorkspaceClientBytes": 232824,
@@ -146,12 +173,46 @@
         "marker": "visibleSessionMenuItems",
         "note": "optional replaceIfPresent seam; the marker is introduced by the plugin's own decoration, so it cannot appear in upstream source on any generation"
       }
-    ]
+    ],
+    "rc5Derivative": {
+      "sourceBytes": 232824,
+      "derivedBytes": 236367,
+      "derivedSha256": "f5c78c1f9b2a7cb3ff5c04d55966f975ee8511b837f3f07be2fe52b008e016e3",
+      "decorationAnchorsHit": 5,
+      "decorationAnchorsSkippedOptional": 11,
+      "failureFixed": "readRc5WorkspaceClient() returned a bare string while decorateRc5WorkspaceClient() expected { source }, so the first attempt decorated undefined; the 0.2.1 SessionNodeItem also lacks the reorderable term, so the shared optional setup seam did not match and the product referenced an undefined worktreeDecoration. The rc5 script now narrows its own setup anchor and inserts the declaration before delegating to the shared decorator."
+    }
   },
   "peerRange": {
     "previous": "exact enumeration '0.1.2-rc.1 || 0.1.7-rc.2 || 0.2.0-rc.1 || 0.2.0-rc.2 || 0.2.1-alpha.1 || 0.2.1-rc.1 || 0.2.1-rc.2 || 0.2.1-rc.3 || 0.2.1-rc.4 || 0.2.1-rc.5' on @deepseek-ai/dsh-client-locale",
     "current": "^0.1.2-rc.1 || ^0.1.6-alpha.2 || ^0.1.7-rc.2 || ^0.2.0-rc.1",
     "why": "Harness resolves compatibility with semver.satisfies(runtimeVersion, range, { includePrerelease: true }). Under that semantic the open range admits 0.2.1-rc.5, 0.2.2-alpha.3 and 0.2.2-rc.1 while rejecting 0.3.0-alpha.1. The exact locale enumeration was the only peer that failed against 0.2.2-rc.1 and required a manual edit on every Host RC.",
-    "rejected": ["0.3.0-alpha.1"]
+    "rejected": [
+      "0.3.0-alpha.1"
+    ]
+  },
+  "derivatives": {
+    "note": "Decoration compiles into the artifact at build time and binds one official Client, so a single artifact cannot serve both modern Hosts. Two modern derivatives ship side by side.",
+    "items": [
+      {
+        "virtualId": "virtual:dsh-official-workspace-client",
+        "source": "@deepseek-ai/dsh-client-ui-workspace@0.2.2-rc.1",
+        "sourceBytes": 284999,
+        "sourceSha256": "bb31f7870381f737b2cb45db4c7911a08a4949856bc86b648a10d3e85a3e9f89",
+        "derivedBytes": 288602,
+        "derivedSha256": "a77ce5be7e39fa3b18ba393e2297f934bcf1a0356962c2af3d359d7bcd620171",
+        "selectedFor": "0.2.2.x and later (modern-rc1)"
+      },
+      {
+        "virtualId": "virtual:dsh-official-workspace-client-rc5",
+        "source": "@deepseek-ai/dsh-client-ui-workspace@0.2.1-rc.5",
+        "sourceBytes": 232824,
+        "sourceSha256": "9c2c17a66a5c20de00ac2852cb76debb5237439e97f877403bcaa2a471086544",
+        "derivedBytes": 236367,
+        "derivedSha256": "f5c78c1f9b2a7cb3ff5c04d55966f975ee8511b837f3f07be2fe52b008e016e3",
+        "selectedFor": "0.2.0.x and 0.2.1.x (modern-rc5)"
+      }
+    ],
+    "selection": "src/host-compat.ts splits the modern line on the patch position: patchVersion(version) >= 2 selects modern-rc1, otherwise modern-rc5. 0.2.1 never provided the ctx.contextMenus service, so the rc.5 derivative does not request it; src/client/console-remote/index.ts adds contextMenus only for the modern-rc1 child fiber."
   }
 }

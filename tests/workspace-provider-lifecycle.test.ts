@@ -9,6 +9,7 @@ import { Group, Loader, type EntryOptions } from '@deepseek-ai/cordis-plugin-loa
 import Include, { applyEntryPatches, entryListSchema, type PatchOptions } from '@deepseek-ai/cordis-plugin-include'
 import { ClientModuleRegistry } from '@deepseek-ai/dsh-client-modules'
 import { mountWorkspaceProviderLifecycle } from '../src/workspace-provider-lifecycle.js'
+import type { WorkspaceClientFlavor } from '../src/host-compat.js'
 
 const require = createRequire(import.meta.url)
 const yaml = createRequire(require.resolve('@deepseek-ai/cordis-plugin-include'))('js-yaml') as {
@@ -27,7 +28,7 @@ function entries(disabled: boolean): EntryOptions[] {
   ], message => { throw new Error(message) })
 }
 
-async function boot(data: EntryOptions[], replayDisabled = false, delayedImport?: string, childEntries?: EntryOptions[], failApply = false, flavor: 'legacy' | 'unsupported' | 'modern' = 'legacy', takeover: boolean | { operationTimeoutMs?: number, wedge?: 'never' | 'deferred' } = true) {
+async function boot(data: EntryOptions[], replayDisabled = false, delayedImport?: string, childEntries?: EntryOptions[], failApply = false, flavor: WorkspaceClientFlavor = 'legacy', takeover: boolean | { operationTimeoutMs?: number, wedge?: 'never' | 'deferred' } = true) {
   const dir = mkdtempSync(join(tmpdir(), 'workspace-provider-'))
   const paths = new Map<string, string>()
   for (const [index, name] of [OFFICIAL, WORKTREE, 'group-owner', 'fixture-include'].entries()) {
@@ -128,13 +129,13 @@ describe('Workspace provider lifecycle (real Cordis Loader and Web module regist
   })
 
   test('takeover stays opt-in on modern hosts: enableWorkspaceProvider is not advisory', async () => {
-    const { ctx, graph } = await boot(entries(false), false, undefined, undefined, false, 'modern', false)
+    const { ctx, graph } = await boot(entries(false), false, undefined, undefined, false, 'modern-rc5', false)
     expect(graph()).toContain(OFFICIAL)
     expect(ctx.get('worktreeWorkspaceProvider')).toBeUndefined()
   })
 
   test('the modern auto-takeover does not resurrect a user-disabled Worktree entry', async () => {
-    const { ctx, graph } = await boot(entries(true), false, undefined, undefined, false, 'modern', false)
+    const { ctx, graph } = await boot(entries(true), false, undefined, undefined, false, 'modern-rc5', false)
     expect(graph()).toEqual([OFFICIAL])
     expect(ctx.get('worktreeWorkspaceProvider')).toBeUndefined()
   })

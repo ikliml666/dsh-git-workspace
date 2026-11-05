@@ -5,6 +5,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
 import { decorateOfficialWorkspaceClient, readOfficialWorkspaceClient } from '../scripts/workspace-sidebar-upstream.mjs'
+import { decorateRc5WorkspaceClient, readRc5WorkspaceClient } from '../scripts/workspace-sidebar-upstream-rc5.mjs'
 import { decorateNextWorkspaceClient, readNextWorkspaceClient } from '../scripts/workspace-sidebar-upstream-next.mjs'
 import { decorateAlphaWorkspaceClient, readAlphaWorkspaceClient } from '../scripts/workspace-sidebar-upstream-alpha.mjs'
 import { registerManagedWorkspaceSidebar } from '../src/client/workspace-sidebar/index.js'
@@ -29,7 +30,8 @@ function officialApply(source: string): (ctx: Context) => void {
 const variants = [
   { name: 'alpha', source: () => decorateAlphaWorkspaceClient(readAlphaWorkspaceClient()) },
   { name: 'next', source: () => decorateNextWorkspaceClient(readNextWorkspaceClient()) },
-  { name: 'modern', source: () => decorateOfficialWorkspaceClient(readOfficialWorkspaceClient().source) },
+  { name: 'modern-rc5', source: () => decorateRc5WorkspaceClient(readRc5WorkspaceClient().source) },
+  { name: 'modern-rc1', source: () => decorateOfficialWorkspaceClient(readOfficialWorkspaceClient().source) },
 ]
 
 interface Guard {
@@ -117,7 +119,7 @@ describe.each(variants)('$name official Session actions', variant => {
         ? descriptor.name === 'sidebar.workspaces'
         : descriptor.id === 'workspace.session-rename')!
       const renameSession = renameDescriptor.inject!().renameSession!
-      const openWorkspace = vi.spyOn(navigation, variant.name === 'modern' ? 'openWorkspaceSession' : 'openWorkspace').mockResolvedValue(undefined)
+      const openWorkspace = vi.spyOn(navigation, variant.name.startsWith('modern') ? 'openWorkspaceSession' : 'openWorkspace').mockResolvedValue(undefined)
       for (const ready of [false, true]) {
         guard.ready = ready
         guard.sessionIds = new Set(['owner'])
@@ -139,11 +141,12 @@ describe.each(variants)('$name official Session actions', variant => {
       expect(unarchive.mock.calls).toEqual([['owner'], ['owner']])
       expect(fork).toHaveBeenCalledTimes(1)
       expect(fork).toHaveBeenCalledWith({ sessionId: 'ordinary', increaseTitle: true })
-      if (variant.name === 'modern') {
+      if (variant.name.startsWith('modern')) {
         const onCreated = vi.fn()
         await expect(navigation.forkSession('ordinary', onCreated, { allowMigration: false })).rejects.toBe(forkFailure)
         expect(fork).toHaveBeenLastCalledWith({ sessionId: 'ordinary', increaseTitle: true, onCreated, allowMigration: false })
-        expect(contextMenuContributions).toContain('session.id')
+        // 0.2.2-rc.1 moved the built-in Session actions from slot entries to contextMenus contributions.
+        if (variant.name === 'modern-rc1') expect(contextMenuContributions).toContain('session.id')
       }
       if (variant.name !== 'alpha') {
         const confirm = descriptors.find(descriptor => descriptor.id === 'workspace.session-archive')!

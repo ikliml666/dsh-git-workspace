@@ -378,7 +378,7 @@ describe('manual strict Worktree Console Remote contribution', () => {
     const ctx = new Context()
     await ctx.plugin(TypertRegistry)
     const topology = { ok: true as const, value: { projects: [] } }
-    const expectedTopology = { ok: true as const, value: { projects: [], workspaceClientFlavor: 'modern', officialWorkspaceActive: true } }
+    const expectedTopology = { ok: true as const, value: { projects: [], workspaceClientFlavor: 'modern-rc1', officialWorkspaceActive: true } }
     const seenLanguages: string[] = []
     const control = { sidebarTopology: vi.fn(async () => {
       seenLanguages.push(currentHostLanguage())
@@ -408,7 +408,7 @@ describe('manual strict Worktree Console Remote contribution', () => {
     new TypertGatewayService(ctx)
     ctx.typert.register(TYPERT)
     await expect(ctx.typertGateway.invoke({ peer: OWNER_PEER, namespace: 'gitWorktree', method: 'sidebarTopology', args: {} }))
-      .resolves.toEqual({ ok: true, value: { projects: [], workspaceClientFlavor: 'modern', officialWorkspaceActive: false } })
+      .resolves.toEqual({ ok: true, value: { projects: [], workspaceClientFlavor: 'modern-rc1', officialWorkspaceActive: false } })
   })
 
   it('dispatches Client boot reports into the diagnostics sink', async () => {
@@ -541,11 +541,11 @@ describe('manual strict Worktree Console Remote contribution', () => {
     await expect(client.remote.gitWorktree.clientBootReport({ flavor: 'next', branch: 'next', registered: true }, undefined))
       .resolves.toEqual({ ok: true, value: true })
     expect(call).toHaveBeenLastCalledWith('/api', 'gitWorktree/clientBootReport', { args: { report: { flavor: 'next', branch: 'next', registered: true } } }, expect.any(AbortSignal))
-    // The decorate path reports branch 'modern' (official Workspace kept live);
+    // The decorate path reports its concrete modern generation (official Workspace kept live);
     // the gateway schema must accept it, not reject with gateway/input-invalid.
-    await expect(client.remote.gitWorktree.clientBootReport({ flavor: 'modern', branch: 'modern', registered: true, elapsedMountMs: 3, elapsedTopologyMs: 5 }, undefined))
+    await expect(client.remote.gitWorktree.clientBootReport({ flavor: 'modern-rc1', branch: 'modern-rc1', registered: true, elapsedMountMs: 3, elapsedTopologyMs: 5 }, undefined))
       .resolves.toEqual({ ok: true, value: true })
-    expect(call).toHaveBeenLastCalledWith('/api', 'gitWorktree/clientBootReport', { args: { report: { flavor: 'modern', branch: 'modern', registered: true, elapsedMountMs: 3, elapsedTopologyMs: 5 } } }, expect.any(AbortSignal))
+    expect(call).toHaveBeenLastCalledWith('/api', 'gitWorktree/clientBootReport', { args: { report: { flavor: 'modern-rc1', branch: 'modern-rc1', registered: true, elapsedMountMs: 3, elapsedTopologyMs: 5 } } }, expect.any(AbortSignal))
 
     await dispose()
     expect((client.remote as unknown as Record<string, unknown>).gitWorktree).toBeUndefined()

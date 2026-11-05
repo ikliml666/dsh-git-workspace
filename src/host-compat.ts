@@ -2,30 +2,30 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { pathToFileURL } from 'node:url'
 
-export type WorkspaceClientFlavor = 'legacy' | 'alpha' | 'next' | 'modern' | 'unsupported'
+export type WorkspaceClientFlavor = 'legacy' | 'alpha' | 'next' | 'modern-rc5' | 'modern-rc1' | 'unsupported'
 
 export function workspaceClientFlavorForAgentVersion(version: string | undefined): WorkspaceClientFlavor {
   if (version === '0.1.2-rc.1') return 'legacy'
   if (version === '0.1.6-alpha.2') return 'alpha'
   if (version === '0.1.7-rc.2') return 'next'
-  if (version === '0.2.0-rc.2') return 'modern'
-  // The modern derivative ships from the 0.2.1 source line, not the previous
-  // 0.2.0 line; 0.2.2-rc.1 is the pinned modern release upstream. It is a real
-  // source change rather than a republish (official Workspace Client 232824 →
-  // 284999 bytes): built-in Session actions move from slot entries onto
-  // `ctx.contextMenus.register`, `apply` reads `ctx.remoteAccess` as a property
-  // instead of through `ctx.get`, and both the Session node and its hover card
-  // gain a `cwd` field. The two broken seams were narrowed to the rc.5/rc.1
-  // common prefix, so one decoration still covers both generations.
-  // Every service and slot the modern branch consumes (contextMenus, slots,
-  // sessions, workspaces, locale, remote, layout, shortcuts; sidebar.workspaces
-  // and its sub-slots) is verified against the 0.2.2-rc.1 Host sources —
-  // including every seam the decorated official Browser needs — so unpinned
-  // 0.2.x agents resolve to the same verified generation instead of going
-  // unsupported on every Host bump. 0.1.x maps to three different flavors and
-  // 0.3+ has not been source-verified: both stay unsupported.
-  if (version !== undefined && isModernGeneration(version)) return 'modern'
+  if (version === '0.2.0-rc.2') return 'modern-rc5'
+  // Two modern derivatives, because a decoration is frozen into the build
+  // against one pinned official Client and cannot span both generations:
+  // 0.2.2-rc.1 introduced the `contextMenus` service, moved the built-in
+  // Session actions onto it, changed `apply` to read `ctx.remoteAccess` as a
+  // property, and added a `cwd` field to the Session node and its hover card.
+  // The 0.2.1 line has none of that (Client 232824 → 284999 bytes), so its
+  // shard is derived from its own bytes and serves every 0.2.1 Host.
+  if (version !== undefined && isModernGeneration(version)) {
+    return patchVersion(version) >= 2 ? 'modern-rc1' : 'modern-rc5'
+  }
   return 'unsupported'
+}
+
+function patchVersion(version: string): number {
+  const match = /^\d+\.\d+\.(\d+)/.exec(version)
+  if (match === null) throw new Error(`Unparsable Host version ${version}`)
+  return Number(match[1])
 }
 
 function isModernGeneration(version: string): boolean {

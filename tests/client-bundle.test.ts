@@ -102,7 +102,6 @@ describe('built Client ModuleLoader artifact', () => {
     const clientExports = handoff.factory(specifier => platformRequire(nodeRequire, specifier))
     expect(clientExports.apply).toBeTypeOf('function')
     expect(clientExports.inject).toEqual([
-      'contextMenus',
       'slots',
       'sessions',
       'workspaces',
@@ -114,6 +113,9 @@ describe('built Client ModuleLoader artifact', () => {
     ])
     expect(clientExports.inject).not.toContain('conversation')
     expect(clientExports.inject).not.toContain('connection')
+    // `contextMenus` is new in 0.2.2-rc.1 and the 0.2.1 line never provides it,
+    // so the decorate/managed branch declares it on its own child fiber only.
+    expect(clientExports.inject).not.toContain('contextMenus')
     // The modern picker provider entry waits for `uiWorkspace`; requiring it at
     // entry scope would deadlock the web boot (provider cycle).
     expect(clientExports.inject).not.toContain('remote.directoryPicker')
@@ -245,7 +247,7 @@ describe('built Client ModuleLoader artifact', () => {
     const call = vi.fn(async (_url: string, method: string) => ({
       ok: true as const,
       value: method === 'gitWorktree/sidebarTopology'
-        ? { ...modernTopology, value: { ...modernTopology.value, workspaceClientFlavor: 'modern' } }
+        ? { ...modernTopology, value: { ...modernTopology.value, workspaceClientFlavor: 'modern-rc1' } }
         : expected,
     }))
     const ctx = new Context()

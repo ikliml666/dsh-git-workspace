@@ -14,6 +14,16 @@ declare module 'virtual:dsh-official-workspace-client' {
   export const WorkspaceBrowser: ComponentType<WorkspaceBrowserProps>
 }
 
+declare module 'virtual:dsh-official-workspace-client-rc5' {
+  import type { Context } from '@deepseek-ai/cordis'
+  import type { ComponentType } from 'react'
+  import type { WorkspaceBrowserProps } from '@deepseek-ai/dsh-client-ui-workspace/client'
+
+  export const inject: string[]
+  export function apply(ctx: Context): void
+  export const WorkspaceBrowser: ComponentType<WorkspaceBrowserProps>
+}
+
 declare module 'virtual:dsh-official-workspace-client-alpha' {
   import type { Context } from '@deepseek-ai/cordis'
 

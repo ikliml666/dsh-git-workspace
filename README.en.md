@@ -81,7 +81,7 @@ See the [full usage guide](docs/USAGE.en.md) for detailed actions, recovery scen
 | DeepSeek Harness | Plugin version |
 | --- | --- |
 | `0.2.2-rc.1` | `0.14.0` |
-| `0.2.1-rc.5` | `0.13.0` |
+| `0.2.1-rc.5` | `0.14.0` / `0.13.0` |
 | `0.2.1-rc.4` | `0.13.0` |
 | `0.2.1-rc.3` | `0.12.0` |
 | `0.2.1-rc.2` | `0.11.0` |
@@ -90,7 +90,7 @@ See the [full usage guide](docs/USAGE.en.md) for detailed actions, recovery scen
 
 Match the plugin version to your Harness version rather than installing the latest plugin on an older Harness.
 
-The DSH `0.2.2-rc.1` adaptation included in `0.14.0` passed source compatibility checks (typecheck, build, sidebar version/SHA gate, publish gate and the full test suite), and both sidebar branches were smoked in a real Chromium against an isolated `DSH_HOME` running the 0.2.2-rc.1 source Host. `0.2.2-rc.1` is a **real source change** over rc.5 (official Workspace Client 232824 → 284999 bytes): built-in Session actions move onto `contextMenus`, the official `apply` reads `ctx.remoteAccess` as a property, and the Session node plus its hover card gain a `cwd` field; Cordis 4.1.0 changed `ctx.plugin()` fiber identity and loader 1.1.0 replaced `EntryTree.write()` with `commit(change)`. Real AI conversation, the full review/delivery/cleanup lifecycle and desktop acceptance remain incomplete. See the [compatibility notes](docs/COMPATIBILITY.md#english) and [validation report](docs/compatibility/0.2.2-rc.1.md) for the scope. Historical validation records remain valid for their original combinations, not as acceptance evidence for newer ones.
+`0.14.0` covers both the `0.2.2-rc.1` and `0.2.1-rc.5` Hosts, each with its own derived Client selected by the patch position. The `0.2.2-rc.1` adaptation passed source compatibility checks (typecheck, build, sidebar version/SHA gate, publish gate and the full test suite), and both sidebar branches were smoked in a real Chromium against an isolated `DSH_HOME` running the 0.2.2-rc.1 source Host. `0.2.2-rc.1` is a **real source change** over rc.5 (official Workspace Client 232824 → 284999 bytes): built-in Session actions move onto `contextMenus`, the official `apply` reads `ctx.remoteAccess` as a property, and the Session node plus its hover card gain a `cwd` field; Cordis 4.1.0 changed `ctx.plugin()` fiber identity and loader 1.1.0 replaced `EntryTree.write()` with `commit(change)`. Real AI conversation, the full review/delivery/cleanup lifecycle and desktop acceptance remain incomplete. See the [compatibility notes](docs/COMPATIBILITY.md#english) and [validation report](docs/compatibility/0.2.2-rc.1.md) for the scope. Historical validation records remain valid for their original combinations, not as acceptance evidence for newer ones.
 
 ### Install
 
