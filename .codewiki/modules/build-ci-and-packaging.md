@@ -99,7 +99,7 @@ flowchart TB
 
 ### 3.1 身份与引擎约束
 
-- `name`: `dsh-git-worktree`，`version`: `0.13.0`，`type`: `module`，`license`: `MIT`。
+- `name`: `dsh-git-worktree`，`version`: `0.14.0`，`type`: `module`，`license`: `MIT`。
 - `engines.node`: `>=24.9.0`。CI 固定使用 Node 22，见 [§7 CI 流水线](#7-ci-流水线-githubworkflowsciyml)。
 
 ### 3.2 `exports` 子路径映射

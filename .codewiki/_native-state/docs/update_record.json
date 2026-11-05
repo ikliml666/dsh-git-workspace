@@ -1,6 +1,6 @@
 {
-  "started_at": "2026-11-05T17:53:32+0800",
-  "finished_at": "2026-11-05T18:01:54+0800",
+  "started_at": "2026-11-05T18:40:07+0800",
+  "finished_at": "2026-11-05T18:43:42+0800",
   "outcome": "incremental",
   "options": {
     "rung": "3",
@@ -24,8 +24,8 @@
     }
   },
   "revision": {
-    "old_commit": "89717bdd4a4400c5aa94c2b7236fe704f4a00f1e",
-    "new_commit": "0d60f9be14be9cb90114e0e7a3b9fa35e45e0613",
+    "old_commit": "0d60f9be14be9cb90114e0e7a3b9fa35e45e0613",
+    "new_commit": "9c739a220381a598d280c6eb6dd7f2a83bb8a29f",
     "repo_path": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree"
   },
   "diff": {
@@ -33,7 +33,7 @@
       "added": 0,
       "deleted": 0,
       "interface": 0,
-      "body": 3,
+      "body": 2,
       "edge": 0,
       "renamed": 0
     },
@@ -42,8 +42,7 @@
     "interface": [],
     "body": [
       "package.json::package.json",
-      "pnpm-workspace.yaml::pnpm-workspace.yaml",
-      "src\\workspace-provider-lifecycle.ts::mountWorkspaceProviderLifecycle"
+      "src\\host-compat.ts::workspaceClientFlavorForAgentVersion"
     ],
     "edge": [],
     "renamed": {}
@@ -67,7 +66,6 @@
       ],
       "mode": "edit",
       "own": [
-        "pnpm-workspace.yaml::pnpm-workspace.yaml",
         "package.json::package.json"
       ],
       "adopted": {},
@@ -81,19 +79,17 @@
       "reclustered": false,
       "page": "build_ci_and_packaging"
     },
-    "core_worktree_domain_and_infrastructure/session_checkout_domain/session_checkout_runtime/workspace_provider_lifecycle": {
+    "core_worktree_domain_and_infrastructure/worktree_core_operations": {
       "leaf_path": [
         "core_worktree_domain_and_infrastructure",
-        "session_checkout_domain",
-        "session_checkout_runtime",
-        "workspace_provider_lifecycle"
+        "worktree_core_operations"
       ],
       "mode": "edit",
       "own": [
-        "src\\workspace-provider-lifecycle.ts::mountWorkspaceProviderLifecycle"
+        "src\\host-compat.ts::workspaceClientFlavorForAgentVersion"
       ],
       "adopted": {
-        "src\\workspace-provider-lifecycle.ts::mountWorkspaceProviderLifecycle": "1:same_file"
+        "src\\host-compat.ts::workspaceClientFlavorForAgentVersion": "1:same_file"
       },
       "up": [],
       "context": [],
@@ -103,20 +99,18 @@
       "children_added": [],
       "children_removed": [],
       "reclustered": false,
-      "page": "workspace_provider_lifecycle"
+      "page": "worktree_core_operations"
     }
   },
   "ownership": [
     {
-      "component_id": "src\\workspace-provider-lifecycle.ts::mountWorkspaceProviderLifecycle",
+      "component_id": "src\\host-compat.ts::workspaceClientFlavorForAgentVersion",
       "rule": "1:same_file",
       "leaf_path": [
         "core_worktree_domain_and_infrastructure",
-        "session_checkout_domain",
-        "session_checkout_runtime",
-        "workspace_provider_lifecycle"
+        "worktree_core_operations"
       ],
-      "detail": "3 tracked components in file",
+      "detail": "2 tracked components in file",
       "deleted": false
     }
   ],
@@ -128,8 +122,8 @@
       "order": 0
     },
     {
-      "leaf": "core_worktree_domain_and_infrastructure/session_checkout_domain/session_checkout_runtime/workspace_provider_lifecycle",
-      "page": "workspace_provider_lifecycle",
+      "leaf": "core_worktree_domain_and_infrastructure/worktree_core_operations",
+      "page": "worktree_core_operations",
       "mode": "edit",
       "order": 1
     }
@@ -137,15 +131,45 @@
   "write_sets": {
     "build_ci_and_packaging": [
       "build_ci_and_packaging",
+      "client_core",
+      "client_review_console",
+      "client_review_console_review_actions",
+      "client_settings_card",
       "overview",
-      "project_foundation_and_localization"
+      "project_foundation_and_localization",
+      "src_adapters",
+      "src_adapters_git_execution",
+      "src_adapters_host_binding",
+      "src_adapters_persistence",
+      "src_adapters_project_skills",
+      "src_i18n",
+      "src_index.ts",
+      "src_session-checkout-module.ts",
+      "worktree_console_contract",
+      "worktree_console_host",
+      "worktree_console_host_control_plane",
+      "worktree_console_host_projection_and_errors",
+      "worktree_console_host_review_diff",
+      "worktree_console_host_rpc_service",
+      "worktree_console_remote",
+      "worktree_core_operations"
     ],
-    "workspace_provider_lifecycle": [
+    "worktree_core_operations": [
+      "client_review_console",
+      "client_review_console_review_actions",
       "core_worktree_domain_and_infrastructure",
       "overview",
-      "session_checkout_domain",
-      "session_checkout_runtime",
-      "workspace_provider_lifecycle"
+      "session_checkout_apply_engine",
+      "src_adapters",
+      "src_adapters_git_execution",
+      "src_adapters_host_binding",
+      "src_adapters_persistence",
+      "src_adapters_project_skills",
+      "src_index.ts",
+      "src_session-checkout-module.ts",
+      "workspace_provider_lifecycle",
+      "worktree_console_host_projection_and_errors",
+      "worktree_core_operations"
     ]
   },
   "fallback": {
@@ -162,146 +186,324 @@
     {
       "page": "build_ci_and_packaging",
       "verdict": "patch",
-      "reason": "更新 engines.node、tsc 运行环境描述、minimumReleaseAgeExclude 白名单版本族与上游 0.2.2-rc.1 闸门版本号",
+      "reason": "Updated package.json version from 0.13.0 to 0.14.0 in §3.1 身份与引擎约束",
       "by_leaf": "build_ci_and_packaging",
       "changed_on_disk": true
     },
     {
       "page": "project_foundation_and_localization",
       "verdict": "no-op",
-      "reason": "仅以通用措辞概括 build_ci_and_packaging 的职责，无受本次版本变更影响的具体版本号",
+      "reason": "Ancestor page; does not cite concrete package version, only summarizes module responsibilities",
       "by_leaf": "build_ci_and_packaging",
       "changed_on_disk": false
     },
     {
       "page": "overview",
       "verdict": "no-op",
-      "reason": "构建/CI 概述为泛化描述，未引用任何具体 Node 或依赖版本",
+      "reason": "Ancestor/referrer page; does not cite concrete package version",
       "by_leaf": "build_ci_and_packaging",
       "changed_on_disk": false
     },
     {
-      "page": "workspace_provider_lifecycle",
-      "verdict": "patch",
-      "reason": "在卸载还原流程中补充了 Cordis 4.1.0 fiber 包装对象的 withdraw 归属判定说明，其余描述均仍正确",
-      "by_leaf": "workspace_provider_lifecycle",
-      "changed_on_disk": true
-    },
-    {
-      "page": "session_checkout_runtime",
+      "page": "client_core",
       "verdict": "no-op",
-      "reason": "仅概述选举与还原职责，未涉及 withdraw 内部 fiber 身份判定细节，无需改动",
-      "by_leaf": "workspace_provider_lifecycle",
+      "reason": "Referrer page; no concrete version reference, describes Client entry assembly only",
+      "by_leaf": "build_ci_and_packaging",
       "changed_on_disk": false
     },
     {
-      "page": "session_checkout_domain",
+      "page": "client_review_console",
       "verdict": "no-op",
-      "reason": "领域级摘要不涉及本 leaf 内部实现差异",
-      "by_leaf": "workspace_provider_lifecycle",
+      "reason": "Referrer page; no concrete version reference",
+      "by_leaf": "build_ci_and_packaging",
       "changed_on_disk": false
     },
     {
-      "page": "core_worktree_domain_and_infrastructure",
+      "page": "client_review_console_review_actions",
       "verdict": "no-op",
-      "reason": "模块级架构摘要不受 withdraw 判定放宽影响",
-      "by_leaf": "workspace_provider_lifecycle",
+      "reason": "Referrer page; no concrete version reference",
+      "by_leaf": "build_ci_and_packaging",
       "changed_on_disk": false
     },
     {
-      "page": "overview",
+      "page": "client_settings_card",
       "verdict": "no-op",
-      "reason": "仓库级导航不涉及该内部行为",
-      "by_leaf": "workspace_provider_lifecycle",
+      "reason": "Referrer page; no concrete version reference",
+      "by_leaf": "build_ci_and_packaging",
+      "changed_on_disk": false
+    },
+    {
+      "page": "src_adapters",
+      "verdict": "no-op",
+      "reason": "Referrer page path not found in docs tree (parent page exists but not listed as requiring version update)",
+      "by_leaf": "build_ci_and_packaging",
+      "changed_on_disk": false
+    },
+    {
+      "page": "src_adapters_git_execution",
+      "verdict": "no-op",
+      "reason": "Referrer page; no concrete version reference",
+      "by_leaf": "build_ci_and_packaging",
+      "changed_on_disk": false
+    },
+    {
+      "page": "src_adapters_host_binding",
+      "verdict": "no-op",
+      "reason": "Referrer page; no concrete version reference",
+      "by_leaf": "build_ci_and_packaging",
+      "changed_on_disk": false
+    },
+    {
+      "page": "src_adapters_persistence",
+      "verdict": "no-op",
+      "reason": "Referrer page; no concrete version reference",
+      "by_leaf": "build_ci_and_packaging",
+      "changed_on_disk": false
+    },
+    {
+      "page": "src_adapters_project_skills",
+      "verdict": "no-op",
+      "reason": "Referrer page; no concrete version reference",
+      "by_leaf": "build_ci_and_packaging",
+      "changed_on_disk": false
+    },
+    {
+      "page": "src_i18n",
+      "verdict": "no-op",
+      "reason": "Referrer page; no concrete version reference",
+      "by_leaf": "build_ci_and_packaging",
       "changed_on_disk": false
     },
     {
       "page": "src_index.ts",
+      "verdict": "no-op",
+      "reason": "Referrer page; no concrete version reference",
+      "by_leaf": "build_ci_and_packaging",
+      "changed_on_disk": false
+    },
+    {
+      "page": "src_session-checkout-module.ts",
+      "verdict": "no-op",
+      "reason": "Referrer page; no concrete version reference",
+      "by_leaf": "build_ci_and_packaging",
+      "changed_on_disk": false
+    },
+    {
+      "page": "worktree_console_contract",
+      "verdict": "no-op",
+      "reason": "Referrer page; no concrete version reference",
+      "by_leaf": "build_ci_and_packaging",
+      "changed_on_disk": false
+    },
+    {
+      "page": "worktree_console_host",
+      "verdict": "no-op",
+      "reason": "Referrer page; no concrete version reference",
+      "by_leaf": "build_ci_and_packaging",
+      "changed_on_disk": false
+    },
+    {
+      "page": "worktree_console_host_control_plane",
+      "verdict": "no-op",
+      "reason": "Referrer page; no concrete version reference",
+      "by_leaf": "build_ci_and_packaging",
+      "changed_on_disk": false
+    },
+    {
+      "page": "worktree_console_host_projection_and_errors",
+      "verdict": "no-op",
+      "reason": "Referrer page; no concrete version reference",
+      "by_leaf": "build_ci_and_packaging",
+      "changed_on_disk": false
+    },
+    {
+      "page": "worktree_console_host_review_diff",
+      "verdict": "no-op",
+      "reason": "Referrer page; no concrete version reference",
+      "by_leaf": "build_ci_and_packaging",
+      "changed_on_disk": false
+    },
+    {
+      "page": "worktree_console_host_rpc_service",
+      "verdict": "no-op",
+      "reason": "Referrer page; no concrete version reference",
+      "by_leaf": "build_ci_and_packaging",
+      "changed_on_disk": false
+    },
+    {
+      "page": "worktree_console_remote",
+      "verdict": "no-op",
+      "reason": "Referrer page; no concrete version reference",
+      "by_leaf": "build_ci_and_packaging",
+      "changed_on_disk": false
+    },
+    {
+      "page": "worktree_core_operations",
+      "verdict": "no-op",
+      "reason": "Referrer page; no concrete version reference",
+      "by_leaf": "build_ci_and_packaging",
+      "changed_on_disk": false
+    },
+    {
+      "page": "worktree_core_operations",
       "verdict": "patch",
-      "reason": "Dangling link src_session-checkout-module.md no longer exists; repointed all 4 occurrences to the existing replacement page src_session-checkout-module.ts.md (same directory, covers src/session-checkout-module.ts 状态机实现). All link contexts remain accurate; everything else unchanged.",
-      "by_leaf": "stale_scan",
+      "reason": "§2.6 updated from pinned 0.2.1-rc.5 (rc.4 字节一致) to 0.2.2-rc.1 (真实源码变更 232824→284999 字节、contextMenus/remoteAccess/cwd 接缝、对 0.2.2-rc.1 源核验)",
+      "by_leaf": "worktree_core_operations",
       "changed_on_disk": true
+    },
+    {
+      "page": "core_worktree_domain_and_infrastructure",
+      "verdict": "no-op",
+      "reason": "父页仅高层概述 leaf 的纯规则与注册面，不含世代判定版本细节",
+      "by_leaf": "worktree_core_operations",
+      "changed_on_disk": false
+    },
+    {
+      "page": "overview",
+      "verdict": "no-op",
+      "reason": "总览导航页无世代版本细节",
+      "by_leaf": "worktree_core_operations",
+      "changed_on_disk": false
+    },
+    {
+      "page": "session_checkout_apply_engine",
+      "verdict": "no-op",
+      "reason": "Apply 引擎页不引用 host-compat 世代判定",
+      "by_leaf": "worktree_core_operations",
+      "changed_on_disk": false
+    },
+    {
+      "page": "client_review_console",
+      "verdict": "no-op",
+      "reason": "仅引用 isValidCommitMessage，未受本次注释变更影响",
+      "by_leaf": "worktree_core_operations",
+      "changed_on_disk": false
+    },
+    {
+      "page": "client_review_console_review_actions",
+      "verdict": "no-op",
+      "reason": "仅引用 isValidCommitMessage 契约，签名未变",
+      "by_leaf": "worktree_core_operations",
+      "changed_on_disk": false
+    },
+    {
+      "page": "src_adapters",
+      "verdict": "no-op",
+      "reason": "仅泛称 host-compat.ts 服务 Apply 引擎与运行时，无版本细节",
+      "by_leaf": "worktree_core_operations",
+      "changed_on_disk": false
+    },
+    {
+      "page": "src_adapters_git_execution",
+      "verdict": "no-op",
+      "reason": "仅引用 WorktreeCreationFailure，签名未变",
+      "by_leaf": "worktree_core_operations",
+      "changed_on_disk": false
+    },
+    {
+      "page": "src_adapters_host_binding",
+      "verdict": "no-op",
+      "reason": "宿主服务绑定层不含世代判定版本细节",
+      "by_leaf": "worktree_core_operations",
+      "changed_on_disk": false
+    },
+    {
+      "page": "src_adapters_persistence",
+      "verdict": "no-op",
+      "reason": "仅引用 isValidCommitMessage，签名未变",
+      "by_leaf": "worktree_core_operations",
+      "changed_on_disk": false
+    },
+    {
+      "page": "src_adapters_project_skills",
+      "verdict": "no-op",
+      "reason": "DSH 0.1/0.2 candidate.locator 差异与本次 pinned release 注释无关",
+      "by_leaf": "worktree_core_operations",
+      "changed_on_disk": false
+    },
+    {
+      "page": "src_index.ts",
+      "verdict": "no-op",
+      "reason": "装配入口页不落地 pinned release 版本细节",
+      "by_leaf": "worktree_core_operations",
+      "changed_on_disk": false
+    },
+    {
+      "page": "src_session-checkout-module.ts",
+      "verdict": "no-op",
+      "reason": "状态机页不引用 host-compat 世代判定",
+      "by_leaf": "worktree_core_operations",
+      "changed_on_disk": false
+    },
+    {
+      "page": "workspace_provider_lifecycle",
+      "verdict": "no-op",
+      "reason": "仅按 0.1.x/0.2.x/unsupported 高层描述选举行为，细节指向 leaf 页，仍准确",
+      "by_leaf": "worktree_core_operations",
+      "changed_on_disk": false
+    },
+    {
+      "page": "worktree_console_host_projection_and_errors",
+      "verdict": "no-op",
+      "reason": "仅引用 checkpointGenerationForRecord，签名未变",
+      "by_leaf": "worktree_core_operations",
+      "changed_on_disk": false
     }
   ],
   "pages_written": [
     "build_ci_and_packaging",
-    "workspace_provider_lifecycle",
-    "src_index.ts"
+    "worktree_core_operations"
   ],
   "pages_removed": [],
   "write_set_violations": [],
   "stale_scan": {
     "scanned": 37,
-    "pages_with_hits": {
-      "src_index.ts": [
-        {
-          "kind": "deleted_page",
-          "old": "src_session-checkout-module",
-          "replacement": null
-        }
-      ]
-    },
-    "fixed": [
-      "src_index.ts"
-    ]
+    "pages_with_hits": {},
+    "fixed": []
   },
   "calls": [
     {
       "kind": "leaf_agent",
       "target": "build_ci_and_packaging",
-      "seconds": 399.77265071868896,
+      "seconds": 77.54715752601624,
       "usage": {
-        "input_tokens": 806063,
-        "output_tokens": 17399,
-        "cache_read_tokens": 503912,
+        "input_tokens": 314413,
+        "output_tokens": 4494,
+        "cache_read_tokens": 42608,
         "cache_write_tokens": 0,
-        "total_tokens": 823462,
-        "requests": 17
+        "total_tokens": 318907,
+        "requests": 5
       },
       "error": null
     },
     {
       "kind": "leaf_agent",
-      "target": "workspace_provider_lifecycle",
-      "seconds": 189.46612095832825,
+      "target": "worktree_core_operations",
+      "seconds": 214.93144750595093,
       "usage": {
-        "input_tokens": 75867,
-        "output_tokens": 7481,
-        "cache_read_tokens": 11064,
+        "input_tokens": 359667,
+        "output_tokens": 11483,
+        "cache_read_tokens": 29496,
         "cache_write_tokens": 0,
-        "total_tokens": 83348,
-        "requests": 6
+        "total_tokens": 371150,
+        "requests": 9
       },
       "error": null
     },
     {
       "kind": "missing_pages",
       "target": "-",
-      "seconds": 0.1408381462097168,
+      "seconds": 0.06838130950927734,
       "usage": null,
-      "error": null
-    },
-    {
-      "kind": "stale_fix",
-      "target": "src_index.ts",
-      "seconds": 101.25320982933044,
-      "usage": {
-        "input_tokens": 231240,
-        "output_tokens": 4426,
-        "cache_read_tokens": 113000,
-        "cache_write_tokens": 0,
-        "total_tokens": 235666,
-        "requests": 12
-      },
       "error": null
     }
   ],
   "detector_notes": [
-    "[build_ci_and_packaging] agent notes: pnpm-workspace.yaml 中 schemastery 条目实际为 3.18.5 + 3.19.0 并存，文档取最新的 3.19.0 作为示例；CI 流水线（.github/workflows/ci.yml）仍使用 Node 22，与 engines 的 >=24.9.0 不一致属于仓库本身的现状，文档按实际 CI 配置如实描述，未擅自改动。",
-    "[workspace_provider_lifecycle] agent notes: 组件读取工具按当前 revision 无法解析 src/workspace-provider-lifecycle.ts 的组件 id，但 CHANGE_REPORT 的 diff 已完整自洽，足以完成补丁。"
+    "[build_ci_and_packaging] agent notes: Single-line version bump (0.13.0 → 0.14.0) in package.json. Only the leaf page build_ci_and_packaging.md §3.1 cited the concrete version; all other pages reference module structure, contracts, and behavior that are unaffected by a version increment.",
+    "[worktree_core_operations] agent notes: 本次变更为 workspaceClientFlavorForAgentVersion 的注释更新（锁定发布从 0.2.1-rc.5 改为 0.2.2-rc.1），映射行为本身（所有 0.2.x → modern）未变，故仅 leaf 页 §2.6 需同步文字。"
   ],
   "errors": [],
-  "wall_seconds": 502.22,
+  "wall_seconds": 215.87,
   "usage_report": {
     "schema_version": 2,
     "scope": "this run only (modules resumed from disk cost nothing)",
@@ -309,37 +511,37 @@
     "cost_status": "unknown",
     "incomplete": false,
     "unknown_usage_calls": 0,
-    "n_calls": 35,
+    "n_calls": 14,
     "totals": {
-      "input_tokens": 1113170,
-      "output_tokens": 29306,
-      "cache_read_tokens": 627976,
+      "input_tokens": 674080,
+      "output_tokens": 15977,
+      "cache_read_tokens": 72104,
       "cache_write_tokens": 0,
-      "requests": 35,
-      "total_tokens": 1142476
+      "requests": 14,
+      "total_tokens": 690057
     },
     "by_phase": {
       "update": {
-        "calls": 35,
-        "input_tokens": 1113170,
-        "output_tokens": 29306,
-        "cache_read_tokens": 627976,
+        "calls": 14,
+        "input_tokens": 674080,
+        "output_tokens": 15977,
+        "cache_read_tokens": 72104,
         "cache_write_tokens": 0,
-        "requests": 35,
-        "total_tokens": 1142476,
-        "unpriced_calls": 35
+        "requests": 14,
+        "total_tokens": 690057,
+        "unpriced_calls": 14
       }
     },
     "by_model": {
       "doubao-seed-2.1-lite": {
-        "calls": 35,
-        "input_tokens": 1113170,
-        "output_tokens": 29306,
-        "cache_read_tokens": 627976,
+        "calls": 14,
+        "input_tokens": 674080,
+        "output_tokens": 15977,
+        "cache_read_tokens": 72104,
         "cache_write_tokens": 0,
-        "requests": 35,
-        "total_tokens": 1142476,
-        "unpriced_calls": 35
+        "requests": 14,
+        "total_tokens": 690057,
+        "unpriced_calls": 14
       }
     },
     "unpriced_models": [
@@ -349,15 +551,15 @@
       {
         "phase": "update",
         "kind": "update_agent",
-        "target": "workspace_provider_lifecycle",
+        "target": "build_ci_and_packaging",
         "model": "doubao-seed-2.1-lite",
-        "seconds": 19.95,
-        "input_tokens": 8259,
-        "output_tokens": 1601,
+        "seconds": 7.41,
+        "input_tokens": 17828,
+        "output_tokens": 667,
         "cache_read_tokens": 0,
         "cache_write_tokens": 0,
         "requests": 1,
-        "total_tokens": 9860,
+        "total_tokens": 18495,
         "usage_reported": true,
         "provider": "openai-compatible",
         "requested_model": "doubao-seed-2.1-lite",
@@ -366,15 +568,15 @@
       {
         "phase": "update",
         "kind": "update_agent",
-        "target": "workspace_provider_lifecycle",
+        "target": "worktree_core_operations",
         "model": "doubao-seed-2.1-lite",
-        "seconds": 3.31,
-        "input_tokens": 11082,
-        "output_tokens": 129,
+        "seconds": 19.2,
+        "input_tokens": 12437,
+        "output_tokens": 1796,
         "cache_read_tokens": 0,
         "cache_write_tokens": 0,
         "requests": 1,
-        "total_tokens": 11211,
+        "total_tokens": 14233,
         "usage_reported": true,
         "provider": "openai-compatible",
         "requested_model": "doubao-seed-2.1-lite",
@@ -385,13 +587,13 @@
         "kind": "update_agent",
         "target": "build_ci_and_packaging",
         "model": "doubao-seed-2.1-lite",
-        "seconds": 34.11,
-        "input_tokens": 37493,
-        "output_tokens": 2818,
+        "seconds": 16.91,
+        "input_tokens": 21307,
+        "output_tokens": 941,
         "cache_read_tokens": 0,
         "cache_write_tokens": 0,
         "requests": 1,
-        "total_tokens": 40311,
+        "total_tokens": 22248,
         "usage_reported": true,
         "provider": "openai-compatible",
         "requested_model": "doubao-seed-2.1-lite",
@@ -400,15 +602,32 @@
       {
         "phase": "update",
         "kind": "update_agent",
-        "target": "workspace_provider_lifecycle",
+        "target": "build_ci_and_packaging",
         "model": "doubao-seed-2.1-lite",
-        "seconds": 43.28,
-        "input_tokens": 11258,
-        "output_tokens": 3153,
+        "seconds": 6.72,
+        "input_tokens": 42621,
+        "output_tokens": 479,
+        "cache_read_tokens": 21304,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 43100,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "worktree_core_operations",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 36.05,
+        "input_tokens": 14773,
+        "output_tokens": 2924,
         "cache_read_tokens": 0,
         "cache_write_tokens": 0,
         "requests": 1,
-        "total_tokens": 14411,
+        "total_tokens": 17697,
         "usage_reported": true,
         "provider": "openai-compatible",
         "requested_model": "doubao-seed-2.1-lite",
@@ -419,13 +638,13 @@
         "kind": "update_agent",
         "target": "build_ci_and_packaging",
         "model": "doubao-seed-2.1-lite",
-        "seconds": 42.75,
-        "input_tokens": 40794,
-        "output_tokens": 2953,
+        "seconds": 15.2,
+        "input_tokens": 64770,
+        "output_tokens": 1135,
         "cache_read_tokens": 0,
         "cache_write_tokens": 0,
         "requests": 1,
-        "total_tokens": 43747,
+        "total_tokens": 65905,
         "usage_reported": true,
         "provider": "openai-compatible",
         "requested_model": "doubao-seed-2.1-lite",
@@ -434,15 +653,15 @@
       {
         "phase": "update",
         "kind": "update_agent",
-        "target": "workspace_provider_lifecycle",
+        "target": "worktree_core_operations",
         "model": "doubao-seed-2.1-lite",
-        "seconds": 15.44,
-        "input_tokens": 14392,
-        "output_tokens": 980,
+        "seconds": 7.48,
+        "input_tokens": 29580,
+        "output_tokens": 762,
         "cache_read_tokens": 0,
         "cache_write_tokens": 0,
         "requests": 1,
-        "total_tokens": 15372,
+        "total_tokens": 30342,
         "usage_reported": true,
         "provider": "openai-compatible",
         "requested_model": "doubao-seed-2.1-lite",
@@ -451,15 +670,32 @@
       {
         "phase": "update",
         "kind": "update_agent",
-        "target": "workspace_provider_lifecycle",
+        "target": "build_ci_and_packaging",
         "model": "doubao-seed-2.1-lite",
-        "seconds": 13.58,
-        "input_tokens": 14935,
-        "output_tokens": 1008,
+        "seconds": 14.73,
+        "input_tokens": 167887,
+        "output_tokens": 1272,
+        "cache_read_tokens": 21304,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 169159,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "worktree_core_operations",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 13.06,
+        "input_tokens": 31274,
+        "output_tokens": 904,
         "cache_read_tokens": 0,
         "cache_write_tokens": 0,
         "requests": 1,
-        "total_tokens": 15943,
+        "total_tokens": 32178,
         "usage_reported": true,
         "provider": "openai-compatible",
         "requested_model": "doubao-seed-2.1-lite",
@@ -468,15 +704,15 @@
       {
         "phase": "update",
         "kind": "update_agent",
-        "target": "build_ci_and_packaging",
+        "target": "worktree_core_operations",
         "model": "doubao-seed-2.1-lite",
-        "seconds": 86.55,
-        "input_tokens": 43640,
-        "output_tokens": 6752,
-        "cache_read_tokens": 37432,
+        "seconds": 8.64,
+        "input_tokens": 58981,
+        "output_tokens": 615,
+        "cache_read_tokens": 29496,
         "cache_write_tokens": 0,
         "requests": 1,
-        "total_tokens": 50392,
+        "total_tokens": 59596,
         "usage_reported": true,
         "provider": "openai-compatible",
         "requested_model": "doubao-seed-2.1-lite",
@@ -485,15 +721,15 @@
       {
         "phase": "update",
         "kind": "update_agent",
-        "target": "build_ci_and_packaging",
+        "target": "worktree_core_operations",
         "model": "doubao-seed-2.1-lite",
-        "seconds": 4.05,
-        "input_tokens": 44507,
-        "output_tokens": 158,
+        "seconds": 11.97,
+        "input_tokens": 0,
+        "output_tokens": 0,
         "cache_read_tokens": 0,
         "cache_write_tokens": 0,
         "requests": 1,
-        "total_tokens": 44665,
+        "total_tokens": 0,
         "usage_reported": true,
         "provider": "openai-compatible",
         "requested_model": "doubao-seed-2.1-lite",
@@ -502,49 +738,15 @@
       {
         "phase": "update",
         "kind": "update_agent",
-        "target": "build_ci_and_packaging",
+        "target": "worktree_core_operations",
         "model": "doubao-seed-2.1-lite",
-        "seconds": 3.64,
-        "input_tokens": 45362,
-        "output_tokens": 104,
-        "cache_read_tokens": 37432,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 45466,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "build_ci_and_packaging",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 3.14,
-        "input_tokens": 46718,
-        "output_tokens": 87,
-        "cache_read_tokens": 44344,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 46805,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "build_ci_and_packaging",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 3.19,
-        "input_tokens": 46856,
-        "output_tokens": 88,
+        "seconds": 22.2,
+        "input_tokens": 53939,
+        "output_tokens": 1745,
         "cache_read_tokens": 0,
         "cache_write_tokens": 0,
         "requests": 1,
-        "total_tokens": 46944,
+        "total_tokens": 55684,
         "usage_reported": true,
         "provider": "openai-compatible",
         "requested_model": "doubao-seed-2.1-lite",
@@ -553,15 +755,15 @@
       {
         "phase": "update",
         "kind": "update_agent",
-        "target": "build_ci_and_packaging",
+        "target": "worktree_core_operations",
         "model": "doubao-seed-2.1-lite",
-        "seconds": 4.67,
-        "input_tokens": 47424,
-        "output_tokens": 303,
+        "seconds": 14.25,
+        "input_tokens": 78839,
+        "output_tokens": 843,
         "cache_read_tokens": 0,
         "cache_write_tokens": 0,
         "requests": 1,
-        "total_tokens": 47727,
+        "total_tokens": 79682,
         "usage_reported": true,
         "provider": "openai-compatible",
         "requested_model": "doubao-seed-2.1-lite",
@@ -570,372 +772,15 @@
       {
         "phase": "update",
         "kind": "update_agent",
-        "target": "build_ci_and_packaging",
+        "target": "worktree_core_operations",
         "model": "doubao-seed-2.1-lite",
-        "seconds": 2.81,
-        "input_tokens": 47872,
-        "output_tokens": 120,
-        "cache_read_tokens": 47416,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 47992,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "build_ci_and_packaging",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 3.06,
-        "input_tokens": 48378,
-        "output_tokens": 94,
-        "cache_read_tokens": 45112,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 48472,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "workspace_provider_lifecycle",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 10.39,
-        "input_tokens": 15941,
-        "output_tokens": 610,
-        "cache_read_tokens": 11064,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 16551,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "build_ci_and_packaging",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 3.73,
-        "input_tokens": 48780,
-        "output_tokens": 198,
-        "cache_read_tokens": 48184,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 48978,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "build_ci_and_packaging",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 5.83,
-        "input_tokens": 49259,
-        "output_tokens": 491,
-        "cache_read_tokens": 46648,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 49750,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "build_ci_and_packaging",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 5.17,
-        "input_tokens": 50206,
-        "output_tokens": 326,
-        "cache_read_tokens": 48184,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 50532,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "build_ci_and_packaging",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 5.53,
-        "input_tokens": 50685,
-        "output_tokens": 354,
-        "cache_read_tokens": 49208,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 51039,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "build_ci_and_packaging",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 20.52,
-        "input_tokens": 51727,
-        "output_tokens": 1455,
-        "cache_read_tokens": 49976,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 53182,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "build_ci_and_packaging",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 4.22,
-        "input_tokens": 52317,
-        "output_tokens": 155,
+        "seconds": 21.58,
+        "input_tokens": 79844,
+        "output_tokens": 1894,
         "cache_read_tokens": 0,
         "cache_write_tokens": 0,
         "requests": 1,
-        "total_tokens": 52472,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "build_ci_and_packaging",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 14.16,
-        "input_tokens": 54045,
-        "output_tokens": 943,
-        "cache_read_tokens": 49976,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 54988,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "src_index.ts",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 2.47,
-        "input_tokens": 2025,
-        "output_tokens": 98,
-        "cache_read_tokens": 1848,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 2123,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "src_index.ts",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 4.76,
-        "input_tokens": 9797,
-        "output_tokens": 338,
-        "cache_read_tokens": 1848,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 10135,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "src_index.ts",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 3.08,
-        "input_tokens": 9970,
-        "output_tokens": 155,
-        "cache_read_tokens": 9784,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 10125,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "src_index.ts",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 4.67,
-        "input_tokens": 14506,
-        "output_tokens": 384,
-        "cache_read_tokens": 9784,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 14890,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "src_index.ts",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 3.12,
-        "input_tokens": 14674,
-        "output_tokens": 102,
-        "cache_read_tokens": 1848,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 14776,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "src_index.ts",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 2.16,
-        "input_tokens": 14763,
-        "output_tokens": 70,
-        "cache_read_tokens": 14648,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 14833,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "src_index.ts",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 3.03,
-        "input_tokens": 14847,
-        "output_tokens": 92,
-        "cache_read_tokens": 14648,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 14939,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "src_index.ts",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 7.03,
-        "input_tokens": 14924,
-        "output_tokens": 320,
-        "cache_read_tokens": 14392,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 15244,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "src_index.ts",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 13.47,
-        "input_tokens": 14974,
-        "output_tokens": 1040,
-        "cache_read_tokens": 0,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 16014,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "src_index.ts",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 8.83,
-        "input_tokens": 22591,
-        "output_tokens": 1044,
-        "cache_read_tokens": 14904,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 23635,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "src_index.ts",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 4.78,
-        "input_tokens": 48922,
-        "output_tokens": 261,
-        "cache_read_tokens": 14648,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 49183,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "src_index.ts",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 7.39,
-        "input_tokens": 49247,
-        "output_tokens": 522,
-        "cache_read_tokens": 14648,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 49769,
+        "total_tokens": 81738,
         "usage_reported": true,
         "provider": "openai-compatible",
         "requested_model": "doubao-seed-2.1-lite",
@@ -943,5 +788,5 @@
       }
     ]
   },
-  "run_id": "7f5286b5-3384-42b8-976f-d34a5e282f9a"
+  "run_id": "44914433-d583-4ad3-aab0-9050275fb86a"
 }
