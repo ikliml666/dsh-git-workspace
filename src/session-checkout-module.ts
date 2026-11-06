@@ -5357,6 +5357,19 @@ export function createSessionCheckoutModule(
         name,
         ...(createOptions?.branch === undefined ? {} : { from: createOptions.branch }),
       })
+      // 官方只做 `git worktree add`，这两件是官方没有、本插件补的能力：带上
+      // `.worktreeinclude` 列的 gitignored 文件，并在基点就是本地 HEAD 时继承
+      // 未提交修改（补丁以本地 HEAD 为基准，基点不同则不适用）。
+      const localSnapshot = await dependencies.git.inspect(project.root)
+      if (localSnapshot !== null) {
+        await copyWorktreeincludeFiles(localSnapshot.root, created.path)
+        if (
+          created.baseCommit === localSnapshot.headOid
+          && liveConfigValue(dependencies.inheritLocalChanges) !== false
+        ) {
+          await carryLocalWorkInProgress(localSnapshot.root, created.path)
+        }
+      }
       const record = await registerOfficialWorktree(
         {
           lookup: dependencies.lookup,

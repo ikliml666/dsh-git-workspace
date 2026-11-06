@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
@@ -42,6 +42,10 @@ function officialFixture() {
     const from = request.from ?? 'HEAD'
     const pool = join(repo, '.agents', 'worktrees')
     mkdirSync(pool, { recursive: true })
+    // 官方 prepareDirectory 会在池目录写一个自忽略的 .gitignore（内容 `*`），
+    // 否则整个池会被仓库当成未跟踪内容。漏掉它就会让本地 WIP 携带把新树
+    // 自己拷进自己。
+    writeFileSync(join(pool, '.gitignore'), '*\n')
     const path = join(pool, branch)
     git(repo, 'worktree', 'add', '-b', branch, path, from)
     return {
@@ -63,6 +67,23 @@ function officialFixture() {
     },
   })
   dependencies.officialWorktrees = () => ({ create, restore: vi.fn() as never })
+  // 生产适配器刻意不带 WIP 端口；这里补上，才能验证「官方没有、本插件补」的
+  // 两件事真的发生。补丁必须原样传字节——runGit 会 trim，末尾换行丢了
+  // git apply 会报 corrupt patch。
+  dependencies.git.captureLocalWip = async (root) => {
+    const diff = spawnSync('git', ['diff', '--binary', '--full-index', 'HEAD'], { cwd: root, encoding: 'utf-8' })
+    if (diff.status !== 0) throw new Error(diff.stderr)
+    return diff.stdout === '' ? null : diff.stdout
+  }
+  dependencies.git.applyWorktreePatch = async (root, patch) => {
+    const applied = spawnSync('git', ['apply', '--binary', '--whitespace=nowarn', '-'], { cwd: root, input: patch, encoding: 'utf-8' })
+    if (applied.status !== 0) throw new Error(applied.stderr)
+  }
+  dependencies.git.listUntrackedFiles = async (root) => {
+    const listed = spawnSync('git', ['ls-files', '--others', '--exclude-standard', '-z'], { cwd: root, encoding: 'utf-8' })
+    if (listed.status !== 0) throw new Error(listed.stderr)
+    return listed.stdout.split('\0').filter(Boolean)
+  }
   const module = createSessionCheckoutModule(dependencies)
   const agent = { session: { id: 'session-1' } }
   return { repo, create, module, agent, dependencies }
@@ -141,5 +162,42 @@ describe('creating a Worktree through the official service', () => {
     await expect(f.module.createOfficialTarget(f.agent, {}))
       .rejects.toThrow(/Every candidate branch name for this Session already exists/)
     expect(f.create).not.toHaveBeenCalled()
+  })
+})
+
+describe('carrying what the official service does not', () => {
+  test('copies the files listed in .worktreeinclude into the new checkout', async () => {
+    const f = officialFixture()
+    writeFileSync(join(f.repo, '.gitignore'), 'secret.env\n')
+    writeFileSync(join(f.repo, '.worktreeinclude'), 'secret.env\n')
+    writeFileSync(join(f.repo, 'secret.env'), 'TOKEN=1\n')
+    git(f.repo, 'add', '.gitignore', '.worktreeinclude')
+    git(f.repo, 'commit', '-m', 'ignore secret')
+
+    const launch = await f.module.createOfficialTarget(f.agent, {})
+
+    expect(readFileSync(join(launch.managedRoot, 'secret.env'), 'utf-8')).toBe('TOKEN=1\n')
+  })
+
+  test('carries uncommitted Local changes when the base is the Local HEAD', async () => {
+    const f = officialFixture()
+    writeFileSync(join(f.repo, 'tracked.txt'), 'changed locally\n')
+    writeFileSync(join(f.repo, 'fresh.txt'), 'untracked\n')
+
+    const launch = await f.module.createOfficialTarget(f.agent, {})
+
+    expect(readFileSync(join(launch.managedRoot, 'tracked.txt'), 'utf-8')).toBe('changed locally\n')
+    expect(readFileSync(join(launch.managedRoot, 'fresh.txt'), 'utf-8')).toBe('untracked\n')
+  })
+
+  test('does not carry Local changes when the base is a different branch tip', async () => {
+    const f = officialFixture()
+    git(f.repo, 'branch', 'feat/base-pick')
+    git(f.repo, 'commit', '--allow-empty', '-m', 'ahead of main')
+    writeFileSync(join(f.repo, 'tracked.txt'), 'changed locally\n')
+
+    const launch = await f.module.createOfficialTarget(f.agent, { branch: 'feat/base-pick' })
+
+    expect(readFileSync(join(launch.managedRoot, 'tracked.txt'), 'utf-8')).toBe('base\n')
   })
 })
