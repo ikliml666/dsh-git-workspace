@@ -286,7 +286,7 @@ describe('public surfaces', () => {
     const tools: Array<{ name: string; execute: (args: unknown, exec: unknown) => Promise<unknown> }> = []
     const set = vi.fn(async (_agent: unknown, path: string) => path)
     const module = {
-      createIsolatedTarget: vi.fn(async () => ({
+      createOfficialTarget: vi.fn(async () => ({
         targetSessionId: 'session-abc',
         managedRoot: 'C:/repo/wt/topic-20261018',
         target: { checkout: { id: 'checkout-9', phase: 'ready' }, current: { oid: 'c'.repeat(40) } },
@@ -310,7 +310,7 @@ describe('public surfaces', () => {
   test('create without a workingDirectory service reports cwdSelected:false instead of a fake cwd', async () => {
     const tools: Array<{ name: string; execute: (args: unknown, exec: unknown) => Promise<unknown> }> = []
     const module = {
-      createIsolatedTarget: vi.fn(async () => ({
+      createOfficialTarget: vi.fn(async () => ({
         targetSessionId: 'session-abc',
         managedRoot: 'C:/repo/wt/topic-20261018',
         target: { checkout: { id: 'checkout-9', phase: 'ready' }, current: { oid: 'c'.repeat(40) } },

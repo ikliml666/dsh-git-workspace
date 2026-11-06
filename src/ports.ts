@@ -199,12 +199,6 @@ export interface SessionCheckoutGitPort {
    * Powers the stale-branch age filter; ports without it disable age filtering.
    */
   branchTipTimes?(root: string): Promise<Record<string, number>>
-  /**
-   * Local adaptation: creation time (ms) per local branch name, parsed in one
-   * spawn from every branch reflog's `branch: Created from` entries. Powers
-   * the concurrent branch-race guard; ports without it leave the guard silent.
-   */
-  branchCreationTimes?(root: string): Promise<Record<string, number> | undefined>
   /** Local adaptation: safely delete a fully merged local branch (`git branch -d`); never force. */
   deleteLocalBranch?(root: string, name: string): Promise<{ deleted: boolean; reason?: string }>
   /**
@@ -602,6 +596,20 @@ export function liveConfigValue<T>(value: T | LiveValue<T>): T {
   return value as T
 }
 
+/**
+ * The host's `worktrees` service, as much of it as this plugin uses. The shape
+ * is the upstream contract: `create` needs a live calling Agent because it sets
+ * that Session's working directory as its last step.
+ */
+export interface OfficialWorktreesPort {
+  create(
+    agent: unknown,
+    request?: { name?: string; from?: string },
+    signal?: AbortSignal,
+    onPhase?: (phase: 'prepare' | 'checkout') => void,
+  ): Promise<{ path: string; branch: string; baseCommit: string; repositoryRoot: string }>
+}
+
 export interface SessionCheckoutDependencies {
   lookup: SessionCheckoutLookupPort
   git: SessionCheckoutGitPort
@@ -610,6 +618,13 @@ export interface SessionCheckoutDependencies {
   applyEngine: SessionCheckoutApplyEngine
   managedCheckoutsRoot: string
   createCheckoutId(): string
+  /**
+   * The host's own `worktrees` service, when this host mounts one. Worktree
+   * creation goes through it so the machine keeps exactly one implementation
+   * of `git worktree add`; this plugin only records the result. Resolved
+   * lazily because the service may mount after this plugin.
+   */
+  officialWorktrees?: () => OfficialWorktreesPort | undefined
   /** Local adaptation: after a successful Finish, push the Local branch (default true). Volatile Cordis config fields arrive as live references. */
   autoPush?: boolean | LiveValue<boolean | undefined>
   /** Local adaptation: agent-autonomous delivery; switches the Working-state guidance to worktree_deliver. */
@@ -634,13 +649,4 @@ export interface SessionCheckoutDependencies {
    * permanent records are exempt. 0 disables. Default 15.
    */
   worktreeKeepCount?: number | LiveValue<number | undefined>
-  /**
-   * Local adaptation: concurrent branch-race guard. When other live Sessions
-   * share this Local checkout and a new local branch appeared inside
-   * `branchRaceWindowMs`, the runtimeContext tells this (later-started)
-   * Session to isolate through worktree_create before mutating. Default true.
-   */
-  branchRaceGuard?: boolean | LiveValue<boolean | undefined>
-  /** Detection window for the branch-race guard, in milliseconds. Default 30 minutes. */
-  branchRaceWindowMs?: number | LiveValue<number | undefined>
 }

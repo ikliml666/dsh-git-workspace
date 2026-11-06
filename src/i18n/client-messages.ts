@@ -1253,10 +1253,6 @@ export const clientMessages = {
     "en": "Refresh"
   },
   "current.target": {"zh": "当前工作目录", "en": "Current working directory"},
-  "create.worktree": {
-    "zh": "创建 Worktree",
-    "en": "Create Worktree"
-  },
   "logical.links": {"zh": "所属项目", "en": "Project"},
   "this.project.has.no.managed.worktrees.yet": {
     "zh": "这个项目还没有受管 Worktree。",

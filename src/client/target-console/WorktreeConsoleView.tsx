@@ -113,8 +113,6 @@ export function WorktreeConsoleView({
   const [pendingAction, setPendingAction] = useState<string | null>(null)
   const [confirmTarget, setConfirmTarget] = useState<WorktreeConsoleTargetSummary | null>(null)
   const [confirmCleanup, setConfirmCleanup] = useState<WorktreeConsoleTargetSummary | null>(null)
-  const [createBranch, setCreateBranch] = useState('')
-  const [knownBranches, setKnownBranches] = useState<string[] | null>(null)
   const [needsAttentionOnly, setNeedsAttentionOnly] = useState(false)
   const [includeDelivered, setIncludeDelivered] = useState(false)
   const confirmButton = useRef<HTMLButtonElement>(null)
@@ -135,8 +133,6 @@ export function WorktreeConsoleView({
     setConfirmTarget(null)
     setConfirmCleanup(null)
     setPendingAction(null)
-    setCreateBranch('')
-    setKnownBranches(null)
     setError(null)
     setLoading(true)
   }, [sessionId])
@@ -221,74 +217,6 @@ export function WorktreeConsoleView({
     setError(errorText({ code, message }, t))
     if (code === 'stale_target' || code === 'stale_local' || code === 'stale_isolated') {
       void refresh(false)
-    }
-  }
-
-  const loadBranches = (): void => {
-    if (knownBranches !== null || adapter.preflightCreate === undefined) return
-    const generation = sessionGeneration.current
-    void adapter.preflightCreate({ sourceSessionId: sessionId }).then(outcome => {
-      if (!isActive(generation)) return
-      setKnownBranches(outcome.ok && outcome.value.kind === 'ready' ? outcome.value.branches ?? [] : [])
-    }, () => {
-      if (isActive(generation)) setKnownBranches([])
-    })
-  }
-
-  const createTarget = async (): Promise<void> => {
-    if (pendingAction !== null || visibleSnapshot?.current.capabilities.create !== true) return
-    const generation = sessionGeneration.current
-    const sourceProjectId = visibleSnapshot.current.project.id
-    setPendingAction('create')
-    setError(null)
-    try {
-      const outcome = await adapter.create({ sourceSessionId: sessionId, ...(createBranch ? { branch: createBranch } : {}) })
-      if (!isActive(generation)) return
-      if (!outcome.ok) {
-        setError(errorText(outcome.error, t))
-        return
-      }
-      const { target, targetSessionId, managedRoot } = outcome.value
-      if (target.sourceSessionId !== sessionId) {
-        throw new Error(t("host.returned.a.target.belonging.to.another.source"))
-      }
-      if (targetSessionId === sessionId) {
-        throw new Error(t("host.incorrectly.returned.the.source.session.as.the"))
-      }
-      if (
-        target.checkoutId === null
-        || target.targetSessionId !== targetSessionId
-        || target.ownerSessionId !== targetSessionId
-        || target.managedRoot !== managedRoot
-        || target.project.id !== sourceProjectId
-        || !target.capabilities.open
-      ) {
-        throw new Error(t("the.target.session.identity.returned.by.host.does"))
-      }
-      await openIsolatedTarget(services, { targetSessionId, managedRoot }, () => isActive(generation))
-      if (!isActive(generation)) return
-      setSnapshot(current => current === null || current.sessionId !== sessionId ? current : {
-        sessionId,
-        current: target,
-        list: {
-          ...current.list,
-          worktrees: [
-            ...current.list.worktrees.filter(row => row.checkoutId !== target.checkoutId),
-            (() => {
-              const { managedRoot: _root, sourceRoot: _sourceRoot, sourceOid: _source, currentBranch: _branch, ...summary } = target
-              return summary
-            })(),
-          ],
-        },
-      })
-      onTargetChange?.()
-    } catch (reason) {
-      if (isActive(generation)) {
-        setError(reason instanceof Error ? reason.message : String(reason))
-        void refresh(false)
-      }
-    } finally {
-      if (isActive(generation)) setPendingAction(null)
     }
   }
 
@@ -487,31 +415,6 @@ export function WorktreeConsoleView({
             </div>
             <div className="dsh-wtc-current-actions">
               <TargetState target={visibleSnapshot.current} />
-              {visibleSnapshot.current.state !== 'recovery_required' && visibleSnapshot.current.capabilities.create ? (
-                <>
-                  <select
-                    className="dsh-wtc-button dsh-wtc-branch-select"
-                    aria-label={t("create.from.branch")}
-                    value={createBranch}
-                    disabled={pendingAction !== null}
-                    onChange={event => { setCreateBranch(event.target.value) }}
-                    onFocus={loadBranches}
-                  >
-                    <option value="">{currentSourceBranch ? `${currentSourceBranch} (${t("branch.current")})` : t("branch.head")}</option>
-                    {(knownBranches ?? []).filter(candidate => candidate !== currentSourceBranch).map(candidate => (
-                      <option key={candidate} value={candidate}>{candidate}</option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    className="dsh-wtc-button dsh-wtc-primary"
-                    disabled={pendingAction !== null}
-                    onClick={() => { void createTarget() }}
-                  >
-                    <ReviewIcon name="create" />{pendingAction === 'create' ? t("creating.2") : t("create.worktree")}
-                  </button>
-                </>
-              ) : null}
             </div>
           </section>
           <section className="dsh-wtc-list-section" aria-label={t("linked.worktrees")}>

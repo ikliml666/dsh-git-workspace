@@ -8,8 +8,6 @@ import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import type {
   WorktreeConsoleAbandonedListResponse,
   WorktreeConsoleCreatePreviewRecoveryHandoffResponse,
-  WorktreeConsoleCreateResponse,
-  WorktreeConsoleCreatePreflightResponse,
   WorktreeConsoleCurrentResponse,
   WorktreeConsoleGitGraphResponse,
   WorktreeConsoleGitMutationResponse,
@@ -119,21 +117,6 @@ export class WorktreeConsoleService extends TypertRemoteService {
   @Remote
   list(agent: Agent, needsAttention?: boolean, includeDelivered?: boolean, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleListResponse>> {
     return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.list({ sessionId: agent.id, needsAttention, includeDelivered }))
-  }
-
-  @Remote
-  preflightCreate(agent: Agent, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleCreatePreflightResponse>> {
-    return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.preflightCreate(agent.id))
-  }
-
-  @Remote
-  createWithInitialCommit(agent: Agent, confirmationToken: string, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleCreateResponse>> {
-    return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.createWithInitialCommit(agent.id, confirmationToken))
-  }
-
-  @Remote
-  create(agent: Agent, branch?: string, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleCreateResponse>> {
-    return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.create(agent.id, branch))
   }
 
   @Remote

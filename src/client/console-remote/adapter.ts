@@ -5,8 +5,6 @@ import type {
   WorktreeConsoleAbandonedListResponse,
   WorktreeConsoleAdapter,
   WorktreeConsoleCreatePreviewRecoveryHandoffResponse,
-  WorktreeConsoleCreateResponse,
-  WorktreeConsoleCreatePreflightResponse,
   WorktreeConsoleCurrentResponse,
   WorktreeConsoleGitGraphResponse,
   WorktreeConsoleGitMutationResponse,
@@ -55,8 +53,8 @@ function isCodecRejection(value: unknown): boolean {
  */
 const FAST_TIMEOUT_MS = 30_000
 const SLOW_TIMEOUT_MS = 180_000
-// list/preflight/preflightCreate 全量重算（多记录时 20+ 次 git spawn）可能
-// 逼近 30s，放 SLOW 档；其余快路径方法保持 30s。
+// list/preflight 全量重算（多记录时 20+ 次 git spawn）可能逼近 30s，放 SLOW
+// 档；其余快路径方法保持 30s。
 const FAST_METHODS = new Set([
   'sidebarTopology', 'current', 'inspect',
   'previewRecoveryPreflight',
@@ -115,9 +113,6 @@ export function createWorktreeConsoleRemoteAdapter(remote: GitWorktreeRemote, ge
     sidebarTopology: () => invoke<WorktreeSidebarTopologyResponse>('sidebarTopology', locale => remote.sidebarTopology(locale)),
     current: request => invoke<WorktreeConsoleCurrentResponse>('current', locale => remote.current(request.sessionId, locale)),
     list: request => invoke<WorktreeConsoleListResponse>('list', locale => remote.list(request.sessionId, request.needsAttention, request.includeDelivered, locale)),
-    preflightCreate: request => invoke<WorktreeConsoleCreatePreflightResponse>('preflightCreate', locale => remote.preflightCreate(request.sourceSessionId, locale)),
-    createWithInitialCommit: request => invoke<WorktreeConsoleCreateResponse>('createWithInitialCommit', locale => remote.createWithInitialCommit(request.sourceSessionId, request.confirmationToken, locale)),
-    create: request => invoke<WorktreeConsoleCreateResponse>('create', locale => remote.create(request.sourceSessionId, request.branch, locale)),
     initializeProject: request => invoke<boolean>('initProject', locale => remote.initProject(request.sourceSessionId, locale)),
     inspect: request => invoke<WorktreeConsoleInspectResponse>('inspect', locale => remote.inspect(request.sessionId, request.checkoutId, locale)),
     reviewDiff: request => invoke<WorktreeConsoleReviewDiffResponse>('reviewDiff', locale => remote.reviewDiff(request.sessionId, request.checkoutId, request.expectedRevision, request.expectedReviewId, locale)),

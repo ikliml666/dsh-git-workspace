@@ -268,18 +268,6 @@ export interface WorktreeClientBootReport {
   elapsedTopologyMs?: number
 }
 
-/** targetSessionId is allocated on the Host; the browser never chooses ownership identity. */
-export type WorktreeConsoleCreatePreflightResponse =
-  | { kind: 'ready'; branches?: string[] }
-  | { kind: 'empty'; confirmationToken: string }
-  | { kind: 'files' }
-
-export interface WorktreeConsoleCreateRequest {
-  sourceSessionId: string
-  /** Start the worktree from this local branch's tip instead of the source HEAD. */
-  branch?: string
-}
-
 export interface WorktreeConsoleCreateResponse {
   target: WorktreeConsoleTargetDetails
   targetSessionId: string
@@ -759,13 +747,10 @@ export function worktreeConsoleErrorMeta(code: WorktreeConsoleErrorCode): Worktr
 
 /** Normalized Client seam; Remote transport details stay behind one adapter. */
 export interface WorktreeConsoleAdapter {
-  preflightCreate?(request: { sourceSessionId: string }): Promise<WorktreeConsoleOutcome<WorktreeConsoleCreatePreflightResponse>>
-  createWithInitialCommit?(request: { sourceSessionId: string; confirmationToken: string }): Promise<WorktreeConsoleOutcome<WorktreeConsoleCreateResponse>>
   initializeProject?(request: { sourceSessionId: string }): Promise<WorktreeConsoleOutcome<boolean>>
   sidebarTopology(): Promise<WorktreeConsoleOutcome<WorktreeSidebarTopologyResponse>>
   current(request: WorktreeConsoleCurrentRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleCurrentResponse>>
   list(request: WorktreeConsoleListRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleListResponse>>
-  create(request: WorktreeConsoleCreateRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleCreateResponse>>
   inspect(request: WorktreeConsoleInspectRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleInspectResponse>>
   reviewDiff(request: WorktreeConsoleReviewDiffRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleReviewDiffResponse>>
   preflight(request: WorktreeConsolePreflightRequest): Promise<WorktreeConsoleOutcome<WorktreeConsolePreflightResponse>>

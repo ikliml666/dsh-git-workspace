@@ -171,33 +171,6 @@ describe('production Git adapter: unborn repositories', () => {
     await expect(port.inspect(repo)).rejects.toMatchObject({ code: 'git_operation_failed' })
   })
 
-  it('runs the real host/module flow: cancellation is read-only, normal creation cannot initialize, confirmed creation succeeds', async () => {
-    const { root, repo, port } = await fixture()
-    git(repo, ['config', 'user.name', 'Test User'])
-    git(repo, ['config', 'user.email', 'test@example.test'])
-    const dependencies = createNodeSessionCheckoutDependencies({ configDir: join(root, 'config'), lookup: {
-      getSession: id => id === 'source' ? { id, projectId: 'project' } : undefined,
-      getProject: id => id === 'project' ? { id, name: 'Project', root: repo } : undefined,
-      getUnboundTargetPolicy: () => 'unselected',
-    } })
-    dependencies.git = port
-    const module = createSessionCheckoutModule(dependencies)
-    const control = createWorktreeConsoleControlPlane({ module, ...dependencies, createTargetSessionId: () => 'target' })
-    expect(await control.current('source')).toMatchObject({ ok: true, value: { target: { state: 'local', capabilities: { create: true } } } })
-    const proof = await control.preflightCreate('source')
-    if (!proof.ok || proof.value.kind !== 'empty') throw new Error('expected empty confirmation')
-    expect(git(repo, ['rev-parse', '--verify', 'HEAD']).status).not.toBe(0)
-    expect(await control.create('source')).toMatchObject({ ok: false, error: { code: 'operation_not_allowed' } })
-    expect(git(repo, ['rev-parse', '--verify', 'HEAD']).status).not.toBe(0)
-    const created = await control.createWithInitialCommit('source', proof.value.confirmationToken)
-    expect(created.ok).toBe(true)
-    if (!created.ok) throw new Error(created.error.message)
-    expect(git(created.value.managedRoot, ['rev-parse', 'HEAD']).stdout).toBe(git(repo, ['rev-parse', 'HEAD']).stdout)
-    expect(git(repo, ['ls-files', '--stage']).stdout).toBe('')
-    expect(git(repo, ['ls-tree', '-r', 'HEAD']).stdout).toBe('')
-    expect(await control.preflightCreate('source')).toEqual({ ok: true, value: { kind: 'ready', branches: expect.any(Array) } })
-  })
-
   it('rejects invalid Git metadata rather than presenting it as an empty or non-Git directory', async () => {
     const { repo, port } = await fixture()
     await writeFile(join(repo, '.git', 'HEAD'), 'not-a-valid-head')

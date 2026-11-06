@@ -3,17 +3,15 @@
 import { createElement, type ComponentType } from 'react'
 import { ClientI18nProvider } from './i18n.js'
 import type { WorktreeConsoleAdapter } from '../console-contract.js'
-import type { PreSessionWorktreeServices } from './actions.js'
+import type { WorktreeClientServices } from './actions.js'
 import type { ToolCallViewPropsLike } from './model.js'
 import { WorktreeCreateRow } from './WorktreeCreateRow.js'
 import { WorktreeReviewRow } from './WorktreeReviewRow.js'
 import { WORKTREE_STYLES } from './styles.js'
 import { registerTargetConsole, type TargetConsoleContextLike } from './target-console/index.js'
 import { TARGET_CONSOLE_STYLES } from './target-console/target-console.styles.js'
-import { registerPreSessionWorktree, type PreSessionSlotContextLike } from './pre-session/index.js'
 
 export { registerTargetConsole } from './target-console/index.js'
-export { registerPreSessionWorktree } from './pre-session/index.js'
 
 export const WORKTREE_CONSOLE_ADAPTER_SERVICE = 'worktreeConsole'
 
@@ -35,13 +33,13 @@ interface ClientContextLike {
 /** Required client services. */
 export const inject = ['slots', 'workspaces', 'sessions', 'conversation', 'connection', 'locale']
 
-function servicesOf(ctx: ClientContextLike): PreSessionWorktreeServices {
+function servicesOf(ctx: ClientContextLike): WorktreeClientServices {
   return {
     locale: ctx.get('locale'),
-    workspaces: ctx.get('workspaces') as PreSessionWorktreeServices['workspaces'],
-    sessions: ctx.get('sessions') as PreSessionWorktreeServices['sessions'],
-    uiWorkspace: ctx.get('uiWorkspace') as PreSessionWorktreeServices['uiWorkspace'],
-    conversation: ctx.get('conversation') as PreSessionWorktreeServices['conversation'],
+    workspaces: ctx.get('workspaces') as WorktreeClientServices['workspaces'],
+    sessions: ctx.get('sessions') as WorktreeClientServices['sessions'],
+    uiWorkspace: ctx.get('uiWorkspace') as WorktreeClientServices['uiWorkspace'],
+    conversation: ctx.get('conversation') as WorktreeClientServices['conversation'],
   }
 }
 
@@ -91,14 +89,6 @@ export function apply(ctx: ClientContextLike, adapterOverride?: WorktreeConsoleA
   if (adapter !== undefined) {
     registerTargetConsole(
       { slots: localizedSlots as TargetConsoleContextLike['slots'] },
-      adapter,
-      services,
-    )
-    // Blank-session switch: "start in a Worktree" inside the composer's left
-    // dock, so a brand-new session can be prepared WITHOUT first creating a
-    // throwaway local session by hand.
-    registerPreSessionWorktree(
-      { slots: localizedSlots as PreSessionSlotContextLike['slots'] },
       adapter,
       services,
     )

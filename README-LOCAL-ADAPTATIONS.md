@@ -36,6 +36,17 @@ E:\ik\Documents\trae_projects\worktrae\<项目>\<主题>-<YYYYMMDD>
 - 新配置 `enableWorkspaceProvider`（**默认 `false`**）：`mountWorkspaceProviderLifecycle` 开头检查 `options.enabled`，未显式开启时不提供接管服务，官方 ui-workspace 保持启用，Worktree 的 6 个模型工具与 `/worktree` 命令照常可用。
 - 若确需受管 Workspace，显式设 `enableWorkspaceProvider: true` 并重启 DSH（patch 条件在 Loader 启动时求值）。
 
+### 5. 以官方 Worktree 为底座（不再接管）
+
+官方 `@deepseek-ai/dsh-experimental-forge-bundle` 会插入三条与工作树有关的条目：`worktree`（宿主 `worktrees` 服务）、`tool-worktree`（官方 `create_worktree` 工具）、`forge-worktree`（面板隔离组里的第二个服务实例）。这三条**全部保持启用**，全机只有官方一份 `git worktree add` 实现。
+
+- **建树入口**：`worktree_create` 内部调宿主 `worktrees.create(agent, { name, from })`，目录由官方决定（`<repo>/.agents/worktrees/<branch>`）；官方 `create_worktree` 工具同样可用。两者建出的 checkout 都会由本插件登记成 `ready` 记录并建立 isolated binding，随后由本插件承担台账、交付、评审、清理、恢复。
+- **登记的落点**：`registerOfficialWorktree()` 读一次 `git.inspect(path)` 拿真实 root/commonDir/gitDir/headRef，写成 `ManagedCheckoutRecord`；不猜测路径布局。
+- **幂等**：官方每条请求都真的跑一次 `git worktree add`，所以 `createOfficialTarget` 在本会话已有未放弃的 isolated 记录时直接复用，避免留下第二棵没人认领的树。
+- **分支名**：`feat/sess-<session>[--<topic>]` 候选逐个探空位（`resolveLocalBranchTip`），全被占用时明确报错，不拼随机后缀。
+- **没有「预建树」**：官方 `worktrees.create` 必须传 live Agent，而「给还没启动的会话先建好树」拿不到 Agent。这个能力连同它的 UI（新建对话时的 Worktree 开关、会话内控制台的分支选择器与创建按钮）一起删除了。
+- **`restore` 不由本插件提供**：官方条目的 `restore` 照常可用；本插件没有「原地重建已交付目录」的操作，续作走 `begin_next_iteration`。
+
 ## 配置示例（profile cordis.patch.yml / 插件配置）
 
 ```yaml

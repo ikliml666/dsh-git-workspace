@@ -139,15 +139,15 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
     },
     async execute(args, exec) {
       return withHostLanguage(languageForInvocation(exec.agent, ctx), async () => {
-        // in-place 创建：worktree 所有权直接绑到当前会话，模型无需切换工作区即可继续工作。
-        // 必须传 createOptions（空对象也行）以触发 bindTarget 的 local→isolated 升级分支。
+        // 建树走宿主的 worktrees 服务：全机只有一份 `git worktree add` 实现，
+        // 目录固定在 `<repo>/.agents/worktrees/<branch>`。本插件随后把结果记进
+        // 台账，列表、交付、评审、清理对它一样有效。
         const sourceSessionId = sessionIdOf(exec.agent)
         const targetSessionId = sourceSessionId
         const topic = typeof args?.topic === 'string' && args.topic.trim() ? args.topic.trim() : undefined
         const branch = typeof args?.branch === 'string' && args.branch.trim() ? args.branch.trim() : undefined
-        const launch = await module.createIsolatedTarget(
-          sourceSessionId,
-          targetSessionId,
+        const launch = await module.createOfficialTarget(
+          exec.agent,
           topic || branch ? { ...(topic ? { topic } : {}), ...(branch ? { branch } : {}) } : {},
         )
         // Official-mechanism parity: enter the new checkout so relative paths,

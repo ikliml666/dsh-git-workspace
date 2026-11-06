@@ -6,7 +6,6 @@ import {
   type WorktreeConsoleAbandonedListResponse,
   type WorktreeConsoleAbandonedSnapshot,
   type WorktreeConsoleCreatePreviewRecoveryHandoffResponse,
-  type WorktreeConsoleCreateResponse,
   type WorktreeConsoleCurrentResponse,
   type WorktreeConsoleInspectResponse,
   type WorktreeConsoleListResponse,
@@ -232,16 +231,6 @@ export function outcomeSchema<T>(value: z.ZodType<T>): z.ZodType<WorktreeConsole
 }
 
 export const currentResponseSchema: z.ZodType<WorktreeConsoleCurrentResponse> = strict({ target: targetDetailsSchema })
-export const createPreflightResponseSchema = z.discriminatedUnion('kind', [
-  strict({ kind: z.literal('ready'), branches: z.array(branchNameSchema).max(1000).optional() }),
-  strict({ kind: z.literal('files') }),
-  strict({ kind: z.literal('empty'), confirmationToken: z.string().uuid() }),
-])
-export const createResponseSchema: z.ZodType<WorktreeConsoleCreateResponse> = strict({
-  target: targetDetailsSchema,
-  targetSessionId: sessionIdSchema,
-  managedRoot: z.string().min(1),
-})
 export const inspectResponseSchema: z.ZodType<WorktreeConsoleInspectResponse> = strict({ target: targetDetailsSchema })
 export const listResponseSchema: z.ZodType<WorktreeConsoleListResponse> = strict({ project: projectSchema, worktrees: z.array(targetSummarySchema) })
 export const sidebarTopologyResponseSchema: z.ZodType<WorktreeSidebarTopologyResponse> = strict({

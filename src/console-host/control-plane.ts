@@ -8,8 +8,6 @@ import type {
   WorktreeConsoleClearSidebarBadgeRequest,
   WorktreeConsoleCreatePreviewRecoveryHandoffRequest,
   WorktreeConsoleCreatePreviewRecoveryHandoffResponse,
-  WorktreeConsoleCreateResponse,
-  WorktreeConsoleCreatePreflightResponse,
   WorktreeConsoleCheckpointRequest,
   WorktreeConsoleCurrentResponse,
   WorktreeConsoleDiscardRequest,
@@ -81,9 +79,6 @@ export interface WorktreeConsoleControlPlane {
   sidebarTopology(): Promise<WorktreeConsoleOutcome<WorktreeSidebarTopologyResponse>>
   current(sessionId: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleCurrentResponse>>
   list(request: WorktreeConsoleListRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleListResponse>>
-  preflightCreate(sourceSessionId: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleCreatePreflightResponse>>
-  createWithInitialCommit(sourceSessionId: string, confirmationToken: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleCreateResponse>>
-  create(sourceSessionId: string, branch?: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleCreateResponse>>
   initProject(sourceSessionId: string): Promise<WorktreeConsoleOutcome<boolean>>
   inspect(sessionId: string, checkoutId: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleInspectResponse>>
   reviewDiff(request: WorktreeConsoleReviewDiffRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleReviewDiffResponse>>
@@ -656,7 +651,6 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
     }
   }
 
-  const confirmations = new Map<string, { token: string; root: string; projectId: string; fingerprint: string; expires: number }>()
   const creating = new Set<string>()
   async function localProject(sessionId: string) {
     const target = await callerTarget(sessionId)
@@ -700,29 +694,6 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
     } finally {
       creating.delete(sessionKey)
       if (rootKey) creating.delete(rootKey)
-    }
-  }
-  async function createTarget(sourceSessionId: string, branch?: string): Promise<WorktreeConsoleCreateResponse> {
-    const targetSessionId = createTargetSessionId()
-    const launch = await options.module.createIsolatedTarget(sourceSessionId, targetSessionId, branch === undefined ? undefined : { branch })
-    const record = recordOf(options.registry, launch.target.checkout.id)
-    const observed = await observe(record)
-    if (
-      record.sourceSessionId !== sourceSessionId
-      || record.ownerSessionId !== targetSessionId
-      || observed.managedRoot !== launch.managedRoot
-    ) throw domainError('checkout_mismatch', hostMessage('hostIdentityVerificationFailedForTheNewlyCreatedWorktree'))
-    return {
-      target: projectDetails(
-        record,
-        sourceSessionId,
-        observed.managedRoot,
-        observed.snapshot,
-        observed.dirty,
-        ownerSessionAvailable(record),
-      ),
-      targetSessionId,
-      managedRoot: launch.managedRoot,
     }
   }
 
@@ -989,42 +960,6 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
       return { project: { ...caller.project }, worktrees }
     }),
 
-    preflightCreate: sourceSessionId => outcome(async () => {
-      const project = await localProject(sourceSessionId)
-      const check = await options.git.preflightInitialCommit?.(project.root)
-      if (!check || check.kind === 'ready') {
-        const branches = await options.git.listLocalBranches?.(project.root)
-        return { kind: 'ready', ...(branches === undefined ? {} : { branches }) }
-      }
-      if (check.kind === 'files') {
-        confirmations.delete(sourceSessionId)
-        return { kind: 'files' }
-      }
-      for (const [id, value] of confirmations) if (value.expires <= Date.now()) confirmations.delete(id)
-      if (confirmations.size >= 500) confirmations.delete(confirmations.keys().next().value!)
-      const token = randomUUID()
-      confirmations.set(sourceSessionId, { token, root: project.root, projectId: project.id, fingerprint: check.fingerprint, expires: Date.now() + 300_000 })
-      return { kind: 'empty', confirmationToken: token }
-    }),
-    createWithInitialCommit: (sourceSessionId, confirmationToken) => outcome(() => withCreation(sourceSessionId, async project => {
-      const confirmation = confirmations.get(sourceSessionId)
-      if (!confirmation || confirmation.token !== confirmationToken || confirmation.expires <= Date.now()
-        || confirmation.root !== project.root || confirmation.projectId !== project.id || !options.git.initializeEmptyRepository) {
-        // 校验失败不能先报废 token：客户端拿到 stale_local 后会重新预检拿新 token，
-        // 而一次错点、一次并发预检就把用户手里那个有效 token 吃掉，只会让人反复重试。
-        throw domainError('stale_local', hostMessage('initialStateChanged'))
-      }
-      confirmations.delete(sourceSessionId)
-      await options.git.initializeEmptyRepository(project.root, confirmation.fingerprint, async () => {
-        const current = await localProject(sourceSessionId)
-        if (current.id !== confirmation.projectId || current.root !== confirmation.root) {
-          throw domainError('stale_local', hostMessage('initialStateChanged'))
-        }
-      })
-      try { return await createTarget(sourceSessionId) }
-      catch { throw domainError('git_operation_failed', hostMessage('initialCreatedWorktreeFailed')) }
-    })),
-    create: (sourceSessionId, branch) => outcome(() => withCreation(sourceSessionId, () => createTarget(sourceSessionId, branch))),
     initProject: sourceSessionId => outcome(() => withCreation(sourceSessionId, async project => {
       if (!options.git.initializeProject) throw domainError('operation_not_allowed', hostMessage('initializationUnsupported'))
       await options.git.initializeProject(project.root)

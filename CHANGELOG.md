@@ -4,6 +4,18 @@
 
 ## [Unreleased]
 
+### Changed
+
+- 方向反转：不再接管官方 Worktree，改为「官方当底座，本插件只补官方没有的能力」（2026-11-07）。
+  - **删除官方 Worktree 接管**：删掉 `src/official-worktree-takeover.ts` 与开关 `enableOfficialWorktreeTakeover`。该开关此前经 Loader 停用 `worktree` / `tool-worktree` / `forge-worktree` 三条官方条目，并用 `ctx.tools.guard` 按工具名拒绝 `create_worktree`——结果是用户安装官方 `@deepseek-ai/dsh-experimental-forge-bundle` 后，插件页七条全部显示「已关闭」，官方的建树工具与 forge 面板里的工作树入口也一并失效。现在三条官方条目照常运行，官方 `create_worktree` 工具恢复可用。
+  - **删除官方 Worktree 纳管**：删掉 `src/official-worktree-adoption.ts` 里按 `.agents/worktrees/` 前缀反查归属并登记台账的 `adoptOfficialWorktrees`。它只在「本插件停用了官方条目」这个前提下才需要——用于把接管前官方建好的树纳入台账。前提消失后它只会把官方目录的树塞进本插件台账，与新的单一建树路径冲突。
+  - **`worktree_create` 改走官方 `worktrees` 服务**：新增 `module.createOfficialTarget(agent, createOptions?)`，内部调宿主 `worktrees.create(agent, { name, from })`，目录由官方决定（`<repo>/.agents/worktrees/<branch>`），全机只有一份 `git worktree add` 实现；结果随后由新增的 `registerOfficialWorktree()` 登记成 `ready` 记录并建立 isolated binding，台账、交付、评审、清理、恢复照旧由本插件承担。官方每条请求都真的跑一次建树，因此重复调用会留下没人认领的第二棵树——`createOfficialTarget` 在本会话已绑定未放弃的 isolated 记录时直接复用，不再建第二棵。
+  - **分支名与基点**：分支名走 `createSessionBranchCandidates` 的 `feat/sess-<session>[--<topic>]` 候选，用 `resolveLocalBranchTip` 逐个探到第一个未被占用的（全被占用时明确报错而不是拼随机后缀）；`branch` 参数映射为官方的 `from`（起点），语义不变。
+  - **删除控制台预建树**：`createTarget` / `preflightCreate` / `createWithInitialCommit` 四个方法从控制面、console-contract、descriptor、remote、Host service、client adapter 全线删除。语言无关的原因是官方的 `worktrees.create` 必须传 live Agent，而预建树的目标会话尚未启动（`createTargetSessionId()` 现场生成 id，拿不到 Agent）——这个能力在「单一建树实现」下没有对应物。空仓库初始提交（`preflightInitialCommit` / `initializeEmptyRepository`）的端口能力保留，`initProject` 仍走它。
+  - **删除新建对话时的 Worktree 开关**：整个 `src/client/pre-session/` 目录（`PreSessionWorktreeToggle`、controller、harness-input）删除，`registerPreSessionWorktree` 连同 `.dsh-wt-pre-session*` 样式一并移除。会话内的 Worktree 控制台也移除了「从某分支创建」的分支选择器与创建按钮——建树现在只有两个入口：模型调 `worktree_create`，或官方 forge 面板新建会话时建树。
+  - **删除分支竞态守卫**：`src/concurrent-session-guard.ts` 与 `detectLocalBranchRace` 整体删除，连同 `branchRaceGuard` / `branchRaceWindowMs` 两个配置、`git.branchCreationTimes` 端口、45 秒定时刷新与模型可见的竞态提示。该守卫用「30 分钟内有人建了分支」推断「别的会话在抢 Local HEAD」，可这条证据同样由本会话自己产生（`git checkout -b` 之后自己的分支立刻成为「别人在抢」的物证）；而时间来源用的是 `reflog` 里的 `%ct`（commit 的 committer date），实测与分支真正诞生时刻差 11 分钟到 4 小时，窗口判定看的根本不是「谁刚动了 HEAD」。归因在这一层根本不存在：git 身份全机统一，`reflog` 里没有会话信息，纯函数无法把分支归给某个会话。于是删掉，而不是在错误归因上继续打补丁。
+  - 移除的测试：`tests/official-worktree-takeover.test.ts`、`tests/worktrees-service.test.ts`、`tests/concurrent-session-guard.test.ts`、`tests/client-pre-session.test.tsx`，以及 `client-target-console.test.tsx` 的 `Worktree Console Create/Open`、`console-host.test.ts` 的 `initial version confirmation on the host`、`console-remote.test.ts` 的 `initial version Remote boundary`、`git-unborn.test.ts` 的 host/module 全流程用例。全量 55 文件 / 787 项通过、4 项跳过。
+
 ### Fixed
 
 - 顶部分支胶囊误报「不可用」、侧栏装饰移除、接管官方 Worktree 工具、交付后保留期默认无期限（2026-11-06）：

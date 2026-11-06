@@ -133,22 +133,8 @@ export const WORKTREE_STYLES = String.raw`
 .dsh-wt-retain[open] > .dsh-wt-summary { margin-bottom:7px; }
 .dsh-wt-retain-actions { display:flex; gap:6px; flex-wrap:wrap; }
 .dsh-wt-visually-hidden { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
-.dsh-wt-pre-session { position:relative; display:inline-flex; align-items:center; min-width:0; }
-/* Match the Harness PermissionSelect toolbar trigger while retaining switch semantics. */
-.dsh-wt-pre-session-toggle { display:inline-flex; align-items:center; gap:4px; min-width:0; height:28px; padding:0 8px; border:none; border-radius:24px; outline:none; background:transparent; color:var(--dsw-alias-label-secondary, inherit); font:inherit; font-size:13px; line-height:20px; font-weight:500; cursor:pointer; white-space:nowrap; }
-.dsh-wt-pre-session-toggle:hover:not(:disabled) { background:var(--dsw-alias-interactive-bg-hover, color-mix(in srgb, currentColor 7%, transparent)); }
-.dsh-wt-pre-session-toggle:focus-visible { box-shadow:0 0 0 2px var(--dsw-alias-border-l3, currentColor); }
-.dsh-wt-pre-session-toggle:disabled { color:var(--dsw-alias-label-dimmed, inherit); cursor:default; }
-.dsh-wt-pre-session-toggle[aria-checked="true"] { color:var(--dsw-alias-label-primary, inherit); }
-.dsh-wt-pre-session-check { display:inline-flex; flex:0 0 auto; align-items:center; justify-content:center; box-sizing:border-box; width:14px; height:14px; border:1px solid currentColor; border-radius:3px; font-size:11px; line-height:1; }
-.dsh-wt-pre-session-error { position:absolute; left:0; bottom:calc(100% + 7px); z-index:20; width:max-content; max-width:min(360px, 75vw); padding:7px 9px; border:1px solid color-mix(in srgb, #bd3b3b 35%, transparent); border-radius:8px; background:color-mix(in srgb, Canvas 96%, #bd3b3b 4%); color:#bd3b3b; font-size:11px; font-weight:500; line-height:1.4; white-space:normal; box-shadow:0 8px 24px color-mix(in srgb, black 14%, transparent); }
-
-.dsh-wt-pre-session-note { margin:0; color:color-mix(in srgb, currentColor 62%, transparent); font-size:12px; line-height:1.5; }
 @media (max-width: 560px) { .dsh-wt-grid { grid-template-columns:1fr; gap:3px; } .dsh-wt-label { margin-top:4px; } }
 ${REVIEW_CONSOLE_STYLES}
-
-.dsh-wt-pre-session .dsh-wt-button,
 .dsh-wt-create-dialog .dsh-wt-button { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:34px; line-height:20px; box-sizing:border-box; }
 .dsh-wt-create-dialog .dsh-wt-button .dsh-wt-icon { width:16px; height:16px; flex:0 0 16px; vertical-align:middle; }
-.dsh-wt-pre-session-check .dsh-wt-icon { width:12px; height:12px; flex-basis:12px; }
 `

@@ -1,7 +1,5 @@
 import { ProjectSkillStore } from './adapters/project-skills.js'
 import { mountProjectSkillProvider } from './adapters/project-skill-provider.js'
-import { mountOfficialWorktreeTakeover } from './official-worktree-takeover.js'
-import { adoptOfficialWorktrees } from './official-worktree-adoption.js'
 /**
  * dsh-git-worktree plugin entry. The session-checkout domain (state machine,
  * apply engine, ports) is Domi-ported and host-agnostic; this file is the DSH
@@ -18,6 +16,7 @@ import type {
   ManagedPreviewRecoveryAnalysisContinuation,
   ManagedPreviewRecoveryHandoffContinuation,
   ManagedReviewRegenerationContinuation,
+  OfficialWorktreesPort,
 } from './ports.js'
 import type {
   AbandonedWorktreeSnapshotView,
@@ -125,12 +124,6 @@ export interface SessionCheckoutModule {
    * it decides whether the absolute-path rule still needs to be announced.
    */
   runtimeContext(sessionId: string, cwd?: string): string
-  /**
-   * Concurrent branch-race guard refresh: collects branch creation times for
-   * every known Local root into the cache runtimeContext reads synchronously.
-   * Fire-and-forget from the host interval; failures keep the prior snapshot.
-   */
-  refreshBranchRaceGuards?(): Promise<void>
   /** Read-only sync preflight; modifies no Local, worktree, registry, review state, or Git refs. */
   preflight?(sessionId: string, expectedRevision: number): Promise<WorktreeApplyPreflightView>
   /** Strictly read-only detached Preview recovery assessment and deterministic revalidation context. */
@@ -148,6 +141,13 @@ export interface SessionCheckoutModule {
   bind(sessionId: string, choice: SessionTargetBindChoice): Promise<SessionTargetView>
   /** Reserve a distinct owner session and checkout without changing the source session cwd/identity. */
   createIsolatedTarget(sourceSessionId: string, targetSessionId: string, createOptions?: { topic?: string; branch?: string }): Promise<IsolatedTargetLaunch>
+  /**
+   * Create a Worktree through the host's own `worktrees` service and record it
+   * in this plugin's ledger. The one creation path for `worktree_create`: the
+   * host owns the Git operation, this plugin owns tracking, delivery, review
+   * and cleanup for the result.
+   */
+  createOfficialTarget(agent: unknown, createOptions?: { topic?: string; branch?: string }): Promise<IsolatedTargetLaunch>
   /** Recreate a cleaned delivered owner's immutable cwd as the next isolated iteration. */
   beginNextIteration(sessionId: string, expectedRevision: number): Promise<SessionTargetView>
   /** Invalidate an unsynced review and resume the same iteration without touching Local. */
@@ -223,6 +223,18 @@ export interface SessionCheckoutModule {
   /** codex 对齐：按 worktree-keep-count LRU 逐出最旧的已交付托管 Worktree（豁免 permanent）。 */
   enforceWorktreeKeepCount(): Promise<string[]>
   reconcile(): Promise<SessionCheckoutReconcileSummary>
+}
+
+/**
+ * Narrow the host service to the one method this plugin calls. A host without
+ * the experimental worktree bundle mounts nothing under this key, which is the
+ * ordinary case for older builds, so the check reports `undefined` rather than
+ * throwing.
+ */
+function isOfficialWorktrees(value: unknown): value is OfficialWorktreesPort {
+  return Boolean(value)
+    && typeof value === 'object'
+    && typeof (value as OfficialWorktreesPort).create === 'function'
 }
 
 import { randomUUID } from 'node:crypto'
@@ -314,28 +326,12 @@ export const Config = z.object({
    */
   autoPruneMergedBranches: volatile(z.boolean().default(false)),
   /**
-   * Concurrent branch-race guard: when other live Sessions share the Local
-   * checkout and a new local branch appeared inside `branchRaceWindowMs`, the
-   * later-started Session's runtime context directs it to isolate through
-   * worktree_create before mutating. Default true.
-   */
-  branchRaceGuard: volatile(z.boolean().default(true)),
-  /** Detection window (ms) for `branchRaceGuard`. Default 30 minutes. */
-  branchRaceWindowMs: volatile(z.number().min(60_000).max(24 * 60 * 60 * 1000).default(30 * 60 * 1000)),
-  /**
    * Take over the official Workspace UI (ui-workspace). Only an explicit
    * `true` takes over: a takeover disables the official entry, which removes
    * its client package from the Host's client graph, so every package
    * importing it loses its bundle.
    */
   enableWorkspaceProvider: z.boolean().default(false),
-  /**
-   * 接管官方实验性 Worktree 工具（`create_worktree`）：禁用
-   * `@deepseek-ai/dsh-experimental-tool-worktree` 及其 `dsh-experimental-worktree`
-   * 条目，并全局拒绝同名工具。官方工具创建的 checkout 不进本插件台账，既列不出
-   * 也交付不了、清理不了，所以默认接管（需要官方工具并存时置 false）。
-   */
-  enableOfficialWorktreeTakeover: volatile(z.boolean().default(true)),
 })
 
 interface LocalAdaptationConfig {
@@ -345,10 +341,7 @@ interface LocalAdaptationConfig {
   inheritLocalChanges?: boolean | LiveValue<boolean | undefined>
   worktreeKeepCount?: number | LiveValue<number | undefined>
   autoPruneMergedBranches?: boolean | LiveValue<boolean | undefined>
-  branchRaceGuard?: boolean | LiveValue<boolean | undefined>
-  branchRaceWindowMs?: number | LiveValue<number | undefined>
   enableWorkspaceProvider?: boolean
-  enableOfficialWorktreeTakeover?: boolean | LiveValue<boolean | undefined>
 }
 
 function resolveWorktreesRootValue(raw: string | LiveValue<string | undefined> | undefined): string | undefined {
@@ -383,15 +376,6 @@ export async function apply(ctx: Context, config: { stateDir?: string } & GitTim
   // automatic, because disabling the official entry removes a client package
   // every other UI package imports.
   const providerLifecycle = await mountWorkspaceProviderLifecycle(ctx, hostWorkspaceClientFlavor(), { enabled: config.enableWorkspaceProvider === true })
-  // This plugin owns Worktree creation and tracks every checkout it creates.
-  // The official experimental worktree tool creates checkouts outside that
-  // registry, so they could be neither listed nor delivered nor cleaned up.
-  if (liveConfigValue(config.enableOfficialWorktreeTakeover) !== false) {
-    const takeover = await mountOfficialWorktreeTakeover(ctx)
-    if (takeover.disabled.length > 0) {
-      console.info('[dsh-git-worktree] took over the official Worktree tool:', takeover.disabled.join(', '))
-    }
-  }
   const stateDir = resolveStateDir(config)
   mkdirSync(stateDir, { recursive: true })
   const hooksPath = join(stateDir, 'disabled-git-hooks')
@@ -417,12 +401,14 @@ export async function apply(ctx: Context, config: { stateDir?: string } & GitTim
     applyEngine: createSessionCheckoutApplyEngine({ projectSkills }),
     managedCheckoutsRoot: stateDir,
     createCheckoutId: randomUUID,
+    officialWorktrees: () => {
+      const candidate: unknown = typeof ctx.get === 'function' ? ctx.get('worktrees') : undefined
+      return isOfficialWorktrees(candidate) ? candidate : undefined
+    },
     autoDeliver: config.autoDeliver,
     autoPush: config.autoPush,
     inheritLocalChanges: config.inheritLocalChanges,
     worktreeKeepCount: config.worktreeKeepCount,
-    branchRaceGuard: config.branchRaceGuard,
-    branchRaceWindowMs: config.branchRaceWindowMs,
     ...(worktreesRoot ? { worktreesRoot } : {}),
   })
 
@@ -450,15 +436,6 @@ export async function apply(ctx: Context, config: { stateDir?: string } & GitTim
             '[dsh-git-worktree] worktrees whose local root vanished (repository likely moved):',
             summary.staleRootCheckoutIds.join(', '),
           )
-        }
-      })
-      // 接管官方 Worktree 之后，它此前建好的工作树仍在磁盘上却没有台账记录：
-      // 既不显示、也交付不了。纳管放在 reconcile 之后，避免与恢复流程抢同一
-      // 份台账。
-      .then(() => adoptOfficialWorktrees({ lookup, git, registry, createCheckoutId: randomUUID }))
-      .then((result) => {
-        if (result.adopted.length > 0) {
-          console.info('[dsh-git-worktree] adopted official worktrees:', result.adopted.join(', '))
         }
       })
       .then(() => module.enforceWorktreeKeepCount())

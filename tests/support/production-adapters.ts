@@ -26,8 +26,6 @@ interface NodeSessionCheckoutOptions {
   worktreesRoot?: string | LiveValue<string | undefined>
   autoDeliver?: boolean | LiveValue<boolean | undefined>
   autoPush?: boolean | LiveValue<boolean | undefined>
-  branchRaceGuard?: boolean | LiveValue<boolean | undefined>
-  branchRaceWindowMs?: number | LiveValue<number | undefined>
 }
 
 interface GitCommandResult {
@@ -539,8 +537,6 @@ export function createNodeSessionCheckoutDependencies(
     ...(options.worktreesRoot ? { worktreesRoot: options.worktreesRoot } : {}),
     ...(options.autoDeliver !== undefined && { autoDeliver: options.autoDeliver }),
     ...(options.autoPush !== undefined && { autoPush: options.autoPush }),
-    ...(options.branchRaceGuard !== undefined && { branchRaceGuard: options.branchRaceGuard }),
-    ...(options.branchRaceWindowMs !== undefined && { branchRaceWindowMs: options.branchRaceWindowMs }),
     createCheckoutId: randomUUID,
     registry: new AtomicJsonCheckoutRegistry(join(options.configDir, 'managed-checkouts.json')),
     files: {
@@ -700,23 +696,6 @@ export function createNodeSessionCheckoutDependencies(
           const name = (refname ?? '').replace(/^refs\/heads\//u, '')
           const seconds = Number.parseInt(unix ?? '', 10)
           if (name && Number.isFinite(seconds)) times[name] = seconds * 1000
-        }
-        return times
-      },
-      // 与 src/adapters/git.ts 同语义：每分支 reflog 最早 `branch: Created from`
-      // 时间（ms），供并发分支竞态检测。
-      branchCreationTimes: async (root) => {
-        const result = await runSessionGit(root, ['reflog', 'show', '--all', '--date=unix', '--format=%ct%x00%gd%x00%gs'])
-        if (result.code !== 0) return undefined
-        const times: Record<string, number> = {}
-        for (const line of result.stdout.split(/\r?\n/).filter(Boolean)) {
-          const [unix, refSelector = '', subject = ''] = line.split('\0')
-          if (!subject.startsWith('branch: Created from')) continue
-          const name = refSelector.replace(/^refs\/heads\//u, '').replace(/@\{\d+\}$/u, '')
-          const seconds = Number.parseInt(unix ?? '', 10)
-          if (!name || !Number.isFinite(seconds)) continue
-          const createdAt = seconds * 1000
-          if (times[name] === undefined || createdAt < times[name]!) times[name] = createdAt
         }
         return times
       },

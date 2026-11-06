@@ -6,8 +6,6 @@ import {
   optionalLanguageSchema,
   checkoutIdSchema,
   commitMessageSchema,
-  createResponseSchema,
-  createPreflightResponseSchema,
   currentResponseSchema,
   generationSchema,
   gitGraphLimitSchema,
@@ -103,9 +101,6 @@ export const WORKTREE_CONSOLE_DESCRIPTORS: readonly InvocationDescriptor[] = Obj
   descriptor('gitGraph', [
     json('limit', gitGraphLimitSchema, 'number | undefined', true),
   ], outcomeSchema(gitGraphResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleGitGraphResponse>'),
-  descriptor('preflightCreate', [], outcomeSchema(createPreflightResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleCreatePreflightResponse>'),
-  descriptor('createWithInitialCommit', [json('confirmationToken', requestIdSchema, 'string')], outcomeSchema(createResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleCreateResponse>'),
-  descriptor('create', [json('branch', branchNameSchema, 'string | undefined', true)], outcomeSchema(createResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleCreateResponse>'),
   descriptor('initProject', [], outcomeSchema(booleanSchema), 'WorktreeConsoleOutcome<boolean>'),
   descriptor('inspect', [
     json('checkoutId', checkoutIdSchema, `${PACKAGE}/console-contract#WorktreeConsoleInspectRequest.checkoutId`),
