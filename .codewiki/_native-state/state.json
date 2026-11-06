@@ -2,93 +2,40 @@
   "stateVersion": 1,
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
-    "baseCommit": "f161e49e41182c060fd1b9e7cc463bf161b22abc",
-    "headCommit": "25f8bcde972c0fec9add0f7ddcaf529e33ccaf35"
+    "baseCommit": "25f8bcde972c0fec9add0f7ddcaf529e33ccaf35",
+    "headCommit": "0ff18a1f2e107a41cadf53bd342c813da0775ebe"
   },
   "pendingChanges": {
     "state": "ok",
-    "baseCommit": "f161e49e41182c060fd1b9e7cc463bf161b22abc",
-    "headCommit": "25f8bcde972c0fec9add0f7ddcaf529e33ccaf35",
-    "committed": [
-      "CHANGELOG.md",
-      "README-LOCAL-ADAPTATIONS.md",
-      "src/adapters/git.ts",
-      "src/client/actions.ts",
-      "src/client/console-remote/adapter.ts",
-      "src/client/index.tsx",
-      "src/client/pre-session/PreSessionWorktreeToggle.tsx",
-      "src/client/pre-session/controller.ts",
-      "src/client/pre-session/harness-input.ts",
-      "src/client/pre-session/index.tsx",
-      "src/client/styles.ts",
-      "src/client/target-console/WorktreeConsoleView.tsx",
-      "src/concurrent-session-guard.ts",
-      "src/console-contract.ts",
-      "src/console-host/control-plane.ts",
-      "src/console-host/service.ts",
-      "src/console-remote/descriptors.ts",
-      "src/console-remote/remote.ts",
-      "src/console-remote/schemas.ts",
-      "src/i18n/client-messages.ts",
-      "src/index.ts",
-      "src/official-worktree-adoption.ts",
-      "src/official-worktree-registration.ts",
-      "src/official-worktree-takeover.ts",
-      "src/ports.ts",
-      "src/session-checkout-module.ts",
-      "src/session-target-context.ts",
-      "src/tools.ts",
-      "tests/client-pre-session.test.tsx",
-      "tests/client-target-console.test.tsx",
-      "tests/concurrent-session-guard.test.ts",
-      "tests/console-host.test.ts",
-      "tests/console-remote.test.ts",
-      "tests/git-unborn.test.ts",
-      "tests/official-base-creation.test.ts",
-      "tests/official-worktree-adoption.test.ts",
-      "tests/official-worktree-registration.test.ts",
-      "tests/official-worktree-takeover.test.ts",
-      "tests/support/production-adapters.ts",
-      "tests/surface.test.ts"
-    ],
+    "baseCommit": "25f8bcde972c0fec9add0f7ddcaf529e33ccaf35",
+    "headCommit": "0ff18a1f2e107a41cadf53bd342c813da0775ebe",
+    "committed": [],
     "staged": [],
     "unstaged": [
       "src/session-checkout-module.ts",
-      "tests/official-base-creation.test.ts",
-      "tests/support/production-adapters.ts"
+      "tests/official-base-creation.test.ts"
     ],
     "untracked": [],
-    "deleted": [
-      "src/client/pre-session/PreSessionWorktreeToggle.tsx",
-      "src/client/pre-session/controller.ts",
-      "src/client/pre-session/harness-input.ts",
-      "src/client/pre-session/index.tsx",
-      "src/concurrent-session-guard.ts",
-      "src/official-worktree-adoption.ts",
-      "src/official-worktree-takeover.ts",
-      "tests/client-pre-session.test.tsx",
-      "tests/concurrent-session-guard.test.ts",
-      "tests/official-worktree-adoption.test.ts",
-      "tests/official-worktree-takeover.test.ts"
-    ],
+    "deleted": [],
     "renamed": [],
     "reason": ""
   },
   "unconsumed": [
     "src/session-checkout-module.ts",
-    "tests/official-base-creation.test.ts",
-    "tests/support/production-adapters.ts"
+    "tests/official-base-creation.test.ts"
   ],
   "engineVersion": "2.0.0",
   "scope": "auto",
   "effectiveScope": "stale",
-  "updateOutcome": "incremental",
+  "updateOutcome": "no_change",
   "fallbackReason": "",
   "missingRepair": null,
   "notes": [
-    "工作区未提交改动已合成临时 commit 47ebbe95f01b（3 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw5f5598-n-native（31 个文件）",
-    "本轮把 3 个未提交源码改动一并写进产物（快照 47ebbe95f01b）：src/session-checkout-module.ts、tests/official-base-creation.test.ts、tests/support/production-adapters.ts"
+    "丢弃 1 条已不存在且从未提交的旧账（tests/support/production-adapters.ts）——只有 committed 才算消化的规则会让它们被永久携带，白跑整轮",
+    "持久化基线 f161e49 与本次 cw 基线 25f8bcd 不同（以 cw 基线为准，未消费变化仍会并入）",
+    "工作区未提交改动已合成临时 commit 24cbc7d6f68d（2 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw5hab92-q-native（31 个文件）",
+    "本轮把 2 个未提交源码改动一并写进产物（快照 24cbc7d6f68d）：src/session-checkout-module.ts、tests/official-base-creation.test.ts"
   ],
-  "updatedAt": "2026-11-06T20:29:21.994Z"
+  "updatedAt": "2026-11-06T21:26:13.207Z"
 }

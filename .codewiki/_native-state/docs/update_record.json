@@ -1,7 +1,7 @@
 {
-  "started_at": "2026-11-07T04:26:13+0800",
-  "finished_at": "2026-11-07T04:29:20+0800",
-  "outcome": "incremental",
+  "started_at": "2026-11-07T05:26:11+0800",
+  "finished_at": "2026-11-07T05:26:11+0800",
+  "outcome": "no_change",
   "options": {
     "rung": "3",
     "tau_ren": 0.95,
@@ -24,8 +24,8 @@
     }
   },
   "revision": {
-    "old_commit": "30d756050732628a0e9b7d199e31e7b393afb340",
-    "new_commit": "47ebbe95f01b195727094f9030c58cb5b5145601",
+    "old_commit": "47ebbe95f01b195727094f9030c58cb5b5145601",
+    "new_commit": "24cbc7d6f68d4b0b944e65ba326690018feeda7a",
     "repo_path": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree"
   },
   "diff": {
@@ -33,335 +33,48 @@
       "added": 0,
       "deleted": 0,
       "interface": 0,
-      "body": 1,
+      "body": 0,
       "edge": 0,
       "renamed": 0
     },
     "added": [],
     "deleted": [],
     "interface": [],
-    "body": [
-      "src\\session-checkout-module.ts::createSessionCheckoutModule"
-    ],
+    "body": [],
     "edge": [],
     "renamed": {}
   },
-  "repair": {
-    "renamed": {},
-    "removed": [],
-    "routing": [],
-    "orphans": [],
-    "deleted_nodes": [],
-    "created_leaves": [],
-    "growth": {},
-    "growth_flagged": []
-  },
+  "repair": {},
   "reclustered": [],
-  "reports": {
-    "Backend_Host_Core_Runtime/Core_Session_Checkout_Engine/Session_Checkout_Module_Project_Resolution": {
-      "leaf_path": [
-        "Backend_Host_Core_Runtime",
-        "Core_Session_Checkout_Engine",
-        "Session_Checkout_Module_Project_Resolution"
-      ],
-      "mode": "edit",
-      "own": [
-        "src\\session-checkout-module.ts::createSessionCheckoutModule"
-      ],
-      "adopted": {
-        "src\\session-checkout-module.ts::createSessionCheckoutModule": "1:same_file"
-      },
-      "up": [],
-      "context": [],
-      "refch": [],
-      "entered": [],
-      "left": [],
-      "children_added": [],
-      "children_removed": [],
-      "reclustered": false,
-      "page": "Session_Checkout_Module_Project_Resolution"
-    }
-  },
-  "ownership": [
-    {
-      "component_id": "src\\session-checkout-module.ts::createSessionCheckoutModule",
-      "rule": "1:same_file",
-      "leaf_path": [
-        "Backend_Host_Core_Runtime",
-        "Core_Session_Checkout_Engine",
-        "Session_Checkout_Module_Project_Resolution"
-      ],
-      "detail": "1 tracked components in file",
-      "deleted": false
-    }
-  ],
-  "active": [
-    {
-      "leaf": "Backend_Host_Core_Runtime/Core_Session_Checkout_Engine/Session_Checkout_Module_Project_Resolution",
-      "page": "Session_Checkout_Module_Project_Resolution",
-      "mode": "edit",
-      "order": 0
-    }
-  ],
-  "write_sets": {
-    "Session_Checkout_Module_Project_Resolution": [
-      "Backend_Host_Core_Runtime",
-      "Core_Session_Checkout_Engine",
-      "Managed_Worktree_Path_Candidate_Resolution",
-      "Session_Checkout_Apply_Execution_Engine",
-      "Session_Checkout_Module_Project_Resolution",
-      "Session_Checkout_User_Tool_Interface",
-      "overview"
-    ]
-  },
-  "fallback": {
-    "r_leaf": 0.058823529411764705,
-    "r_tree": 0.0,
-    "n_active": 1,
-    "n_leaves": 17,
-    "n_structural": 0,
-    "tau_full": 0.5,
-    "tau_tree": 0.3,
-    "fired": false
-  },
-  "verdicts": [
-    {
-      "page": "Session_Checkout_Module_Project_Resolution",
-      "verdict": "patch",
-      "reason": "在 createSessionCheckoutModule 内部能力清单中新增官方建树后的插件补充能力（.worktreeinclude 拷贝 + 基点等于本地 HEAD 时携带未提交修改），并细化 inheritLocalChanges 配置行的生效条件",
-      "by_leaf": "Session_Checkout_Module_Project_Resolution",
-      "changed_on_disk": true
-    },
-    {
-      "page": "Core_Session_Checkout_Engine",
-      "verdict": "no-op",
-      "reason": "对本页的高层一行概括未因新增的建树后处理步骤而失真",
-      "by_leaf": "Session_Checkout_Module_Project_Resolution",
-      "changed_on_disk": false
-    },
-    {
-      "page": "Backend_Host_Core_Runtime",
-      "verdict": "no-op",
-      "reason": "仅描述引擎高层职责，不涉及工作树创建后的细节",
-      "by_leaf": "Session_Checkout_Module_Project_Resolution",
-      "changed_on_disk": false
-    },
-    {
-      "page": "overview",
-      "verdict": "no-op",
-      "reason": "顶层架构页，无本叶组件的具体契约被改动",
-      "by_leaf": "Session_Checkout_Module_Project_Resolution",
-      "changed_on_disk": false
-    },
-    {
-      "page": "Managed_Worktree_Path_Candidate_Resolution",
-      "verdict": "no-op",
-      "reason": "与本页的路径候选/runtimeContext 契约未变，未改变建树责任方",
-      "by_leaf": "Session_Checkout_Module_Project_Resolution",
-      "changed_on_disk": false
-    },
-    {
-      "page": "Session_Checkout_Apply_Execution_Engine",
-      "verdict": "no-op",
-      "reason": "applyEngine 装配契约未移动或删除，diff 不涉及执行引擎",
-      "by_leaf": "Session_Checkout_Module_Project_Resolution",
-      "changed_on_disk": false
-    },
-    {
-      "page": "Session_Checkout_User_Tool_Interface",
-      "verdict": "no-op",
-      "reason": "worktree_create 的「官方建树、插件登记、cwd 迁入」语义仍然成立，新增步骤属模块页内部细节",
-      "by_leaf": "Session_Checkout_Module_Project_Resolution",
-      "changed_on_disk": false
-    }
-  ],
-  "pages_written": [
-    "Session_Checkout_Module_Project_Resolution"
-  ],
+  "reports": {},
+  "ownership": [],
+  "active": [],
+  "write_sets": {},
+  "fallback": {},
+  "verdicts": [],
+  "pages_written": [],
   "pages_removed": [],
   "write_set_violations": [],
-  "stale_scan": {
-    "scanned": 22,
-    "pages_with_hits": {},
-    "fixed": []
-  },
-  "calls": [
-    {
-      "kind": "leaf_agent",
-      "target": "Session_Checkout_Module_Project_Resolution",
-      "seconds": 186.48012495040894,
-      "usage": {
-        "input_tokens": 137431,
-        "output_tokens": 11803,
-        "cache_read_tokens": 57968,
-        "cache_write_tokens": 0,
-        "total_tokens": 149234,
-        "requests": 6
-      },
-      "error": null
-    },
-    {
-      "kind": "missing_pages",
-      "target": "-",
-      "seconds": 0.025386810302734375,
-      "usage": null,
-      "error": null
-    }
-  ],
-  "detector_notes": [
-    "reference index rebuilt from pages (none saved by previous build)",
-    "补齐 1 个未归属文件到已有叶子：src\\official-worktree-registration.ts",
-    "[Session_Checkout_Module_Project_Resolution] agent notes: read_code_components 以多种路径格式均无法解析到 session-checkout-module.ts 的组件，故依据 diff 与既有文档完成补丁；.worktreeinclude 文件名、copyWorktreeincludeFiles/carryLocalWorkInProgress 行为均取自 diff 注释。若后续这两个辅助函数被拆到独立模块并独立成页，可在该叶页补一节引用。"
-  ],
+  "stale_scan": {},
+  "calls": [],
+  "detector_notes": [],
   "errors": [],
-  "wall_seconds": 186.96,
+  "wall_seconds": 0.09,
   "usage_report": {
     "schema_version": 2,
     "scope": "this run only (modules resumed from disk cost nothing)",
     "currency": "USD",
-    "cost_status": "unknown",
+    "cost_status": "complete",
     "incomplete": false,
     "unknown_usage_calls": 0,
-    "n_calls": 6,
+    "n_calls": 0,
     "totals": {
-      "input_tokens": 137431,
-      "output_tokens": 11803,
-      "cache_read_tokens": 57968,
-      "cache_write_tokens": 0,
-      "requests": 6,
-      "total_tokens": 149234
+      "cost_usd": 0.0
     },
-    "by_phase": {
-      "update": {
-        "calls": 6,
-        "input_tokens": 137431,
-        "output_tokens": 11803,
-        "cache_read_tokens": 57968,
-        "cache_write_tokens": 0,
-        "requests": 6,
-        "total_tokens": 149234,
-        "unpriced_calls": 6
-      }
-    },
-    "by_model": {
-      "doubao-seed-2.1-lite": {
-        "calls": 6,
-        "input_tokens": 137431,
-        "output_tokens": 11803,
-        "cache_read_tokens": 57968,
-        "cache_write_tokens": 0,
-        "requests": 6,
-        "total_tokens": 149234,
-        "unpriced_calls": 6
-      }
-    },
-    "unpriced_models": [
-      "doubao-seed-2.1-lite"
-    ],
-    "calls": [
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "Session_Checkout_Module_Project_Resolution",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 9.2,
-        "input_tokens": 7012,
-        "output_tokens": 774,
-        "cache_read_tokens": 0,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 7786,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "Session_Checkout_Module_Project_Resolution",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 3.36,
-        "input_tokens": 11564,
-        "output_tokens": 338,
-        "cache_read_tokens": 0,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 11902,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "Session_Checkout_Module_Project_Resolution",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 44.27,
-        "input_tokens": 29030,
-        "output_tokens": 3818,
-        "cache_read_tokens": 0,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 32848,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "Session_Checkout_Module_Project_Resolution",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 43.53,
-        "input_tokens": 29122,
-        "output_tokens": 4069,
-        "cache_read_tokens": 0,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 33191,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "Session_Checkout_Module_Project_Resolution",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 2.83,
-        "input_tokens": 29996,
-        "output_tokens": 241,
-        "cache_read_tokens": 28984,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 30237,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "Session_Checkout_Module_Project_Resolution",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 29.26,
-        "input_tokens": 30707,
-        "output_tokens": 2563,
-        "cache_read_tokens": 28984,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 33270,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      }
-    ]
+    "by_phase": {},
+    "by_model": {},
+    "unpriced_models": [],
+    "calls": []
   },
-  "run_id": "f675ecd0-e718-44f1-906e-754029ef9680"
+  "run_id": "cdc080c3-3025-4298-ba67-03eb9317746e"
 }
