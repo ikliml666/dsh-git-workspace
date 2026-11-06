@@ -6,7 +6,7 @@ description: srcadapterspersistence 是 src/adapters 分层里唯一负责「落
 # 持久化适配器：文件系统端口、原子注册表与崩溃安全 JSON IO
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`55374a27`](https://github.com/wloops/dsh-git-worktree/commit/55374a27f4099ec8dcd0d6163f5544d60b4f3874) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`8206c2a1`](https://github.com/wloops/dsh-git-worktree/commit/8206c2a19ed446899a5910eda03f5c0685bc27c2) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 `src_adapters_persistence` 是 `src/adapters` 分层里唯一负责「落盘」的子模块。它把会话检出（session-checkout）领域的两个抽象端口——`SessionCheckoutFilesPort` 与 `SessionCheckoutRegistryPort`——实现为可直接运行的 Node.js 适配器，并额外提供一个共享底座的崩溃安全 JSON 读写工具集：
 
@@ -459,8 +459,8 @@ stateDir/
 - 构建、打包与测试（`stateDir` 默认值、`vitest` 平台并发策略）：[构建、CI 与打包（build_ci_and_packaging）](../../project_foundation_and_localization/build_ci_and_packaging.md)
 
 ??? abstract "Documented components (4)"
-    - [`createNodeFilesPort`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Cadapters%5Cfiles.ts) — `src\adapters\files.ts`
-    - [`AtomicJsonCheckoutRegistry`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Cadapters%5Cregistry.ts) — `src\adapters\registry.ts`
-    - [`FileLockOptions`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Cadapters%5Csafe-file.ts) — `src\adapters\safe-file.ts`
-    - [`FileLockPayload`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Cadapters%5Csafe-file.ts) — `src\adapters\safe-file.ts`
+    - [`createNodeFilesPort`](https://github.com/wloops/dsh-git-worktree/blob/8206c2a19ed446899a5910eda03f5c0685bc27c2/src%5Cadapters%5Cfiles.ts) — `src\adapters\files.ts`
+    - [`AtomicJsonCheckoutRegistry`](https://github.com/wloops/dsh-git-worktree/blob/8206c2a19ed446899a5910eda03f5c0685bc27c2/src%5Cadapters%5Cregistry.ts) — `src\adapters\registry.ts`
+    - [`FileLockOptions`](https://github.com/wloops/dsh-git-worktree/blob/8206c2a19ed446899a5910eda03f5c0685bc27c2/src%5Cadapters%5Csafe-file.ts) — `src\adapters\safe-file.ts`
+    - [`FileLockPayload`](https://github.com/wloops/dsh-git-worktree/blob/8206c2a19ed446899a5910eda03f5c0685bc27c2/src%5Cadapters%5Csafe-file.ts) — `src\adapters\safe-file.ts`
 

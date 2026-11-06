@@ -6,7 +6,7 @@ description: 本页文档化 Worktree Console 宿主侧的授权与编排核心�
 # Worktree Console 控制面（`src/console-host/control-plane.ts`）
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`55374a27`](https://github.com/wloops/dsh-git-worktree/commit/55374a27f4099ec8dcd0d6163f5544d60b4f3874) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`8206c2a1`](https://github.com/wloops/dsh-git-worktree/commit/8206c2a19ed446899a5910eda03f5c0685bc27c2) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 本页文档化 **Worktree Console 宿主侧的授权与编排核心**——工厂函数 `createWorktreeConsoleControlPlane(options)` 与其产出的 `WorktreeConsoleControlPlane` 接口。它是浏览器控制台与「会话检出领域层」之间唯一的一道**身份闸门**：领域层（`SessionCheckoutModule`、Apply 引擎、各类 Port）是为模型工具与人类 UI 共享而设计的、与宿主无关的状态机；控制面则负责把这套能力翻译成一组**可被远端安全调用**的方法，并在每一次调用时重新证明「调用方是谁、它有没有资格动这条记录」。
 
@@ -709,6 +709,6 @@ sequenceDiagram
 - [构建、CI 与打包](../../project_foundation_and_localization/build_ci_and_packaging.md)
 
 ??? abstract "Documented components (2)"
-    - [`WorktreeConsoleControlPlane`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Cconsole-host%5Ccontrol-plane.ts) — `src\console-host\control-plane.ts`
-    - [`WorktreeConsoleControlPlaneOptions`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Cconsole-host%5Ccontrol-plane.ts) — `src\console-host\control-plane.ts`
+    - [`WorktreeConsoleControlPlane`](https://github.com/wloops/dsh-git-worktree/blob/8206c2a19ed446899a5910eda03f5c0685bc27c2/src%5Cconsole-host%5Ccontrol-plane.ts) — `src\console-host\control-plane.ts`
+    - [`WorktreeConsoleControlPlaneOptions`](https://github.com/wloops/dsh-git-worktree/blob/8206c2a19ed446899a5910eda03f5c0685bc27c2/src%5Cconsole-host%5Ccontrol-plane.ts) — `src\console-host\control-plane.ts`
 

@@ -6,7 +6,7 @@ description: src/i18n 是 dsh-git-worktree 插件的中英文文案层。它把�
 # src_i18n 国际化与消息目录模块
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`55374a27`](https://github.com/wloops/dsh-git-worktree/commit/55374a27f4099ec8dcd0d6163f5544d60b4f3874) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`8206c2a1`](https://github.com/wloops/dsh-git-worktree/commit/8206c2a19ed446899a5910eda03f5c0685bc27c2) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 `src/i18n` 是 `dsh-git-worktree` 插件的中英文文案层。它把「说什么」和「怎么说」与业务逻辑彻底分离：所有面向用户与面向模型的文案集中在类型安全的目录（catalog）里，语言的选取由 DSH 平台的既有偏好驱动，插件自身不额外提供语言开关。
 
@@ -214,9 +214,9 @@ flowchart TD
 本模块文件数量少、职责单一（文案目录 + 语言作用域），因此未再拆分独立子模块页面，全部说明集中在本页。若需要更完整的语言契约原文，请阅读仓库内的 `docs/i18n.md` 以及上级页面 [项目基础与本地化模块概览](../project_foundation_and_localization.md)。
 
 ??? abstract "Documented components (5)"
-    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Ci18n%5Cclient-messages.ts) — `src\i18n\client-messages.ts`
-    - [`Language`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Ci18n%5Ccore.ts) — `src\i18n\core.ts`
-    - [`PersistedCleanupKey`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Ci18n%5Chost-messages.ts) — `src\i18n\host-messages.ts`
-    - [`currentHostLanguage`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Ci18n%5Chost.ts) — `src\i18n\host.ts`
-    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Ci18n%5Ctransport-messages.ts) — `src\i18n\transport-messages.ts`
+    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/8206c2a19ed446899a5910eda03f5c0685bc27c2/src%5Ci18n%5Cclient-messages.ts) — `src\i18n\client-messages.ts`
+    - [`Language`](https://github.com/wloops/dsh-git-worktree/blob/8206c2a19ed446899a5910eda03f5c0685bc27c2/src%5Ci18n%5Ccore.ts) — `src\i18n\core.ts`
+    - [`PersistedCleanupKey`](https://github.com/wloops/dsh-git-worktree/blob/8206c2a19ed446899a5910eda03f5c0685bc27c2/src%5Ci18n%5Chost-messages.ts) — `src\i18n\host-messages.ts`
+    - [`currentHostLanguage`](https://github.com/wloops/dsh-git-worktree/blob/8206c2a19ed446899a5910eda03f5c0685bc27c2/src%5Ci18n%5Chost.ts) — `src\i18n\host.ts`
+    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/8206c2a19ed446899a5910eda03f5c0685bc27c2/src%5Ci18n%5Ctransport-messages.ts) — `src\i18n\transport-messages.ts`
 

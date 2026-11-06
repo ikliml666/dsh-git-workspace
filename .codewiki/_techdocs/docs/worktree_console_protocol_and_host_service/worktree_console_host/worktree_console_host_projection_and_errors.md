@@ -6,7 +6,7 @@ description: 本模块由两个小而关键的宿主（Host）文件组成，它
 # Worktree Console 宿主侧投影与错误归一化（projection / errors）
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`55374a27`](https://github.com/wloops/dsh-git-worktree/commit/55374a27f4099ec8dcd0d6163f5544d60b4f3874) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`8206c2a1`](https://github.com/wloops/dsh-git-worktree/commit/8206c2a19ed446899a5910eda03f5c0685bc27c2) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 本模块由两个小而关键的宿主（Host）文件组成，它们共同定义了 Worktree Console 的**输出边界**：
 
@@ -432,6 +432,6 @@ flowchart LR
 - 消费这些投影的界面：[client_target_console：会话目标控制台（浏览器端）](../../worktree_client_interface_layer/client_target_console.md)、[client_review_console：受管 Worktree 验收控制台（浏览器端）](../../worktree_client_interface_layer/client_review_console.md)、[工作区侧边栏（client_workspace_sidebar）](../../worktree_client_interface_layer/client_workspace_sidebar.md)
 
 ??? abstract "Documented components (2)"
-    - [`consoleFailure`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Cconsole-host%5Cerrors.ts) — `src\console-host\errors.ts`
-    - [`capabilities`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Cconsole-host%5Cprojection.ts) — `src\console-host\projection.ts`
+    - [`consoleFailure`](https://github.com/wloops/dsh-git-worktree/blob/8206c2a19ed446899a5910eda03f5c0685bc27c2/src%5Cconsole-host%5Cerrors.ts) — `src\console-host\errors.ts`
+    - [`capabilities`](https://github.com/wloops/dsh-git-worktree/blob/8206c2a19ed446899a5910eda03f5c0685bc27c2/src%5Cconsole-host%5Cprojection.ts) — `src\console-host\projection.ts`
 

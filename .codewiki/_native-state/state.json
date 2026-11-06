@@ -2,13 +2,13 @@
   "stateVersion": 1,
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
-    "baseCommit": "e53c72f34f4a06da818e73490377a665a27b6620",
-    "headCommit": "de3d5bfdf7f546c3c2b7c6bec12421b25688343b"
+    "baseCommit": "de3d5bfdf7f546c3c2b7c6bec12421b25688343b",
+    "headCommit": "1f6f209f796558d71dd9f9b745d95215f3b2fe7d"
   },
   "pendingChanges": {
     "state": "ok",
-    "baseCommit": "e53c72f34f4a06da818e73490377a665a27b6620",
-    "headCommit": "de3d5bfdf7f546c3c2b7c6bec12421b25688343b",
+    "baseCommit": "de3d5bfdf7f546c3c2b7c6bec12421b25688343b",
+    "headCommit": "1f6f209f796558d71dd9f9b745d95215f3b2fe7d",
     "committed": [],
     "staged": [],
     "unstaged": [
@@ -38,15 +38,14 @@
   "engineVersion": "2.0.0",
   "scope": "auto",
   "effectiveScope": "stale",
-  "updateOutcome": "incremental",
+  "updateOutcome": "no_change",
   "fallbackReason": "",
   "missingRepair": null,
   "notes": [
-    "丢弃 1 条已不存在且从未提交的旧账（tests/tmp-realm-probe.test.ts）——只有 committed 才算消化的规则会让它们被永久携带，白跑整轮",
-    "持久化基线 f93ba81 与本次 cw 基线 e53c72f 不同（以 cw 基线为准，未消费变化仍会并入）",
-    "工作区未提交改动已合成临时 commit 55374a27f409（7 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw54facd-9-native（47 个文件）",
-    "本轮把 7 个未提交源码改动一并写进产物（快照 55374a27f409）：CHANGELOG.md、README-LOCAL-ADAPTATIONS.md、src/index.ts、src/official-worktree-takeover.ts、tests/official-worktree-takeover.test.ts 等"
+    "持久化基线 e53c72f 与本次 cw 基线 de3d5bf 不同（以 cw 基线为准，未消费变化仍会并入）",
+    "工作区未提交改动已合成临时 commit 8206c2a19ed4（7 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw56kgbk-c-native（47 个文件）",
+    "本轮把 7 个未提交源码改动一并写进产物（快照 8206c2a19ed4）：CHANGELOG.md、README-LOCAL-ADAPTATIONS.md、src/index.ts、src/official-worktree-takeover.ts、tests/official-worktree-takeover.test.ts 等"
   ],
-  "updatedAt": "2026-11-06T15:40:47.936Z"
+  "updatedAt": "2026-11-06T16:26:06.992Z"
 }
