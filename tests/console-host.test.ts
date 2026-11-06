@@ -1236,6 +1236,35 @@ describe('Worktree Console Host control plane', () => {
     expect(result).toMatchObject({ ok: true, value: { target: { state: 'delivered' } } })
   })
 
+  it('keeps the owner readable when the retired managedRoot path no longer canonicalizes', async () => {
+    // The record keeps the old managedRoot path after cleanup deletes it, and
+    // `realpath` on a missing path throws ENOENT. That raw error escaped
+    // authorize() and surfaced as `git_error`, which the top capsule rendered
+    // as "unavailable" forever — the settled-owner branch below was
+    // unreachable. The plain `filesDouble()` cannot catch this: its `exists`
+    // always answers true and its `canonicalize` is the identity, so the
+    // missing-directory path is never taken. This fixture models the disk.
+    //
+    // `getSessionCwd` MUST answer: the owner fast path is skipped entirely
+    // when the live cwd is unknown, so without it the ENOENT line is never
+    // reached and the assertion proves nothing. After delivery the owner is
+    // back at the Local checkout, which is what the real session reports.
+    const delivered = readyRecord()
+    delivered.phase = 'discarded'
+    delivered.delivery = { state: 'delivered', iteration: 1, commitOid: B, deliveredAt: 10 }
+    const lookup = ownerLocalLookup()
+    lookup.getSessionCwd = vi.fn(() => '/local')
+    const files = filesDouble()
+    files.exists = path => path !== '/managed'
+    files.canonicalize = vi.fn(async (path: string) => {
+      if (path === '/managed') throw Object.assign(new Error(`ENOENT: no such file or directory, realpath '${path}'`), { code: 'ENOENT' })
+      return path
+    })
+    const { control } = plane(delivered, { lookup, files })
+    const result = await control.inspect('target-session', delivered.checkoutId)
+    expect(result).toMatchObject({ ok: true, value: { target: { state: 'delivered' } } })
+  })
+
   it('keeps a retained owner readable at the Local boundary during the default retention window', async () => {
     const retained = readyRecord()
     retained.phase = 'retained'

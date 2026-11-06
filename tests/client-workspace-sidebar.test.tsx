@@ -346,19 +346,16 @@ describe('registerDecoratedWorkspaceSidebar (Mode B: official Workspace stays li
     // renderSlot only authorizes the declaring entry, so this mode must keep
     // the official entry rendering.
     expect(registry.registered.filter(entry => entry.descriptor.name === 'sidebar.workspaces')).toHaveLength(0)
-    // DSH 0.2.x declares a hover seat and a trailing action seat. There is no
-    // `sidebar.session.row.trailing` seat, and injecting it would wait forever
-    // for a declaration that never arrives (the badge would never mount). The
-    // row-leading seat is deliberately NOT used: the official row swaps it for
-    // status dots whenever the Session runs, so the badge would vanish exactly
-    // while the user watches the Session work.
-    expect(registry.injected).toContain('sidebar.workspaces.session.row.action')
+    // The row itself carries no Worktree decoration. Neither official seat
+    // stays visible while the Session runs — the leading seat is replaced by
+    // status dots, and the trailing action seat is display:none until hover —
+    // so the target is named by the top capsule instead. Only the hover card
+    // repeats it, and the menu item stays available.
     expect(registry.injected).toContain('sidebar.session.row.hover')
+    expect(registry.injected).not.toContain('sidebar.workspaces.session.row.action')
     expect(registry.injected).not.toContain('sidebar.session.row.trailing')
     expect(registry.injected).not.toContain('sidebar.session.row.leading')
     expect(registry.injected).toContain('sidebar.workspaces.session.menu.item')
-    const leading = registry.registered.find(entry => entry.descriptor.name === 'sidebar.workspaces.session.row.action')
-    expect(leading?.descriptor).toMatchObject({ name: 'sidebar.workspaces.session.row.action', id: 'dsh-git-worktree-status' })
     const hover = registry.registered.find(entry => entry.descriptor.name === 'sidebar.session.row.hover')
     expect(hover?.descriptor).toMatchObject({ name: 'sidebar.session.row.hover', id: 'dsh-git-worktree-status' })
     const menu = registry.registered.find(entry => entry.descriptor.name === 'sidebar.workspaces.session.menu.item')
@@ -413,28 +410,17 @@ describe('registerDecoratedWorkspaceSidebar (Mode B: official Workspace stays li
     owner2.unmount()
   })
 
-  test('mirrors the upstream identity mark in both row seats', async () => {
+  test('renders the identity mark in the hover card only', async () => {
     const registry = fakeRegistry()
     const { ctx } = decorateCtx(registry.service)
     registerDecoratedWorkspaceSidebar(ctx, adapter())
-    const leading = registry.registered.find(entry => entry.descriptor.name === 'sidebar.workspaces.session.row.action')
     const hover = registry.registered.find(entry => entry.descriptor.name === 'sidebar.session.row.hover')
-    expect(leading).toBeDefined()
     expect(hover).toBeDefined()
-    const Leading = leading!.component as (props: { sessionId?: string; seat?: string }) => unknown
+    // No row seat carries the mark: the official row has none that stays
+    // visible while the Session runs, so a row mark would blink in and out.
+    expect(registry.injected).not.toContain('sidebar.workspaces.session.row.action')
+    expect(registry.injected).not.toContain('sidebar.session.row.leading')
     const Hover = hover!.component as (props: { sessionId?: string; seat?: string }) => unknown
-
-    // Upstream renders the identity mark (glyph + state chip) inline in the
-    // row, right before the title. Mode B cannot re-render the row, so the same
-    // pair is rendered inside the row's trailing action seat and styles.ts lifts
-    // that seat to the front of the row with `order`.
-    const leadNode = render(<Leading sessionId={ownerSession} seat="sidebar.workspaces.session.row.action" />)
-    await waitFor(() => expect(leadNode.container.querySelector('.dsh-git-worktree-sidebar-icon')).not.toBeNull())
-    expect(leadNode.container.querySelector('.dsh-git-worktree-sidebar-badge')?.textContent)
-      .toBe('Ready for review')
-    expect(leadNode.container.querySelector('.dsh-git-worktree-sidebar-icon')?.getAttribute('title'))
-      .toBe('Ready for review')
-    leadNode.unmount()
 
     // The hover card has room for the glyph AND the state chip.
     const hoverNode = render(<Hover sessionId={ownerSession} seat="sidebar.session.row.hover" />)

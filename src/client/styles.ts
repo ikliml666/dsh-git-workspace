@@ -32,40 +32,13 @@ export const WORKTREE_STYLES = String.raw`
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* The Worktree mark mounts in sidebar.workspaces.session.row.action, which the
-   official row renders inside span.rowQuickActions, the second child of the
-   row's trailing span.rowActions (the first is the overflow button). That
-   trailing span is a flex item of the row, so order: -1 moves the whole
-   container in front of the leading seat and the title — the row prefix
-   upstream renders inline, achieved without re-rendering the row.
-   The leading seat cannot serve: the official row replaces it with status dots
-   whenever the Session runs, which is exactly when the mark must stay visible.
-   sidebar.session.row.trailing exists but sits inside span.time, which the
-   official hover rules hide, so it cannot carry a persistent mark either.
-   The :has() uses a descendant match, not a child match: our two spans are
-   nested one level deeper, inside rowQuickActions.
-   Selectors are otherwise structural, so no hashed CSS-module class is used. */
-[role="treeitem"] > span:last-child:has(.dsh-git-worktree-sidebar-icon) {
-  display: inline-flex;
-  order: -1;
-  align-items: center;
-  gap: 4px;
-  margin-inline-end: 4px;
-}
-/* Upstream hides .rowActions until hover. A hidden box that has been reordered
-   to the row front would leave a hole where the mark belongs, so the container
-   stays displayed while it holds our mark. The overflow button keeps its own
-   hover reveal, and the official row hides .time and the pin on hover to make
-   room — the menu stays reachable. */
-[role="treeitem"] > span:last-child:has(.dsh-git-worktree-sidebar-icon) > button {
-  display: none;
-}
-[role="treeitem"]:hover > span:last-child:has(.dsh-git-worktree-sidebar-icon) > button,
-[role="treeitem"] > span:last-child:has(.dsh-git-worktree-sidebar-icon):has(> button[aria-expanded="true"]) > button {
-  display: inline-flex;
-}
-[role="treeitem"] > span:last-child .dsh-git-worktree-sidebar-icon,
-[role="treeitem"] > span:last-child .dsh-git-worktree-sidebar-badge {
+/* The Worktree mark lives in the hover card only. The official row has no seat
+   that stays visible while a Session runs: the leading seat is replaced by
+   status dots, and the trailing action span is display:none until hover. The
+   row therefore carries no Worktree decoration at all — the top capsule names
+   the target, and the hover card repeats it for the row it belongs to. */
+[role="treeitem"] > span .dsh-git-worktree-sidebar-icon,
+[role="treeitem"] > span .dsh-git-worktree-sidebar-badge {
   flex: 0 0 auto;
 }
 .dsh-git-worktree-sidebar-icon,

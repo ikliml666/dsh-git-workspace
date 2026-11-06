@@ -418,25 +418,13 @@ interface RowSeatProps extends OfficialSessionRowEntryProps {
 }
 
 /**
- * Row seats this plugin may decorate. The Host declares all three from its own
- * `sidebar.workspaces` entry:
- *   - `sidebar.session.row.leading` — a 16px slot before the row title,
- *     rendered only when the row's primary status is idle (archived rows and
- *     rows showing status dots leave it empty);
- *   - `sidebar.session.row.hover` — the hover card body, mounted while the
- *     row's popover is open;
- *   - `sidebar.workspaces.session.row.action` — inside the row's trailing
- *     `span` alongside the overflow button.
- * The leading seat is unusable for a persistent mark: `showStatus` is true
- * whenever the Session runs, completes, owns a subagent or awaits approval, and
- * the official row then swaps that seat for status dots — the Worktree badge
- * would vanish exactly while the user watches it work. The trailing seat has no
- * such condition, so styles.ts lifts it to the front of the row with `order`
- * and it stays mounted for every state. There is no
- * `sidebar.session.row.trailing` seat in DSH 0.2.x: injecting that name waits
- * for a declaration that never arrives, so it would never mount.
+ * Row seats this plugin may decorate. Only the hover card remains: the row
+ * itself carries no Worktree decoration. The leading seat disappears while the
+ * Session runs (`showStatus` swaps it for status dots) and the trailing action
+ * seat is hidden until hover, so neither can carry a mark that is always
+ * visible — the target information belongs to the top capsule instead.
  */
-const ROW_SEATS = ['sidebar.workspaces.session.row.action', 'sidebar.session.row.hover'] as const
+const ROW_SEATS = ['sidebar.session.row.hover'] as const
 
 /**
  * Upstream identity mark, reused verbatim so the decorated path looks like the
@@ -484,9 +472,6 @@ function WorktreeStatusBadgeEntry({ sessionId, seat }: RowSeatProps) {
     : sidebarBadgeTasks(topology ?? EMPTY_TOPOLOGY, t)
       .find(candidate => candidate.ownerSessionId === sessionId)), [topology, sessionId, t])
   if (!task) return null
-  // Both seats render the upstream identity mark: branch glyph + state chip.
-  // The hover card has room for the pill; the row prefix relies on the seat's
-  // own flex parent, which styles.ts reorders to the front of the row.
   return <WorktreeIdentity
     state={task.state}
     stateLabel={task.stateLabel}

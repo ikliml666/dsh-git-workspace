@@ -290,7 +290,12 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
       const liveCwd = options.lookup.getSessionCwd?.(sessionId)
       if (liveCwd !== undefined && options.files.exists(liveCwd)) {
         const callerRoot = await canonical(liveCwd)
-        if (sameLocalRoot(callerRoot, await canonical(expectedRoot))) return
+        // A cleaned-up Worktree keeps its path in the record after the
+        // directory is gone. Canonicalizing that path throws ENOENT, which
+        // escaped as `git_error` and left the top capsule reading
+        // "unavailable" forever; the settled-owner branch below is the answer
+        // for exactly this case, so it must be reachable.
+        if (options.files.exists(expectedRoot) && sameLocalRoot(callerRoot, await canonical(expectedRoot))) return
         if (ownerDeliverySettled && sameLocalRoot(callerRoot, await canonical(record.localRoot))) return
       }
     }

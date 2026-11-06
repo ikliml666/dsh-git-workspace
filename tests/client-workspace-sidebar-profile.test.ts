@@ -185,17 +185,14 @@ describe('Managed Workspace profile ownership', () => {
     expect(source).toContain('onDoubleClick: row.blank ? void 0 : (e) => {')
     expect(source).not.toContain('onDoubleClick: row.blank || protectedManagedSession')
     expect(WORKTREE_STYLES).toContain('margin-inline-end: 4px')
-    // Mode B renders the glyph+chip pair inside the row's trailing action seat
-    // and lifts that seat to the row front. The leading seat cannot hold it: the
-    // official row replaces that seat with status dots whenever the Session runs.
-    // The mark sits inside span.rowQuickActions, one level below the row's
-    // trailing span, so the rule that lifts it must match a DESCENDANT. A child
-    // match here silently misses every real row: the badge would render with no
-    // layout at all, which the string-only assertions used to miss.
-    expect(WORKTREE_STYLES).toContain('[role="treeitem"] > span:last-child:has(.dsh-git-worktree-sidebar-icon)')
-    expect(WORKTREE_STYLES).not.toContain(':has(> .dsh-git-worktree-sidebar-icon)')
-    expect(WORKTREE_STYLES).toContain('order: -1')
-    expect(WORKTREE_STYLES).toContain('[role="treeitem"] > span:last-child .dsh-git-worktree-sidebar-badge')
+    // The row carries no Worktree decoration: neither official row seat stays
+    // visible while the Session runs (the leading seat is replaced by status
+    // dots, the trailing action seat is display:none until hover), so the
+    // target lives in the top capsule instead. Assert the layout hacks that
+    // used to lift the mark are gone for good.
+    expect(WORKTREE_STYLES).not.toContain(':has(')
+    expect(WORKTREE_STYLES).not.toContain('order: -1')
+    expect(WORKTREE_STYLES).toContain('[role="treeitem"] > span .dsh-git-worktree-sidebar-badge')
     expect(() => decorateNextWorkspaceClient(readNextWorkspaceClient().replace('function ProjectRowItem(', 'function BrokenRowItem(')))
       .toThrow(/one source seam/)
   })

@@ -32,11 +32,13 @@ export type WorktreeValidationStatus = 'passed' | 'failed' | 'partial' | 'not_ru
 export type WorktreeRetentionMode = 'cleanup' | 'retain_24h' | 'retain_3d' | 'retain_manual'
 
 /**
- * Retention applied when the caller does not choose one. Keeping the frozen
- * environment for a day makes an accidental delivery recoverable; the timer
- * removes it on its own afterwards, so nothing accumulates by hand.
+ * Retention applied when the caller does not choose one. A delivered Worktree
+ * keeps its frozen environment until it is cleaned up explicitly: no timer
+ * removes it behind the user's back, so a task stays inspectable for as long
+ * as they want it. `retain_manual` carries `expiresAt: null`, which is exactly
+ * what the retention sweep skips.
  */
-export const DEFAULT_WORKTREE_RETENTION: WorktreeRetentionMode = 'retain_24h'
+export const DEFAULT_WORKTREE_RETENTION: WorktreeRetentionMode = 'retain_manual'
 
 export type WorktreeCleanupReason =
   | 'directory_busy'
