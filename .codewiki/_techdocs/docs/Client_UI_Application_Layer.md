@@ -6,7 +6,7 @@ description: ClientUIApplicationLayer 是 dsh-git-worktree 插件的浏览器端
 # Client_UI_Application_Layer（客户端 UI 应用层）
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`24cbc7d6`](https://github.com/wloops/dsh-git-worktree/commit/24cbc7d6f68d4b0b944e65ba326690018feeda7a) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`e6a84e5c`](https://github.com/wloops/dsh-git-worktree/commit/e6a84e5cb4639894e5ae8685a0816b00b22d9057) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 ## 模块目的
 
@@ -62,55 +62,55 @@ flowchart TB
 | `Client_Workspace_Sidebar_Feature` | 侧栏拓扑投影、Takeover/Decorate 双模式、徽章渲染与 owner Session 保护 | [客户端工作区侧栏功能（Client_Workspace_Sidebar_Feature）](Client_UI_Application_Layer/Client_Workspace_Sidebar_Feature.md) |
 
 ??? abstract "Documented components (78)"
-    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5CWorktreeCreateRow.tsx) — `src\client\WorktreeCreateRow.tsx`
-    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5CWorktreeReviewRow.tsx) — `src\client\WorktreeReviewRow.tsx`
-    - [`ClientSessionBinding`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Cactions.ts) — `src\client\actions.ts`
-    - [`ClientSessionSnapshot`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Cactions.ts) — `src\client\actions.ts`
-    - [`ClientSessions`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Cactions.ts) — `src\client\actions.ts`
-    - [`ClientWorkspaces`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Cactions.ts) — `src\client\actions.ts`
-    - [`IsolatedTargetLocation`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Cactions.ts) — `src\client\actions.ts`
-    - [`SnapshotStore`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Cactions.ts) — `src\client\actions.ts`
-    - [`WorktreeClientServices`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Cactions.ts) — `src\client\actions.ts`
-    - [`createWorktreeConsoleRemoteAdapter`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Cconsole-remote%5Cadapter.ts) — `src\client\console-remote\adapter.ts`
-    - [`ConsoleClientContext`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Cconsole-remote%5Cindex.ts) — `src\client\console-remote\index.ts`
-    - [`Context`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Cconsole-remote%5Cindex.ts) — `src\client\console-remote\index.ts`
-    - [`MenuEntry`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Charness-platform.d.ts) — `src\client\harness-platform.d.ts`
-    - [`ClientLocaleSource`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Ci18n.tsx) — `src\client\i18n.tsx`
-    - [`ClientContextLike`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Cindex.tsx) — `src\client\index.tsx`
-    - [`ParsedTool`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Cmodel.ts) — `src\client\model.ts`
-    - [`ReviewArgs`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Cmodel.ts) — `src\client\model.ts`
-    - [`ToolCallBlockLike`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Cmodel.ts) — `src\client\model.ts`
-    - [`ToolCallViewPropsLike`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Cmodel.ts) — `src\client\model.ts`
-    - [`ToolContentBlock`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Cmodel.ts) — `src\client\model.ts`
-    - [`WorktreeCreatePayload`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Cmodel.ts) — `src\client\model.ts`
-    - [`WorktreeReviewPayload`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Cmodel.ts) — `src\client\model.ts`
-    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Cstyles.ts) — `src\client\styles.ts`
-    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Creview-console%5CDeliveryProof.tsx) — `src\client\review-console\DeliveryProof.tsx`
-    - [`PreflightStatus`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Creview-console%5CPreflightStatus.tsx) — `src\client\review-console\PreflightStatus.tsx`
-    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Creview-console%5CReviewActions.tsx) — `src\client\review-console\ReviewActions.tsx`
-    - [`validationIcon`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Creview-console%5CReviewDetailsModal.tsx) — `src\client\review-console\ReviewDetailsModal.tsx`
-    - [`ReviewIcon`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Creview-console%5CReviewIcon.tsx) — `src\client\review-console\ReviewIcon.tsx`
-    - [`WorktreeReviewEvidence`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Creview-console%5CWorktreeReviewPanel.tsx) — `src\client\review-console\WorktreeReviewPanel.tsx`
-    - [`WorktreeReviewIdentity`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Creview-console%5CWorktreeReviewPanel.tsx) — `src\client\review-console\WorktreeReviewPanel.tsx`
-    - [`WorktreeReviewPanelProps`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Creview-console%5CWorktreeReviewPanel.tsx) — `src\client\review-console\WorktreeReviewPanel.tsx`
-    - [`reviewEvidenceFromTarget`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Creview-console%5Cindex.ts) — `src\client\review-console\index.ts`
-    - [`PreflightSnapshot`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Creview-console%5Cpreflight-cache.ts) — `src\client\review-console\preflight-cache.ts`
-    - [`PreviewRecoverySnapshot`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Creview-console%5Cpreview-recovery-cache.ts) — `src\client\review-console\preview-recovery-cache.ts`
-    - [`PersistedRecovery`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Creview-console%5Crecovery-continuation.ts) — `src\client\review-console\recovery-continuation.ts`
-    - [`RecoveryEntry`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Creview-console%5Crecovery-continuation.ts) — `src\client\review-console\recovery-continuation.ts`
-    - [`WorktreeApplyConflictRecoveryRequest`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Creview-console%5Crecovery-continuation.ts) — `src\client\review-console\recovery-continuation.ts`
-    - [`WorktreeRecoverySnapshot`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Creview-console%5Crecovery-continuation.ts) — `src\client\review-console\recovery-continuation.ts`
-    - [`WorktreeReviewRegenerationRequest`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Creview-console%5Crecovery-continuation.ts) — `src\client\review-console\recovery-continuation.ts`
-    - [`Entry`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Creview-console%5Crequest-cache.ts) — `src\client\review-console\request-cache.ts`
-    - [`RequestCache`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Creview-console%5Crequest-cache.ts) — `src\client\review-console\request-cache.ts`
-    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Creview-console%5Creview-console.styles.ts) — `src\client\review-console\review-console.styles.ts`
-    - [`requestWorktreeReviewRefresh`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Creview-console%5Cstatus-events.ts) — `src\client\review-console\status-events.ts`
-    - [`WorktreeSettingsCardProps`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Csettings-card%5CWorktreeSettingsCard.tsx) — `src\client\settings-card\WorktreeSettingsCard.tsx`
-    - [`PlannedWrite`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Csettings-card%5Cform-model.ts) — `src\client\settings-card\form-model.ts`
-    - [`SettingsFieldSpec`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Csettings-card%5Cform-model.ts) — `src\client\settings-card\form-model.ts`
-    - [`SettingsFieldState`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Csettings-card%5Cform-model.ts) — `src\client\settings-card\form-model.ts`
-    - [`SettingsFormActions`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Csettings-card%5Cform-model.ts) — `src\client\settings-card\form-model.ts`
-    - [`SettingsFormModel`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Csettings-card%5Cform-model.ts) — `src\client\settings-card\form-model.ts`
-    - [`SettingsFormScope`](https://github.com/wloops/dsh-git-worktree/blob/24cbc7d6f68d4b0b944e65ba326690018feeda7a/src%5Cclient%5Csettings-card%5Cform-model.ts) — `src\client\settings-card\form-model.ts`
+    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5CWorktreeCreateRow.tsx) — `src\client\WorktreeCreateRow.tsx`
+    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5CWorktreeReviewRow.tsx) — `src\client\WorktreeReviewRow.tsx`
+    - [`ClientSessionBinding`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Cactions.ts) — `src\client\actions.ts`
+    - [`ClientSessionSnapshot`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Cactions.ts) — `src\client\actions.ts`
+    - [`ClientSessions`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Cactions.ts) — `src\client\actions.ts`
+    - [`ClientWorkspaces`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Cactions.ts) — `src\client\actions.ts`
+    - [`IsolatedTargetLocation`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Cactions.ts) — `src\client\actions.ts`
+    - [`SnapshotStore`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Cactions.ts) — `src\client\actions.ts`
+    - [`WorktreeClientServices`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Cactions.ts) — `src\client\actions.ts`
+    - [`createWorktreeConsoleRemoteAdapter`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Cconsole-remote%5Cadapter.ts) — `src\client\console-remote\adapter.ts`
+    - [`ConsoleClientContext`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Cconsole-remote%5Cindex.ts) — `src\client\console-remote\index.ts`
+    - [`Context`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Cconsole-remote%5Cindex.ts) — `src\client\console-remote\index.ts`
+    - [`MenuEntry`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Charness-platform.d.ts) — `src\client\harness-platform.d.ts`
+    - [`ClientLocaleSource`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Ci18n.tsx) — `src\client\i18n.tsx`
+    - [`ClientContextLike`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Cindex.tsx) — `src\client\index.tsx`
+    - [`ParsedTool`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Cmodel.ts) — `src\client\model.ts`
+    - [`ReviewArgs`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Cmodel.ts) — `src\client\model.ts`
+    - [`ToolCallBlockLike`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Cmodel.ts) — `src\client\model.ts`
+    - [`ToolCallViewPropsLike`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Cmodel.ts) — `src\client\model.ts`
+    - [`ToolContentBlock`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Cmodel.ts) — `src\client\model.ts`
+    - [`WorktreeCreatePayload`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Cmodel.ts) — `src\client\model.ts`
+    - [`WorktreeReviewPayload`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Cmodel.ts) — `src\client\model.ts`
+    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Cstyles.ts) — `src\client\styles.ts`
+    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Creview-console%5CDeliveryProof.tsx) — `src\client\review-console\DeliveryProof.tsx`
+    - [`PreflightStatus`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Creview-console%5CPreflightStatus.tsx) — `src\client\review-console\PreflightStatus.tsx`
+    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Creview-console%5CReviewActions.tsx) — `src\client\review-console\ReviewActions.tsx`
+    - [`validationIcon`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Creview-console%5CReviewDetailsModal.tsx) — `src\client\review-console\ReviewDetailsModal.tsx`
+    - [`ReviewIcon`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Creview-console%5CReviewIcon.tsx) — `src\client\review-console\ReviewIcon.tsx`
+    - [`WorktreeReviewEvidence`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Creview-console%5CWorktreeReviewPanel.tsx) — `src\client\review-console\WorktreeReviewPanel.tsx`
+    - [`WorktreeReviewIdentity`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Creview-console%5CWorktreeReviewPanel.tsx) — `src\client\review-console\WorktreeReviewPanel.tsx`
+    - [`WorktreeReviewPanelProps`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Creview-console%5CWorktreeReviewPanel.tsx) — `src\client\review-console\WorktreeReviewPanel.tsx`
+    - [`reviewEvidenceFromTarget`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Creview-console%5Cindex.ts) — `src\client\review-console\index.ts`
+    - [`PreflightSnapshot`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Creview-console%5Cpreflight-cache.ts) — `src\client\review-console\preflight-cache.ts`
+    - [`PreviewRecoverySnapshot`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Creview-console%5Cpreview-recovery-cache.ts) — `src\client\review-console\preview-recovery-cache.ts`
+    - [`PersistedRecovery`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Creview-console%5Crecovery-continuation.ts) — `src\client\review-console\recovery-continuation.ts`
+    - [`RecoveryEntry`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Creview-console%5Crecovery-continuation.ts) — `src\client\review-console\recovery-continuation.ts`
+    - [`WorktreeApplyConflictRecoveryRequest`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Creview-console%5Crecovery-continuation.ts) — `src\client\review-console\recovery-continuation.ts`
+    - [`WorktreeRecoverySnapshot`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Creview-console%5Crecovery-continuation.ts) — `src\client\review-console\recovery-continuation.ts`
+    - [`WorktreeReviewRegenerationRequest`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Creview-console%5Crecovery-continuation.ts) — `src\client\review-console\recovery-continuation.ts`
+    - [`Entry`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Creview-console%5Crequest-cache.ts) — `src\client\review-console\request-cache.ts`
+    - [`RequestCache`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Creview-console%5Crequest-cache.ts) — `src\client\review-console\request-cache.ts`
+    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Creview-console%5Creview-console.styles.ts) — `src\client\review-console\review-console.styles.ts`
+    - [`requestWorktreeReviewRefresh`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Creview-console%5Cstatus-events.ts) — `src\client\review-console\status-events.ts`
+    - [`WorktreeSettingsCardProps`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Csettings-card%5CWorktreeSettingsCard.tsx) — `src\client\settings-card\WorktreeSettingsCard.tsx`
+    - [`PlannedWrite`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Csettings-card%5Cform-model.ts) — `src\client\settings-card\form-model.ts`
+    - [`SettingsFieldSpec`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Csettings-card%5Cform-model.ts) — `src\client\settings-card\form-model.ts`
+    - [`SettingsFieldState`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Csettings-card%5Cform-model.ts) — `src\client\settings-card\form-model.ts`
+    - [`SettingsFormActions`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Csettings-card%5Cform-model.ts) — `src\client\settings-card\form-model.ts`
+    - [`SettingsFormModel`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Csettings-card%5Cform-model.ts) — `src\client\settings-card\form-model.ts`
+    - [`SettingsFormScope`](https://github.com/wloops/dsh-git-worktree/blob/e6a84e5cb4639894e5ae8685a0816b00b22d9057/src%5Cclient%5Csettings-card%5Cform-model.ts) — `src\client\settings-card\form-model.ts`
     - … and 28 more
 
