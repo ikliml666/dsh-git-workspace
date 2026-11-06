@@ -3,12 +3,12 @@
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
     "baseCommit": "f161e49e41182c060fd1b9e7cc463bf161b22abc",
-    "headCommit": "6eaf2006f41e392f743d8bbbf14f20b69631687f"
+    "headCommit": "25f8bcde972c0fec9add0f7ddcaf529e33ccaf35"
   },
   "pendingChanges": {
     "state": "ok",
     "baseCommit": "f161e49e41182c060fd1b9e7cc463bf161b22abc",
-    "headCommit": "6eaf2006f41e392f743d8bbbf14f20b69631687f",
+    "headCommit": "25f8bcde972c0fec9add0f7ddcaf529e33ccaf35",
     "committed": [
       "CHANGELOG.md",
       "README-LOCAL-ADAPTATIONS.md",
@@ -52,7 +52,11 @@
       "tests/surface.test.ts"
     ],
     "staged": [],
-    "unstaged": [],
+    "unstaged": [
+      "src/session-checkout-module.ts",
+      "tests/official-base-creation.test.ts",
+      "tests/support/production-adapters.ts"
+    ],
     "untracked": [],
     "deleted": [
       "src/client/pre-session/PreSessionWorktreeToggle.tsx",
@@ -70,16 +74,21 @@
     "renamed": [],
     "reason": ""
   },
-  "unconsumed": [],
+  "unconsumed": [
+    "src/session-checkout-module.ts",
+    "tests/official-base-creation.test.ts",
+    "tests/support/production-adapters.ts"
+  ],
   "engineVersion": "2.0.0",
   "scope": "auto",
   "effectiveScope": "stale",
-  "updateOutcome": "full_fallback",
+  "updateOutcome": "incremental",
   "fallbackReason": "",
   "missingRepair": null,
   "notes": [
-    "持久化基线 1f6f209 与本次 cw 基线 f161e49 不同（以 cw 基线为准，未消费变化仍会并入）",
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw5ex5u2-l-native（30 个文件）"
+    "工作区未提交改动已合成临时 commit 47ebbe95f01b（3 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw5f5598-n-native（31 个文件）",
+    "本轮把 3 个未提交源码改动一并写进产物（快照 47ebbe95f01b）：src/session-checkout-module.ts、tests/official-base-creation.test.ts、tests/support/production-adapters.ts"
   ],
-  "updatedAt": "2026-11-06T20:15:27.405Z"
+  "updatedAt": "2026-11-06T20:29:21.994Z"
 }

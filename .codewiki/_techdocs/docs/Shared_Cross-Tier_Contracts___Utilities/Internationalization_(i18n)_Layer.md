@@ -6,7 +6,7 @@ description: 国际化（i18n）层是 dsh-git-worktree 插件在 Client UI 应�
 # 国际化（i18n）层
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`30d75605`](https://github.com/wloops/dsh-git-worktree/commit/30d756050732628a0e9b7d199e31e7b393afb340) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`47ebbe95`](https://github.com/wloops/dsh-git-worktree/commit/47ebbe95f01b195727094f9030c58cb5b5145601) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 ## 概述
 
@@ -140,9 +140,9 @@ return legacy ? translate(legacy) : message                    // 都找不到�
 - **新增传输层文案**：仅在 `transport-messages.ts` 中追加，保持窄粒度（该目录只描述网络/挂载异常，不承载业务状态）。
 
 ??? abstract "Documented components (5)"
-    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/30d756050732628a0e9b7d199e31e7b393afb340/src%5Ci18n%5Cclient-messages.ts) — `src\i18n\client-messages.ts`
-    - [`Language`](https://github.com/wloops/dsh-git-worktree/blob/30d756050732628a0e9b7d199e31e7b393afb340/src%5Ci18n%5Ccore.ts) — `src\i18n\core.ts`
-    - [`PersistedCleanupKey`](https://github.com/wloops/dsh-git-worktree/blob/30d756050732628a0e9b7d199e31e7b393afb340/src%5Ci18n%5Chost-messages.ts) — `src\i18n\host-messages.ts`
-    - [`currentHostLanguage`](https://github.com/wloops/dsh-git-worktree/blob/30d756050732628a0e9b7d199e31e7b393afb340/src%5Ci18n%5Chost.ts) — `src\i18n\host.ts`
-    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/30d756050732628a0e9b7d199e31e7b393afb340/src%5Ci18n%5Ctransport-messages.ts) — `src\i18n\transport-messages.ts`
+    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/47ebbe95f01b195727094f9030c58cb5b5145601/src%5Ci18n%5Cclient-messages.ts) — `src\i18n\client-messages.ts`
+    - [`Language`](https://github.com/wloops/dsh-git-worktree/blob/47ebbe95f01b195727094f9030c58cb5b5145601/src%5Ci18n%5Ccore.ts) — `src\i18n\core.ts`
+    - [`PersistedCleanupKey`](https://github.com/wloops/dsh-git-worktree/blob/47ebbe95f01b195727094f9030c58cb5b5145601/src%5Ci18n%5Chost-messages.ts) — `src\i18n\host-messages.ts`
+    - [`currentHostLanguage`](https://github.com/wloops/dsh-git-worktree/blob/47ebbe95f01b195727094f9030c58cb5b5145601/src%5Ci18n%5Chost.ts) — `src\i18n\host.ts`
+    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/47ebbe95f01b195727094f9030c58cb5b5145601/src%5Ci18n%5Ctransport-messages.ts) — `src\i18n\transport-messages.ts`
 

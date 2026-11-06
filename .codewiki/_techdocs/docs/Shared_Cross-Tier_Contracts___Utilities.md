@@ -6,7 +6,7 @@ description: 本模块位于 ClientUIApplicationLayer 与 BackendHostCoreRuntime
 # 共享跨层契约与工具模块（Shared_Cross-Tier_Contracts___Utilities）
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`30d75605`](https://github.com/wloops/dsh-git-worktree/commit/30d756050732628a0e9b7d199e31e7b393afb340) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`47ebbe95`](https://github.com/wloops/dsh-git-worktree/commit/47ebbe95f01b195727094f9030c58cb5b5145601) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 ## 模块定位
 
@@ -54,14 +54,14 @@ flowchart TB
 - [Shared_Worktree_Console_API_Contract —— 共享 Worktree 控制台 API 契约](Shared_Worktree_Console_API_Contract.md)：共享 API 契约，定义跨层使用的 TypeScript 类型、`WorktreeConsoleOutcome` 形状与错误码枚举。
 
 ??? abstract "Documented components (10)"
-    - [`descriptor`](https://github.com/wloops/dsh-git-worktree/blob/30d756050732628a0e9b7d199e31e7b393afb340/src%5Cconsole-remote%5Cdescriptors.ts) — `src\console-remote\descriptors.ts`
-    - [`TypertRemoteMap`](https://github.com/wloops/dsh-git-worktree/blob/30d756050732628a0e9b7d199e31e7b393afb340/src%5Cconsole-remote%5Cremote.ts) — `src\console-remote\remote.ts`
-    - [`TypertRemoteNamespaceMap`](https://github.com/wloops/dsh-git-worktree/blob/30d756050732628a0e9b7d199e31e7b393afb340/src%5Cconsole-remote%5Cremote.ts) — `src\console-remote\remote.ts`
-    - [`outcomeSchema`](https://github.com/wloops/dsh-git-worktree/blob/30d756050732628a0e9b7d199e31e7b393afb340/src%5Cconsole-remote%5Cschemas.ts) — `src\console-remote\schemas.ts`
-    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/30d756050732628a0e9b7d199e31e7b393afb340/src%5Cconsole-remote%5Ctypert.ts) — `src\console-remote\typert.ts`
-    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/30d756050732628a0e9b7d199e31e7b393afb340/src%5Ci18n%5Cclient-messages.ts) — `src\i18n\client-messages.ts`
-    - [`Language`](https://github.com/wloops/dsh-git-worktree/blob/30d756050732628a0e9b7d199e31e7b393afb340/src%5Ci18n%5Ccore.ts) — `src\i18n\core.ts`
-    - [`PersistedCleanupKey`](https://github.com/wloops/dsh-git-worktree/blob/30d756050732628a0e9b7d199e31e7b393afb340/src%5Ci18n%5Chost-messages.ts) — `src\i18n\host-messages.ts`
-    - [`currentHostLanguage`](https://github.com/wloops/dsh-git-worktree/blob/30d756050732628a0e9b7d199e31e7b393afb340/src%5Ci18n%5Chost.ts) — `src\i18n\host.ts`
-    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/30d756050732628a0e9b7d199e31e7b393afb340/src%5Ci18n%5Ctransport-messages.ts) — `src\i18n\transport-messages.ts`
+    - [`descriptor`](https://github.com/wloops/dsh-git-worktree/blob/47ebbe95f01b195727094f9030c58cb5b5145601/src%5Cconsole-remote%5Cdescriptors.ts) — `src\console-remote\descriptors.ts`
+    - [`TypertRemoteMap`](https://github.com/wloops/dsh-git-worktree/blob/47ebbe95f01b195727094f9030c58cb5b5145601/src%5Cconsole-remote%5Cremote.ts) — `src\console-remote\remote.ts`
+    - [`TypertRemoteNamespaceMap`](https://github.com/wloops/dsh-git-worktree/blob/47ebbe95f01b195727094f9030c58cb5b5145601/src%5Cconsole-remote%5Cremote.ts) — `src\console-remote\remote.ts`
+    - [`outcomeSchema`](https://github.com/wloops/dsh-git-worktree/blob/47ebbe95f01b195727094f9030c58cb5b5145601/src%5Cconsole-remote%5Cschemas.ts) — `src\console-remote\schemas.ts`
+    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/47ebbe95f01b195727094f9030c58cb5b5145601/src%5Cconsole-remote%5Ctypert.ts) — `src\console-remote\typert.ts`
+    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/47ebbe95f01b195727094f9030c58cb5b5145601/src%5Ci18n%5Cclient-messages.ts) — `src\i18n\client-messages.ts`
+    - [`Language`](https://github.com/wloops/dsh-git-worktree/blob/47ebbe95f01b195727094f9030c58cb5b5145601/src%5Ci18n%5Ccore.ts) — `src\i18n\core.ts`
+    - [`PersistedCleanupKey`](https://github.com/wloops/dsh-git-worktree/blob/47ebbe95f01b195727094f9030c58cb5b5145601/src%5Ci18n%5Chost-messages.ts) — `src\i18n\host-messages.ts`
+    - [`currentHostLanguage`](https://github.com/wloops/dsh-git-worktree/blob/47ebbe95f01b195727094f9030c58cb5b5145601/src%5Ci18n%5Chost.ts) — `src\i18n\host.ts`
+    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/47ebbe95f01b195727094f9030c58cb5b5145601/src%5Ci18n%5Ctransport-messages.ts) — `src\i18n\transport-messages.ts`
 

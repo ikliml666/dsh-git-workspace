@@ -1,17 +1,17 @@
 {
   "generation_info": {
-    "timestamp": "2026-11-06T19:57:01.549835+00:00",
+    "timestamp": "2026-11-06T20:29:20.944986+00:00",
     "provider": "openai-compatible",
     "main_model": "doubao-seed-2.1-lite",
     "generator_version": "2.0.0",
     "repo_path": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
-    "commit_id": "30d756050732628a0e9b7d199e31e7b393afb340",
+    "commit_id": "47ebbe95f01b195727094f9030c58cb5b5145601",
     "language": "中文",
     "layout": "hierarchical"
   },
   "statistics": {
-    "total_components": 865,
-    "leaf_nodes": 325,
+    "total_components": 860,
+    "leaf_nodes": 324,
     "max_depth": 2
   },
   "files_generated": [
@@ -45,73 +45,344 @@
     "schema_version": 2,
     "scope": "this run only (modules resumed from disk cost nothing)",
     "currency": "USD",
-    "cost_status": "complete",
-    "incomplete": true,
+    "cost_status": "unknown",
+    "incomplete": false,
     "unknown_usage_calls": 0,
-    "n_calls": 0,
+    "n_calls": 6,
     "totals": {
-      "cost_usd": 0.0
+      "input_tokens": 137431,
+      "output_tokens": 11803,
+      "cache_read_tokens": 57968,
+      "cache_write_tokens": 0,
+      "requests": 6,
+      "total_tokens": 149234
     },
-    "by_phase": {},
-    "by_model": {},
-    "unpriced_models": [],
-    "calls": []
+    "by_phase": {
+      "update": {
+        "calls": 6,
+        "input_tokens": 137431,
+        "output_tokens": 11803,
+        "cache_read_tokens": 57968,
+        "cache_write_tokens": 0,
+        "requests": 6,
+        "total_tokens": 149234,
+        "unpriced_calls": 6
+      }
+    },
+    "by_model": {
+      "doubao-seed-2.1-lite": {
+        "calls": 6,
+        "input_tokens": 137431,
+        "output_tokens": 11803,
+        "cache_read_tokens": 57968,
+        "cache_write_tokens": 0,
+        "requests": 6,
+        "total_tokens": 149234,
+        "unpriced_calls": 6
+      }
+    },
+    "unpriced_models": [
+      "doubao-seed-2.1-lite"
+    ],
+    "calls": [
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Session_Checkout_Module_Project_Resolution",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 9.2,
+        "input_tokens": 7012,
+        "output_tokens": 774,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 7786,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Session_Checkout_Module_Project_Resolution",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 3.36,
+        "input_tokens": 11564,
+        "output_tokens": 338,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 11902,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Session_Checkout_Module_Project_Resolution",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 44.27,
+        "input_tokens": 29030,
+        "output_tokens": 3818,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 32848,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Session_Checkout_Module_Project_Resolution",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 43.53,
+        "input_tokens": 29122,
+        "output_tokens": 4069,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 33191,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Session_Checkout_Module_Project_Resolution",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 2.83,
+        "input_tokens": 29996,
+        "output_tokens": 241,
+        "cache_read_tokens": 28984,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 30237,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Session_Checkout_Module_Project_Resolution",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 29.26,
+        "input_tokens": 30707,
+        "output_tokens": 2563,
+        "cache_read_tokens": 28984,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 33270,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      }
+    ]
   },
   "last_update": {
-    "run_id": "cb5cf7bf-a9fb-42f3-ba76-52360c7103f9",
-    "started_at": "2026-11-07T04:15:26+0800",
+    "run_id": "f675ecd0-e718-44f1-906e-754029ef9680",
+    "started_at": "2026-11-07T04:26:13+0800",
     "outcome": "incremental",
-    "finished_at": "2026-11-07T04:15:26+0800",
+    "finished_at": "2026-11-07T04:29:20+0800",
     "rung": "3",
     "revision": {
       "old_commit": "30d756050732628a0e9b7d199e31e7b393afb340",
-      "new_commit": "6eaf2006f41e392f743d8bbbf14f20b69631687f",
+      "new_commit": "47ebbe95f01b195727094f9030c58cb5b5145601",
       "repo_path": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree"
     },
     "diff_counts": {
-      "added": 1,
-      "deleted": 6,
+      "added": 0,
+      "deleted": 0,
       "interface": 0,
-      "body": 2,
-      "edge": 2,
-      "renamed": 2
+      "body": 1,
+      "edge": 0,
+      "renamed": 0
     },
-    "n_active": 0,
-    "n_adopted": 8,
+    "n_active": 1,
+    "n_adopted": 1,
     "n_adopted_by_agent": 0,
     "fallback": {
-      "r_leaf": 0.23529411764705882,
+      "r_leaf": 0.058823529411764705,
       "r_tree": 0.0,
-      "n_active": 4,
+      "n_active": 1,
       "n_leaves": 17,
       "n_structural": 0,
       "tau_full": 0.5,
       "tau_tree": 0.3,
       "fired": false
     },
-    "n_calls": 0,
+    "n_calls": 6,
     "usage_total": {
-      "cost_usd": 0.0
+      "input_tokens": 137431,
+      "output_tokens": 11803,
+      "cache_read_tokens": 57968,
+      "cache_write_tokens": 0,
+      "requests": 6,
+      "total_tokens": 149234
     },
     "usage": {
       "schema_version": 2,
       "scope": "this run only (modules resumed from disk cost nothing)",
       "currency": "USD",
-      "cost_status": "complete",
-      "incomplete": true,
+      "cost_status": "unknown",
+      "incomplete": false,
       "unknown_usage_calls": 0,
-      "n_calls": 0,
+      "n_calls": 6,
       "totals": {
-        "cost_usd": 0.0
+        "input_tokens": 137431,
+        "output_tokens": 11803,
+        "cache_read_tokens": 57968,
+        "cache_write_tokens": 0,
+        "requests": 6,
+        "total_tokens": 149234
       },
-      "by_phase": {},
-      "by_model": {},
-      "unpriced_models": [],
-      "calls": []
+      "by_phase": {
+        "update": {
+          "calls": 6,
+          "input_tokens": 137431,
+          "output_tokens": 11803,
+          "cache_read_tokens": 57968,
+          "cache_write_tokens": 0,
+          "requests": 6,
+          "total_tokens": 149234,
+          "unpriced_calls": 6
+        }
+      },
+      "by_model": {
+        "doubao-seed-2.1-lite": {
+          "calls": 6,
+          "input_tokens": 137431,
+          "output_tokens": 11803,
+          "cache_read_tokens": 57968,
+          "cache_write_tokens": 0,
+          "requests": 6,
+          "total_tokens": 149234,
+          "unpriced_calls": 6
+        }
+      },
+      "unpriced_models": [
+        "doubao-seed-2.1-lite"
+      ],
+      "calls": [
+        {
+          "phase": "update",
+          "kind": "update_agent",
+          "target": "Session_Checkout_Module_Project_Resolution",
+          "model": "doubao-seed-2.1-lite",
+          "seconds": 9.2,
+          "input_tokens": 7012,
+          "output_tokens": 774,
+          "cache_read_tokens": 0,
+          "cache_write_tokens": 0,
+          "requests": 1,
+          "total_tokens": 7786,
+          "usage_reported": true,
+          "provider": "openai-compatible",
+          "requested_model": "doubao-seed-2.1-lite",
+          "cost_source": "unknown"
+        },
+        {
+          "phase": "update",
+          "kind": "update_agent",
+          "target": "Session_Checkout_Module_Project_Resolution",
+          "model": "doubao-seed-2.1-lite",
+          "seconds": 3.36,
+          "input_tokens": 11564,
+          "output_tokens": 338,
+          "cache_read_tokens": 0,
+          "cache_write_tokens": 0,
+          "requests": 1,
+          "total_tokens": 11902,
+          "usage_reported": true,
+          "provider": "openai-compatible",
+          "requested_model": "doubao-seed-2.1-lite",
+          "cost_source": "unknown"
+        },
+        {
+          "phase": "update",
+          "kind": "update_agent",
+          "target": "Session_Checkout_Module_Project_Resolution",
+          "model": "doubao-seed-2.1-lite",
+          "seconds": 44.27,
+          "input_tokens": 29030,
+          "output_tokens": 3818,
+          "cache_read_tokens": 0,
+          "cache_write_tokens": 0,
+          "requests": 1,
+          "total_tokens": 32848,
+          "usage_reported": true,
+          "provider": "openai-compatible",
+          "requested_model": "doubao-seed-2.1-lite",
+          "cost_source": "unknown"
+        },
+        {
+          "phase": "update",
+          "kind": "update_agent",
+          "target": "Session_Checkout_Module_Project_Resolution",
+          "model": "doubao-seed-2.1-lite",
+          "seconds": 43.53,
+          "input_tokens": 29122,
+          "output_tokens": 4069,
+          "cache_read_tokens": 0,
+          "cache_write_tokens": 0,
+          "requests": 1,
+          "total_tokens": 33191,
+          "usage_reported": true,
+          "provider": "openai-compatible",
+          "requested_model": "doubao-seed-2.1-lite",
+          "cost_source": "unknown"
+        },
+        {
+          "phase": "update",
+          "kind": "update_agent",
+          "target": "Session_Checkout_Module_Project_Resolution",
+          "model": "doubao-seed-2.1-lite",
+          "seconds": 2.83,
+          "input_tokens": 29996,
+          "output_tokens": 241,
+          "cache_read_tokens": 28984,
+          "cache_write_tokens": 0,
+          "requests": 1,
+          "total_tokens": 30237,
+          "usage_reported": true,
+          "provider": "openai-compatible",
+          "requested_model": "doubao-seed-2.1-lite",
+          "cost_source": "unknown"
+        },
+        {
+          "phase": "update",
+          "kind": "update_agent",
+          "target": "Session_Checkout_Module_Project_Resolution",
+          "model": "doubao-seed-2.1-lite",
+          "seconds": 29.26,
+          "input_tokens": 30707,
+          "output_tokens": 2563,
+          "cache_read_tokens": 28984,
+          "cache_write_tokens": 0,
+          "requests": 1,
+          "total_tokens": 33270,
+          "usage_reported": true,
+          "provider": "openai-compatible",
+          "requested_model": "doubao-seed-2.1-lite",
+          "cost_source": "unknown"
+        }
+      ]
     },
-    "pages_written": [],
+    "pages_written": [
+      "Session_Checkout_Module_Project_Resolution"
+    ],
     "pages_removed": [],
-    "wall_seconds": 0.12
+    "wall_seconds": 186.96
   },
   "update_history": [
     {
@@ -32905,6 +33176,201 @@
       "pages_written": [],
       "pages_removed": [],
       "wall_seconds": 0.12
+    },
+    {
+      "run_id": "f675ecd0-e718-44f1-906e-754029ef9680",
+      "started_at": "2026-11-07T04:26:13+0800",
+      "outcome": "incremental",
+      "finished_at": "2026-11-07T04:29:20+0800",
+      "rung": "3",
+      "revision": {
+        "old_commit": "30d756050732628a0e9b7d199e31e7b393afb340",
+        "new_commit": "47ebbe95f01b195727094f9030c58cb5b5145601",
+        "repo_path": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree"
+      },
+      "diff_counts": {
+        "added": 0,
+        "deleted": 0,
+        "interface": 0,
+        "body": 1,
+        "edge": 0,
+        "renamed": 0
+      },
+      "n_active": 1,
+      "n_adopted": 1,
+      "n_adopted_by_agent": 0,
+      "fallback": {
+        "r_leaf": 0.058823529411764705,
+        "r_tree": 0.0,
+        "n_active": 1,
+        "n_leaves": 17,
+        "n_structural": 0,
+        "tau_full": 0.5,
+        "tau_tree": 0.3,
+        "fired": false
+      },
+      "n_calls": 6,
+      "usage_total": {
+        "input_tokens": 137431,
+        "output_tokens": 11803,
+        "cache_read_tokens": 57968,
+        "cache_write_tokens": 0,
+        "requests": 6,
+        "total_tokens": 149234
+      },
+      "usage": {
+        "schema_version": 2,
+        "scope": "this run only (modules resumed from disk cost nothing)",
+        "currency": "USD",
+        "cost_status": "unknown",
+        "incomplete": false,
+        "unknown_usage_calls": 0,
+        "n_calls": 6,
+        "totals": {
+          "input_tokens": 137431,
+          "output_tokens": 11803,
+          "cache_read_tokens": 57968,
+          "cache_write_tokens": 0,
+          "requests": 6,
+          "total_tokens": 149234
+        },
+        "by_phase": {
+          "update": {
+            "calls": 6,
+            "input_tokens": 137431,
+            "output_tokens": 11803,
+            "cache_read_tokens": 57968,
+            "cache_write_tokens": 0,
+            "requests": 6,
+            "total_tokens": 149234,
+            "unpriced_calls": 6
+          }
+        },
+        "by_model": {
+          "doubao-seed-2.1-lite": {
+            "calls": 6,
+            "input_tokens": 137431,
+            "output_tokens": 11803,
+            "cache_read_tokens": 57968,
+            "cache_write_tokens": 0,
+            "requests": 6,
+            "total_tokens": 149234,
+            "unpriced_calls": 6
+          }
+        },
+        "unpriced_models": [
+          "doubao-seed-2.1-lite"
+        ],
+        "calls": [
+          {
+            "phase": "update",
+            "kind": "update_agent",
+            "target": "Session_Checkout_Module_Project_Resolution",
+            "model": "doubao-seed-2.1-lite",
+            "seconds": 9.2,
+            "input_tokens": 7012,
+            "output_tokens": 774,
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0,
+            "requests": 1,
+            "total_tokens": 7786,
+            "usage_reported": true,
+            "provider": "openai-compatible",
+            "requested_model": "doubao-seed-2.1-lite",
+            "cost_source": "unknown"
+          },
+          {
+            "phase": "update",
+            "kind": "update_agent",
+            "target": "Session_Checkout_Module_Project_Resolution",
+            "model": "doubao-seed-2.1-lite",
+            "seconds": 3.36,
+            "input_tokens": 11564,
+            "output_tokens": 338,
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0,
+            "requests": 1,
+            "total_tokens": 11902,
+            "usage_reported": true,
+            "provider": "openai-compatible",
+            "requested_model": "doubao-seed-2.1-lite",
+            "cost_source": "unknown"
+          },
+          {
+            "phase": "update",
+            "kind": "update_agent",
+            "target": "Session_Checkout_Module_Project_Resolution",
+            "model": "doubao-seed-2.1-lite",
+            "seconds": 44.27,
+            "input_tokens": 29030,
+            "output_tokens": 3818,
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0,
+            "requests": 1,
+            "total_tokens": 32848,
+            "usage_reported": true,
+            "provider": "openai-compatible",
+            "requested_model": "doubao-seed-2.1-lite",
+            "cost_source": "unknown"
+          },
+          {
+            "phase": "update",
+            "kind": "update_agent",
+            "target": "Session_Checkout_Module_Project_Resolution",
+            "model": "doubao-seed-2.1-lite",
+            "seconds": 43.53,
+            "input_tokens": 29122,
+            "output_tokens": 4069,
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0,
+            "requests": 1,
+            "total_tokens": 33191,
+            "usage_reported": true,
+            "provider": "openai-compatible",
+            "requested_model": "doubao-seed-2.1-lite",
+            "cost_source": "unknown"
+          },
+          {
+            "phase": "update",
+            "kind": "update_agent",
+            "target": "Session_Checkout_Module_Project_Resolution",
+            "model": "doubao-seed-2.1-lite",
+            "seconds": 2.83,
+            "input_tokens": 29996,
+            "output_tokens": 241,
+            "cache_read_tokens": 28984,
+            "cache_write_tokens": 0,
+            "requests": 1,
+            "total_tokens": 30237,
+            "usage_reported": true,
+            "provider": "openai-compatible",
+            "requested_model": "doubao-seed-2.1-lite",
+            "cost_source": "unknown"
+          },
+          {
+            "phase": "update",
+            "kind": "update_agent",
+            "target": "Session_Checkout_Module_Project_Resolution",
+            "model": "doubao-seed-2.1-lite",
+            "seconds": 29.26,
+            "input_tokens": 30707,
+            "output_tokens": 2563,
+            "cache_read_tokens": 28984,
+            "cache_write_tokens": 0,
+            "requests": 1,
+            "total_tokens": 33270,
+            "usage_reported": true,
+            "provider": "openai-compatible",
+            "requested_model": "doubao-seed-2.1-lite",
+            "cost_source": "unknown"
+          }
+        ]
+      },
+      "pages_written": [
+        "Session_Checkout_Module_Project_Resolution"
+      ],
+      "pages_removed": [],
+      "wall_seconds": 186.96
     }
   ]
 }

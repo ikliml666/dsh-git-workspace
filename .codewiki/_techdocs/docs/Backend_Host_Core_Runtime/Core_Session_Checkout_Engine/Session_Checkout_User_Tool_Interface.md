@@ -6,7 +6,7 @@ description: 本模块是整个托管 Worktree 状态机面向 模型（Agent）
 # 会话签出用户工具接口（Session_Checkout_User_Tool_Interface）
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`30d75605`](https://github.com/wloops/dsh-git-worktree/commit/30d756050732628a0e9b7d199e31e7b393afb340) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`47ebbe95`](https://github.com/wloops/dsh-git-worktree/commit/47ebbe95f01b195727094f9030c58cb5b5145601) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 ## 简介
 
@@ -281,5 +281,5 @@ flowchart TB
 | 保留期参数白名单 | `parseWorktreeRetention` | 缺省 `retain_manual`（无定时器，永久可检视） |
 
 ??? abstract "Documented components (1)"
-    - [`enterCheckout`](https://github.com/wloops/dsh-git-worktree/blob/30d756050732628a0e9b7d199e31e7b393afb340/src%5Ctools.ts) — `src\tools.ts`
+    - [`enterCheckout`](https://github.com/wloops/dsh-git-worktree/blob/47ebbe95f01b195727094f9030c58cb5b5145601/src%5Ctools.ts) — `src\tools.ts`
 

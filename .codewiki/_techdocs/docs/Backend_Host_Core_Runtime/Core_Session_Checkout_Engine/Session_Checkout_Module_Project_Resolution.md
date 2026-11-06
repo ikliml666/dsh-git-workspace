@@ -6,11 +6,11 @@ description: 本模块是 dsh-git-worktree 会话检出状态机的门面与项�
 # 会话检出模块 · 项目解析（Session_Checkout_Module_Project_Resolution）
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`30d75605`](https://github.com/wloops/dsh-git-worktree/commit/30d756050732628a0e9b7d199e31e7b393afb340) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`47ebbe95`](https://github.com/wloops/dsh-git-worktree/commit/47ebbe95f01b195727094f9030c58cb5b5145601) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 ## 简介
 
-本模块是 `dsh-git-worktree` 会话检出状态机的**门面与项目解析层**，落地于 `src/session-checkout-module.ts`。它对外导出工厂函数 `createSessionCheckoutModule(dependencies)`，返回完整的 [`SessionCheckoutModule`](../../Core_Workspace___Worktree_Domain_Layer/session-checkout-module-api.md) 实现；其代表类型为 `ResolvedSessionProject`，把「一个 Agent 会话」解析成「会话记录 + 所属项目记录」的二元组，作为一切后续检出/交付动作的权威入口。
+本模块是 `dsh-git-worktree` 会话检出状态机的**门面与项目解析层**，落地于 `src/session-checkout-module.ts`。它对外导出工厂函数 `createSessionCheckoutModule(dependencies)`，返回完整的 `SessionCheckoutModule` 实现；其代表类型为 `ResolvedSessionProject`，把「一个 Agent 会话」解析成「会话记录 + 所属项目记录」的二元组，作为一切后续检出/交付动作的权威入口。
 
 该层承担三类职责：
 
@@ -54,6 +54,7 @@ interface ResolvedSessionProject {
 - `withBindingLock`：排他 / 维护（maintenance）双模式队列，保证 inspect 与 mutate 不并发写 registry。
 - `reconcile`：启动期扫描台账，按 journal 步骤把中断的 mutating 记录回退到 ready / recovery_required / recovered。
 - `bindTarget` / `beginNextIterationTarget`：创建 / 复用 / 下一代迭代的完整工作树生命周期入口。
+- 官方建树后的插件补充能力：官方只做 `git worktree add`，本模块在登记台账前先用 `git.inspect` 读取本地项目根快照，把 `.worktreeinclude` 列出的 gitignored 文件拷入新 Worktree（`copyWorktreeincludeFiles`）；仅当新 Worktree 基点（`baseCommit`）恰等于本地 HEAD 且 `inheritLocalChanges` 未显式关闭时，才把本地未提交修改一并携带进 Worktree（`carryLocalWorkInProgress`）——补丁以本地 HEAD 为基准，基点为其他分支 tip 时不适用。
 
 ---
 
@@ -238,7 +239,7 @@ flowchart LR
 | `autoPush` | `true` | finish 后尽力 push 会话分支；失败降级为结果备注 |
 | `autoDeliver` | `true` | 切换 working 态指引到 `worktree_deliver` |
 | `worktreesRoot` | — | 托管 Worktree 落在此根下（带 topic/日期命名） |
-| `inheritLocalChanges` | `true` | 新建时把本地未提交改动带进 Worktree |
+| `inheritLocalChanges` | `true` | 新建 Worktree 时把本地未提交改动带进 Worktree；仅当新 Worktree 基点恰为本地 HEAD 时生效（基点为其他分支 tip 时补丁不适用）；另始终（与该开关无关）拷贝 `.worktreeinclude` 列出的 gitignored 文件 |
 | `worktreeKeepCount` | `15` | 已交付 Worktree 的 LRU 配额，逐出走完整 discard 安全链 |
 
 启动期 `reconcile` 会被宿主调用，按 journal 步骤收敛中断状态；单个卡死的 cleanup 受 `CHECKOUT_CLEANUP_TIMEOUT_MS = 120_000` 收敛超时保护，且同一 checkout 的在跑清理通过 `cleanupInFlight` Map 复用 promise，避免读-改-写交错。
@@ -256,5 +257,5 @@ flowchart LR
 - 控制台宿主服务（消费 `SessionCheckoutModule`）：[Worktree 控制台宿主服务（Worktree_Console_Host_Service）](../Worktree_Console_Host_Service.md)
 
 ??? abstract "Documented components (1)"
-    - [`ResolvedSessionProject`](https://github.com/wloops/dsh-git-worktree/blob/30d756050732628a0e9b7d199e31e7b393afb340/src%5Csession-checkout-module.ts) — `src\session-checkout-module.ts`
+    - [`ResolvedSessionProject`](https://github.com/wloops/dsh-git-worktree/blob/47ebbe95f01b195727094f9030c58cb5b5145601/src%5Csession-checkout-module.ts) — `src\session-checkout-module.ts`
 

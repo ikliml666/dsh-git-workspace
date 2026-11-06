@@ -12,6 +12,7 @@ source_files:
   - src/ports.ts
   - src/types.ts
   - src/workspace-provider-lifecycle.ts
+  - src/official-worktree-registration.ts
 tags: []
 generated_by: fsoft-native
 fsoft_page: Backend_Host_Core_Runtime/Core_Workspace___Worktree_Domain_Layer.md

@@ -46,6 +46,7 @@ interface ResolvedSessionProject {
 - `withBindingLock`：排他 / 维护（maintenance）双模式队列，保证 inspect 与 mutate 不并发写 registry。
 - `reconcile`：启动期扫描台账，按 journal 步骤把中断的 mutating 记录回退到 ready / recovery_required / recovered。
 - `bindTarget` / `beginNextIterationTarget`：创建 / 复用 / 下一代迭代的完整工作树生命周期入口。
+- 官方建树后的插件补充能力：官方只做 `git worktree add`，本模块在登记台账前先用 `git.inspect` 读取本地项目根快照，把 `.worktreeinclude` 列出的 gitignored 文件拷入新 Worktree（`copyWorktreeincludeFiles`）；仅当新 Worktree 基点（`baseCommit`）恰等于本地 HEAD 且 `inheritLocalChanges` 未显式关闭时，才把本地未提交修改一并携带进 Worktree（`carryLocalWorkInProgress`）——补丁以本地 HEAD 为基准，基点为其他分支 tip 时不适用。
 
 ---
 
@@ -230,7 +231,7 @@ flowchart LR
 | `autoPush` | `true` | finish 后尽力 push 会话分支；失败降级为结果备注 |
 | `autoDeliver` | `true` | 切换 working 态指引到 `worktree_deliver` |
 | `worktreesRoot` | — | 托管 Worktree 落在此根下（带 topic/日期命名） |
-| `inheritLocalChanges` | `true` | 新建时把本地未提交改动带进 Worktree |
+| `inheritLocalChanges` | `true` | 新建 Worktree 时把本地未提交改动带进 Worktree；仅当新 Worktree 基点恰为本地 HEAD 时生效（基点为其他分支 tip 时补丁不适用）；另始终（与该开关无关）拷贝 `.worktreeinclude` 列出的 gitignored 文件 |
 | `worktreeKeepCount` | `15` | 已交付 Worktree 的 LRU 配额，逐出走完整 discard 安全链 |
 
 启动期 `reconcile` 会被宿主调用，按 journal 步骤收敛中断状态；单个卡死的 cleanup 受 `CHECKOUT_CLEANUP_TIMEOUT_MS = 120_000` 收敛超时保护，且同一 checkout 的在跑清理通过 `cleanupInFlight` Map 复用 promise，避免读-改-写交错。

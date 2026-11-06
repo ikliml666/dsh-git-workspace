@@ -34,6 +34,7 @@ source_files:
   - src/session-checkout-module.ts
   - src/session-target-context.ts
   - src/tools.ts
+  - src/official-worktree-registration.ts
 tags: []
 generated_by: fsoft-native
 fsoft_page: Backend_Host_Core_Runtime.md

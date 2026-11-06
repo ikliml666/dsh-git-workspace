@@ -6,7 +6,7 @@ description: WorktreeConsoleHostServiceControlPlane 是 Worktree 控制台 Host 
 # Worktree Console Host Service 控制面
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`30d75605`](https://github.com/wloops/dsh-git-worktree/commit/30d756050732628a0e9b7d199e31e7b393afb340) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`47ebbe95`](https://github.com/wloops/dsh-git-worktree/commit/47ebbe95f01b195727094f9030c58cb5b5145601) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 ## 简介
 
@@ -295,12 +295,12 @@ flowchart TD
 - **客户端投影消费者**：顶部胶囊（`current`）、侧栏（`sidebarTopology`）、Worktree 管理弹窗（`list`）、Review 面板（`reviewDiff` / `preflight` / `preview` / `finalize`）、分支图与标签弹窗（`gitGraph` / `gitListTags` 等）——对应客户端侧的 [客户端目标控制台特性（Client_Target_Console_Feature）](../../Client_UI_Application_Layer/Client_Target_Console_Feature.md)、[客户端评审控制台功能（Client Review Console Feature）](../../Client_UI_Application_Layer/Client_Review_Console_Feature.md) 与 [客户端工作区侧栏功能（Client_Workspace_Sidebar_Feature）](../../Client_UI_Application_Layer/Client_Workspace_Sidebar_Feature.md)。
 
 ??? abstract "Documented components (8)"
-    - [`WorktreeConsoleControlPlane`](https://github.com/wloops/dsh-git-worktree/blob/30d756050732628a0e9b7d199e31e7b393afb340/src%5Cconsole-host%5Ccontrol-plane.ts) — `src\console-host\control-plane.ts`
-    - [`WorktreeConsoleControlPlaneOptions`](https://github.com/wloops/dsh-git-worktree/blob/30d756050732628a0e9b7d199e31e7b393afb340/src%5Cconsole-host%5Ccontrol-plane.ts) — `src\console-host\control-plane.ts`
-    - [`capabilities`](https://github.com/wloops/dsh-git-worktree/blob/30d756050732628a0e9b7d199e31e7b393afb340/src%5Cconsole-host%5Cprojection.ts) — `src\console-host\projection.ts`
-    - [`ChangedEntry`](https://github.com/wloops/dsh-git-worktree/blob/30d756050732628a0e9b7d199e31e7b393afb340/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
-    - [`GitOutput`](https://github.com/wloops/dsh-git-worktree/blob/30d756050732628a0e9b7d199e31e7b393afb340/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
-    - [`ReviewDiffReadInput`](https://github.com/wloops/dsh-git-worktree/blob/30d756050732628a0e9b7d199e31e7b393afb340/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
-    - [`ReviewDiffStaleError`](https://github.com/wloops/dsh-git-worktree/blob/30d756050732628a0e9b7d199e31e7b393afb340/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
-    - [`WorktreeReviewDiffReader`](https://github.com/wloops/dsh-git-worktree/blob/30d756050732628a0e9b7d199e31e7b393afb340/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
+    - [`WorktreeConsoleControlPlane`](https://github.com/wloops/dsh-git-worktree/blob/47ebbe95f01b195727094f9030c58cb5b5145601/src%5Cconsole-host%5Ccontrol-plane.ts) — `src\console-host\control-plane.ts`
+    - [`WorktreeConsoleControlPlaneOptions`](https://github.com/wloops/dsh-git-worktree/blob/47ebbe95f01b195727094f9030c58cb5b5145601/src%5Cconsole-host%5Ccontrol-plane.ts) — `src\console-host\control-plane.ts`
+    - [`capabilities`](https://github.com/wloops/dsh-git-worktree/blob/47ebbe95f01b195727094f9030c58cb5b5145601/src%5Cconsole-host%5Cprojection.ts) — `src\console-host\projection.ts`
+    - [`ChangedEntry`](https://github.com/wloops/dsh-git-worktree/blob/47ebbe95f01b195727094f9030c58cb5b5145601/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
+    - [`GitOutput`](https://github.com/wloops/dsh-git-worktree/blob/47ebbe95f01b195727094f9030c58cb5b5145601/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
+    - [`ReviewDiffReadInput`](https://github.com/wloops/dsh-git-worktree/blob/47ebbe95f01b195727094f9030c58cb5b5145601/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
+    - [`ReviewDiffStaleError`](https://github.com/wloops/dsh-git-worktree/blob/47ebbe95f01b195727094f9030c58cb5b5145601/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
+    - [`WorktreeReviewDiffReader`](https://github.com/wloops/dsh-git-worktree/blob/47ebbe95f01b195727094f9030c58cb5b5145601/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
 

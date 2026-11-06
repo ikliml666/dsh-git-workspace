@@ -375,7 +375,10 @@
             "src\\session-checkout-apply.ts::TreeMergeReadyResult",
             "src\\session-checkout-module.ts::ResolvedSessionProject",
             "src\\session-target-context.ts::ContextAgent",
-            "src\\tools.ts::enterCheckout"
+            "src\\tools.ts::enterCheckout",
+            "src\\official-worktree-registration.ts::OfficialWorktreeRegistrationDependencies",
+            "src\\official-worktree-registration.ts::OfficialWorktreeRegistration",
+            "src\\official-worktree-registration.ts::registerOfficialWorktree"
         ],
         "children": {
             "Adapter_Infrastructure_Implementations": {
@@ -511,7 +514,10 @@
                     "src\\types.ts::WorktreeValidationItem",
                     "src\\workspace-provider-lifecycle.ts::Context",
                     "src\\workspace-provider-lifecycle.ts::WorkspaceProviderLifecycleOptions",
-                    "src\\workspace-provider-lifecycle.ts::WorkspaceProviderLifecycleResult"
+                    "src\\workspace-provider-lifecycle.ts::WorkspaceProviderLifecycleResult",
+                    "src\\official-worktree-registration.ts::OfficialWorktreeRegistrationDependencies",
+                    "src\\official-worktree-registration.ts::OfficialWorktreeRegistration",
+                    "src\\official-worktree-registration.ts::registerOfficialWorktree"
                 ],
                 "children": {}
             },
