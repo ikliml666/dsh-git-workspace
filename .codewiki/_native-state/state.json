@@ -2,39 +2,38 @@
   "stateVersion": 1,
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
-    "baseCommit": "5ffd96b6c5ea5e74f8014c90fff945afa9d97a0d",
-    "headCommit": "1db8498b10c813c8e371ab7b17d12bfc84f3503c"
+    "baseCommit": "1db8498b10c813c8e371ab7b17d12bfc84f3503c",
+    "headCommit": "8f09e7de3ecdd3d6090f4d9ee55c8676d6f53d1e"
   },
   "pendingChanges": {
     "state": "ok",
-    "baseCommit": "5ffd96b6c5ea5e74f8014c90fff945afa9d97a0d",
-    "headCommit": "1db8498b10c813c8e371ab7b17d12bfc84f3503c",
+    "baseCommit": "1db8498b10c813c8e371ab7b17d12bfc84f3503c",
+    "headCommit": "8f09e7de3ecdd3d6090f4d9ee55c8676d6f53d1e",
     "committed": [],
     "staged": [],
-    "unstaged": [],
+    "unstaged": [
+      "src/adapters/lookup.ts"
+    ],
     "untracked": [],
     "deleted": [],
     "renamed": [],
     "reason": ""
   },
   "unconsumed": [
-    ".diag-tmp/mt_1ce8c70.json",
-    ".diag-tmp/mt_3f758ad.json",
-    ".diag-tmp/mt_47e5c93.json",
-    ".diag-tmp/mt_6a23e34.json",
-    ".diag-tmp/mt_HEAD.json",
-    ".diag-tmp/mt_cffc502.json",
-    ".dsh-progress/session-fbec1dbd-8e3b-4407-a10c-e281eb0189aa/dl-mvvy4og8-1c2n.jsonl"
+    "src/adapters/lookup.ts"
   ],
   "engineVersion": "2.0.0",
   "scope": "auto",
   "effectiveScope": "stale",
-  "updateOutcome": "no_change",
+  "updateOutcome": "incremental",
   "fallbackReason": "",
   "missingRepair": null,
   "notes": [
-    "持久化基线 53ca4c0 与本次 cw 基线 5ffd96b 不同（以 cw 基线为准，未消费变化仍会并入）",
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw4eaxlf-0-native（47 个文件）"
+    "丢弃 7 条已不存在且从未提交的旧账（.diag-tmp/mt_1ce8c70.json、.diag-tmp/mt_3f758ad.json、.diag-tmp/mt_47e5c93.json 等）——只有 committed 才算消化的规则会让它们被永久携带，白跑整轮",
+    "持久化基线 5ffd96b 与本次 cw 基线 1db8498 不同（以 cw 基线为准，未消费变化仍会并入）",
+    "工作区未提交改动已合成临时 commit 961a1f64a097（1 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw4n3q8d-5-native（47 个文件）",
+    "本轮把 1 个未提交源码改动一并写进产物（快照 961a1f64a097）：src/adapters/lookup.ts"
   ],
-  "updatedAt": "2026-11-06T03:10:29.116Z"
+  "updatedAt": "2026-11-06T07:24:36.881Z"
 }

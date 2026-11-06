@@ -28,12 +28,13 @@ fsoft_page: core_worktree_domain_and_infrastructure/src_adapters/src_adapters_ho
 | | `WorkspaceRegistryLike`（接口） | Host `workspaceRegistry` 服务的结构声明：`list` / `get` / `resolveByPath` / `create` / `delete` |
 | | `LiveSessionLike`（内部） | 只关心 `header.cwd` 的活动会话形态 |
 | | `SessionStoreLike`（内部） | Host `sessions` 服务的结构声明：`get`（必需）、`list`（可选） |
+| | `WorkingDirectoryLike`（内部） | Host `workingDirectory` 服务的最小结构声明：只需 `get(session)`，供 lookup 端口读取会话的实时工作目录 |
 | | `createDshLookupPort(ctx)` | 工厂：返回实现 `SessionCheckoutLookupPort` 的对象 |
 | `src/adapters/working-directory.ts` | `WorkingDirectoryServiceLike`（接口） | Host `workingDirectory` 服务的结构声明：`get` / `set`（必需）、`ensure`（可选、未使用） |
 | | `SessionWorkingDirectoryPort`（接口） | 工具层使用的 cwd 移动契约：`current` / `enter` / `leave` |
 | | `createSessionWorkingDirectoryPort(ctx)` | 工厂：返回该端口的实现 |
 
-除导出外，两个文件各自持有私有守卫函数与私有路径工具：`lookup.ts` 里的 `isWorkspaceRegistryLike` / `isSessionStoreLike` / `sameResolvedPath` / `liveHeaderCwd`，以及 `working-directory.ts` 里的 `isWorkingDirectoryLike` / `sessionOf` / `isWithin`。它们不会被外部导入，正是“降级语义”的实现位置。
+除导出外，两个文件各自持有私有守卫函数与私有路径工具：`lookup.ts` 里的 `isWorkspaceRegistryLike` / `isSessionStoreLike` / `sameResolvedPath` / `liveHeaderCwd` / `liveWorkingDirectory`（以及私有服务访问器 `workingDirectory()`），以及 `working-directory.ts` 里的 `isWorkingDirectoryLike` / `sessionOf` / `isWithin`。它们不会被外部导入，正是“降级语义”的实现位置。
 
 ---
 
@@ -64,6 +65,7 @@ flowchart TB
     WR --> LP
     SS --> LP
     SQ --> LP
+    WD --> LP
     WD --> WDP
 
     LP -- "lookup 端口" --> MOD
@@ -105,7 +107,7 @@ export const inject = { tools: {}, commands: {}, subprocess: {}, loader: { await
 |---|---|---|---|
 | `getSession(sessionId)` | `workspaceRegistry.list()`，扫描每个 Workspace 的 `sessionIds` | `undefined` → 状态机抛 `session_not_found`；控制面抛 `session_not_found` | 会话身份不可证明 |
 | `getSession(sessionId)`（恢复分支） | 活动会话 `header.cwd` 与 Workspace `path` 精确匹配 | 匹配到唯一 Workspace 时返回 `{ id, projectId }` | 已交付并被清理的 owner 会话仍能解析到项目 |
-| `getSessionCwd(sessionId)` | `sessions.get(id).header.cwd` | `undefined`（宿主无 sessions 服务） | 无法用“活 cwd”作为授权证据 |
+| `getSessionCwd(sessionId)` | 优先 `workingDirectory.get(session)`（会话被 `workingDirectory.set` 搬过后的实时目录）；取不到时退回 `sessions.get(id).header.cwd`（Session 创建时冻结的目录） | 两者都取不到 → `undefined`（宿主无 sessions 服务，或无 workingDirectory 服务且 header 无 cwd） | 无法用“活 cwd”作为授权证据 |
 | `getProject(projectId)` | `workspaceRegistry.get(id)` | `undefined` → `project_not_found` | Workspace 已被删除 |
 | `listLiveSessions()` | `sessions.list()` 的 header | `[]` | 分支竞态守卫保持沉默（不猜测） |
 | `getSidebarMemberships(managedRoots)` | `workspaceRegistry.list()` + `sessionQuery.listSessions()` 的 header | 空 id 列表；服务缺失时返回 `[]` | 侧栏目录导航身份缺失，徽标不显示但不报错 |
@@ -130,7 +132,9 @@ flowchart TD
 
 注意 `matches.length === 1` 是**故意保守**的：多个 Workspace 指向同一路径时不做猜测，直接放弃恢复。这段逻辑让 `beginNextIteration` 与交付后的 owner 读路径能够继续解析项目（详见 `session-checkout-module.ts` 的 `beginNextIterationTarget`，它显式接受 `managedRoot` 或 `localRoot` 两种落点）。
 
-`liveHeaderCwd` 助手被提炼出来的原因写在源码注释里：三处调用点（`listLiveSessions`、`getSession` 恢复分支、`getSessionCwd`）过去各自重复 `sessions()?.get(id)?.header?.cwd`，守卫容易漂移。现在非字符串与缺失值统一坍缩为 `undefined`。
+`liveHeaderCwd` 助手被提炼出来的原因写在源码注释里：它读的是 **Session 创建时冻结**的 header cwd，服务于导航身份（`listLiveSessions`、`getSession` 恢复分支），并在宿主没有 `workingDirectory` 服务时充当 `getSessionCwd` 的兜底。非字符串与缺失值统一坍缩为 `undefined`。
+
+授权证据不再以冻结 header 为准：`getSessionCwd` 优先走另一个私有助手 `liveWorkingDirectory(sessionId)`——它先取活动会话，再读宿主 `workingDirectory` 服务的 `get(session)` 投影。原因同样写在源码注释里：Harness 把 header 冻结在创建时刻，一个后来被 `workingDirectory.set` 搬进 Managed Worktree 的既有会话，其 header 里仍留着 Local 根路径；若授权证据还用 header，分支胶囊会对每一个在既有会话里打开的 Managed Worktree 报 `project_mismatch`。只有当宿主没有 `workingDirectory` 服务、或读不到活动会话时，才退回冻结的 header cwd（对刚创建的目标会话，其 header 本来就是它的 Worktree 根）。
 
 ### 3.3 `getSidebarMemberships`：导航身份而非授权证据
 
@@ -300,7 +304,7 @@ sequenceDiagram
 | `console-host/control-plane.ts` `sidebarTopology` | `lookup.getSidebarMemberships` | 侧栏目录归属 | 省略 `memberships` 字段 |
 | `tools.ts` / `commands.ts` / `session-target-context.ts` | `workingDirectory.enter` / `leave` / `current` | cwd 进出 Worktree、注入指引 | 仅指引模式（guidance-only） |
 
-`verifyCallerRoot` 值得单独强调：owner 会话在任务期间活 cwd 就是它的不可变 Worktree 根，而 Workspace 项目记录始终指向 Local checkout。若只按 `project.root` 授权，**每一次 owner 调用都会被判 `project_mismatch`**，顶部胶囊对完全健康的受管 checkout 报失败。同时该证据只对 owner 生效——source 会话的本意就是待在 Local 边界，把活 cwd 当成 `expectedRoot` 会把 owner 的 `managedRoot` 交给任意一个同项目、停在 Local 的 source 会话。
+`verifyCallerRoot` 值得单独强调：授权证据必须是 owner 会话**此刻真正站在**的目录，而 Workspace 项目记录始终指向 Local checkout。这个目录由宿主 `workingDirectory` 服务的实时投影给出（`workingDirectory.get(session)`）——一个后来被 `workingDirectory.set` 搬进 Managed Worktree 的既有会话，其 `header.cwd` 还冻结在 Local 根，只有实时投影能正确回答。若只按 `project.root` 授权，**每一次 owner 调用都会被判 `project_mismatch`**，顶部胶囊对完全健康的受管 checkout 报失败。同时该证据只对 owner 生效——source 会话的本意就是待在 Local 边界，把活 cwd 当成 `expectedRoot` 会把 owner 的 `managedRoot` 交给任意一个同项目、停在 Local 的 source 会话。
 
 ---
 
@@ -320,7 +324,7 @@ sequenceDiagram
 |---|---|---|
 | 创建成功但 `cwdSelected: false`、无 `cwd` | 宿主未挂载 `workingDirectory`，或工具调用方没有活 Agent | 检查 `ctx.get('workingDirectory')` 是否具备 `get`/`set`；guidance-only 属预期行为 |
 | `cwdError` 非空 | `service.set()` 抛错（目录已消失、权限、会话被回收） | 交付失败路径会同时报告交付错误与 cwd 失败，两条都要看 |
-| 顶部胶囊报 `project_mismatch` | `getSessionCwd` 拿不到活 cwd（sessions 服务缺失或 header 无 cwd） | 确认 `sessions.get(id).header.cwd` 是字符串 |
+| 顶部胶囊报 `project_mismatch` | `getSessionCwd` 拿不到活 cwd：优先是 `workingDirectory.get(session)` 取不到（宿主未挂载该服务），兜底时 `sessions.get(id).header.cwd` 又不是字符串 | 先确认 `ctx.get('workingDirectory')` 具备 `get`（lookup 侧只需 `get`）；无该服务的宿主再确认 `header.cwd` 是字符串 |
 | 已清理的交付会话报 `session_not_found` | 恢复分支要求 `sameResolvedPath` 唯一匹配；路径被宿主重写或存在多匹配 | 打印 `workspaceRegistry.list()` 的 `path` 与 `header.cwd` 比对 |
 | 侧栏目录上没有 Worktree 徽标 | `getSidebarMemberships` 无匹配（Workspace 已删且 `sessionQuery` 未提供 `listSessions`） | 检查 `ctx.get('sessionQuery').listSessions` 是否存在 |
 | 分支竞态守卫从不提示 | `listLiveSessions` 返回 `[]`（sessions 服务无 `list`）或活跃会话不足 2 个 | 这是设计行为：证据不足时保持沉默而不是猜测 |

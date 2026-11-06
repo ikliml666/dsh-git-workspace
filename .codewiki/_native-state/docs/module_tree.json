@@ -240,7 +240,8 @@
             "src\\types.ts::WorktreeValidationItem",
             "src\\workspace-provider-lifecycle.ts::Context",
             "src\\workspace-provider-lifecycle.ts::WorkspaceProviderLifecycleOptions",
-            "src\\workspace-provider-lifecycle.ts::WorkspaceProviderLifecycleResult"
+            "src\\workspace-provider-lifecycle.ts::WorkspaceProviderLifecycleResult",
+            "src\\adapters\\lookup.ts::WorkingDirectoryLike"
         ],
         "children": {
             "src_adapters": {
@@ -269,7 +270,8 @@
                     "src\\adapters\\safe-file.ts::FileLockPayload",
                     "src\\adapters\\working-directory.ts::SessionWorkingDirectoryPort",
                     "src\\adapters\\working-directory.ts::WorkingDirectoryServiceLike",
-                    "src\\adapters\\worktree-creation.ts::Result"
+                    "src\\adapters\\worktree-creation.ts::Result",
+                    "src\\adapters\\lookup.ts::WorkingDirectoryLike"
                 ],
                 "children": {
                     "src_adapters_persistence": {
@@ -298,7 +300,8 @@
                             "src\\adapters\\lookup.ts::WorkspaceLike",
                             "src\\adapters\\lookup.ts::WorkspaceRegistryLike",
                             "src\\adapters\\working-directory.ts::SessionWorkingDirectoryPort",
-                            "src\\adapters\\working-directory.ts::WorkingDirectoryServiceLike"
+                            "src\\adapters\\working-directory.ts::WorkingDirectoryServiceLike",
+                            "src\\adapters\\lookup.ts::WorkingDirectoryLike"
                         ],
                         "children": {}
                     },

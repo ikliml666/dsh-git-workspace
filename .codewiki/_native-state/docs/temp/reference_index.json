@@ -904,6 +904,7 @@
       "SessionStoreLike",
       "SessionWorkingDirectoryPort",
       "SidebarDirectoryMembership",
+      "WorkingDirectoryLike",
       "WorkingDirectoryServiceLike",
       "WorkspaceLike",
       "WorkspaceRegistryLike",

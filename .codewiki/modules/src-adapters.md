@@ -28,7 +28,7 @@ fsoft_page: core_worktree_domain_and_infrastructure/src_adapters.md
 | --- | --- | --- |
 | `SessionCheckoutGitPort` | `createDshGitPort`（`src/adapters/git.ts`） | `@deepseek-ai/dsh-subprocess`、`git` 可执行文件 |
 | `SessionCheckoutFilesPort` | `createNodeFilesPort`（`src/adapters/files.ts`） | `node:fs` / `node:fs/promises` |
-| `SessionCheckoutLookupPort` | `createDshLookupPort`（`src/adapters/lookup.ts`） | Cordis `workspaceRegistry` / `sessions` / `sessionQuery` 服务 |
+| `SessionCheckoutLookupPort` | `createDshLookupPort`（`src/adapters/lookup.ts`） | Cordis `workspaceRegistry` / `sessions` / `sessionQuery` / `workingDirectory` 服务 |
 | `SessionCheckoutRegistryPort` | `AtomicJsonCheckoutRegistry`（`src/adapters/registry.ts`） | 插件状态目录下的 `managed-checkouts.json` |
 | —（工具层） | `createSessionWorkingDirectoryPort`（`src/adapters/working-directory.ts`） | Cordis `workingDirectory` 服务 |
 | —（Skill 生态） | `ProjectSkillStore` / `ClaudeProjectSkillProvider`（`src/adapters/project-skill*.ts`） | `@deepseek-ai/dsh-skill`、`@deepseek-ai/dsh-skill-filesystem` |
@@ -161,7 +161,7 @@ graph TB
 
 ### 4.4 宿主服务桥接族 → [src_adapters_host_binding](src-adapters-host-binding.md)
 
-包含 `lookup.ts`、`working-directory.ts`。二者的共同点是 **对宿主服务做结构性探测并优雅降级**：服务未挂载、形状不符或抛异常时返回 `undefined` / 空列表，让状态机把它读成「孤儿或恢复事实」而不是失败。`lookup.ts` 还包含一条重要的补偿逻辑——当 Harness 因不可变 cwd 已消失而把 Session 从 `Workspace.sessionIds` 过滤掉时，可用该 Session **仍存活**的 header cwd 精确恢复映射；`working-directory.ts` 则是把 Session 真正「放进」新检出的机制（官方实验性 worktree bundle 的最后一步即 `workingDirectory.set(agent, path)`）。
+包含 `lookup.ts`、`working-directory.ts`。二者的共同点是 **对宿主服务做结构性探测并优雅降级**：服务未挂载、形状不符或抛异常时返回 `undefined` / 空列表，让状态机把它读成「孤儿或恢复事实」而不是失败。`lookup.ts` 还包含一条重要的补偿逻辑——当 Harness 因不可变 cwd 已消失而把 Session 从 `Workspace.sessionIds` 过滤掉时，可用该 Session **仍存活**的 header cwd 精确恢复映射；其 `getSessionCwd` 则以宿主 `workingDirectory` 服务的实时 `get(session)` 投影为第一授权证据、冻结的 header cwd 为兜底（会话被 `workingDirectory.set` 搬进 Worktree 后 header 已失真）；`working-directory.ts` 则是把 Session 真正「放进」新检出的机制（官方实验性 worktree bundle 的最后一步即 `workingDirectory.set(agent, path)`）。
 
 ## 5. 关键数据流
 
