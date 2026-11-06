@@ -2,28 +2,23 @@
   "stateVersion": 1,
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
-    "baseCommit": "8f09e7de3ecdd3d6090f4d9ee55c8676d6f53d1e",
-    "headCommit": "8c21e04a76648797cd467d5438a39542d22814d1"
+    "baseCommit": "8c21e04a76648797cd467d5438a39542d22814d1",
+    "headCommit": "f93ba8188971886c09b4c40e12c746a23853c229"
   },
   "pendingChanges": {
     "state": "ok",
-    "baseCommit": "8f09e7de3ecdd3d6090f4d9ee55c8676d6f53d1e",
-    "headCommit": "8c21e04a76648797cd467d5438a39542d22814d1",
+    "baseCommit": "8c21e04a76648797cd467d5438a39542d22814d1",
+    "headCommit": "f93ba8188971886c09b4c40e12c746a23853c229",
     "committed": [
       "CHANGELOG.md",
-      "src/adapters/git.ts",
-      "src/adapters/lookup.ts",
       "src/client/styles.ts",
       "src/client/workspace-sidebar/index.tsx",
-      "src/index.ts",
-      "src/official-worktree-adoption.ts",
-      "src/official-worktree-takeover.ts",
-      "src/ports.ts",
-      "tests/client-console-remote-routing.test.ts",
+      "src/console-host/control-plane.ts",
+      "src/types.ts",
       "tests/client-workspace-sidebar-profile.test.ts",
       "tests/client-workspace-sidebar.test.tsx",
-      "tests/official-worktree-adoption.test.ts",
-      "tests/official-worktree-takeover.test.ts"
+      "tests/console-host.test.ts",
+      "tests/surface.test.ts"
     ],
     "staged": [],
     "unstaged": [],
@@ -36,11 +31,12 @@
   "engineVersion": "2.0.0",
   "scope": "auto",
   "effectiveScope": "stale",
-  "updateOutcome": "incremental",
+  "updateOutcome": "no_change",
   "fallbackReason": "",
   "missingRepair": null,
   "notes": [
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw4re442-f-native（47 个文件）"
+    "持久化基线 8f09e7d 与本次 cw 基线 8c21e04 不同（以 cw 基线为准，未消费变化仍会并入）",
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw4vm2ga-1-native（47 个文件）"
   ],
-  "updatedAt": "2026-11-06T09:28:07.420Z"
+  "updatedAt": "2026-11-06T11:24:24.600Z"
 }

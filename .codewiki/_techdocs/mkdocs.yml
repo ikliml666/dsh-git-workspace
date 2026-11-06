@@ -1,0 +1,63 @@
+site_name: dsh-git-worktree
+site_description: dsh-git-worktree 是 DeepSeek Harness (DSH) 平台的官方插件，核心定位是为 AI 辅助开发会话提供全生命周期的 Git Worktree 隔离能力。它通过为每个独立会话创建专属的隔离 Git…
+repo_url: https://github.com/wloops/dsh-git-worktree
+edit_uri: ''
+docs_dir: docs
+nav:
+- dsh-git-worktree 仓库总览: index.md
+- 项目基础与本地化模块概览:
+  - 项目基础与本地化模块概览: project_foundation_and_localization.md
+  - 构建、CI 与打包（build_ci_and_packaging）: project_foundation_and_localization/build_ci_and_packaging.md
+  - src_i18n 国际化与消息目录模块: project_foundation_and_localization/src_i18n.md
+- 核心 Worktree 领域与基础设施模块:
+  - 核心 Worktree 领域与基础设施模块: core_worktree_domain_and_infrastructure.md
+  - src_adapters：会话检出（Session Checkout）的宿主适配层:
+    - src_adapters：会话检出（Session Checkout）的宿主适配层: core_worktree_domain_and_infrastructure/src_adapters.md
+    - 持久化适配器：文件系统端口、原子注册表与崩溃安全 JSON IO: core_worktree_domain_and_infrastructure/src_adapters/src_adapters_persistence.md
+    - Git 执行适配器：唯一出口 runGit、可证明的 Worktree 创建与首次提交协议: core_worktree_domain_and_infrastructure/src_adapters/src_adapters_git_execution.md
+    - 主机绑定适配层（src/adapters/lookup.ts、src/adapters/working-directory.ts 与 src/official-worktree-takeover.ts）: core_worktree_domain_and_infrastructure/src_adapters/src_adapters_host_binding.md
+    - Project Skills 适配器：随会话携带的项目级 Skill 资源: core_worktree_domain_and_infrastructure/src_adapters/src_adapters_project_skills.md
+  - Worktree 核心操作与纯函数工具层（worktree_core_operations）: core_worktree_domain_and_infrastructure/worktree_core_operations.md
+  - 会话检出领域模块（session_checkout_domain）:
+    - 会话检出领域模块（session_checkout_domain）: core_worktree_domain_and_infrastructure/session_checkout_domain.md
+    - 会话检出交付引擎（session_checkout_apply_engine）: core_worktree_domain_and_infrastructure/session_checkout_domain/session_checkout_apply_engine.md
+    - 会话检出运行时模块（session_checkout_runtime）概述:
+      - 会话检出运行时模块（session_checkout_runtime）概述: core_worktree_domain_and_infrastructure/session_checkout_domain/session_checkout_runtime.md
+      - 会话检出运行时入口模块:
+        - 会话检出运行时入口模块: core_worktree_domain_and_infrastructure/session_checkout_domain/session_checkout_runtime/session_checkout_runtime_entry.md
+        - src/index.ts —— dsh-git-worktree 插件入口与装配根: core_worktree_domain_and_infrastructure/session_checkout_domain/session_checkout_runtime/session_checkout_runtime_entry/src_index.ts.md
+        - src/session-checkout-module.ts —— 会话检出状态机工厂: core_worktree_domain_and_infrastructure/session_checkout_domain/session_checkout_runtime/session_checkout_runtime_entry/src_session-checkout-module.ts.md
+      - 工作区提供者生命周期与会话目标上下文: core_worktree_domain_and_infrastructure/session_checkout_domain/session_checkout_runtime/workspace_provider_lifecycle.md
+    - 会话检出领域契约（session_checkout_domain_contracts）: core_worktree_domain_and_infrastructure/session_checkout_domain/session_checkout_domain_contracts.md
+- Worktree Console 协议与宿主服务总览:
+  - Worktree Console 协议与宿主服务总览: worktree_console_protocol_and_host_service.md
+  - Worktree Console 共享契约（src/console-contract.ts）: worktree_console_protocol_and_host_service/worktree_console_contract.md
+  - Worktree Console 宿主服务（src/console-host/）:
+    - Worktree Console 宿主服务（src/console-host/）: worktree_console_protocol_and_host_service/worktree_console_host.md
+    - Worktree Console 控制面（src/console-host/control-plane.ts）: worktree_console_protocol_and_host_service/worktree_console_host/worktree_console_host_control_plane.md
+    - Worktree Console 宿主侧投影与错误归一化（projection / errors）: worktree_console_protocol_and_host_service/worktree_console_host/worktree_console_host_projection_and_errors.md
+    - Worktree Console 主机侧评审 Diff 读取器（worktree_console_host_review_diff）: worktree_console_protocol_and_host_service/worktree_console_host/worktree_console_host_review_diff.md
+    - Worktree Console RPC 服务面（src/console-host/service.ts）: worktree_console_protocol_and_host_service/worktree_console_host/worktree_console_host_rpc_service.md
+  - Worktree Console Remote 协议层（src/console-remote/）: worktree_console_protocol_and_host_service/worktree_console_remote.md
+- worktree_client_interface_layer：Worktree 浏览器端客户端界面层总览:
+  - worktree_client_interface_layer：Worktree 浏览器端客户端界面层总览: worktree_client_interface_layer.md
+  - client_core：Worktree 浏览器端入口与会话编排核心: worktree_client_interface_layer/client_core.md
+  - 客户端控制台 Remote 适配层（client_console_remote）: worktree_client_interface_layer/client_console_remote.md
+  - client_pre_session：空白会话「在 Worktree 中开始」开关: worktree_client_interface_layer/client_pre_session.md
+  - client_review_console：受管 Worktree 验收控制台（浏览器端）:
+    - client_review_console：受管 Worktree 验收控制台（浏览器端）: worktree_client_interface_layer/client_review_console.md
+    - client_review_console_review_actions：ReviewActions 交付动作编排器: worktree_client_interface_layer/client_review_console/client_review_console_review_actions.md
+    - 评审控制台展示表面（client_review_console_review_surfaces）: worktree_client_interface_layer/client_review_console/client_review_console_review_surfaces.md
+    - 评审控制台读缓存与只读展示: worktree_client_interface_layer/client_review_console/client_review_console_read_caches.md
+    - 恢复投递与状态刷新分发（client_review_console_recovery_delivery）: worktree_client_interface_layer/client_review_console/client_review_console_recovery_delivery.md
+  - Worktree 设置卡（client_settings_card）: worktree_client_interface_layer/client_settings_card.md
+  - client_target_console：会话目标控制台（浏览器端）: worktree_client_interface_layer/client_target_console.md
+  - 工作区侧边栏（client_workspace_sidebar）: worktree_client_interface_layer/client_workspace_sidebar.md
+plugins:
+- techdocs-core
+markdown_extensions:
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
