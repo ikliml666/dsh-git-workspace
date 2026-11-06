@@ -18,6 +18,8 @@ vi.mock('../src/client/console-remote/adapter.js', () => ({
 import { apply } from '../src/client/console-remote/index.js'
 import { apply as applyAlpha } from './official-workspace-client-alpha.mock.js'
 import { apply as applyNext } from './official-workspace-client-next.mock.js'
+import { apply as applyRc1 } from './official-workspace-client.mock.js'
+import { apply as applyRc5 } from './official-workspace-client-rc5.mock.js'
 
 function clientContext(legacy = false) {
   const session = legacy ? { open: vi.fn() } : {}
@@ -73,8 +75,33 @@ describe('one Host-pinned Browser provider per Client startup', () => {
     expect(spies.applyTools).toHaveBeenCalledTimes(1)
   })
 
-  test('fails before registering a mismatched Browser', async () => {
-    spies.topology.mockResolvedValueOnce({ ok: true, value: { projects: [], workspaceClientFlavor: 'legacy' } })
+  test.each([
+    ['modern-rc5', applyRc5],
+    ['modern-rc1', applyRc1],
+  ] as const)('%s replays its own derivative when the takeover cleared the official Workspace', async (flavor, selected) => {
+    spies.topology.mockResolvedValue({ ok: true, value: { projects: [], workspaceClientFlavor: flavor, officialWorkspaceActive: false } })
+    await apply(clientContext())
+    expect(spies.register).toHaveBeenCalledTimes(1)
+    // The applied derivative is what renders the row decoration the decorate
+    // path cannot: the official leading seat is replaced by status dots while a
+    // Session runs, so only the derived row keeps the Worktree badge visible.
+    expect(spies.register.mock.calls[0]?.[2]).toBe(selected)
+    expect(spies.decorate).not.toHaveBeenCalled()
+    expect(spies.applyTools).toHaveBeenCalledTimes(1)
+  })
+
+  test.each([
+    ['modern-rc5'],
+    ['modern-rc1'],
+  ] as const)('%s with the official Workspace live decorates instead of replaying', async (flavor) => {
+    spies.topology.mockResolvedValue({ ok: true, value: { projects: [], workspaceClientFlavor: flavor, officialWorkspaceActive: true } })
+    await apply(clientContext())
+    expect(spies.decorate).toHaveBeenCalledTimes(1)
+    expect(spies.register).not.toHaveBeenCalled()
+    expect(spies.applyTools).toHaveBeenCalledTimes(1)
+  })
+
+  test('fails before registering a mismatched Browser', async () => {    spies.topology.mockResolvedValueOnce({ ok: true, value: { projects: [], workspaceClientFlavor: 'legacy' } })
     await expect(apply(clientContext())).rejects.toThrow(/sessions\.open/u)
     expect(spies.register).not.toHaveBeenCalled()
   })

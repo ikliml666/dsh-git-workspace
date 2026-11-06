@@ -1,5 +1,7 @@
 import { ProjectSkillStore } from './adapters/project-skills.js'
 import { mountProjectSkillProvider } from './adapters/project-skill-provider.js'
+import { mountOfficialWorktreeTakeover } from './official-worktree-takeover.js'
+import { adoptOfficialWorktrees } from './official-worktree-adoption.js'
 /**
  * dsh-git-worktree plugin entry. The session-checkout domain (state machine,
  * apply engine, ports) is Domi-ported and host-agnostic; this file is the DSH
@@ -327,6 +329,13 @@ export const Config = z.object({
    * importing it loses its bundle.
    */
   enableWorkspaceProvider: z.boolean().default(false),
+  /**
+   * 接管官方实验性 Worktree 工具（`create_worktree`）：禁用
+   * `@deepseek-ai/dsh-experimental-tool-worktree` 及其 `dsh-experimental-worktree`
+   * 条目，并全局拒绝同名工具。官方工具创建的 checkout 不进本插件台账，既列不出
+   * 也交付不了、清理不了，所以默认接管（需要官方工具并存时置 false）。
+   */
+  enableOfficialWorktreeTakeover: volatile(z.boolean().default(true)),
 })
 
 interface LocalAdaptationConfig {
@@ -339,6 +348,7 @@ interface LocalAdaptationConfig {
   branchRaceGuard?: boolean | LiveValue<boolean | undefined>
   branchRaceWindowMs?: number | LiveValue<number | undefined>
   enableWorkspaceProvider?: boolean
+  enableOfficialWorktreeTakeover?: boolean | LiveValue<boolean | undefined>
 }
 
 function resolveWorktreesRootValue(raw: string | LiveValue<string | undefined> | undefined): string | undefined {
@@ -373,6 +383,15 @@ export async function apply(ctx: Context, config: { stateDir?: string } & GitTim
   // automatic, because disabling the official entry removes a client package
   // every other UI package imports.
   const providerLifecycle = await mountWorkspaceProviderLifecycle(ctx, hostWorkspaceClientFlavor(), { enabled: config.enableWorkspaceProvider === true })
+  // This plugin owns Worktree creation and tracks every checkout it creates.
+  // The official experimental worktree tool creates checkouts outside that
+  // registry, so they could be neither listed nor delivered nor cleaned up.
+  if (liveConfigValue(config.enableOfficialWorktreeTakeover) !== false) {
+    const takeover = await mountOfficialWorktreeTakeover(ctx)
+    if (takeover.disabled.length > 0) {
+      console.info('[dsh-git-worktree] took over the official Worktree tool:', takeover.disabled.join(', '))
+    }
+  }
   const stateDir = resolveStateDir(config)
   mkdirSync(stateDir, { recursive: true })
   const hooksPath = join(stateDir, 'disabled-git-hooks')
@@ -431,6 +450,15 @@ export async function apply(ctx: Context, config: { stateDir?: string } & GitTim
             '[dsh-git-worktree] worktrees whose local root vanished (repository likely moved):',
             summary.staleRootCheckoutIds.join(', '),
           )
+        }
+      })
+      // 接管官方 Worktree 之后，它此前建好的工作树仍在磁盘上却没有台账记录：
+      // 既不显示、也交付不了。纳管放在 reconcile 之后，避免与恢复流程抢同一
+      // 份台账。
+      .then(() => adoptOfficialWorktrees({ lookup, git, registry, createCheckoutId: randomUUID }))
+      .then((result) => {
+        if (result.adopted.length > 0) {
+          console.info('[dsh-git-worktree] adopted official worktrees:', result.adopted.join(', '))
         }
       })
       .then(() => module.enforceWorktreeKeepCount())

@@ -58,6 +58,13 @@ export interface SessionCheckoutLookupPort {
    * concurrent branch-race guard then stays silent rather than guessing.
    */
   listLiveSessions?(): readonly { id: string; createdAt?: number; cwd?: string }[]
+  /**
+   * Local adaptation: every project the Host backs with a Workspace, so
+   * adoption can resolve a Local root back to its project. Needed because a
+   * Worktree created by the official tool may have no binding and no Session
+   * whose Workspace derivation covers it.
+   */
+  listProjects?(): readonly SessionCheckoutProjectRecord[]
 }
 
 export interface GitCheckoutSnapshot {
@@ -75,6 +82,16 @@ export interface BranchOverviewEntry {
   oid: string
   isCurrent: boolean
   upstream: string | null
+}
+
+/** One Worktree entry from Git's own administrative list. */
+export interface WorktreeListingEntry {
+  /** Absolute working-tree path as Git reports it. */
+  path: string
+  /** Commit the Worktree has checked out. */
+  headOid: string
+  /** `refs/heads/...` when a branch is checked out, otherwise null (detached). */
+  branchRef: string | null
 }
 
 /** One local tag in the tag manager (annotated tags keep their message). */
@@ -158,6 +175,13 @@ export interface SessionCheckoutGitPort {
    * from disk (`git worktree prune`). Hygiene only; callers tolerate absence.
    */
   pruneWorktrees?(localRoot: string): Promise<void>
+  /**
+   * Local adaptation: every Worktree Git itself knows about for this
+   * repository, including ones created outside this plugin. Adoption needs
+   * Git's authoritative list: the official tool nests worktrees under branch
+   * names that contain `/`, so no directory scan reconstructs them safely.
+   */
+  listWorktrees?(localRoot: string): Promise<WorktreeListingEntry[]>
   /**
    * Local adaptation: branch overview for the header chip popover — every
    * local branch with its tip, upstream, and the checkout marker, plus the

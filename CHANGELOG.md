@@ -6,6 +6,13 @@
 
 ### Fixed
 
+- 顶部分支胶囊误报「不可用／当前 Session cwd 与 Worktree 授权边界不一致」、侧栏徽章在会话运行中消失、接管官方 Worktree 工具（2026-11-06）：
+  - **胶囊误报源自读了冻结的 `header.cwd`**：`getSessionCwd` 返回 Session 创建时写死的 header 目录，而 `create_worktree` / `target` 会话是被 `working-directory/change` 事件搬到 Worktree 里的，header 不动。于是 `verifyCallerRoot` 拿旧目录比对托管根，凡是移动过的会话一律 `project_mismatch`。改为优先读宿主 `workingDirectory.get(session)` 的实时目录、回退 header。导航身份（`listLiveSessions`、`getSession` 的 workspace 恢复分支）继续用 header：那里问的是「这个会话属于哪个项目」，而授权问的是「它此刻站在哪儿」，两个问题不能共享一个答案。
+  - **侧栏徽章在会话运行时整体消失**：官方行把 `sidebar.session.row.leading` 座位换成状态点（`showStatus = primaryStatus.state !== 'idle'`，运行/完成/有子代理/待审批全为真），徽章挂在该座位就等于「越忙越看不见」。改用官方公开的 `sidebar.workspaces.session.row.action` 座位，由 `styles.ts` 把该容器 `order: -1` 提到行首——它是行的 flex 子项，提到最前即得到上游那种行前徽章，且不受 `showStatus` 影响。官方 `.rowActions` 默认 `display: none`，容器常显、溢出按钮仍按 hover 出现，菜单不丢。
+  - **接管官方实验性 Worktree 工具**：其 `create_worktree` 建的 checkout 不进本插件台账，既列不出也交付不了、清理不了（实测它的目录布局是 `<repo>/.agents/worktrees/<branch>`，与本插件的 `worktreesRoot` 两套并存）。新增 `src/official-worktree-takeover.ts` 与开关 `enableOfficialWorktreeTakeover`（默认 **true**）：经 Loader 停用 `tool-worktree` 与 `worktree` 两个条目，并 `ctx.tools.guard` 按工具名拒绝 `create_worktree` 作为第二道闸；条目被用户手动禁用时记为 overridden 不夺权；插件卸载时全部恢复。
+  - **纳管官方工具此前建好的工作树**：`src/official-worktree-adoption.ts` 在 `reconcile` 之后跑，读 Git 的 `worktree list --porcelain`（官方把分支名当目录名，含 `/` 时目录扫描重建不出来，只能以 Git 为准），把位于 `.agents/worktrees/` 前缀下、且恰好有一个存活 Session 实时站在里面的工作树登记成 `ready` 记录并建立 isolated binding。两个会话共用同一棵、无人站在其中、已被台账跟踪、owner 已绑定别处的一律跳过；单个仓库读失败不拦其它仓库。
+  - 新增回归：`tests/official-worktree-takeover.test.ts`（5 项，含「用户手动禁用的条目不许被夺权」与「插件卸载后条目恢复」）、`tests/official-worktree-adoption.test.ts`（10 项）、`tests/client-console-remote-routing.test.ts` 扩充到 12 项（派生/装饰两条路径各自断言）。全量 58 文件 / 859 项通过。
+
 - 全量缺陷审计后的 25 项修复（2026-11-02）：功能不可达、状态机死锁、跨进程竞态、无出口的阻塞态与静默失败。
   - **Tag 管理器整块不可用**：`gitListTags` / `gitCreateTag` / `gitDeleteTag` / `gitPushTag` 四个方法在 control-plane、descriptors、console-contract 三层都齐了，唯独 `src/console-host/service.ts` 没有对应的 `@Remote` 转发。gateway 用 `Reflect.get(receiver, method)` 取方法，注册期不校验存在性，于是调用时才炸成 transport error——UI 入口（`TargetStatusAction.tsx` 的 `manage_tags`）看得见，点开永远空列表。补齐四个转发，并新增守卫用例断言「service 原型上必须实现 descriptors 声明的每一个方法」——这条只在调用时才会暴露的断层，只能靠方法集比对挡住。
   - **创建中断后 recover 与 discard 双双 deadlock**：`finishFailedCreation` 在 `rolledBack === false` 时把记录留在 `create + creation + recovery_required`，而 `operateRecover` / `operateDiscard` 开头的 `journal.creation` 守卫排在「目录已消失则清台账」出口之前，于是注释里承诺的「手动删掉 managed 目录后重试」这个逃逸口**永远不可达**——用户只能眼看一条记录永久卡死。守卫改为按磁盘实际残留判定：新增 `hasCreationResidue` / `creationResiduePaths`，磁盘上真有东西才拒绝（绝不删除无法辨认身份的残留），一片空白时放行清台账。报错文案也从「身份无法确认」改成明确列出要手动删除的路径（`creationResidueBlocksRecovery`）。

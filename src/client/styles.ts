@@ -32,31 +32,42 @@ export const WORKTREE_STYLES = String.raw`
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* The official row seat (sidebar.session.row.leading) is a fixed 16px box:
-   ._slot{width:16px;flex:none}. Mode B cannot re-render the row the way the
-   takeover does, so the glyph+chip pair lives INSIDE that seat; without this
-   rule the chip is clipped away and only the branch glyph survives — exactly
-   the "one icon instead of a pill" regression. Widening only the seat that
-   actually holds our decoration keeps the untouched seats at 16px. */
-[role="treeitem"] > span:has(.dsh-git-worktree-sidebar-icon) {
-  flex: 0 1 auto;
-  width: auto;
-  min-width: 16px;
-  /* Keep the title the row's primary content: the mark may take up to 55% of
-     the row, and the chip inside it ellipsizes beyond that. */
-  max-width: 55%;
-  overflow: hidden;
+/* The Worktree mark mounts in sidebar.workspaces.session.row.action, which the
+   official row renders inside span.rowQuickActions, the second child of the
+   row's trailing span.rowActions (the first is the overflow button). That
+   trailing span is a flex item of the row, so order: -1 moves the whole
+   container in front of the leading seat and the title — the row prefix
+   upstream renders inline, achieved without re-rendering the row.
+   The leading seat cannot serve: the official row replaces it with status dots
+   whenever the Session runs, which is exactly when the mark must stay visible.
+   sidebar.session.row.trailing exists but sits inside span.time, which the
+   official hover rules hide, so it cannot carry a persistent mark either.
+   The :has() uses a descendant match, not a child match: our two spans are
+   nested one level deeper, inside rowQuickActions.
+   Selectors are otherwise structural, so no hashed CSS-module class is used. */
+[role="treeitem"] > span:last-child:has(.dsh-git-worktree-sidebar-icon) {
+  display: inline-flex;
+  order: -1;
+  align-items: center;
+  gap: 4px;
+  margin-inline-end: 4px;
 }
-/* Inside that widened seat the chip must be allowed to shrink, otherwise its
-   own max-width wins and it overflows the seat into the title. */
-[role="treeitem"] > span > .dsh-git-worktree-sidebar-badge {
-  flex: 0 1 auto;
-  min-width: 0;
+/* Upstream hides .rowActions until hover. A hidden box that has been reordered
+   to the row front would leave a hole where the mark belongs, so the container
+   stays displayed while it holds our mark. The overflow button keeps its own
+   hover reveal, and the official row hides .time and the pin on hover to make
+   room — the menu stays reachable. */
+[role="treeitem"] > span:last-child:has(.dsh-git-worktree-sidebar-icon) > button {
+  display: none;
 }
-/* Upstream keeps the identity mark visible while a row is hovered; the chip
-   lives in the row-leading seat, which never competes with the row's hover
-   actions (those sit at the far right). So there is no hover rule here: hiding
-   the chip on hover would make the pill flicker for no layout gain. */
+[role="treeitem"]:hover > span:last-child:has(.dsh-git-worktree-sidebar-icon) > button,
+[role="treeitem"] > span:last-child:has(.dsh-git-worktree-sidebar-icon):has(> button[aria-expanded="true"]) > button {
+  display: inline-flex;
+}
+[role="treeitem"] > span:last-child .dsh-git-worktree-sidebar-icon,
+[role="treeitem"] > span:last-child .dsh-git-worktree-sidebar-badge {
+  flex: 0 0 auto;
+}
 .dsh-git-worktree-sidebar-icon,
 .dsh-git-worktree-sidebar-badge[data-worktree-state="working"] {
   --dsh-wt-sidebar-accent: var(--dsw-alias-state-business-primary);

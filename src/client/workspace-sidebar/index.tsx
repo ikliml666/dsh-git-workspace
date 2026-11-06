@@ -418,19 +418,25 @@ interface RowSeatProps extends OfficialSessionRowEntryProps {
 }
 
 /**
- * Row seats this plugin may decorate. The Host declares BOTH seats from its
- * own `sidebar.workspaces` entry:
+ * Row seats this plugin may decorate. The Host declares all three from its own
+ * `sidebar.workspaces` entry:
  *   - `sidebar.session.row.leading` — a 16px slot before the row title,
  *     rendered only when the row's primary status is idle (archived rows and
  *     rows showing status dots leave it empty);
  *   - `sidebar.session.row.hover` — the hover card body, mounted while the
- *     row's popover is open.
- * There is NO `sidebar.session.row.trailing` seat in DSH 0.2.x: injecting that
- * name waits for a declaration that never arrives, so the callback never runs
- * and the badge never mounts. Hence the branch glyph (upstream's identity mark,
- * 16px, fits the narrow leading seat) plus the state chip in the hover card.
+ *     row's popover is open;
+ *   - `sidebar.workspaces.session.row.action` — inside the row's trailing
+ *     `span` alongside the overflow button.
+ * The leading seat is unusable for a persistent mark: `showStatus` is true
+ * whenever the Session runs, completes, owns a subagent or awaits approval, and
+ * the official row then swaps that seat for status dots — the Worktree badge
+ * would vanish exactly while the user watches it work. The trailing seat has no
+ * such condition, so styles.ts lifts it to the front of the row with `order`
+ * and it stays mounted for every state. There is no
+ * `sidebar.session.row.trailing` seat in DSH 0.2.x: injecting that name waits
+ * for a declaration that never arrives, so it would never mount.
  */
-const ROW_SEATS = ['sidebar.session.row.leading', 'sidebar.session.row.hover'] as const
+const ROW_SEATS = ['sidebar.workspaces.session.row.action', 'sidebar.session.row.hover'] as const
 
 /**
  * Upstream identity mark, reused verbatim so the decorated path looks like the
@@ -465,10 +471,10 @@ function WorktreeIdentity(
  * Inline row decoration for Managed Worktree owner sessions, matching the
  * upstream takeover rendering: the branch glyph followed by the state chip.
  * Upstream injects that pair straight into the row, between the leading seat
- * and the title; Mode B cannot re-render the row, so both seats available to it
- * (`sidebar.session.row.leading`, `sidebar.session.row.hover`) render the same
- * pair and styles.ts relaxes the leading seat's fixed 16px width for it.
- * Rows without a managed task render nothing.
+ * and the title; Mode B cannot re-render the row, so the pair goes into the
+ * trailing action seat and styles.ts floats that seat to the front — a
+ * mounted-in-every-state row prefix rather than a 16px seat that status dots
+ * displace. Rows without a managed task render nothing.
  */
 function WorktreeStatusBadgeEntry({ sessionId, seat }: RowSeatProps) {
   const t = useClientTranslator()
@@ -479,8 +485,8 @@ function WorktreeStatusBadgeEntry({ sessionId, seat }: RowSeatProps) {
       .find(candidate => candidate.ownerSessionId === sessionId)), [topology, sessionId, t])
   if (!task) return null
   // Both seats render the upstream identity mark: branch glyph + state chip.
-  // The seat's fixed 16px width is relaxed for our decoration in styles.ts, so
-  // the row-leading seat shows the same pill the takeover path renders inline.
+  // The hover card has room for the pill; the row prefix relies on the seat's
+  // own flex parent, which styles.ts reorders to the front of the row.
   return <WorktreeIdentity
     state={task.state}
     stateLabel={task.stateLabel}
@@ -523,11 +529,11 @@ export function registerDecoratedWorkspaceSidebar(
   refresh()
   window.addEventListener(WORKTREE_REVIEW_REFRESH_EVENT, refresh)
   // The Host declares its row seats from the `sidebar.workspaces` entry:
-  // `sidebar.session.row.leading` (16px, idle rows only) and
-  // `sidebar.session.row.hover` (the hover popover body). A trailing seat does
-  // not exist in DSH 0.2.x — injecting it waits forever for a declaration that
-  // never comes, so the callback would never run and the badge never mounts.
-  // Register into every real seat instead.
+  // `sidebar.session.row.hover` (the hover popover body) and
+  // `sidebar.workspaces.session.row.action` (the trailing action span). A
+  // `sidebar.session.row.trailing` seat does not exist in DSH 0.2.x — injecting
+  // it waits forever for a declaration that never comes, so the callback would
+  // never run and the badge never mounts. Register into every real seat instead.
   for (const seat of ROW_SEATS) {
     slots.inject(seat, () => slots.register(
       { name: seat, id: 'dsh-git-worktree-status', order: 500 },

@@ -35,6 +35,15 @@ interface LiveSessionLike {
   readonly header?: { readonly cwd?: unknown }
 }
 
+/**
+ * Minimal structural view of the host `workingDirectory` service
+ * (`@deepseek-ai/dsh-working-directory`). Only the synchronous read is used
+ * here; moving a Session stays the job of `adapters/working-directory.ts`.
+ */
+interface WorkingDirectoryLike {
+  get(session: unknown): unknown
+}
+
 interface SessionStoreLike {
   get(sessionId: string): LiveSessionLike | undefined
   list?(): readonly { id?: unknown; header?: { readonly id?: unknown; readonly createdAt?: unknown; readonly cwd?: unknown } }[]
@@ -51,6 +60,12 @@ function isSessionStoreLike(value: unknown): value is SessionStoreLike {
   return Boolean(value)
     && typeof value === 'object'
     && typeof (value as SessionStoreLike).get === 'function'
+}
+
+function isWorkingDirectoryLike(value: unknown): value is WorkingDirectoryLike {
+  return Boolean(value)
+    && typeof value === 'object'
+    && typeof (value as WorkingDirectoryLike).get === 'function'
 }
 
 function sameResolvedPath(left: string, right: string): boolean {
@@ -71,16 +86,36 @@ export function createDshLookupPort(ctx: Context): SessionCheckoutLookupPort {
     const candidate: unknown = ctx.get('sessions')
     return isSessionStoreLike(candidate) ? candidate : undefined
   }
+  const workingDirectory = (): WorkingDirectoryLike | undefined => {
+    const candidate: unknown = ctx.get('workingDirectory')
+    return isWorkingDirectoryLike(candidate) ? candidate : undefined
+  }
   /**
-   * The live header's cwd, read through one narrow helper. Three call sites
-   * need it (listLiveSessions, the getSession recovery branch, and
-   * getSessionCwd) and each used to repeat the same
-   * `sessions()?.get(id)?.header?.cwd` shape, which invites the guards to drift
-   * apart. Non-string and absent values collapse to `undefined` here.
+   * The header cwd frozen at Session creation, read through one narrow helper.
+   * It answers navigation identity (`listLiveSessions`, the `getSession`
+   * recovery branch) and is the fallback when the host has no
+   * `workingDirectory` service. Non-string and absent values collapse to
+   * `undefined` here.
    */
   const liveHeaderCwd = (sessionId: string): string | undefined => {
     const liveCwd = sessions()?.get(sessionId)?.header?.cwd
     return typeof liveCwd === 'string' ? liveCwd : undefined
+  }
+  /**
+   * The Session's LIVE working directory, read from the host projection this
+   * plugin itself uses to move a Session into a checkout. `header.cwd` cannot
+   * answer this: the Harness freezes it at creation and a Session that was
+   * moved afterwards (`workingDirectory.set`) still carries the Local root
+   * there, which made the branch capsule report `project_mismatch` for every
+   * Managed Worktree opened inside an existing Session.
+   */
+  const liveWorkingDirectory = (sessionId: string): string | undefined => {
+    const session = sessions()?.get(sessionId)
+    if (session === undefined) return undefined
+    const service = workingDirectory()
+    if (service === undefined) return undefined
+    const current: unknown = service.get(session)
+    return typeof current === 'string' ? current : undefined
   }
 
   return {
@@ -150,10 +185,12 @@ export function createDshLookupPort(ctx: Context): SessionCheckoutLookupPort {
         : undefined
     },
     getSessionCwd: (sessionId): string | undefined => {
-      // The live header's cwd is the Session's REAL working directory: for a
-      // managed owner Session that is its immutable worktree root, not the
-      // Workspace's Local path.
-      return liveHeaderCwd(sessionId)
+      // Authorization evidence must be the directory the Session is standing in
+      // RIGHT NOW: a Managed Worktree opened inside an existing Session moves it
+      // with `workingDirectory.set`, which never touches the frozen header. The
+      // header only answers for hosts without the service (and for a freshly
+      // created target, whose header already IS its worktree root).
+      return liveWorkingDirectory(sessionId) ?? liveHeaderCwd(sessionId)
     },
     getProject: (projectId): SessionCheckoutProjectRecord | undefined => {
       const workspace = registry()?.get(projectId)
@@ -161,5 +198,11 @@ export function createDshLookupPort(ctx: Context): SessionCheckoutLookupPort {
         ? { id: workspace.id, name: workspace.title, root: workspace.path }
         : undefined
     },
+    listProjects: (): SessionCheckoutProjectRecord[] =>
+      (registry()?.list() ?? []).map(workspace => ({
+        id: workspace.id,
+        name: workspace.title,
+        root: workspace.path,
+      })),
   }
 }
