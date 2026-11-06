@@ -6,7 +6,7 @@ description: 本模块是 session-checkout 域的 Git 执行引擎层：它回�
 # 会话检出交付引擎（session_checkout_apply_engine）
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`bccd87a6`](https://github.com/wloops/dsh-git-worktree/commit/bccd87a6d5270c62ed752e21426f9b3062418333) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`55374a27`](https://github.com/wloops/dsh-git-worktree/commit/55374a27f4099ec8dcd0d6163f5544d60b4f3874) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 ## 模块定位
 
@@ -177,49 +177,49 @@ Preview 是「先在用户 Local 工作区里看得见任务改动，但暂不�
 > 说明：本模块两个文件规模较小且内聚，未拆分出独立子页面；以上索引即为组件级文档。模块的完整行为叙述见本页前文。
 
 ??? abstract "Documented components (45)"
-    - [`BranchRaceFacts`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cconcurrent-session-guard.ts) — `src\concurrent-session-guard.ts`
-    - [`BranchRaceInput`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cconcurrent-session-guard.ts) — `src\concurrent-session-guard.ts`
-    - [`GuardSessionInfo`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cconcurrent-session-guard.ts) — `src\concurrent-session-guard.ts`
-    - [`ApplyConflictPlanResult`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`ApplyErrorResult`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`ApplyPlan`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`ApplyPlanErrorResult`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`ApplyPlanInput`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`ApplyReadyPlanResult`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`ApplyScope`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`ApplySuccessResult`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`CheckoutSnapshot`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`CheckpointInput`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`CheckpointRecoverySuccessResult`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`CheckpointSuccessResult`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`CommitIsolatedInput`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`CommitIsolatedSuccess`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`CommitIsolationApplyError`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`DefaultSessionCheckoutApplyEngine`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`EffectiveApplyBase`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`FinishSuccessResult`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`GitApplyError`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`GitCommandFailure`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`GitResult`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`InvalidInputApplyError`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`InvalidPlanApplyError`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`MergeConflictResult`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`MergeReadyResult`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`OperationNotAllowedApplyError`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`PreviewModifiedApplyError`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`PreviewReceipt`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`PreviewRecoveryAssessment`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`PreviewRecoveryBlockedAction`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`PreviewRecoverySafeFinalize`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`PreviewRecoverySafeRollback`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`PreviewSuccessResult`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`ReviewIsolatedInput`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`ReviewSnapshotResult`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`RollbackSuccessResult`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`SessionCheckoutApplyEngine`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`SessionCheckoutApplyEngineOptions`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`StaleIsolatedApplyError`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`StaleLocalApplyError`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`StoredPlan`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
-    - [`TreeMergeReadyResult`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`BranchRaceFacts`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Cconcurrent-session-guard.ts) — `src\concurrent-session-guard.ts`
+    - [`BranchRaceInput`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Cconcurrent-session-guard.ts) — `src\concurrent-session-guard.ts`
+    - [`GuardSessionInfo`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Cconcurrent-session-guard.ts) — `src\concurrent-session-guard.ts`
+    - [`ApplyConflictPlanResult`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`ApplyErrorResult`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`ApplyPlan`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`ApplyPlanErrorResult`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`ApplyPlanInput`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`ApplyReadyPlanResult`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`ApplyScope`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`ApplySuccessResult`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`CheckoutSnapshot`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`CheckpointInput`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`CheckpointRecoverySuccessResult`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`CheckpointSuccessResult`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`CommitIsolatedInput`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`CommitIsolatedSuccess`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`CommitIsolationApplyError`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`DefaultSessionCheckoutApplyEngine`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`EffectiveApplyBase`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`FinishSuccessResult`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`GitApplyError`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`GitCommandFailure`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`GitResult`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`InvalidInputApplyError`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`InvalidPlanApplyError`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`MergeConflictResult`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`MergeReadyResult`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`OperationNotAllowedApplyError`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`PreviewModifiedApplyError`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`PreviewReceipt`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`PreviewRecoveryAssessment`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`PreviewRecoveryBlockedAction`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`PreviewRecoverySafeFinalize`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`PreviewRecoverySafeRollback`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`PreviewSuccessResult`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`ReviewIsolatedInput`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`ReviewSnapshotResult`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`RollbackSuccessResult`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`SessionCheckoutApplyEngine`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`SessionCheckoutApplyEngineOptions`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`StaleIsolatedApplyError`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`StaleLocalApplyError`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`StoredPlan`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
+    - [`TreeMergeReadyResult`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-apply.ts) — `src\session-checkout-apply.ts`
 

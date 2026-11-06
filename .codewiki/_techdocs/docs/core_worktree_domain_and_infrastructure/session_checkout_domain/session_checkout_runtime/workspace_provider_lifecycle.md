@@ -6,7 +6,7 @@ description: 本模块是会话结账运行时（session checkout runtime）的�
 # 工作区提供者生命周期与会话目标上下文
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`bccd87a6`](https://github.com/wloops/dsh-git-worktree/commit/bccd87a6d5270c62ed752e21426f9b3062418333) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`55374a27`](https://github.com/wloops/dsh-git-worktree/commit/55374a27f4099ec8dcd0d6163f5544d60b4f3874) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 ## 简介
 
@@ -212,7 +212,7 @@ flowchart TB
         A1["① mountWorkspaceProviderLifecycle<br/>选举先行"]
         A2["② 建 adapters / registry / module"]
         A3["③ WorktreeConsoleService<br/>注入 officialWorkspaceActive"]
-        A4["④ mountWorktreesService<br/>ctx.provide('worktrees')"]
+        A4["④ mountWorktreesService + mountWorktreesInIsolatedScopes<br/>ctx.provide('worktrees')（随官方接管开关）"]
         A5["⑤ registerTools / registerWorktreeCommand"]
         A6["⑥ registerSessionTargetContext"]
     end
@@ -254,8 +254,8 @@ flowchart TB
 | 守卫轮询间隔 | `45_000` ms | 后台刷新分支竞争守卫缓存的周期。 |
 
 ??? abstract "Documented components (4)"
-    - [`ContextAgent`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-target-context.ts) — `src\session-target-context.ts`
-    - [`Context`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cworkspace-provider-lifecycle.ts) — `src\workspace-provider-lifecycle.ts`
-    - [`WorkspaceProviderLifecycleOptions`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cworkspace-provider-lifecycle.ts) — `src\workspace-provider-lifecycle.ts`
-    - [`WorkspaceProviderLifecycleResult`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cworkspace-provider-lifecycle.ts) — `src\workspace-provider-lifecycle.ts`
+    - [`ContextAgent`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-target-context.ts) — `src\session-target-context.ts`
+    - [`Context`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Cworkspace-provider-lifecycle.ts) — `src\workspace-provider-lifecycle.ts`
+    - [`WorkspaceProviderLifecycleOptions`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Cworkspace-provider-lifecycle.ts) — `src\workspace-provider-lifecycle.ts`
+    - [`WorkspaceProviderLifecycleResult`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Cworkspace-provider-lifecycle.ts) — `src\workspace-provider-lifecycle.ts`
 

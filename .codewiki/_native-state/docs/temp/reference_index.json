@@ -1177,8 +1177,10 @@
       "json",
       "lifecycle",
       "liveConfigValue",
+      "mountOfficialWorktreeTakeover",
       "mountProjectSkillProvider",
       "mountWorkspaceProviderLifecycle",
+      "mountWorktreesInIsolatedScopes",
       "mountWorktreesService",
       "publish",
       "registerSessionTargetContext",
@@ -1189,7 +1191,8 @@
       "test",
       "typecheck",
       "validateGitTimeouts",
-      "volatile"
+      "volatile",
+      "worktreesRealmOf"
     ]
   },
   "src_session-checkout-module.ts": {
@@ -1236,6 +1239,7 @@
       "isTransientCleanupError",
       "json",
       "liveConfigValue",
+      "mountWorktreesInIsolatedScopes",
       "mountWorktreesService",
       "pathForIdentity",
       "pathIsWithin",

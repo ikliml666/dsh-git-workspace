@@ -6,7 +6,7 @@ description: 本页文档化 dsh-git-worktree 插件的 Remote 协议层：把 W
 # Worktree Console Remote 协议层（`src/console-remote/`）
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`bccd87a6`](https://github.com/wloops/dsh-git-worktree/commit/bccd87a6d5270c62ed752e21426f9b3062418333) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`55374a27`](https://github.com/wloops/dsh-git-worktree/commit/55374a27f4099ec8dcd0d6163f5544d60b4f3874) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 本页文档化 `dsh-git-worktree` 插件的 **Remote 协议层**：把 [Worktree Console 共享契约](worktree_console_contract.md) 中定义的 DTO 与 `WorktreeConsoleOutcome` 翻译为**可上线传输的严格（strict）Zod schema + Typert 调用描述符**，并为其两端（Node 宿主与浏览器 Client）提供同一份、类型一致的调用面。
 
@@ -473,9 +473,9 @@ flowchart TD
 延伸阅读：契约本体见 [Worktree Console 共享契约](worktree_console_contract.md)；Host 如何计算这些 outcome 见 [Worktree Console 宿主服务](worktree_console_host.md)；Client 如何消费这套类型面见 [Client 侧控制台 Remote 适配器](../worktree_client_interface_layer/client_console_remote.md)；被调用的领域状态机见 [Session Checkout 领域层](../core_worktree_domain_and_infrastructure/session_checkout_domain.md)；构建与发布链路见 [构建、CI 与打包](../project_foundation_and_localization/build_ci_and_packaging.md)。上层总览见 [Worktree Console 协议与宿主服务](../worktree_console_protocol_and_host_service.md)。
 
 ??? abstract "Documented components (5)"
-    - [`descriptor`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cconsole-remote%5Cdescriptors.ts) — `src\console-remote\descriptors.ts`
-    - [`TypertRemoteMap`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cconsole-remote%5Cremote.ts) — `src\console-remote\remote.ts`
-    - [`TypertRemoteNamespaceMap`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cconsole-remote%5Cremote.ts) — `src\console-remote\remote.ts`
-    - [`outcomeSchema`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cconsole-remote%5Cschemas.ts) — `src\console-remote\schemas.ts`
-    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cconsole-remote%5Ctypert.ts) — `src\console-remote\typert.ts`
+    - [`descriptor`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Cconsole-remote%5Cdescriptors.ts) — `src\console-remote\descriptors.ts`
+    - [`TypertRemoteMap`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Cconsole-remote%5Cremote.ts) — `src\console-remote\remote.ts`
+    - [`TypertRemoteNamespaceMap`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Cconsole-remote%5Cremote.ts) — `src\console-remote\remote.ts`
+    - [`outcomeSchema`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Cconsole-remote%5Cschemas.ts) — `src\console-remote\schemas.ts`
+    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Cconsole-remote%5Ctypert.ts) — `src\console-remote\typert.ts`
 

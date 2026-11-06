@@ -6,7 +6,7 @@ description: 本文件是 dsh-git-worktree 插件的核心状态机：createSess
 # `src/session-checkout-module.ts` —— 会话检出状态机工厂
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`bccd87a6`](https://github.com/wloops/dsh-git-worktree/commit/bccd87a6d5270c62ed752e21426f9b3062418333) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`55374a27`](https://github.com/wloops/dsh-git-worktree/commit/55374a27f4099ec8dcd0d6163f5544d60b4f3874) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 本文件是 `dsh-git-worktree` 插件的**核心状态机**：`createSessionCheckoutModule(dependencies)` 用一个纯函数式工厂闭包，实例化出宿主可见的唯一业务对象 `SessionCheckoutModule`。它把从 Domi 移植来的 session-checkout 域（receipt-first 的 Local Preview、回滚/定稿、项目验收槽、崩溃恢复、指纹 CAS）适配到 Harness 的「源 Local 会话 + 目标 owner 会话」双会话模型上，并叠加了大量本地适配（会话分支交付、自动推送、keep-count LRU、分支竞态守卫等）。
 
@@ -59,7 +59,7 @@ flowchart TD
     IDX --> WTSVC
 ```
 
-工厂产出的单例被 `apply()` 同时交给工具层、命令层、上下文层、验收台控制面与宿主 Worktrees 服务（见 `src/index.ts` 中的 `registerTools(ctx, module)`、`registerWorktreeCommand(ctx, module)`、`registerSessionTargetContext(ctx, module)`、`createWorktreeConsoleControlPlane({ module, ... })`、`mountWorktreesService(ctx, module)`）。相关下游文档：[Worktree 核心操作](../../../worktree_core_operations.md)、[验收台宿主服务](../../../../worktree_console_protocol_and_host_service/worktree_console_host.md)、[客户端界面层](../../../../worktree_client_interface_layer.md)。
+工厂产出的单例被 `apply()` 同时交给工具层、命令层、上下文层、验收台控制面与宿主 Worktrees 服务（见 `src/index.ts` 中的 `registerTools(ctx, module)`、`registerWorktreeCommand(ctx, module)`、`registerSessionTargetContext(ctx, module)`、`createWorktreeConsoleControlPlane({ module, ... })`、`mountWorktreesService(ctx, module)` 与 `mountWorktreesInIsolatedScopes(ctx, module)`——后两者仅在官方 Worktree 工具接管开启时才调用）。相关下游文档：[Worktree 核心操作](../../../worktree_core_operations.md)、[验收台宿主服务](../../../../worktree_console_protocol_and_host_service/worktree_console_host.md)、[客户端界面层](../../../../worktree_client_interface_layer.md)。
 
 ---
 
@@ -450,5 +450,5 @@ flowchart TD
 - [验收台宿主服务与控制面](../../../../worktree_console_protocol_and_host_service/worktree_console_host.md)
 
 ??? abstract "Documented components (1)"
-    - [`ResolvedSessionProject`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-module.ts) — `src\session-checkout-module.ts`
+    - [`ResolvedSessionProject`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Csession-checkout-module.ts) — `src\session-checkout-module.ts`
 

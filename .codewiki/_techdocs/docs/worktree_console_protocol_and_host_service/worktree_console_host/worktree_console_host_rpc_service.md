@@ -6,7 +6,7 @@ description: 本页文档化 dsh-git-worktree 插件中 Worktree Console 的传�
 # Worktree Console RPC 服务面（`src/console-host/service.ts`）
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`bccd87a6`](https://github.com/wloops/dsh-git-worktree/commit/bccd87a6d5270c62ed752e21426f9b3062418333) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`55374a27`](https://github.com/wloops/dsh-git-worktree/commit/55374a27f4099ec8dcd0d6163f5544d60b4f3874) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 本页文档化 `dsh-git-worktree` 插件中 **Worktree Console 的传输暴露层**：单个类 `WorktreeConsoleService`。它是宿主进程里唯一被浏览器直接调到的对象——一个继承自 `TypertRemoteService` 的官方 Remote 服务，命名空间固定为 `gitWorktree`，把控制面（`WorktreeConsoleControlPlane`）的 38 个方法逐一映射成 `@Remote` 端点，并额外承担三类不属于业务逻辑的横切职责：**调用语言作用域**、**诊断面包屑**与**宿主代际/选举结果回填**。
 
@@ -427,5 +427,5 @@ grep '"kind":"current"' <stateDir>/sidebar-diag.ndjson | jq -R 'fromjson | selec
 6. **39 这个数字是契约**：方法清单与顺序被发布门禁逐字节锁定。新增端点必须同时改 `service.ts`、`descriptors.ts`、`remote.ts`、`check-publish.mjs` 四处，缺一处 `pnpm run check:publish` 就红。
 
 ??? abstract "Documented components (1)"
-    - [`WorktreeConsoleService`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cconsole-host%5Cservice.ts) — `src\console-host\service.ts`
+    - [`WorktreeConsoleService`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Cconsole-host%5Cservice.ts) — `src\console-host\service.ts`
 

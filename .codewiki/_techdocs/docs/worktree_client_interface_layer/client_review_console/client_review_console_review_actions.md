@@ -6,7 +6,7 @@ description: src/client/review-console/ReviewActions.tsx 是验收控制台中�
 # client_review_console_review_actions：`ReviewActions` 交付动作编排器
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`bccd87a6`](https://github.com/wloops/dsh-git-worktree/commit/bccd87a6d5270c62ed752e21426f9b3062418333) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`55374a27`](https://github.com/wloops/dsh-git-worktree/commit/55374a27f4099ec8dcd0d6163f5544d60b4f3874) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 `src/client/review-console/ReviewActions.tsx` 是验收控制台中**唯一的写操作编排者**。它把一次「待验收迭代」的所有交付动作（预览、回滚、暂存、继续编辑、确认保存、直接保存、放弃、重试清理、冲突恢复、评审重生成、分离态分析与交接）收敛成一个 React 组件，将每次点击转换为携带 **CAS 身份四元组**（`sessionId` + `checkoutId` + `expectedRevision` + `expectedReviewId`）的 Remote 调用，并对 Host 返回值做**逐项一致性比对**后才接受它。
 
@@ -450,5 +450,5 @@ flowchart TD
 - 测试：`vitest.config.ts` 将 `@deepseek-ai/dsh-client-ui-primitives` 别名指向 `tests/support/ui-primitives.tsx`，使三个 `Modal` 在无宿主环境下可渲染；`pnpm test`（`vitest run`）与 `.github/workflows/ci.yml` 的 `check` 作业共同守护本文件的回归。
 
 ??? abstract "Documented components (1)"
-    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cclient%5Creview-console%5CReviewActions.tsx) — `src\client\review-console\ReviewActions.tsx`
+    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Cclient%5Creview-console%5CReviewActions.tsx) — `src\client\review-console\ReviewActions.tsx`
 

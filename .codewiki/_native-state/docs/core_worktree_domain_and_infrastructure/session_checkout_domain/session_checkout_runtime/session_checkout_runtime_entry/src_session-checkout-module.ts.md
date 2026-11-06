@@ -51,7 +51,7 @@ flowchart TD
     IDX --> WTSVC
 ```
 
-工厂产出的单例被 `apply()` 同时交给工具层、命令层、上下文层、验收台控制面与宿主 Worktrees 服务（见 `src/index.ts` 中的 `registerTools(ctx, module)`、`registerWorktreeCommand(ctx, module)`、`registerSessionTargetContext(ctx, module)`、`createWorktreeConsoleControlPlane({ module, ... })`、`mountWorktreesService(ctx, module)`）。相关下游文档：[Worktree 核心操作](../../../worktree_core_operations.md)、[验收台宿主服务](../../../../worktree_console_protocol_and_host_service/worktree_console_host.md)、[客户端界面层](../../../../worktree_client_interface_layer.md)。
+工厂产出的单例被 `apply()` 同时交给工具层、命令层、上下文层、验收台控制面与宿主 Worktrees 服务（见 `src/index.ts` 中的 `registerTools(ctx, module)`、`registerWorktreeCommand(ctx, module)`、`registerSessionTargetContext(ctx, module)`、`createWorktreeConsoleControlPlane({ module, ... })`、`mountWorktreesService(ctx, module)` 与 `mountWorktreesInIsolatedScopes(ctx, module)`——后两者仅在官方 Worktree 工具接管开启时才调用）。相关下游文档：[Worktree 核心操作](../../../worktree_core_operations.md)、[验收台宿主服务](../../../../worktree_console_protocol_and_host_service/worktree_console_host.md)、[客户端界面层](../../../../worktree_client_interface_layer.md)。
 
 ---
 

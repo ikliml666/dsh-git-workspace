@@ -204,7 +204,7 @@ flowchart TB
         A1["① mountWorkspaceProviderLifecycle<br/>选举先行"]
         A2["② 建 adapters / registry / module"]
         A3["③ WorktreeConsoleService<br/>注入 officialWorkspaceActive"]
-        A4["④ mountWorktreesService<br/>ctx.provide('worktrees')"]
+        A4["④ mountWorktreesService + mountWorktreesInIsolatedScopes<br/>ctx.provide('worktrees')（随官方接管开关）"]
         A5["⑤ registerTools / registerWorktreeCommand"]
         A6["⑥ registerSessionTargetContext"]
     end

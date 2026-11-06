@@ -6,7 +6,7 @@ description: src/index.ts 是整个 dsh-git-worktree 插件的入口模块（com
 # `src/index.ts` —— dsh-git-worktree 插件入口与装配根
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`bccd87a6`](https://github.com/wloops/dsh-git-worktree/commit/bccd87a6d5270c62ed752e21426f9b3062418333) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`55374a27`](https://github.com/wloops/dsh-git-worktree/commit/55374a27f4099ec8dcd0d6163f5544d60b4f3874) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 `src/index.ts` 是整个 **dsh-git-worktree** 插件的**入口模块（composition root / plugin face）**。
 session-checkout 领域本身（状态机、apply 引擎、端口契约）是从 Domi 移植而来、与宿主无关的纯逻辑；
@@ -17,7 +17,7 @@ session-checkout 领域本身（状态机、apply 引擎、端口契约）是从
 3. 用这些适配器实例化 session-checkout 状态机与 apply 引擎；
 4. 注册模型可安全调用的 worktree 工具、人类 `/worktree` 验收命令、Session Target 动态运行时上下文；
 5. 装配 Console 宿主服务（Typert Remote RPC 面）；
-6. 经 `ctx.provide('worktrees')` 挂载 `WorktreesService`（`src/worktrees-service.ts`），让官方 forge 面板为新 Session 创建的 Worktree 落入本插件台账、挂 Session 分支并始终可交付；
+6. （随官方 Worktree 工具接管一同开关）经 `ctx.provide('worktrees')` 在宿主根挂载 `WorktreesService`（`src/worktrees-service.ts`），并经 `mountWorktreesInIsolatedScopes` 把同一服务动态发布到官方 forge 面板所在的各隔离 `worktrees` realm，让该面板为新 Session 创建的 Worktree 落入本插件台账、挂 Session 分支并始终可交付；
 7. 挂载官方 Worktree 工具接管（默认开启，可用 `enableOfficialWorktreeTakeover: false` 关闭），并在启动收敛之后把官方工具此前建好、但不在台账内的工作树纳管登记；
 8. 拉起启动收敛（reconcile）与三类后台维护定时器，并在 fiber 卸载时清理。
 
@@ -68,7 +68,7 @@ flowchart TB
         CMD["registerWorktreeCommand（/worktree）"]
         CTXREG["registerSessionTargetContext（运行时上下文）"]
         CONSOLE["WorktreeConsoleService（Typert RPC）"]
-        WT_SVC["mountWorktreesService（ctx.provide('worktrees')）"]
+        WT_SVC["mountWorktreesService + mountWorktreesInIsolatedScopes（ctx.provide('worktrees')，随接管开关）"]
     end
 
     LOADER --> INJ
@@ -188,9 +188,9 @@ flowchart LR
 | `branchRaceGuard` | boolean | `true` | 是 | 并发分支竞态守卫：其他活跃 Session 共享 Local 且窗口内出现新本地分支时，指示后启动的 Session 先 `worktree_create` 隔离 |
 | `branchRaceWindowMs` | 60s … 24h | 30min | 是 | 上述守卫的检测窗口 |
 | `enableWorkspaceProvider` | boolean | `false` | 否 | 接管官方 Workspace UI（`ui-workspace`）。仅显式 `true` 才接管：禁用官方条目会把其 client 包从 Host 客户端图移除 |
-| `enableOfficialWorktreeTakeover` | boolean | 未设（即开启） | 是 | 接管官方实验性 Worktree 工具（`create_worktree`）并注册按工具名拦截的 `ctx.tools.guard`，使本插件的 `worktree_create` 成为会话 worktree 创建的唯一入口；显式设为 `false` 才关闭。关闭时既不禁用官方条目，也不纳管其已建工作树 |
+| `enableOfficialWorktreeTakeover` | boolean | 未设（即开启） | 是 | 接管官方实验性 Worktree 工具（`create_worktree`）并注册按工具名拦截的 `ctx.tools.guard`，使本插件的 `worktree_create` 成为会话 worktree 创建的唯一入口；显式设为 `false` 才关闭。关闭时既不禁用官方条目、也不纳管其已建工作树，且本插件不再发布自己的 `worktrees` 服务键——官方条目保持挂载并自行提供该键，插件绝不在其上叠第二套 provider |
 
-`LocalAdaptationConfig` 是 `apply()` 形参用到的**本地适配视图类型**（未导出）：除 `enableWorkspaceProvider` 外，每个字段都写成 `boolean | LiveValue<boolean | undefined>` 之类的联合类型，因此同一处代码既能接受普通配置也能接受活引用，统一由 `liveConfigValue` 解包。`enableOfficialWorktreeTakeover` 也在其中——`liveConfigValue(config.enableOfficialWorktreeTakeover) !== false` 才挂载接管，即未设（`undefined`）时默认开启，只有显式 `false` 才关闭。
+`LocalAdaptationConfig` 是 `apply()` 形参用到的**本地适配视图类型**（未导出）：除 `enableWorkspaceProvider` 外，每个字段都写成 `boolean | LiveValue<boolean | undefined>` 之类的联合类型，因此同一处代码既能接受普通配置也能接受活引用，统一由 `liveConfigValue` 解包。`enableOfficialWorktreeTakeover` 也在其中——`liveConfigValue(config.enableOfficialWorktreeTakeover) === false` 时 `takeover` 取 `undefined`、否则才 `await mountOfficialWorktreeTakeover(ctx)`，即未设（`undefined`）时默认开启，只有显式 `false` 才关闭。接管是 `undefined` 还是一个挂载结果，同时决定了本插件是否发布自己的 `worktrees` 服务键（见 §4.1 第 6 条）。
 
 ---
 
@@ -229,8 +229,8 @@ sequenceDiagram
     E->>E: validateGitTimeouts(config)
     E->>W: 选举唯一 uiWorkspace 提供者（enabled = enableWorkspaceProvider === true）
     W-->>E: { officialWorkspaceActive }
-    E->>T: liveConfigValue(enableOfficialWorktreeTakeover) !== false 时挂载接管<br/>（禁用官方 create_worktree 条目 + 注册按工具名守卫）
-    T-->>E: { disabled: [...已接管条目], overridden }（disabled 非空时 console.info）
+    E->>T: liveConfigValue(enableOfficialWorktreeTakeover) === false ? 跳过：否则挂载接管<br/>（禁用官方 create_worktree 条目 + 注册按工具名守卫）
+    T-->>E: takeover: { disabled: [...已接管条目], overridden } 或 undefined（仅 takeover 非 undefined 且 disabled 非空时 console.info）
     E->>FS: mkdirSync(stateDir), mkdirSync(stateDir/disabled-git-hooks)
     E->>E: worktreesRoot 包装成活引用 { get: () => resolveWorktreesRootValue(raw) }
     E->>A: createDshLookupPort(ctx)
@@ -242,7 +242,7 @@ sequenceDiagram
     E->>M: SessionCheckoutDependencies（含 applyEngine: createSessionCheckoutApplyEngine）
     M-->>E: module: SessionCheckoutModule
     E->>C: new WorktreeConsoleService(ctx, controlPlane, sidebar-diag.ndjson, officialWorkspaceActive)
-    E->>E: mountWorktreesService(ctx, module)<br/>ctx.provide('worktrees')：整个宿主唯一的 WorktreesService 实现
+    E->>E: 仅 takeover !== undefined 时：mountWorktreesService(ctx, module)<br/>ctx.provide('worktrees')：宿主根上唯一的 WorktreesService 实现#59;另把同一服务经 mountWorktreesInIsolatedScopes 动态发布到各隔离 worktrees realm#59;ctx.effect 卸载时先释放 isolated、再释放宿主根
     E->>R: registerTools / registerWorktreeCommand / registerSessionTargetContext
     E->>E: 订阅 ctx.events.on('ready') → reconcile → adoptOfficialWorktrees → enforceWorktreeKeepCount
     E->>E: setInterval 保留期清理（15min）、setTimeout+setInterval 自动剪枝（60s / 24h）
@@ -257,7 +257,7 @@ sequenceDiagram
 3. **目录先于适配器**：`stateDir` 与 `disabled-git-hooks` 必须先存在，git 端口才能以 `core.hooksPath` 指向空目录（受管 Worktree 永不跑用户 hooks）。
 4. **registry 先于 skill provider**：`mountProjectSkillProvider(ctx, registry)` 需要注册表来判定"哪个 cwd 落在某个 `phase === 'ready'` 的托管根内"，从而只对该根追加项目 Skill 源。
 5. **module 是所有能力面的唯一上游**：工具、命令、上下文、Console 控制面都只依赖 `SessionCheckoutModule` 接口，不直接触碰适配器，保证权限与作用域判定集中在状态机内。
-6. **`worktrees` 服务键由本插件独占**：官方 forge 面板经 `ctx.get('worktrees')` 为新 Session 创建 Worktree；`mountWorktreesService(ctx, module)` 在 Console 服务之后、能力面注册之前用 `ctx.provide(WORKTREES_SERVICE, service)` 提供该键，使这些检出落入本插件台账、获得 Session 分支并保持可交付——而不是在插件旁边再挂载一套实验性服务、产生第二份不受追踪的目录布局。其 `create` 直接走 `module.createIsolatedTarget(sessionId, sessionId, createOptions)`（官方 `from` 映射为基点分支、`name` 只喂 Session 分支的可读 topic）；`restore` 有意不支持：已交付的 Worktree 被清理后没有目录可放回，续作应走 `beginNextIteration`。
+6. **`worktrees` 服务键由本插件独占（且随接管一同开关）**：官方 forge 面板经 `ctx.get('worktrees')` 为新 Session 创建 Worktree；`mountWorktreesService(ctx, module)` 在 Console 服务之后、能力面注册之前用 `ctx.provide(WORKTREES_SERVICE, service)` 在宿主根提供该键，使这些检出落入本插件台账、获得 Session 分支并保持可交付——而不是在插件旁边再挂载一套实验性服务、产生第二份不受追踪的目录布局。**这套挂载整体被 `takeover !== undefined` 门控**：接管开启（默认）才发布自己的 `worktrees` 键；接管显式关闭时官方条目保持挂载、自行提供该键，本插件绝不在其上叠第二套 provider。官方 forge 面板住在隔离的 `worktrees` realm 里，因此与宿主根 provider 并列挂载 `mountWorktreesInIsolatedScopes(ctx, module)`：它遍历 `ctx.loader.entries()`、用 `worktreesRealmOf(entry)` 找出每个持有 `worktrees` realm 的条目，把**同一个** `createWorktreesService(module)` 实例经 `ctx.isolate(WORKTREES_SERVICE, key).provide(...)` 发布进对应隔离作用域，并在 `internal/plugin`（新条目出现）与 `internal/status`（本 fiber 激活完成、entry ctx 表终局）两个事件上 reconcile——条目消失时撤回对应 realm 的 provider，发布失败只 `ctx.logger.warn` 不阻断激活。`mountWorktreesService` 保留可选的第三形参 `scope?: symbol`（省略时提供到 `ctx` 本身，给出时提供到 `ctx.isolate(WORKTREES_SERVICE, scope)`），但入口当前不经它走隔离发布。两套 provider 的释放被同一个 `ctx.effect` 串成异步序列：`await releaseIsolatedWorktrees()` 先执行、`await releaseWorktrees()` 随后执行，确保 fiber 卸载时先撤隔离 realm、再撤宿主根。其 `create` 直接走 `module.createIsolatedTarget(sessionId, sessionId, createOptions)`（官方 `from` 映射为基点分支、`name` 只喂 Session 分支的可读 topic）；`restore` 有意不支持：已交付的 Worktree 被清理后没有目录可放回，续作应走 `beginNextIteration`。
 
 ### 4.2 后台任务与生命周期
 
@@ -369,7 +369,7 @@ sequenceDiagram
 | 模型侧交付受开关约束 | `isAutoDeliverEnabled()` 实时读取 `autoDeliver` 活引用 | 用户关掉自主交付后模型仍能 `worktree_deliver` 落库 |
 | 自动删除分支只有一条路径 | `autoPruneSweep` 的 `=== true` 严格判等 + `git branch -d` 语义（绝不 `-D`） | 未合并的工作分支被静默删除 |
 | 客户端与 Host 的 Workspace 提供者唯一 | `mountWorkspaceProviderLifecycle` 的选举结果传入 `WorktreeConsoleService` | 两个 `uiWorkspace` 提供者并存或一个都没有，Web 启动崩溃 |
-| 宿主只有一套 Worktree 目录布局 | `mountWorktreesService(ctx, module)` 用 `ctx.provide(WORKTREES_SERVICE, ...)` 接管 `ctx.get('worktrees')` 键，官方 forge 面板创建的检出全部走本插件台账 | 实验性服务被并排挂载，产生第二份不受追踪的目录布局，其检出既不显示也不可交付 |
+| 宿主只有一套 Worktree 目录布局 | `mountWorktreesService(ctx, module)` 与 `mountWorktreesInIsolatedScopes(ctx, module)` 在接管开启时用 `ctx.provide(WORKTREES_SERVICE, ...)` 接管 `ctx.get('worktrees')` 键（含宿主根与各隔离 realm），官方 forge 面板创建的检出全部走本插件台账；接管关闭时本插件完全不发布该键，由官方条目自行提供 | 实验性服务被并排挂载，产生第二份不受追踪的目录布局，其检出既不显示也不可交付；或接管关闭时本插件仍叠发第二套 provider，与官方条目抢同一键 |
 
 ---
 
@@ -412,7 +412,7 @@ export const inject = { tools: {}, commands: {}, subprocess: {}, loader: { await
 | `registerTools`、`registerWorktreeCommand` | `src/tools.ts`、`src/commands.ts` | 模型工具面、人类命令面（二者内部再经 `adapters/working-directory.ts` 移动 Session cwd） | [Worktree 核心操作与纯函数工具层（worktree_core_operations）](../../../worktree_core_operations.md) |
 | `registerSessionTargetContext` | `src/session-target-context.ts` | 动态 system prompt 上下文 + 竞态守卫刷新定时器 | [工作区提供者生命周期与会话目标上下文](../workspace_provider_lifecycle.md) |
 | `createWorktreeConsoleControlPlane`、`createGitWorktreeReviewDiffReader`、`WorktreeConsoleService` | `src/console-host/*` | Host 侧 RPC 控制面与评审 diff 读取 | [Worktree Console 宿主服务（`src/console-host/`）](../../../../worktree_console_protocol_and_host_service/worktree_console_host.md) |
-| `mountWorktreesService`（内部含 `createWorktreesService`） | `src/worktrees-service.ts` | 用 `ctx.provide(WORKTREES_SERVICE, ...)` 提供宿主唯一的 `WorktreesService`：`create` 经 `module.createIsolatedTarget(sessionId, sessionId, createOptions)` 创建并返回 `path` / `branch` / `baseCommit` / `repositoryRoot`；`restore` 有意抛错（已交付 Worktree 已清理，续作走 `beginNextIteration`） | 本页 §4.1 第 6 条（无独立文档页） |
+| `mountWorktreesService`、`mountWorktreesInIsolatedScopes`（内部均含 `createWorktreesService`） | `src/worktrees-service.ts` | 用 `ctx.provide(WORKTREES_SERVICE, ...)` 提供宿主唯一的 `WorktreesService`：前者发布到宿主根，后者按 `worktreesRealmOf(entry)` 动态发布到官方 forge 面板的各隔离 `worktrees` realm（`internal/plugin` / `internal/status` 事件上 reconcile）；二者均随官方 Worktree 工具接管一同开关。`create` 经 `module.createIsolatedTarget(sessionId, sessionId, createOptions)` 创建并返回 `path` / `branch` / `baseCommit` / `repositoryRoot`；`restore` 有意抛错（已交付 Worktree 已清理，续作走 `beginNextIteration`） | 本页 §4.1 第 6 条（无独立文档页） |
 | `liveConfigValue`、`LiveValue`、`GitCheckoutSnapshot`、各类 continuation 类型 | `src/ports.ts` | 活引用解包与端口契约类型 | [会话检出领域契约（session_checkout_domain_contracts）](../../session_checkout_domain_contracts.md) |
 | 视图类型（`SessionTargetView`、`ManagedWorktreeSummaryView`、`WorktreeApplyPreflightView` 等） | `src/types.ts` | `SessionCheckoutModule` 的返回类型 | [会话检出领域契约（session_checkout_domain_contracts）](../../session_checkout_domain_contracts.md) |
 | `SessionCheckoutErrorCode`、`SESSION_CHECKOUT_ERROR_CODES` 家族 | `src/types.ts` | `SessionCheckoutError.code` 的取值域 | [会话检出领域契约（session_checkout_domain_contracts）](../../session_checkout_domain_contracts.md) |
@@ -434,7 +434,7 @@ flowchart LR
     M1 --> T2["/worktree 命令<br/>（commands.ts）"]
     M1 --> T3["system prompt 上下文<br/>git-worktree:session-target"]
     M1 --> T4["Console 控制面<br/>（control-plane.ts）"]
-    M1 --> T6["WorktreesService<br/>ctx.provide('worktrees')（worktrees-service.ts）"]
+    M1 --> T6["WorktreesService<br/>ctx.provide('worktrees')（worktrees-service.ts，随接管开关）"]
     P1 --> T4
     S1 --> T5["侧栏诊断 ndjson<br/>disabled-git-hooks<br/>managed-checkouts.json<br/>project-skills"]
 
@@ -456,14 +456,14 @@ flowchart LR
 6. **`SessionCheckoutError` 位置固定**：它定义在本文件而被 `adapters/` 与领域层导入；把它挪到 `types.ts` 会引入入口 → 类型 → 实现的循环依赖风险。
 
 ??? abstract "Documented components (10)"
-    - [`IsolatedTargetLaunch`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cindex.ts) — `src\index.ts`
-    - [`ListManagedWorktreesInput`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cindex.ts) — `src\index.ts`
-    - [`LocalAdaptationConfig`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cindex.ts) — `src\index.ts`
-    - [`ManageManagedWorktreeInput`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cindex.ts) — `src\index.ts`
-    - [`MarkReadyForReviewInput`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cindex.ts) — `src\index.ts`
-    - [`MergeBranchForSessionInput`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cindex.ts) — `src\index.ts`
-    - [`PruneMergedBranchesInput`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cindex.ts) — `src\index.ts`
-    - [`SessionCheckoutError`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cindex.ts) — `src\index.ts`
-    - [`SessionCheckoutModule`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cindex.ts) — `src\index.ts`
-    - [`SessionCheckoutReconcileSummary`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cindex.ts) — `src\index.ts`
+    - [`IsolatedTargetLaunch`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Cindex.ts) — `src\index.ts`
+    - [`ListManagedWorktreesInput`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Cindex.ts) — `src\index.ts`
+    - [`LocalAdaptationConfig`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Cindex.ts) — `src\index.ts`
+    - [`ManageManagedWorktreeInput`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Cindex.ts) — `src\index.ts`
+    - [`MarkReadyForReviewInput`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Cindex.ts) — `src\index.ts`
+    - [`MergeBranchForSessionInput`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Cindex.ts) — `src\index.ts`
+    - [`PruneMergedBranchesInput`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Cindex.ts) — `src\index.ts`
+    - [`SessionCheckoutError`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Cindex.ts) — `src\index.ts`
+    - [`SessionCheckoutModule`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Cindex.ts) — `src\index.ts`
+    - [`SessionCheckoutReconcileSummary`](https://github.com/wloops/dsh-git-worktree/blob/55374a27f4099ec8dcd0d6163f5544d60b4f3874/src%5Cindex.ts) — `src\index.ts`
 
