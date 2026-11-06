@@ -6,7 +6,7 @@ description: src/client/console-remote/ 是 浏览器端的装配入口（boot e
 # 客户端控制台 Remote 适配层（client_console_remote）
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`f93ba818`](https://github.com/wloops/dsh-git-worktree/commit/f93ba8188971886c09b4c40e12c746a23853c229) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`bccd87a6`](https://github.com/wloops/dsh-git-worktree/commit/bccd87a6d5270c62ed752e21426f9b3062418333) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 `src/client/console-remote/` 是 **浏览器端的装配入口（boot entry）与 Remote 传输适配层**。它做两件、也只有两件事：
 
@@ -380,7 +380,7 @@ flowchart LR
 6. **调整 `inject` 声明前务必确认死锁面。** 历史两次桌面崩溃都源于把 `remote.directoryPicker` / `remoteAccess` 静态声明进来（参见 `cordis.patch.yml` 顶部说明：接管选举已改由 Host 侧生命周期驱动，不再依赖 client 侧表达式求值）。
 
 ??? abstract "Documented components (3)"
-    - [`createWorktreeConsoleRemoteAdapter`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cclient%5Cconsole-remote%5Cadapter.ts) — `src\client\console-remote\adapter.ts`
-    - [`ConsoleClientContext`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cclient%5Cconsole-remote%5Cindex.ts) — `src\client\console-remote\index.ts`
-    - [`Context`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cclient%5Cconsole-remote%5Cindex.ts) — `src\client\console-remote\index.ts`
+    - [`createWorktreeConsoleRemoteAdapter`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cclient%5Cconsole-remote%5Cadapter.ts) — `src\client\console-remote\adapter.ts`
+    - [`ConsoleClientContext`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cclient%5Cconsole-remote%5Cindex.ts) — `src\client\console-remote\index.ts`
+    - [`Context`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cclient%5Cconsole-remote%5Cindex.ts) — `src\client\console-remote\index.ts`
 

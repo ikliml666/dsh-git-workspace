@@ -11,6 +11,7 @@ source_files:
   - src/types.ts
   - src/workspace-provider-lifecycle.ts
   - src/official-worktree-adoption.ts
+  - src/worktrees-service.ts
 tags: []
 generated_by: fsoft-native
 fsoft_page: core_worktree_domain_and_infrastructure/session_checkout_domain.md

@@ -6,7 +6,7 @@ description: srcadaptersgitexecution 是 srcadapters：会话检出（Session Ch
 # Git 执行适配器：唯一出口 runGit、可证明的 Worktree 创建与首次提交协议
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`f93ba818`](https://github.com/wloops/dsh-git-worktree/commit/f93ba8188971886c09b4c40e12c746a23853c229) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`bccd87a6`](https://github.com/wloops/dsh-git-worktree/commit/bccd87a6d5270c62ed752e21426f9b3062418333) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 `src_adapters_git_execution` 是 [src_adapters：会话检出（Session Checkout）的宿主适配层](../src_adapters.md) 四个子模块中风险最高的一片：**插件对 Git 仓库的每一处读写，最终都汇聚到这一个执行栈上**。它把领域端口 `SessionCheckoutGitPort`（契约见 [会话检出领域契约（session_checkout_domain_contracts）](../session_checkout_domain/session_checkout_domain_contracts.md)）实现为经 `ctx.subprocess`（`@deepseek-ai/dsh-subprocess`）驱动的 Git 命令执行器。四个文件的分工如下：
 
@@ -390,9 +390,9 @@ flowchart TD
 5. 最后回到 §7 的方法表，把每个端口方法映射回它实际发出的 argv。
 
 ??? abstract "Documented components (5)"
-    - [`GitTimeoutOptions`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cadapters%5Cgit-options.ts) — `src\adapters\git-options.ts`
-    - [`GitCommandResult`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cadapters%5Cgit.ts) — `src\adapters\git.ts`
-    - [`GitPortOptions`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cadapters%5Cgit.ts) — `src\adapters\git.ts`
-    - [`GitCommitProtocol`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cadapters%5Cinitial-commit.ts) — `src\adapters\initial-commit.ts`
-    - [`Result`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cadapters%5Cworktree-creation.ts) — `src\adapters\worktree-creation.ts`
+    - [`GitTimeoutOptions`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cadapters%5Cgit-options.ts) — `src\adapters\git-options.ts`
+    - [`GitCommandResult`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cadapters%5Cgit.ts) — `src\adapters\git.ts`
+    - [`GitPortOptions`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cadapters%5Cgit.ts) — `src\adapters\git.ts`
+    - [`GitCommitProtocol`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cadapters%5Cinitial-commit.ts) — `src\adapters\initial-commit.ts`
+    - [`Result`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cadapters%5Cworktree-creation.ts) — `src\adapters\worktree-creation.ts`
 

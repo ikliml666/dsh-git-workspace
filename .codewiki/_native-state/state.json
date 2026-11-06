@@ -2,41 +2,44 @@
   "stateVersion": 1,
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
-    "baseCommit": "8c21e04a76648797cd467d5438a39542d22814d1",
-    "headCommit": "f93ba8188971886c09b4c40e12c746a23853c229"
+    "baseCommit": "f93ba8188971886c09b4c40e12c746a23853c229",
+    "headCommit": "e53c72f34f4a06da818e73490377a665a27b6620"
   },
   "pendingChanges": {
     "state": "ok",
-    "baseCommit": "8c21e04a76648797cd467d5438a39542d22814d1",
-    "headCommit": "f93ba8188971886c09b4c40e12c746a23853c229",
-    "committed": [
-      "CHANGELOG.md",
-      "src/client/styles.ts",
-      "src/client/workspace-sidebar/index.tsx",
-      "src/console-host/control-plane.ts",
-      "src/types.ts",
-      "tests/client-workspace-sidebar-profile.test.ts",
-      "tests/client-workspace-sidebar.test.tsx",
-      "tests/console-host.test.ts",
-      "tests/surface.test.ts"
-    ],
+    "baseCommit": "f93ba8188971886c09b4c40e12c746a23853c229",
+    "headCommit": "e53c72f34f4a06da818e73490377a665a27b6620",
+    "committed": [],
     "staged": [],
-    "unstaged": [],
-    "untracked": [],
+    "unstaged": [
+      "src/index.ts"
+    ],
+    "untracked": [
+      "src/worktrees-service.ts",
+      "tests/tmp-realm-probe.test.ts",
+      "tests/worktrees-service.test.ts"
+    ],
     "deleted": [],
     "renamed": [],
     "reason": ""
   },
-  "unconsumed": [],
+  "unconsumed": [
+    "src/index.ts",
+    "src/worktrees-service.ts",
+    "tests/tmp-realm-probe.test.ts",
+    "tests/worktrees-service.test.ts"
+  ],
   "engineVersion": "2.0.0",
   "scope": "auto",
   "effectiveScope": "stale",
-  "updateOutcome": "no_change",
+  "updateOutcome": "incremental",
   "fallbackReason": "",
   "missingRepair": null,
   "notes": [
-    "持久化基线 8f09e7d 与本次 cw 基线 8c21e04 不同（以 cw 基线为准，未消费变化仍会并入）",
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw4vm2ga-1-native（47 个文件）"
+    "持久化基线 8c21e04 与本次 cw 基线 f93ba81 不同（以 cw 基线为准，未消费变化仍会并入）",
+    "工作区未提交改动已合成临时 commit bccd87a6d527（4 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw52a44l-6-native（47 个文件）",
+    "本轮把 5 个未提交源码改动一并写进产物（快照 bccd87a6d527）：src/index.ts、src/official-worktree-takeover.ts、tests/official-worktree-takeover.test.ts、src/worktrees-service.ts、tests/worktrees-service.test.ts"
   ],
-  "updatedAt": "2026-11-06T11:24:24.600Z"
+  "updatedAt": "2026-11-06T14:42:51.232Z"
 }

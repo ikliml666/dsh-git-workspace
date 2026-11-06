@@ -6,7 +6,7 @@ description: dsh-git-worktree 是 DeepSeek Harness (DSH) 平台的官方插件�
 # dsh-git-worktree 仓库总览
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`f93ba818`](https://github.com/wloops/dsh-git-worktree/commit/f93ba8188971886c09b4c40e12c746a23853c229) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`bccd87a6`](https://github.com/wloops/dsh-git-worktree/commit/bccd87a6d5270c62ed752e21426f9b3062418333) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 ## 仓库定位与核心价值
 dsh-git-worktree 是 DeepSeek Harness (DSH) 平台的官方插件，核心定位是为 AI 辅助开发会话提供全生命周期的 Git Worktree 隔离能力。它通过为每个独立会话创建专属的隔离 Git 工作区，彻底消除多会话并行开发过程中的分支冲突、未提交代码污染、跨会话资源串扰问题，覆盖工作区创建、分支检出、变更评审、交付合并、检查点保存、崩溃恢复与过期资源清理的完整流程。

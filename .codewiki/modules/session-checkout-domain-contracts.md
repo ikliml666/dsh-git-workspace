@@ -5,6 +5,7 @@ source_files:
   - src/ports.ts
   - src/types.ts
   - src/official-worktree-adoption.ts
+  - src/worktrees-service.ts
 tags: []
 generated_by: fsoft-native
 fsoft_page: core_worktree_domain_and_infrastructure/session_checkout_domain/session_checkout_domain_contracts.md
@@ -13,11 +14,12 @@ fsoft_page: core_worktree_domain_and_infrastructure/session_checkout_domain/sess
 
 ## 简介
 
-本模块是 `session-checkout` 领域的**类型表面（type surface）**，由三个文件组成：
+本模块是 `session-checkout` 领域的**类型表面（type surface）**，由四个文件组成：
 
 - `src/ports.ts` —— 端口接口（Port Interfaces）与注册表持久化模型；
-- `src/types.ts` —— 对外视图模型、操作（Operation）与结果（Result）判别联合。
+- `src/types.ts` —— 对外视图模型、操作（Operation）与结果（Result）判别联合；
 - `src/official-worktree-adoption.ts` —— 官方工具创建 Worktree 纳管（adoption）的依赖与结果类型。
+- `src/worktrees-service.ts` —— 面向官方实验性 Worktree 服务面（`worktrees.create` / `worktrees.restore` 形状）的适配契约。
 
 领域逻辑（状态机与 Apply 引擎）**只依赖这些契约**，不直接触碰子进程 Git、插件注册表存储或宿主会话服务；DSH 适配器（subprocess-backed git、plugin-owned registry、session/workspace lookup）全部隐藏在端口之后。这使得状态机保持宿主无关（host-agnostic），并可用 fake 端口做单元测试。
 
@@ -35,6 +37,7 @@ flowchart TB
     P["ports.ts: 端口接口 + 注册表持久化模型"]
     T["types.ts: 视图模型 + 操作/结果类型"]
     A["official-worktree-adoption.ts: 纳管依赖/结果类型"]
+    W["worktrees-service.ts: 官方 worktrees 服务适配契约"]
   end
   subgraph CN["消费方: 领域逻辑"]
     E["session-checkout-apply.ts: Apply 引擎"]
@@ -52,6 +55,7 @@ flowchart TB
   M --> P
   M --> T
   E --> T
+  W --> M
   M --> C
   C --> U
 ```
@@ -212,7 +216,30 @@ flowchart TB
 
 ---
 
-## 三、典型数据流
+## 三、`src/worktrees-service.ts`：官方 Worktree 服务适配契约
+
+本文件声明面向**官方实验性 Worktree 服务面**（`worktrees.create` / `worktrees.restore` 的形状）的适配契约：`createWorktreesService(module)` 把运行时状态机（`SessionCheckoutModule`，见 [运行时入口](session-checkout-runtime-entry.md)）包装成宿主可直接注册的服务对象，自身不实现任何 Git 行为——创建动作全部经状态机的 `createIsolatedTarget` / `resolveRoots` 完成。
+
+### 3.1 接口与请求/响应类型
+
+| 类型 | 成员 | 职责 |
+| --- | --- | --- |
+| `WorktreesService` | `create(agent, request?, signal?, onPhase?)`、`restore(agent, request, signal?, onPhase?)` | 官方 worktrees 服务形状的适配面：`agent` 为调用方、`signal` 为中止信号、`onPhase` 为进度回调 |
+| `CreateWorktreeRequest` | `name?: string`、`from?: string` | `name` 新分支名（省略时生成 Session 分支名）；`from` 起点本地修订（省略时从当前 HEAD 开始） |
+| `CreatedWorktree` | `path`、`branch`、`baseCommit`、`repositoryRoot` | 创建结果：规范绝对检出目录、检出所在 Session 分支、创建时所在提交、源检出的规范根 |
+| `RestoreWorktreeRequest` | `path`、`branch`、`baseCommit`、`repositoryRoot` | 恢复入参：待恢复检出目录与其全部身份事实 |
+| `RestoredWorktree` | `path`、`branchRecreated` | 恢复结果：目录路径与分支是否被重建 |
+
+配套进度类型 `WorktreePhase = 'prepare' | 'checkout'`：`prepare` 为建前准备，`checkout` 为正式检出。
+
+### 3.2 适配语义
+
+- **`create`**：先 `onPhase('prepare')`，再把 `request.from` 作为种子 Session 分支尖端的本地分支（`createOptions.branch`），`request.name` 只充当本插件自有 Session 分支的可读主题（`topic`）；未给 `from` 时 `name` 仍只供主题使用。随后 `module.createIsolatedTarget(sessionId, sessionId, createOptions)` 在状态机内完成隔离目标移交，`onPhase('checkout')` 后经 `module.resolveRoots(checkoutId)` 取回双根。返回的 `baseCommit` 是创建时 HEAD 所在提交（Session 分支在该基点创建、尚无提交）；`repositoryRoot` 是被分叉的源 Local 根，项目根即仓库根时两者相等。
+- **`restore`**：**一律抛错**。已交付（delivered）的 Worktree 会被刻意清理、台账只保留交付历史，磁盘上没有可放回的目录。继续该行工作应走 `beginNextIteration`——从上次 Session 分支尖端起一个全新迭代，而不是复活未提交状态早已被丢弃的检出。
+
+---
+
+## 四、典型数据流
 
 ```mermaid
 sequenceDiagram
@@ -236,7 +263,7 @@ sequenceDiagram
 2. **读取路径**：状态机从注册表读出 `ManagedCheckoutRecord`，投影为 `SessionTargetView`/`ManagedWorktreeSummaryView` 等视图，再由 [worktree_console_contract](worktree-console-contract.md) 转成传输 DTO 送往客户端；
 3. **降级路径**：optional 端口缺失（如无 `listLiveSessions`）时，并发分支竞争守卫保持沉默；无 `pushBranch` 时 Finish 后的自动推送整体跳过——契约层不假设宿主能力齐备。
 
-## 四、设计约束速查
+## 五、设计约束速查
 
 - **端口 optional = 能力探测**：缺失时功能静默降级，而非初始化失败；
 - **revision CAS**：所有操作携带 `expectedRevision`，结果回传新 `revision`，防止并发会话互相覆盖；

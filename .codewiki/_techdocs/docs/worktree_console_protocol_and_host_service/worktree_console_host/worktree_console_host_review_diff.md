@@ -6,7 +6,7 @@ description: 本模块是 Worktree Console 宿主侧（src/console-host/）中�
 # Worktree Console 主机侧评审 Diff 读取器（worktree_console_host_review_diff）
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`f93ba818`](https://github.com/wloops/dsh-git-worktree/commit/f93ba8188971886c09b4c40e12c746a23853c229) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`bccd87a6`](https://github.com/wloops/dsh-git-worktree/commit/bccd87a6d5270c62ed752e21426f9b3062418333) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 本模块是 Worktree Console 宿主侧（`src/console-host/`）中**唯一负责读取"验收快照差异"**的叶子组件，实现文件为 `src/console-host/review-diff.ts`。
 
@@ -415,9 +415,9 @@ sequenceDiagram
 - 宿主文案与 locale：[project_foundation_and_localization/src_i18n.md](../../project_foundation_and_localization/src_i18n.md)
 
 ??? abstract "Documented components (5)"
-    - [`ChangedEntry`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
-    - [`GitOutput`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
-    - [`ReviewDiffReadInput`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
-    - [`ReviewDiffStaleError`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
-    - [`WorktreeReviewDiffReader`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
+    - [`ChangedEntry`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
+    - [`GitOutput`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
+    - [`ReviewDiffReadInput`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
+    - [`ReviewDiffStaleError`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
+    - [`WorktreeReviewDiffReader`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
 

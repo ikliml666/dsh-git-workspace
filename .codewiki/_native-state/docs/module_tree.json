@@ -246,7 +246,12 @@
             "src\\official-worktree-adoption.ts::OfficialWorktreeAdoptionResult",
             "src\\ports.ts::WorktreeListingEntry",
             "src\\official-worktree-takeover.ts::OfficialWorktreeTakeoverOptions",
-            "src\\official-worktree-takeover.ts::OfficialWorktreeTakeoverResult"
+            "src\\official-worktree-takeover.ts::OfficialWorktreeTakeoverResult",
+            "src\\worktrees-service.ts::CreateWorktreeRequest",
+            "src\\worktrees-service.ts::CreatedWorktree",
+            "src\\worktrees-service.ts::RestoreWorktreeRequest",
+            "src\\worktrees-service.ts::RestoredWorktree",
+            "src\\worktrees-service.ts::WorktreesService"
         ],
         "children": {
             "src_adapters": {
@@ -485,7 +490,12 @@
                     "src\\workspace-provider-lifecycle.ts::WorkspaceProviderLifecycleResult",
                     "src\\official-worktree-adoption.ts::OfficialWorktreeAdoptionDependencies",
                     "src\\official-worktree-adoption.ts::OfficialWorktreeAdoptionResult",
-                    "src\\ports.ts::WorktreeListingEntry"
+                    "src\\ports.ts::WorktreeListingEntry",
+                    "src\\worktrees-service.ts::CreateWorktreeRequest",
+                    "src\\worktrees-service.ts::CreatedWorktree",
+                    "src\\worktrees-service.ts::RestoreWorktreeRequest",
+                    "src\\worktrees-service.ts::RestoredWorktree",
+                    "src\\worktrees-service.ts::WorktreesService"
                 ],
                 "children": {
                     "session_checkout_apply_engine": {
@@ -685,7 +695,12 @@
                             "src\\types.ts::WorktreeValidationItem",
                             "src\\official-worktree-adoption.ts::OfficialWorktreeAdoptionDependencies",
                             "src\\official-worktree-adoption.ts::OfficialWorktreeAdoptionResult",
-                            "src\\ports.ts::WorktreeListingEntry"
+                            "src\\ports.ts::WorktreeListingEntry",
+                            "src\\worktrees-service.ts::CreateWorktreeRequest",
+                            "src\\worktrees-service.ts::CreatedWorktree",
+                            "src\\worktrees-service.ts::RestoreWorktreeRequest",
+                            "src\\worktrees-service.ts::RestoredWorktree",
+                            "src\\worktrees-service.ts::WorktreesService"
                         ],
                         "children": {}
                     }

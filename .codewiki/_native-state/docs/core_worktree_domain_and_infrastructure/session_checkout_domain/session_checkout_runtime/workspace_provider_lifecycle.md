@@ -204,14 +204,15 @@ flowchart TB
         A1["① mountWorkspaceProviderLifecycle<br/>选举先行"]
         A2["② 建 adapters / registry / module"]
         A3["③ WorktreeConsoleService<br/>注入 officialWorkspaceActive"]
-        A4["④ registerTools / registerWorktreeCommand"]
-        A5["⑤ registerSessionTargetContext"]
+        A4["④ mountWorktreesService<br/>ctx.provide('worktrees')"]
+        A5["⑤ registerTools / registerWorktreeCommand"]
+        A6["⑥ registerSessionTargetContext"]
     end
 
-    A1 --> A2 --> A3 --> A4 --> A5
+    A1 --> A2 --> A3 --> A4 --> A5 --> A6
 
     A1 -.->|"结果"| Svc["sidebarTopology Remote 响应<br/>附带 officialWorkspaceActive 与 workspaceClientFlavor"]
-    A5 -.->|"每轮"| Prompt["模型 system prompt<br/>git-worktree:session-target"]
+    A6 -.->|"每轮"| Prompt["模型 system prompt<br/>git-worktree:session-target"]
     Svc --> Client["客户端 Sidebar 拓扑<br/>决定是否渲染本插件的 Workspace UI"]
 ```
 

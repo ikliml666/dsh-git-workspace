@@ -6,13 +6,13 @@ description: sessioncheckoutruntime 是 dsh-git-worktree 插件的核心装配�
 # 会话检出运行时模块（session_checkout_runtime）概述
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`f93ba818`](https://github.com/wloops/dsh-git-worktree/commit/f93ba8188971886c09b4c40e12c746a23853c229) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`bccd87a6`](https://github.com/wloops/dsh-git-worktree/commit/bccd87a6d5270c62ed752e21426f9b3062418333) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 ## 模块定位与用途
 `session_checkout_runtime` 是 `dsh-git-worktree` 插件的核心装配与集成层，处于 DeepSeek Harness（DSH）/Cordis 宿主演进环境与会话检出领域逻辑之间，核心目标是将与宿主无关的会话检出业务能力安全接入实际运行时环境，同时保障跨层契约稳定、依赖关系可追溯、资源生命周期可控。
 模块承担的核心职责包括：
 1.  作为跨层稳定契约的唯一出口，统一导出全局错误类型、核心业务接口、跨层共用视图类型，确保下层适配器与领域实现反向依赖稳定契约，避免契约漂移与循环依赖。
 2.  完成全链路依赖注入与组件实例化：基于宿主配置 schema 构建 Git 执行、文件操作、跨进程原子检出注册表、会话查找、项目技能加载等端口实现，并衔接会话检出状态机、Apply 引擎等核心领域组件。
-3.  向宿主注册全部对外能力面：包括模型可调用的 `worktree_*` 系列工具、用户可执行的 `/worktree` 人工验收命令、注入系统提示的动态会话运行时上下文、供客户端连接的 Worktree Console RPC 服务。
+3.  向宿主注册全部对外能力面：包括模型可调用的 `worktree_*` 系列工具、用户可执行的 `/worktree` 人工验收命令、注入系统提示的动态会话运行时上下文、供客户端连接的 Worktree Console RPC 服务，并经 `ctx.provide('worktrees')` 提供宿主唯一的 `WorktreesService` 实现；
 4.  管理运行时辅助集成逻辑：包括全局 Workspace UI 提供者的单例选举、会话目标上下文的动态注入、过期 Worktree 清理、已合并分支自动剪枝、并发分支竞态守卫预热等后台维护任务。
 5.  保障插件卸载时的优雅资源清理：还原被临时禁用的官方 UI 条目、撤回注册的服务标记、关停所有后台定时任务，避免残留状态影响后续宿主运行。
 ## 模块架构
@@ -68,19 +68,19 @@ flowchart TB
 2.  [工作区提供者生命周期与会话目标上下文](session_checkout_runtime/workspace_provider_lifecycle.md)：模块的运行时适配层，负责 Workspace UI 提供者的全局选举与生命周期管理、会话目标动态上下文的注入逻辑，是理解插件与宿主 UI、模型 prompt 集成细节的核心参考。
 
 ??? abstract "Documented components (15)"
-    - [`IsolatedTargetLaunch`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cindex.ts) — `src\index.ts`
-    - [`ListManagedWorktreesInput`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cindex.ts) — `src\index.ts`
-    - [`LocalAdaptationConfig`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cindex.ts) — `src\index.ts`
-    - [`ManageManagedWorktreeInput`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cindex.ts) — `src\index.ts`
-    - [`MarkReadyForReviewInput`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cindex.ts) — `src\index.ts`
-    - [`MergeBranchForSessionInput`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cindex.ts) — `src\index.ts`
-    - [`PruneMergedBranchesInput`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cindex.ts) — `src\index.ts`
-    - [`SessionCheckoutError`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cindex.ts) — `src\index.ts`
-    - [`SessionCheckoutModule`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cindex.ts) — `src\index.ts`
-    - [`SessionCheckoutReconcileSummary`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cindex.ts) — `src\index.ts`
-    - [`ResolvedSessionProject`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Csession-checkout-module.ts) — `src\session-checkout-module.ts`
-    - [`ContextAgent`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Csession-target-context.ts) — `src\session-target-context.ts`
-    - [`Context`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cworkspace-provider-lifecycle.ts) — `src\workspace-provider-lifecycle.ts`
-    - [`WorkspaceProviderLifecycleOptions`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cworkspace-provider-lifecycle.ts) — `src\workspace-provider-lifecycle.ts`
-    - [`WorkspaceProviderLifecycleResult`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cworkspace-provider-lifecycle.ts) — `src\workspace-provider-lifecycle.ts`
+    - [`IsolatedTargetLaunch`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cindex.ts) — `src\index.ts`
+    - [`ListManagedWorktreesInput`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cindex.ts) — `src\index.ts`
+    - [`LocalAdaptationConfig`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cindex.ts) — `src\index.ts`
+    - [`ManageManagedWorktreeInput`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cindex.ts) — `src\index.ts`
+    - [`MarkReadyForReviewInput`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cindex.ts) — `src\index.ts`
+    - [`MergeBranchForSessionInput`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cindex.ts) — `src\index.ts`
+    - [`PruneMergedBranchesInput`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cindex.ts) — `src\index.ts`
+    - [`SessionCheckoutError`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cindex.ts) — `src\index.ts`
+    - [`SessionCheckoutModule`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cindex.ts) — `src\index.ts`
+    - [`SessionCheckoutReconcileSummary`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cindex.ts) — `src\index.ts`
+    - [`ResolvedSessionProject`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-module.ts) — `src\session-checkout-module.ts`
+    - [`ContextAgent`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-target-context.ts) — `src\session-target-context.ts`
+    - [`Context`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cworkspace-provider-lifecycle.ts) — `src\workspace-provider-lifecycle.ts`
+    - [`WorkspaceProviderLifecycleOptions`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cworkspace-provider-lifecycle.ts) — `src\workspace-provider-lifecycle.ts`
+    - [`WorkspaceProviderLifecycleResult`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cworkspace-provider-lifecycle.ts) — `src\workspace-provider-lifecycle.ts`
 

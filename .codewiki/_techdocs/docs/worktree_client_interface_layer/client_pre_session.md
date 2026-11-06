@@ -6,7 +6,7 @@ description: src/client/pre-session/ 是浏览器端唯一一个「会话创建�
 # client_pre_session：空白会话「在 Worktree 中开始」开关
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`f93ba818`](https://github.com/wloops/dsh-git-worktree/commit/f93ba8188971886c09b4c40e12c746a23853c229) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`bccd87a6`](https://github.com/wloops/dsh-git-worktree/commit/bccd87a6d5270c62ed752e21426f9b3062418333) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 `src/client/pre-session/` 是浏览器端**唯一一个「会话创建之前」就能开隔离工作目录**的入口。它把一枚开关挂进 Harness 公共 composer 工具行（`conversation.input.left` 槽位），让用户在一个全新、空白的 Local 会话里输入需求后直接勾选「Worktree」，由插件把**草稿文本 + 附件**整体迁移到一个新的隔离 Session，并让原来的空白会话退化为一个已被归档的启动器。
 
@@ -508,13 +508,13 @@ flowchart LR
 - 词条目录与语言类型：[src_i18n 国际化与消息目录模块](../project_foundation_and_localization/src_i18n.md)
 
 ??? abstract "Documented components (9)"
-    - [`PreSessionWorktreeToggleProps`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cclient%5Cpre-session%5CPreSessionWorktreeToggle.tsx) — `src\client\pre-session\PreSessionWorktreeToggle.tsx`
-    - [`PreSessionDraftActions`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cclient%5Cpre-session%5Ccontroller.ts) — `src\client\pre-session\controller.ts`
-    - [`PreSessionDraftState`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cclient%5Cpre-session%5Ccontroller.ts) — `src\client\pre-session\controller.ts`
-    - [`PreSessionWorktreeController`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cclient%5Cpre-session%5Ccontroller.ts) — `src\client\pre-session\controller.ts`
-    - [`PreSessionWorktreeError`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cclient%5Cpre-session%5Ccontroller.ts) — `src\client\pre-session\controller.ts`
-    - [`PreparePreSessionWorktreeRequest`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cclient%5Cpre-session%5Ccontroller.ts) — `src\client\pre-session\controller.ts`
-    - [`HarnessInputActions`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cclient%5Cpre-session%5Charness-input.ts) — `src\client\pre-session\harness-input.ts`
-    - [`PreSessionSlotContextLike`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cclient%5Cpre-session%5Cindex.tsx) — `src\client\pre-session\index.tsx`
-    - [`PreSessionSlotProps`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cclient%5Cpre-session%5Cindex.tsx) — `src\client\pre-session\index.tsx`
+    - [`PreSessionWorktreeToggleProps`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cclient%5Cpre-session%5CPreSessionWorktreeToggle.tsx) — `src\client\pre-session\PreSessionWorktreeToggle.tsx`
+    - [`PreSessionDraftActions`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cclient%5Cpre-session%5Ccontroller.ts) — `src\client\pre-session\controller.ts`
+    - [`PreSessionDraftState`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cclient%5Cpre-session%5Ccontroller.ts) — `src\client\pre-session\controller.ts`
+    - [`PreSessionWorktreeController`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cclient%5Cpre-session%5Ccontroller.ts) — `src\client\pre-session\controller.ts`
+    - [`PreSessionWorktreeError`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cclient%5Cpre-session%5Ccontroller.ts) — `src\client\pre-session\controller.ts`
+    - [`PreparePreSessionWorktreeRequest`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cclient%5Cpre-session%5Ccontroller.ts) — `src\client\pre-session\controller.ts`
+    - [`HarnessInputActions`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cclient%5Cpre-session%5Charness-input.ts) — `src\client\pre-session\harness-input.ts`
+    - [`PreSessionSlotContextLike`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cclient%5Cpre-session%5Cindex.tsx) — `src\client\pre-session\index.tsx`
+    - [`PreSessionSlotProps`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cclient%5Cpre-session%5Cindex.tsx) — `src\client\pre-session\index.tsx`
 

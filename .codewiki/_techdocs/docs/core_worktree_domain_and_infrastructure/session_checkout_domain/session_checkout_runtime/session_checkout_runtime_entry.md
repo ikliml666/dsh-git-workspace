@@ -6,14 +6,14 @@ description: 本模块是 dsh-git-worktree 插件的装配根（Composition Root
 # 会话检出运行时入口模块
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`f93ba818`](https://github.com/wloops/dsh-git-worktree/commit/f93ba8188971886c09b4c40e12c746a23853c229) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`bccd87a6`](https://github.com/wloops/dsh-git-worktree/commit/bccd87a6d5270c62ed752e21426f9b3062418333) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 本模块是 `dsh-git-worktree` 插件的**装配根（Composition Root）与对外契约出口**，核心作用是将与宿主无关的会话检出领域逻辑安全接入 DeepSeek Harness（DSH）/Cordis 运行时环境。
 模块采用「入口即契约」的设计模式：跨层稳定的错误类型、核心业务接口、输入输出视图类型统一定义在本模块内，被下层适配器与领域实现反向导入，从依赖方向上保证契约稳定、实现可替换；同时模块会再导出 Console RPC 契约类型，保证客户端与宿主侧可以从同一个入口获取一致的类型定义。
 模块承担的具体职责包括：
 1.  定义并导出全局稳定的 `SessionCheckoutError` 错误类、`SessionCheckoutModule` 核心业务接口，以及所有跨层共用的类型定义；
 2.  基于宿主提供的配置 schema，构建适配 DSH 运行时的 Git 执行、文件操作、跨进程原子化检出注册表、会话查找、项目技能加载等端口实现；
 3.  完成会话检出状态机与 Apply 引擎的依赖注入与实例化，确保所有端口实现与领域逻辑正确衔接；
-4.  向宿主注册所有对外能力面：模型可调用的 `worktree_*` 系列工具、用户可执行的 `/worktree` 验收命令、注入系统提示的动态会话运行时上下文、供客户端连接的 Worktree Console RPC 服务；
+4.  向宿主注册所有对外能力面：模型可调用的 `worktree_*` 系列工具、用户可执行的 `/worktree` 验收命令、注入系统提示的动态会话运行时上下文、供客户端连接的 Worktree Console RPC 服务，并经 `ctx.provide('worktrees')` 提供宿主唯一的 `WorktreesService`（官方 forge 面板的新 Session Worktree 创建由此落入本插件台账）；
 5.  启动启动收敛、过期保留 Worktree 清理、已合并分支自动剪枝、并发分支竞态守卫预热等后台维护任务，并在插件卸载时完成所有资源清理。
 
 ## 模块架构
@@ -42,6 +42,7 @@ flowchart TB
         CMD["用户命令<br/>/worktree 人工验收操作"]
         RUNTIME_CTX["动态运行时上下文<br/>注入系统提示的会话边界指导"]
         CONSOLE_SVC["Console RPC 服务<br/>供客户端连接的 Worktree 宿主服务"]
+        WT_SVC["WorktreesService 提供<br/>ctx.provide('worktrees') 宿主唯一实现"]
     end
 
     LOADER --> CONTRACT
@@ -58,6 +59,7 @@ flowchart TB
     ASSEMBLE --> CMD
     ASSEMBLE --> RUNTIME_CTX
     ASSEMBLE --> CONSOLE_SVC
+    ASSEMBLE --> WT_SVC
 ```
 
 > 架构设计说明：图中适配器与领域组件对本模块的反向依赖是刻意设计的结果——所有跨层契约从本模块导出，下层实现永远依赖稳定的契约层而非具体实现，从结构上避免循环依赖与跨层契约漂移。
@@ -68,15 +70,15 @@ flowchart TB
 2.  [会话检出状态机工厂 src/session-checkout-module.ts](session_checkout_runtime_entry/src_session-checkout-module.ts.md)：实现宿主可见的唯一业务对象 `SessionCheckoutModule`，包含会话状态迁移规则、跨模块并发控制、磁盘身份校验、崩溃 journal 收敛、清理与保留策略等核心业务逻辑。
 
 ??? abstract "Documented components (11)"
-    - [`IsolatedTargetLaunch`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cindex.ts) — `src\index.ts`
-    - [`ListManagedWorktreesInput`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cindex.ts) — `src\index.ts`
-    - [`LocalAdaptationConfig`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cindex.ts) — `src\index.ts`
-    - [`ManageManagedWorktreeInput`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cindex.ts) — `src\index.ts`
-    - [`MarkReadyForReviewInput`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cindex.ts) — `src\index.ts`
-    - [`MergeBranchForSessionInput`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cindex.ts) — `src\index.ts`
-    - [`PruneMergedBranchesInput`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cindex.ts) — `src\index.ts`
-    - [`SessionCheckoutError`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cindex.ts) — `src\index.ts`
-    - [`SessionCheckoutModule`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cindex.ts) — `src\index.ts`
-    - [`SessionCheckoutReconcileSummary`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Cindex.ts) — `src\index.ts`
-    - [`ResolvedSessionProject`](https://github.com/wloops/dsh-git-worktree/blob/f93ba8188971886c09b4c40e12c746a23853c229/src%5Csession-checkout-module.ts) — `src\session-checkout-module.ts`
+    - [`IsolatedTargetLaunch`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cindex.ts) — `src\index.ts`
+    - [`ListManagedWorktreesInput`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cindex.ts) — `src\index.ts`
+    - [`LocalAdaptationConfig`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cindex.ts) — `src\index.ts`
+    - [`ManageManagedWorktreeInput`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cindex.ts) — `src\index.ts`
+    - [`MarkReadyForReviewInput`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cindex.ts) — `src\index.ts`
+    - [`MergeBranchForSessionInput`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cindex.ts) — `src\index.ts`
+    - [`PruneMergedBranchesInput`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cindex.ts) — `src\index.ts`
+    - [`SessionCheckoutError`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cindex.ts) — `src\index.ts`
+    - [`SessionCheckoutModule`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cindex.ts) — `src\index.ts`
+    - [`SessionCheckoutReconcileSummary`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Cindex.ts) — `src\index.ts`
+    - [`ResolvedSessionProject`](https://github.com/wloops/dsh-git-worktree/blob/bccd87a6d5270c62ed752e21426f9b3062418333/src%5Csession-checkout-module.ts) — `src\session-checkout-module.ts`
 
