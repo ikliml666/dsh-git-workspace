@@ -1,58 +1,37 @@
 site_name: dsh-git-worktree
-site_description: dsh-git-worktree 是 DeepSeek Harness (DSH) 平台的官方插件，核心定位是为 AI 辅助开发会话提供全生命周期的 Git Worktree 隔离能力。它通过为每个独立会话创建专属的隔离 Git…
+site_description: dsh-git-worktree 是面向 DeepSeek Harness（DSH）平台的 Cordis 插件，核心目标是为 AI 编码 Agent 提供隔离、事务化、安全硬化的托管 Git Worktree 运行环境，解决传统 AI 编码过程中的状态污染问题：
 repo_url: https://github.com/wloops/dsh-git-worktree
 edit_uri: ''
 docs_dir: docs
 nav:
 - dsh-git-worktree 仓库总览: index.md
-- 项目基础与本地化模块概览:
-  - 项目基础与本地化模块概览: project_foundation_and_localization.md
-  - 构建、CI 与打包（build_ci_and_packaging）: project_foundation_and_localization/build_ci_and_packaging.md
-  - src_i18n 国际化与消息目录模块: project_foundation_and_localization/src_i18n.md
-- 核心 Worktree 领域与基础设施模块:
-  - 核心 Worktree 领域与基础设施模块: core_worktree_domain_and_infrastructure.md
-  - src_adapters：会话检出（Session Checkout）的宿主适配层:
-    - src_adapters：会话检出（Session Checkout）的宿主适配层: core_worktree_domain_and_infrastructure/src_adapters.md
-    - 持久化适配器：文件系统端口、原子注册表与崩溃安全 JSON IO: core_worktree_domain_and_infrastructure/src_adapters/src_adapters_persistence.md
-    - Git 执行适配器：唯一出口 runGit、可证明的 Worktree 创建与首次提交协议: core_worktree_domain_and_infrastructure/src_adapters/src_adapters_git_execution.md
-    - 宿主绑定适配器（src_adapters_host_binding）: core_worktree_domain_and_infrastructure/src_adapters/src_adapters_host_binding.md
-    - Project Skills 适配器：随会话携带的项目级 Skill 资源: core_worktree_domain_and_infrastructure/src_adapters/src_adapters_project_skills.md
-  - Worktree 核心操作与纯函数工具层（worktree_core_operations）: core_worktree_domain_and_infrastructure/worktree_core_operations.md
-  - 会话检出领域模块（session_checkout_domain）:
-    - 会话检出领域模块（session_checkout_domain）: core_worktree_domain_and_infrastructure/session_checkout_domain.md
-    - 会话检出交付引擎（session_checkout_apply_engine）: core_worktree_domain_and_infrastructure/session_checkout_domain/session_checkout_apply_engine.md
-    - 会话检出运行时模块（session_checkout_runtime）概述:
-      - 会话检出运行时模块（session_checkout_runtime）概述: core_worktree_domain_and_infrastructure/session_checkout_domain/session_checkout_runtime.md
-      - 会话检出运行时入口模块:
-        - 会话检出运行时入口模块: core_worktree_domain_and_infrastructure/session_checkout_domain/session_checkout_runtime/session_checkout_runtime_entry.md
-        - src/index.ts —— dsh-git-worktree 插件入口与装配根: core_worktree_domain_and_infrastructure/session_checkout_domain/session_checkout_runtime/session_checkout_runtime_entry/src_index.ts.md
-        - src/session-checkout-module.ts —— 会话检出状态机工厂: core_worktree_domain_and_infrastructure/session_checkout_domain/session_checkout_runtime/session_checkout_runtime_entry/src_session-checkout-module.ts.md
-      - 工作区提供者生命周期与会话目标上下文: core_worktree_domain_and_infrastructure/session_checkout_domain/session_checkout_runtime/workspace_provider_lifecycle.md
-    - 会话检出领域契约（session_checkout_domain_contracts）: core_worktree_domain_and_infrastructure/session_checkout_domain/session_checkout_domain_contracts.md
-- Worktree Console 协议与宿主服务总览:
-  - Worktree Console 协议与宿主服务总览: worktree_console_protocol_and_host_service.md
-  - Worktree Console 共享契约（src/console-contract.ts）: worktree_console_protocol_and_host_service/worktree_console_contract.md
-  - Worktree Console 宿主服务（src/console-host/）:
-    - Worktree Console 宿主服务（src/console-host/）: worktree_console_protocol_and_host_service/worktree_console_host.md
-    - Worktree Console 控制面（src/console-host/control-plane.ts）: worktree_console_protocol_and_host_service/worktree_console_host/worktree_console_host_control_plane.md
-    - Worktree Console 宿主侧投影与错误归一化（projection / errors）: worktree_console_protocol_and_host_service/worktree_console_host/worktree_console_host_projection_and_errors.md
-    - Worktree Console 主机侧评审 Diff 读取器（worktree_console_host_review_diff）: worktree_console_protocol_and_host_service/worktree_console_host/worktree_console_host_review_diff.md
-    - Worktree Console RPC 服务面（src/console-host/service.ts）: worktree_console_protocol_and_host_service/worktree_console_host/worktree_console_host_rpc_service.md
-  - Worktree Console Remote 协议层（src/console-remote/）: worktree_console_protocol_and_host_service/worktree_console_remote.md
-- worktree_client_interface_layer：Worktree 浏览器端客户端界面层总览:
-  - worktree_client_interface_layer：Worktree 浏览器端客户端界面层总览: worktree_client_interface_layer.md
-  - client_core：Worktree 浏览器端入口与会话编排核心: worktree_client_interface_layer/client_core.md
-  - 客户端控制台 Remote 适配层（client_console_remote）: worktree_client_interface_layer/client_console_remote.md
-  - client_pre_session：空白会话「在 Worktree 中开始」开关: worktree_client_interface_layer/client_pre_session.md
-  - client_review_console：受管 Worktree 验收控制台（浏览器端）:
-    - client_review_console：受管 Worktree 验收控制台（浏览器端）: worktree_client_interface_layer/client_review_console.md
-    - client_review_console_review_actions：ReviewActions 交付动作编排器: worktree_client_interface_layer/client_review_console/client_review_console_review_actions.md
-    - 评审控制台展示表面（client_review_console_review_surfaces）: worktree_client_interface_layer/client_review_console/client_review_console_review_surfaces.md
-    - 评审控制台读缓存与只读展示: worktree_client_interface_layer/client_review_console/client_review_console_read_caches.md
-    - 恢复投递与状态刷新分发（client_review_console_recovery_delivery）: worktree_client_interface_layer/client_review_console/client_review_console_recovery_delivery.md
-  - Worktree 设置卡（client_settings_card）: worktree_client_interface_layer/client_settings_card.md
-  - client_target_console：会话目标控制台（浏览器端）: worktree_client_interface_layer/client_target_console.md
-  - 工作区侧边栏（client_workspace_sidebar）: worktree_client_interface_layer/client_workspace_sidebar.md
+- Client_UI_Application_Layer（客户端 UI 应用层）:
+  - Client_UI_Application_Layer（客户端 UI 应用层）: Client_UI_Application_Layer.md
+  - Client_Core_Infrastructure（客户端核心基础设施层）: Client_UI_Application_Layer/Client_Core_Infrastructure.md
+  - 客户端评审控制台功能（Client Review Console Feature）: Client_UI_Application_Layer/Client_Review_Console_Feature.md
+  - Client_Settings_Card_Feature（设置卡片功能）: Client_UI_Application_Layer/Client_Settings_Card_Feature.md
+  - 客户端目标控制台特性（Client_Target_Console_Feature）: Client_UI_Application_Layer/Client_Target_Console_Feature.md
+  - 客户端工作区侧栏功能（Client_Workspace_Sidebar_Feature）: Client_UI_Application_Layer/Client_Workspace_Sidebar_Feature.md
+- 后端宿主核心运行时（Backend_Host_Core_Runtime）总览:
+  - 后端宿主核心运行时（Backend_Host_Core_Runtime）总览: Backend_Host_Core_Runtime.md
+  - 适配器基础设施实现（Adapter Infrastructure Implementations）: Backend_Host_Core_Runtime/Adapter_Infrastructure_Implementations.md
+  - 核心工作区与 Worktree 领域层: Backend_Host_Core_Runtime/Core_Workspace___Worktree_Domain_Layer.md
+  - Worktree 控制台宿主服务（Worktree_Console_Host_Service）:
+    - Worktree 控制台宿主服务（Worktree_Console_Host_Service）: Backend_Host_Core_Runtime/Worktree_Console_Host_Service.md
+    - Worktree Console Host Service 控制面: Backend_Host_Core_Runtime/Worktree_Console_Host_Service/Worktree_Console_Host_Service_Control_Plane.md
+    - Worktree 控制台宿主服务 RPC 门面: Backend_Host_Core_Runtime/Worktree_Console_Host_Service/Worktree_Console_Host_Service_RPC_Facade.md
+  - 会话检出核心引擎（Core_Session_Checkout_Engine）:
+    - 会话检出核心引擎（Core_Session_Checkout_Engine）: Backend_Host_Core_Runtime/Core_Session_Checkout_Engine.md
+    - 托管 Worktree 路径候选解析（Managed_Worktree_Path_Candidate_Resolution）: Backend_Host_Core_Runtime/Core_Session_Checkout_Engine/Managed_Worktree_Path_Candidate_Resolution.md
+    - 会话检出应用执行引擎（Session_Checkout_Apply_Execution_Engine）: Backend_Host_Core_Runtime/Core_Session_Checkout_Engine/Session_Checkout_Apply_Execution_Engine.md
+    - 会话检出模块 · 项目解析（Session_Checkout_Module_Project_Resolution）: Backend_Host_Core_Runtime/Core_Session_Checkout_Engine/Session_Checkout_Module_Project_Resolution.md
+    - 会话签出用户工具接口（Session_Checkout_User_Tool_Interface）: Backend_Host_Core_Runtime/Core_Session_Checkout_Engine/Session_Checkout_User_Tool_Interface.md
+- 共享跨层契约与工具模块（Shared_Cross-Tier_Contracts___Utilities）:
+  - 共享跨层契约与工具模块（Shared_Cross-Tier_Contracts___Utilities）: Shared_Cross-Tier_Contracts___Utilities.md
+  - Console Remote 传输层（Console_Remote_Transport_Layer）: Shared_Cross-Tier_Contracts___Utilities/Console_Remote_Transport_Layer.md
+  - 国际化（i18n）层: Shared_Cross-Tier_Contracts___Utilities/Internationalization_(i18n)_Layer.md
+- 构建、CI 与项目配置: Build,_CI___Project_Configuration.md
+- Shared_Worktree_Console_API_Contract —— 共享 Worktree 控制台 API 契约: Shared_Worktree_Console_API_Contract.md
 plugins:
 - techdocs-core
 markdown_extensions:

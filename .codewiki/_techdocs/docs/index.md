@@ -1,66 +1,61 @@
 ---
 title: dsh-git-worktree 仓库总览
-description: dsh-git-worktree 是 DeepSeek Harness (DSH) 平台的官方插件，核心定位是为 AI 辅助开发会话提供全生命周期的 Git Worktree 隔离能力。它通过为每个独立会话创建专属的隔离 Git…
+description: dsh-git-worktree 是面向 DeepSeek Harness（DSH）平台的 Cordis 插件，核心目标是为 AI 编码 Agent 提供隔离、事务化、安全硬化的托管 Git Worktree 运行环境，解决传统 AI 编码过程中的状态污染问题：
 ---
 
 # dsh-git-worktree 仓库总览
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`e50f4121`](https://github.com/wloops/dsh-git-worktree/commit/e50f4121be2569531679e4f64bfc288bc20f70a3) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`30d75605`](https://github.com/wloops/dsh-git-worktree/commit/30d756050732628a0e9b7d199e31e7b393afb340) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
-## 仓库定位与核心价值
-dsh-git-worktree 是 DeepSeek Harness (DSH) 平台的官方插件，核心定位是为 AI 辅助开发会话提供全生命周期的 Git Worktree 隔离能力。它通过为每个独立会话创建专属的隔离 Git 工作区，彻底消除多会话并行开发过程中的分支冲突、未提交代码污染、跨会话资源串扰问题，覆盖工作区创建、分支检出、变更评审、交付合并、检查点保存、崩溃恢复与过期资源清理的完整流程。
+## 仓库定位
+`dsh-git-worktree` 是面向 DeepSeek Harness（DSH）平台的 Cordis 插件，核心目标是为 AI 编码 Agent 提供隔离、事务化、安全硬化的托管 Git Worktree 运行环境，解决传统 AI 编码过程中的状态污染问题：
+- **工作边界隔离**：所有 AI Agent 触发的代码变更都在独立 Worktree 中完成，全程不干扰用户本地工作区的未提交改动，避免跨任务的状态污染。
+- **可靠状态管理**：通过持久化台账与原子文件锁实现崩溃可恢复、并发安全的全生命周期状态管理，任意操作中断后可通过启动期对账收敛到一致状态，不留孤立残留文件。
+- **安全规则收敛**：统一收拢 Git 命令净化、超时控制、原子文件写入、目录身份校验、符号链接防护等安全逻辑，从底层杜绝命令注入、仓库劫持、误删文件等风险。
+- **统一服务接口**：对外提供经过鉴权与视图投影的类型化 RPC 接口，支撑客户端目标状态展示、评审工作流、工作区拓扑投影等交互功能。
 
-项目严格遵循「服务端持有业务权威、客户端仅负责状态渲染」的设计原则，内置多重生产级安全机制：Git 命令直传不经 Shell 解析、原子文件写入、跨进程文件锁、目录身份校验、Worktree 误删防护；同时为 Host 与 Client 两侧提供统一的类型安全通信契约，从结构上消除跨进程的状态漂移与越权操作风险。
-
-## 端到端架构总览
-仓库整体采用分层单向依赖架构，从底层基础支撑到顶层用户界面共分为四个内聚模块层，各层通过稳定契约解耦，严格禁止反向依赖。整体架构与数据流向如下图所示：
+## 端到端架构
+本项目遵循严格的分层依赖原则，核心领域逻辑不依赖具体底层实现（六边形/端口-适配器架构），所有与宿主打交道的细节都被隔离在适配器层。整体分层架构如下图所示：
 
 ```mermaid
-flowchart TB
-    subgraph BASE["基础支撑层"]
-        PFL["项目基础与本地化<br/>构建/CI/打包闸门 + 类型安全 i18n 消息目录"]
+flowchart LR
+    USER["用户 / AI Agent 交互入口"]
+    BUILD["Build, CI & Project Configuration<br/>双段构建管线 · 发布门禁 · 测试基础设施"]
+    
+    subgraph RUNTIME["应用运行时分层"]
+        direction TB
+        CLIENT["Client_UI_Application_Layer<br/>目标控制台 · 评审面板 · 工作区侧栏 · 设置卡片"]
+        SHARED["Shared_Cross-Tier_Contracts___Utilities<br/>类型化 RPC 传输 · i18n 文案 · Zod 校验规则"]
+        API["Shared_Worktree_Console_API_Contract<br/>纯 JSON DTO · 状态投影 · 能力矩阵 · 错误模型"]
+        BACKEND["Backend_Host_Core_Runtime<br/>RPC 门面 · 领域台账 · 会话检出引擎 · 安全硬化适配器"]
     end
 
-    subgraph CORE["核心领域层"]
-        COREMOD["Worktree 核心领域与基础设施<br/>会话状态机/Git 安全适配器/持久化/纯规则引擎"]
-    end
+    INFRA["底层依赖<br/>Git 可执行文件 · 磁盘文件系统 · DSH 宿主服务"]
 
-    subgraph BRIDGE["跨边界桥接层"]
-        CONSOLEMOD["Worktree Console 协议与宿主服务<br/>共享类型契约/严格 schema 校验/服务端授权/RPC 端点"]
-    end
-
-    subgraph UI["浏览器界面层"]
-        CLIENTMOD["客户端界面层<br/>目标控制台/验收面板/侧栏徽章/设置卡片/预会话开关"]
-    end
-
-    subgraph EXTERNAL["外部运行时环境"]
-        DSH["DeepSeek Harness 宿主<br/>Cordis 服务/UI 槽位/会话管理"]
-        GIT["系统 Git 可执行文件"]
-        DISK[("本地文件系统与持久化状态目录")]
-    end
-
-    PFL -->|"提供构建校验与本地化支撑"| COREMOD
-    PFL -->|"提供构建校验与本地化支撑"| CONSOLEMOD
-    PFL -->|"提供构建校验与本地化支撑"| CLIENTMOD
-
-    COREMOD -->|"调用 Git 能力"| GIT
-    COREMOD -->|"崩溃安全原子写入"| DISK
-    COREMOD -->|"桥接宿主服务接口"| DSH
-    COREMOD -->|"暴露领域能力接口"| CONSOLEMOD
-
-    CONSOLEMOD -->|"类型安全 RPC 传输"| CLIENTMOD
-    CLIENTMOD -->|"读取/写入宿主 UI 槽位"| DSH
+    USER --> CLIENT
+    CLIENT -->|"Web RPC 通道"| SHARED
+    SHARED -->|"引用类型形状与校验规则"| API
+    SHARED -->|"远程方法分发"| BACKEND
+    BACKEND -->|"复用契约类型与投影逻辑"| API
+    BACKEND -->|"调用真实 Git / 文件操作"| INFRA
+    BUILD -.->|"编译、打包、校验、挂载"| CLIENT
+    BUILD -.->|"编译、打包、发布校验"| BACKEND
+    BUILD -.->|"构建跨层契约产物"| API
 ```
 
-## 核心模块文档导航
-仓库按领域职责拆分为四个独立文档化的核心模块，各模块的详细设计与实现说明可通过以下链接查看：
-- **[项目基础与本地化模块](project_foundation_and_localization.md)**：全仓库的基础支撑层，负责构建、CI、打包与发布校验，同时维护类型安全的中英文消息目录与统一的语言回落规则，保证业务文案在 Host 与 Client 两侧可确定解析渲染。
-- **[核心 Worktree 领域与基础设施模块](core_worktree_domain_and_infrastructure.md)**：插件的业务核心，实现宿主无关的会话检出状态机、Git 安全执行适配器、崩溃安全持久化层、纯函数规则引擎，通过契约层分离领域逻辑与外部基础设施，保证核心规则可独立测试、适配器可按需替换。
-- **[Worktree Console 协议与宿主服务模块](worktree_console_protocol_and_host_service.md)**：连接核心领域与浏览器客户端的跨边界桥接层，维护 Host 与 Client 共享的纯类型契约、严格的线格式 schema、服务端授权控制面与 RPC 端点实现，是所有跨边界操作的唯一权威入口。
-- **[Worktree 客户端界面层模块](worktree_client_interface_layer.md)**：薄适配层负责所有浏览器端用户界面渲染，包括目标控制台、验收评审面板、工作区侧栏徽章、设置卡片、预会话创建开关等，本身不持有任何业务权威状态，仅消费 Host 侧计算好的投影 DTO 完成渲染。
+## 核心模块文档索引
+仓库按职责拆分为五个独立的顶层模块，各模块的详细设计、接口定义与实现细节可通过以下文档入口查阅：
 
-## 构建、测试与部署
-项目基于 pnpm 工作区与 TypeScript 构建，通过 GitHub Actions 运行持续集成校验，使用 Vitest 作为测试运行器，并针对 Cordis 插件框架提供定制化补丁集成。核心构建入口覆盖类型检查、单元测试、发布完整性校验、本地开发插件安装/卸载/冒烟测试等全流程。
+| 模块 | 核心职责 | 详细文档 |
+| --- | --- | --- |
+| 客户端 UI 应用层 | 浏览器端交互组装，负责状态只读投影、用户动作编排、写前预检、客户端缓存与恢复队列，遵循「Host 权威、客户端投影」原则，不实现 Git 与 Worktree 领域规则 | [客户端 UI 应用层文档](Client_UI_Application_Layer.md) |
+| 后端宿主核心运行时 | 服务端核心承载，实现六边形架构的领域台账、会话检出事务引擎、安全硬化的适配器实现、面向客户端的鉴权 RPC 服务，提供崩溃可恢复的全生命周期 Worktree 管理 | [后端宿主核心运行时文档](Backend_Host_Core_Runtime.md) |
+| 共享跨层契约与工具层 | Client 与 Host 之间的纯共享层，提供类型化 RPC 描述符、Zod 运行时校验、中英双语 i18n 机制，作为跨进程调用形状的单一事实来源 | [共享跨层契约与工具层文档](Shared_Cross-Tier_Contracts___Utilities.md) |
+| 共享 Worktree 控制台 API 契约 | 单一文件定义的跨层纯契约，包含 JSON 可序列化 DTO、11 态 UI 状态投影规则、15 项操作能力矩阵、统一错误码与恢复元数据 | [共享 Worktree 控制台 API 契约文档](Shared_Worktree_Console_API_Contract.md) |
+| 构建、CI 与项目配置层 | 工程化支撑，覆盖双段 TypeScript 构建管线、七重发布完整性门禁、Vitest 测试基础设施、GitHub Actions CI 流水线、DSH 宿主挂载补丁、本地开发联调脚本 | [构建、CI 与项目配置层文档](Build,_CI___Project_Configuration.md) |
 
-详细的构建配置、CI 流水线规则、打包流程与部署操作说明可参考 [构建、CI 与打包子模块文档](project_foundation_and_localization/build_ci_and_packaging.md)，该模块定义了所有发布闸门与本地开发操作的具体规范。
+## 构建与运行
+项目采用「源码 → 双段编译 → 多层校验 → 宿主挂载」的标准化发布链路：Host 侧 Node 源码经 `tsc` 编译为 NodeNext ESM 产物，Client 侧浏览器源码经 `tsdown` 打包为 DSH ModuleLoader 可消费的 CJS 闭包；发布流程内置类型检查、上游 UI 产物版本校验、七重发布完整性门禁、全量单元测试，通过 GitHub Actions CI 流水线完成自动校验；最终产物通过 `cordis.patch.yml` 补丁自动注册到 DSH 宿主插件清单。项目同时提供本地开发脚本族，支持无公开发布的快照安装、DSH 进程启动与冒烟校验，实现快速本地联调。
+
+完整的构建命令、测试配置、发布规则与 CI 流程说明，请参考 [构建、CI 与项目配置层文档](Build,_CI___Project_Configuration.md)。
