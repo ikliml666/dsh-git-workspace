@@ -318,6 +318,7 @@ flowchart TD
 | `createDetachedWorktree` | `diff --name-only -z` ×2（tracked 与 `--cached`，限 `PROJECT_SKILL_ROOTS`）→ `createWorktree(...)` | 创建前若本地有未提交的 tracked Skill 改动则直接拒绝（先提交或解决）；创建后 `projectSkills.carry()` 把 Skill 随会话带入 |
 | `removeWorktree` | `ls-files --stage -z`、`ls-tree -r --name-only -z HEAD`、`worktree remove --force` | 携带 Skill 时先 `assertRemovable`（被改过或有新资源即拒绝删除）；调用方已验证过检出身份与完整指纹，Git 把「已评审未提交」视为改动，故必须 `--force` |
 | `pruneWorktrees`（本地适配） | `worktree prune --expire now` | 仅清理工作树已从磁盘消失的管理项；卫生操作，调用方容忍缺失 |
+| `listWorktrees`（本地适配） | `worktree list --porcelain` | 返回 Git 知道的全部 Worktree（含本插件之外创建的）：逐块解析 `worktree <path>` / `HEAD <oid>` / `branch <ref>`（或 detached），缺 `path`/`HEAD` 或 `HEAD` 不匹配 40–64 位 hex 的块**跳过而非猜测**，因为纳管会写入持久台账；路径经 `resolve()` 归一。Git 非零退出抛 `git_operation_failed`（带 stderr 或 `hostMessage('gitOperationFailedGit', …)`），**不**属于 §2.3 刻意保留语义退出码的读。供官方工具 Worktree 纳管使用，条目形态为 `WorktreeListingEntry`（见 [session_checkout_domain_contracts](session-checkout-domain-contracts.md)） |
 | `repairWorktreeLinks`（本地适配） | `worktree repair <managedRoot>` | 仓库整体搬家后由 Git 自己改写 `.git` 反向指针；返回布尔，不抛异常 |
 | `attachWorktreeBranch`（本地适配） | `update-ref <branchRef> <headOid> <expectedOldOid ?? 000…>` + `symbolic-ref HEAD <branchRef>` | **只动 ref 与 HEAD，绝不碰工作区**——检出内容与分支树必须完全一致，否则 `git status` 会凭空多出改动。`expectedOldOid=null` 时以全零为旧值，只在分支不存在时创建，否则只允许从该提交推进，并发会话不会丢提交 |
 

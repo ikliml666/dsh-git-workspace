@@ -4,6 +4,7 @@ type: module
 source_files:
   - src/ports.ts
   - src/types.ts
+  - src/official-worktree-adoption.ts
 tags: []
 generated_by: fsoft-native
 fsoft_page: core_worktree_domain_and_infrastructure/session_checkout_domain/session_checkout_domain_contracts.md
@@ -12,10 +13,11 @@ fsoft_page: core_worktree_domain_and_infrastructure/session_checkout_domain/sess
 
 ## 简介
 
-本模块是 `session-checkout` 领域的**类型表面（type surface）**，由两个文件组成：
+本模块是 `session-checkout` 领域的**类型表面（type surface）**，由三个文件组成：
 
 - `src/ports.ts` —— 端口接口（Port Interfaces）与注册表持久化模型；
 - `src/types.ts` —— 对外视图模型、操作（Operation）与结果（Result）判别联合。
+- `src/official-worktree-adoption.ts` —— 官方工具创建 Worktree 纳管（adoption）的依赖与结果类型。
 
 领域逻辑（状态机与 Apply 引擎）**只依赖这些契约**，不直接触碰子进程 Git、插件注册表存储或宿主会话服务；DSH 适配器（subprocess-backed git、plugin-owned registry、session/workspace lookup）全部隐藏在端口之后。这使得状态机保持宿主无关（host-agnostic），并可用 fake 端口做单元测试。
 
@@ -32,6 +34,7 @@ flowchart TB
   subgraph CT["本模块: 领域契约层 (宿主无关)"]
     P["ports.ts: 端口接口 + 注册表持久化模型"]
     T["types.ts: 视图模型 + 操作/结果类型"]
+    A["official-worktree-adoption.ts: 纳管依赖/结果类型"]
   end
   subgraph CN["消费方: 领域逻辑"]
     E["session-checkout-apply.ts: Apply 引擎"]
@@ -90,8 +93,8 @@ flowchart LR
 
 | 端口 | 职责 | 核心（必需）方法 | 可选能力（示例） |
 | --- | --- | --- | --- |
-| `SessionCheckoutLookupPort` | 会话/项目/侧边栏的只读导航查询 | `getSession(sessionId)`、`getProject(projectId)` | `getSessionCwd()`（活工作目录，授权证据）、`listLiveSessions()`（并发分支竞争守卫）、`getSidebarMemberships()` |
-| `SessionCheckoutGitPort` | 全部 Git 读写与探测 | `inspect`、`findContainingWorktreeRoot`、`status`、`createDetachedWorktree`、`removeWorktree`、`retainApplyBase`/`releaseApplyBase`、`retainInternalArtifact`/`readInternalArtifact`/`releaseInternalArtifacts`、`isAncestor` | 分支/标签总览、`pushBranch`、`mergeLocalBranch`、`graphLog`、放弃快照 `snapshotAbandonedWorktree`/`restoreAbandonedSnapshot`、WIP 携带 `captureLocalWip` 等 |
+| `SessionCheckoutLookupPort` | 会话/项目/侧边栏的只读导航查询 | `getSession(sessionId)`、`getProject(projectId)` | `getSessionCwd()`（活工作目录，授权证据）、`listLiveSessions()`（并发分支竞争守卫）、`getSidebarMemberships()`、`listProjects()`（Local 根反向归属宿主 Workspace 项目） |
+| `SessionCheckoutGitPort` | 全部 Git 读写与探测 | `inspect`、`findContainingWorktreeRoot`、`status`、`createDetachedWorktree`、`removeWorktree`、`retainApplyBase`/`releaseApplyBase`、`retainInternalArtifact`/`readInternalArtifact`/`releaseInternalArtifacts`、`isAncestor` | 分支/标签总览、`pushBranch`、`mergeLocalBranch`、`graphLog`、`listWorktrees()`（Git 权威 Worktree 清单，供官方工具创建的 Worktree 纳管）、放弃快照 `snapshotAbandonedWorktree`/`restoreAbandonedSnapshot`、WIP 携带 `captureLocalWip` 等 |
 | `SessionCheckoutFilesPort` | 文件系统操作与目录身份 | `exists`、`canonicalize`、`inspectDirectoryIdentity`、`ensureDirectory`、`removeEmptyDirectoryTree`、`quarantineDirectoryTree`、`removeDirectoryTree`、`measureDirectoryBytes` | `readTextFile`、`copyFile`、`isSymbolicLink` |
 | `SessionCheckoutRegistryPort` | 受管检出注册表的持久化 | `read()`、`write(registry)`、`update(mutate)` | — |
 
@@ -136,6 +139,24 @@ flowchart TB
 - **`ManagedPreviewReceipt`**：一次预览的完整凭据——配置基线 vs 有效基线、两端 HEAD/指纹/索引树、变更文件。脱钩恢复时以此为事实来源；
 - **`ManagedRecoveryContinuation`**：四种一次性、宿主权威的恢复上下文（应用冲突、评审重生、预览恢复分析、预览恢复交接），由状态机在宿主锁内持久化，供客户端随后驱动恢复流程（见 [client_review_console_recovery_delivery](client-review-console-recovery-delivery.md)）；
 - **`ManagedCheckoutJournal`**：`create` 与 `mutation` 两种日志。mutation 日志记录分步进度（planning → artifacts_retained → committing_session_branch → writing_local → updating_ref → replacing_index → removing_worktree），关键原则是**先持久化日志再写 Local**，进程崩溃后可据此判定断点。
+
+
+### 1.4 官方 Worktree 纳管（adoption）相关类型
+
+官方实验工具创建的 Worktree 可能既无本插件台账绑定、也无会话投影覆盖。`src/official-worktree-adoption.ts` 的纳管逻辑在**锁外**通过 `git.listWorktrees()` 拿到 Git 权威清单（官方工具把 Worktree 嵌套在含 `/` 的分支名之下，任何目录扫描都无法安全重建），用 `lookup.listProjects()` 把 Local 根反向归属到宿主 Workspace 项目，再把「磁盘上已存在且可读」的树直接落成 `phase: 'ready'` 的台账记录。该文件只声明两个类型（纳管逻辑本身见运行时）：
+
+| 类型 | 字段 | 职责 |
+| --- | --- | --- |
+| `OfficialWorktreeAdoptionDependencies` | `lookup: SessionCheckoutLookupPort`、`git: SessionCheckoutGitPort`、`registry: SessionCheckoutRegistryPort`、`createCheckoutId()` | 纳管逻辑的依赖注入容器；`git.listWorktrees` 与 `lookup.listProjects` 任一缺失即整体跳过纳管 |
+| `OfficialWorktreeAdoptionResult` | `adopted: string[]` | 被纳管的 Worktree 绝对路径清单 |
+
+纳管读取的 Git 条目形态由端口上的 `WorktreeListingEntry` 描述：
+
+| 字段 | 含义 |
+| --- | --- |
+| `path: string` | Git 报告的绝对工作树根路径 |
+| `headOid: string` | 该 Worktree 当前检出的提交号 |
+| `branchRef: string \| null` | 检出分支时为 `refs/heads/...`，否则为 `null`（detached） |
 
 ---
 

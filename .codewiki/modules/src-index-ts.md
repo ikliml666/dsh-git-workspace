@@ -18,7 +18,8 @@ session-checkout 领域本身（状态机、apply 引擎、端口契约）是从
 3. 用这些适配器实例化 session-checkout 状态机与 apply 引擎；
 4. 注册模型可安全调用的 worktree 工具、人类 `/worktree` 验收命令、Session Target 动态运行时上下文；
 5. 装配 Console 宿主服务（Typert Remote RPC 面）；
-6. 拉起启动收敛（reconcile）与三类后台维护定时器，并在 fiber 卸载时清理。
+6. 挂载官方 Worktree 工具接管（默认开启，可用 `enableOfficialWorktreeTakeover: false` 关闭），并在启动收敛之后把官方工具此前建好、但不在台账内的工作树纳管登记；
+7. 拉起启动收敛（reconcile）与三类后台维护定时器，并在 fiber 卸载时清理。
 
 模块文档级声明：`@module dsh-git-worktree`（见文件顶部注释块）。
 
@@ -58,6 +59,8 @@ flowchart TB
         STATE["createSessionCheckoutModule"]
         ENGINE["createSessionCheckoutApplyEngine"]
         LIFECYCLE["mountWorkspaceProviderLifecycle"]
+        TAKEOVER["mountOfficialWorktreeTakeover"]
+        ADOPT["adoptOfficialWorktrees"]
     end
 
     subgraph SURFACES["对外能力面"]
@@ -183,8 +186,9 @@ flowchart LR
 | `branchRaceGuard` | boolean | `true` | 是 | 并发分支竞态守卫：其他活跃 Session 共享 Local 且窗口内出现新本地分支时，指示后启动的 Session 先 `worktree_create` 隔离 |
 | `branchRaceWindowMs` | 60s … 24h | 30min | 是 | 上述守卫的检测窗口 |
 | `enableWorkspaceProvider` | boolean | `false` | 否 | 接管官方 Workspace UI（`ui-workspace`）。仅显式 `true` 才接管：禁用官方条目会把其 client 包从 Host 客户端图移除 |
+| `enableOfficialWorktreeTakeover` | boolean | 未设（即开启） | 是 | 接管官方实验性 Worktree 工具（`create_worktree`）并注册按工具名拦截的 `ctx.tools.guard`，使本插件的 `worktree_create` 成为会话 worktree 创建的唯一入口；显式设为 `false` 才关闭。关闭时既不禁用官方条目，也不纳管其已建工作树 |
 
-`LocalAdaptationConfig` 是 `apply()` 形参用到的**本地适配视图类型**（未导出）：除 `enableWorkspaceProvider` 外，每个字段都写成 `boolean | LiveValue<boolean | undefined>` 之类的联合类型，因此同一处代码既能接受普通配置也能接受活引用，统一由 `liveConfigValue` 解包。
+`LocalAdaptationConfig` 是 `apply()` 形参用到的**本地适配视图类型**（未导出）：除 `enableWorkspaceProvider` 外，每个字段都写成 `boolean | LiveValue<boolean | undefined>` 之类的联合类型，因此同一处代码既能接受普通配置也能接受活引用，统一由 `liveConfigValue` 解包。`enableOfficialWorktreeTakeover` 也在其中——`liveConfigValue(config.enableOfficialWorktreeTakeover) !== false` 才挂载接管，即未设（`undefined`）时默认开启，只有显式 `false` 才关闭。
 
 ---
 
@@ -212,6 +216,7 @@ sequenceDiagram
     participant L as Cordis Loader
     participant E as apply()
     participant W as mountWorkspaceProviderLifecycle
+    participant T as mountOfficialWorktreeTakeover
     participant FS as node:fs
     participant A as DSH 适配器
     participant M as createSessionCheckoutModule
@@ -222,6 +227,8 @@ sequenceDiagram
     E->>E: validateGitTimeouts(config)
     E->>W: 选举唯一 uiWorkspace 提供者（enabled = enableWorkspaceProvider === true）
     W-->>E: { officialWorkspaceActive }
+    E->>T: liveConfigValue(enableOfficialWorktreeTakeover) !== false 时挂载接管<br/>（禁用官方 create_worktree 条目 + 注册按工具名守卫）
+    T-->>E: { disabled: [...已接管条目], overridden }（disabled 非空时 console.info）
     E->>FS: mkdirSync(stateDir), mkdirSync(stateDir/disabled-git-hooks)
     E->>E: worktreesRoot 包装成活引用 { get: () => resolveWorktreesRootValue(raw) }
     E->>A: createDshLookupPort(ctx)
@@ -234,7 +241,7 @@ sequenceDiagram
     M-->>E: module: SessionCheckoutModule
     E->>C: new WorktreeConsoleService(ctx, controlPlane, sidebar-diag.ndjson, officialWorkspaceActive)
     E->>R: registerTools / registerWorktreeCommand / registerSessionTargetContext
-    E->>E: 订阅 ctx.events.on('ready') → reconcile + enforceWorktreeKeepCount
+    E->>E: 订阅 ctx.events.on('ready') → reconcile → adoptOfficialWorktrees → enforceWorktreeKeepCount
     E->>E: setInterval 保留期清理（15min）、setTimeout+setInterval 自动剪枝（60s / 24h）
     E->>E: ctx.effect(卸载时解绑 ready、清除全部定时器)
     E-->>L: void（挂载完成）
@@ -255,8 +262,15 @@ flowchart TB
     BOOT["ctx.events 'ready'"] --> REC["module.reconcile()"]
     REC --> WARN{"staleRootCheckoutIds 非空?"}
     WARN -->|"是"| LOG1["console.warn：本地根已消失（仓库可能被移动）"]
+    WARN -->|"否"| ADOPT1["adoptOfficialWorktrees<br/>把官方工具已建、却无台账的工作树纳管"]
+    LOG1 --> ADOPT1
+    ADOPT1 --> ADOPTLOG{"adopted 非空?"}
+    ADOPTLOG -->|"是"| ADOPTINFO["console.info 已纳管路径"]
+    ADOPTLOG -->|"否"| KEEP1["module.enforceWorktreeKeepCount()"]
+    ADOPTINFO --> KEEP1
+    LOG1ADOPT
     WARN -->|"否"| KEEP1["module.enforceWorktreeKeepCount()"]
-    LOG1 --> KEEP1
+    LOG1 --> ADOPT1
 
     T1["setInterval 15 分钟"] --> EXP["module.cleanupExpiredRetained()"]
     EXP --> KEEP2["module.enforceWorktreeKeepCount()"]

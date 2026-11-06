@@ -87,7 +87,7 @@ graph TB
 
 - 领域层通过**可选注入**使用本模块：`SessionCheckoutApplyEngineOptions.projectSkills`（`src/session-checkout-apply.ts:324`）与 `GitPortOptions.projectSkills`（`src/adapters/git.ts:59-63`）。不注入时 Git 端口会自建一个 store（`src/adapters/git.ts:275`：`options.projectSkills ?? new ProjectSkillStore(join(dirname(options.hooksPath), 'project-skills'))`），因此不存在「忘记装配就静默降级」的缝隙 —— 顶多是清单目录换了一个位置。
 - `ClaudeProjectSkillProvider` 是**纯附加**的项目源：`rank: 250` 排在原生项目源之后，不改变 `.dsh` / `.agents` 的优先级；它也绝不接受 Skill 文件自己声称的根目录。
-- 兄弟子模块的职责边界：Git 命令执行与 Worktree 创建协议见 [src_adapters_git_execution](src-adapters-git-execution.md)；注册表与文件锁见 [src_adapters_persistence](src-adapters-persistence.md)；宿主 Session / Workspace / cwd 服务探测见 [src_adapters_host_binding](src-adapters-host-binding.md)。
+- 兄弟子模块的职责边界：Git 命令执行与 Worktree 创建协议见 [src_adapters_git_execution](src-adapters-git-execution.md)；注册表与文件锁见 [src_adapters_persistence](src-adapters-persistence.md)；宿主 Session / Workspace / cwd 服务探测与官方 `create_worktree` 接管见 [src_adapters_host_binding](src-adapters-host-binding.md)。
 
 ## 2. 数据模型
 

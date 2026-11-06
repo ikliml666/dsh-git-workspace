@@ -83,7 +83,7 @@ flowchart LR
   A3 --> A4["同时暴露 __dshGitWorktreeManagedGuard<br/>供新版官方快捷座位查询"]
 
   B --> B1["读取 slots 注册服务"]
-  B1 --> B2["inject('sidebar.session.row.leading')<br/>inject('sidebar.session.row.hover')"]
+  B1 --> B2["inject('sidebar.workspaces.session.row.action')<br/>inject('sidebar.session.row.hover')"]
   B2 --> B3["inject('sidebar.workspaces.session.menu.item')<br/>注册清除徽章条目"]
 ```
 
@@ -102,9 +102,9 @@ flowchart LR
 `registerDecoratedWorkspaceSidebar(ctx, adapter)` 适用于官方 Browser 已经渲染的场景。源码注释明确指出 **shadow `sidebar.workspaces` 本身是死路**：一个槽位只允许一个声明者，shadow 条目无法重新声明官方子节点，且 `renderSlot` 只授权声明条目，衍生 Browser 渲染第一个子节点时就会崩溃。因此改为：
 
 - 直接 `slots.inject` 进宿主从 `sidebar.workspaces` 条目声明的两个行座位：
-  - `sidebar.session.row.leading` —— 行标题前 16px 槽位（仅主状态空闲的行渲染）；
+  - `sidebar.workspaces.session.row.action` —— 行尾原本只放溢出按钮的 span；「图标 + 胶囊」注入其中，再由 `src/client/styles.ts` 的 `order: -1` 把整个容器前置到行首（详见下方「状态徽章与视觉规范」）；
   - `sidebar.session.row.hover` —— 悬浮卡片弹层内容。
-- DSH 0.2.x **不存在** `sidebar.session.row.trailing` 座位——注入该名称会永远等待一个不会到来的声明，回调永不执行、徽章永不挂载，因此只注册上述两个真实座位。
+- DSH 0.2.x **不存在** `sidebar.session.row.trailing` 座位——注入该名称会永远等待一个不会到来的声明，回调永不执行、徽章永不挂载；早期也曾用过 `sidebar.session.row.leading`，但该座位在 Session 运行时会被官方行替换成状态点，同样不可靠。因此最终只注册 `row.action` 与 `row.hover` 两个真实座位。
 - 由于模式 B 中 `ManagedOfficialWorkspaceBrowser` 不会挂载，`sharedTopology` 由本函数内的 `refresh()` 独立喂给，并在 `ctx.effect` 收集清理函数。
 
 ---
@@ -236,7 +236,7 @@ sequenceDiagram
 | `finalized` | `completed` | 成功色（绿），已完成 |
 | `discarded` | `discarded` | 次要色（灰），已丢弃 |
 
-关键样式约束（见 `src/client/styles.ts`）：官方行的 leading 座位是固定 16px 盒子（`._slot{width:16px;flex:none}`），模式 B 无法像接管路径那样重排整行，因此样式表用 `[role="treeitem"] > span:has(.dsh-git-worktree-sidebar-icon)` 对承载本装饰的座位 **放宽宽度**（`max-width: 55%`），让“图标 + 胶囊”胶囊对得以完整呈现，同时允许胶囊在座位内收缩（`min-width: 0`）避免溢出挤压标题。
+关键样式约束（见 `src/client/styles.ts`）：官方行的 leading 座位是固定 16px 盒子（`._slot{width:16px;flex:none}`），且 Session 运行时会被状态点替换，不能作为标记的常驻容器。因此「图标 + 胶囊」改注入 `row.action`（行尾 span），样式表用结构化选择器 `[role="treeitem"] > span:last-child:has(> .dsh-git-worktree-sidebar-icon)` 把该容器 `display: inline-flex` 并以 `order: -1` 整体前置到 leading 座位与标题之前——无需重排整行，也不依赖带哈希的 CSS-module 类名。配套地，容器内的溢出按钮默认 `display: none`、行 hover 或菜单展开（`aria-expanded="true"`）时才恢复 `display: inline-flex`，避免被前置的隐藏盒子留下空洞；图标与胶囊在容器内固定 `flex: 0 0 auto`，不随标题伸缩。
 
 ---
 

@@ -38,7 +38,7 @@
 - [[modules/src-adapters|src_adapters：会话检出（Session Checkout）的宿主适配层]]
 - [[modules/src-i18n|src_i18n 国际化与消息目录模块]]
 - [[modules/worktree-client-interface-layer|worktree_client_interface_layer：Worktree 浏览器端客户端界面层总览]]
-- [[modules/src-adapters-host-binding|主机绑定适配层（src/adapters/lookup.ts 与 src/adapters/working-directory.ts）]]
+- [[modules/src-adapters-host-binding|主机绑定适配层（src/adapters/lookup.ts、src/adapters/working-directory.ts 与 src/official-worktree-takeover.ts）]]
 - [[modules/session-checkout-apply-engine|会话检出交付引擎（session_checkout_apply_engine）]]
 - [[modules/session-checkout-runtime-entry|会话检出运行时入口模块]]
 - [[modules/session-checkout-runtime|会话检出运行时模块（session_checkout_runtime）概述]]

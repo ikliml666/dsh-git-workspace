@@ -348,7 +348,13 @@ flowchart LR
 | `finalized` | 已定稿 | `--dsw-alias-state-success-primary` |
 | `discarded` | 已放弃 | `--dsw-alias-label-tertiary` |
 
-两处刻意的布局修复：`[role="treeitem"] > span:has(.dsh-git-worktree-sidebar-icon)` 把官方行首的固定 16px 座位放宽到最多 55%，否则 Mode B（装饰而非接管）下徽标会被裁掉、只剩分支图标；内部徽标同时设 `flex: 0 1 auto; min-width: 0` 才能收缩而不越界挤压标题。悬停时**不**隐藏徽标，避免 pill 闪烁。窄屏（≤560px）下 `.dsh-wt-grid` 退化为单列。
+侧栏装饰的挂载点经过一次刻意迁移：「图标 + 胶囊」对不再放进官方行首的固定 16px leading 座位，而是挂进 `sidebar.workspaces.session.row.action`——官方行尾原本只放溢出按钮的 span。原因：leading 座位会在 Session 运行时被官方行替换成状态点，恰好在标记最该保持可见的时候消失；而行尾 span 是行的 flex 项，`order: -1` 把整个容器整体前置到 leading 座位与标题之前，行前缀无需重排即内联呈现。配套规则：
+
+- 上游把 `.rowActions` 隐藏到 hover 才显示，一个被前置的隐藏盒子会留下空洞，因此容器持有标记时保持 `display: inline-flex`，内部图标与胶囊固定 `flex: 0 0 auto`。
+- 行尾 span 内的溢出按钮保留自己的 hover 显隐：默认 `display: none`，行 hover 或其菜单 `aria-expanded="true"` 时才 `display: inline-flex`；官方行 hover 时隐藏 `.time` 与 pin 腾位，菜单始终可达。
+- 选择器全部结构化（`[role="treeitem"] > span:last-child:has(> .dsh-git-worktree-sidebar-icon)` 及其首个子 button），不依赖任何带哈希的 CSS-module 类名，宿主样式重命名不会打断装饰。
+
+窄屏（≤560px）下 `.dsh-wt-grid` 退化为单列。
 
 ---
 
