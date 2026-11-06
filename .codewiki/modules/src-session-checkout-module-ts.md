@@ -9,7 +9,7 @@ fsoft_page: core_worktree_domain_and_infrastructure/session_checkout_domain/sess
 ---
 # `src/session-checkout-module.ts` —— 会话检出状态机工厂
 
-本文件是 `dsh-git-worktree` 插件的**核心状态机**：`createSessionCheckoutModule(dependencies)` 用一个纯函数式工厂闭包，实例化出宿主可见的唯一业务对象 `SessionCheckoutModule`。它把从 Domi 移植来的 session-checkout 域（receipt-first 的 Local Preview、回滚/定稿、项目验收槽、崩溃恢复、指纹 CAS）适配到 Harness 的「源 Local 会话 + 目标 owner 会话」双会话模型上，并叠加了大量本地适配（会话分支交付、自动推送、keep-count LRU、分支竞态守卫等）。
+本文件是 `dsh-git-worktree` 插件的**核心状态机**：`createSessionCheckoutModule(dependencies)` 用一个纯函数式工厂闭包，实例化出宿主可见的唯一业务对象 `SessionCheckoutModule`。它把从 Domi 移植来的 session-checkout 域（receipt-first 的 Local Preview、回滚/定稿、项目验收槽、崩溃恢复、指纹 CAS）适配到 Harness 的「源 Local 会话 + 目标 owner 会话」双会话模型上，并叠加了大量本地适配（会话分支交付、自动推送、keep-count LRU 等）。
 
 - 文件位置：`src/session-checkout-module.ts`
 - 唯一对外导出：`createSessionCheckoutModule`（工厂函数）
@@ -32,7 +32,7 @@ flowchart TD
         FILES["files: SessionCheckoutFilesPort"]
         REG["registry: SessionCheckoutRegistryPort"]
         ENGINE["applyEngine: SessionCheckoutApplyEngine"]
-        CFG["LiveValue 配置 autoDeliver / autoPush / worktreesRoot / inheritLocalChanges / worktreeKeepCount / branchRaceGuard / branchRaceWindowMs"]
+        CFG["LiveValue 配置 autoDeliver / autoPush / worktreesRoot / inheritLocalChanges / worktreeKeepCount"]
     end
     subgraph Core["本文件"]
         FACTORY["createSessionCheckoutModule(dependencies)"]
@@ -42,7 +42,7 @@ flowchart TD
         CMD["src/commands.ts 人类 /worktree 命令"]
         CTX["src/session-target-context.ts 系统提示运行时上下文"]
         CP["src/console-host/control-plane.ts 验收台控制面"]
-        WTSVC["src/worktrees-service.ts WorktreesService<br/>ctx.provide('worktrees')"]
+
     end
 
     IDX --> FACTORY
@@ -57,10 +57,10 @@ flowchart TD
     IDX --> CMD
     IDX --> CTX
     IDX --> CP
-    IDX --> WTSVC
+
 ```
 
-工厂产出的单例被 `apply()` 同时交给工具层、命令层、上下文层、验收台控制面与宿主 Worktrees 服务（见 `src/index.ts` 中的 `registerTools(ctx, module)`、`registerWorktreeCommand(ctx, module)`、`registerSessionTargetContext(ctx, module)`、`createWorktreeConsoleControlPlane({ module, ... })`、`mountWorktreesService(ctx, module)` 与 `mountWorktreesInIsolatedScopes(ctx, module)`——后两者仅在官方 Worktree 工具接管开启时才调用）。相关下游文档：[Worktree 核心操作](worktree-core-operations.md)、[验收台宿主服务](worktree-console-host.md)、[客户端界面层](worktree-client-interface-layer.md)。
+工厂产出的单例被 `apply()` 同时交给工具层、命令层、上下文层与验收台控制面（见 `src/index.ts` 中的 `registerTools(ctx, module)`、`registerWorktreeCommand(ctx, module)`、`registerSessionTargetContext(ctx, module)` 与 `createWorktreeConsoleControlPlane({ module, ... })`）。相关下游文档：[Worktree 核心操作](worktree-core-operations.md)、[验收台宿主服务](worktree-console-host.md)、[客户端界面层](worktree-client-interface-layer.md)。
 
 ---
 
@@ -78,7 +78,7 @@ flowchart TD
 | 交付副作用 | `pushLocalBranchBestEffort()` | 尽力而为推送会话分支，失败降级为结果备注 |
 | 视图投影 | `ResolvedSessionProject`、`projectPreviousReview`、`projectCheckpoint`、`projectDelivery`、`recoveryView`、`committedFollowupView`、`bindingForManagedRecord` | 把台账记录投影成 `SessionTargetView` |
 | 身份校验 | `validateManagedCheckoutDetailed`、`validateManagedCheckout`、`checkpointHeadInvariantHolds`、`validateCommittedLocalCheckout`、`validateCleanupLocalIdentity`、`validateDetachedCleanupResidue`、`validateCleanupQuarantine` | 三值判定：valid / invalid / unavailable |
-| 读路径 | `inspectLocal`、`inspectIsolated`、`inspectAvailable`、`inspectDuringMaintenance`、`runtimeContext`、`branchRaceNotice`、`refreshBranchRaceGuards` | 状态检查与模型指导 |
+| 读路径 | `inspectLocal`、`inspectIsolated`、`inspectAvailable`、`inspectDuringMaintenance`、`runtimeContext` | 状态检查与模型指导 |
 | 写路径 | `bindTarget`、`attachSessionBranch`、`ensureSessionBranch`、`markReadyForReviewTarget`、`operateTarget`（分派到 `operateApply` / `operateFinish` / `operatePreview` / `operateCheckpoint` / `operateRollbackPreview` / `operateFinalizePreview` / `operateRetryCleanup` / `operateDiscard` / `operateRecover`） | 状态机迁移 |
 | 恢复与维护 | `reconcile`、`cleanupFinalized`、`retainFinalized`、`cleanupExpiredRetained`、`enforceWorktreeKeepCount`、`repairStaleWorktreeLinks`、`beginNextIterationTarget` | 崩溃收敛、到期清理、LRU 逐出、下一迭代 |
 | 管理面 | `listManagedWorktrees`、`listManagedWorktreesForSession`、`summarizeManagedWorktree`、`inspectCleanupForRecord`、`bulkCleanupManagedWorktrees`、`manageManagedWorktree`、`manageManagedWorktreeForSession`、`observeManagedCheckout`、`observeManagedCheckouts`、`resolveManagedRoot`、`resolveRoots` | 侧栏、控制台、批量清理 |
@@ -337,9 +337,9 @@ sequenceDiagram
 ```mermaid
 flowchart TD
     A["runtimeContext(sessionId, cwd)"] --> B{"存在 binding?"}
-    B -->|否| C["只返回 branchRaceNotice（可能为空）"]
+    B -->|否| C["返回空字符串"]
     B -->|local 目标| D{"项目内有 pending 记录?"}
-    D -->|无| E["Local 边界指导，禁止调用 Worktree-only 工具，附竞态提示"]
+    D -->|无| E["Local 边界指导，禁止调用 Worktree-only 工具"]
     D -->|preview_active| F["只读指导：仅用户可通过验收 UI 接受/回滚/放弃"]
     D -->|preview_detached| G["保留恢复证据，禁止自动清理"]
     D -->|owner 是他人| H["handoff pending：停止修改，请用户打开隔离会话"]
@@ -358,9 +358,9 @@ flowchart TD
 3. **`autoDeliver` 实时取值**：`working` 态的指导文案由 `liveConfigValue(dependencies.autoDeliver) ?? true` 每次生成时决定，指向 `worktree_deliver`（提交+推送+清理一步完成）还是 `worktree_ready_for_review`（等人工验收）。
 4. 官方实验性 `create_worktree` 工具会创建不受管的 `.agents/worktrees` 副本；指导明确要求所有交付/评审/清理只走 `worktree_*`，不得用它的产物交付或合并。
 
-### 6.1 并发分支竞态守卫
 
-`refreshBranchRaceGuards()`（宿主周期 fire-and-forget）用 `git.branchCreationTimes` 为每个已知 Local 根采集分支创建时间，写入 `branchRaceCache`；`branchRaceNotice()` 同步读该缓存并调用 `detectLocalBranchRace`（见 [并发会话守卫](session-checkout-apply-engine.md)）。采集时特意包含**尚无 binding** 的活跃会话所属项目——它们正是守卫要保护的对象。探活失败保留上一次快照（宁可就静默，也不让噪声阻塞工作）。守卫在以下情况静默：配置关闭、端口不支持、活跃会话少于 2、会话已隔离、无可比较时间戳。命中时指导模型「不要在 Local 建分支，先 `worktree_create` 隔离；工具不可用则询问用户谁拥有 Local」。
+
+
 
 ---
 
@@ -417,7 +417,7 @@ flowchart TD
 | `worktreesRoot` | 容器选择（`<worktreesRoot>/<project>/<topic>-<YYYYMMDD>`）、候选路径 identityLength 分支，以及 `collectEmptyManagedContainer` 的空容器回收判定 |
 | `inheritLocalChanges` | 是否执行 `carryLocalWorkInProgress` |
 | `worktreeKeepCount` | `enforceWorktreeKeepCount()` 的 LRU 阈值（0 关闭；`permanent` 豁免） |
-| `branchRaceGuard` / `branchRaceWindowMs` | `refreshBranchRaceGuards` 与 `branchRaceNotice` 的开关与检测窗口（默认 30 分钟） |
+
 
 装配位置见 `src/index.ts` 中的 `Config` 对象与 `createSessionCheckoutModule({ ... })` 调用，以及 `apply()` 末尾的三个定时器（`ready` 事件触发 `reconcile` + `enforceWorktreeKeepCount`；每 15 分钟 `cleanupExpiredRetained` + `enforceWorktreeKeepCount`；启动 60 秒后及每 24 小时的 `autoPruneStaleMergedBranches(7)`）。构建与测试约定见 [构建/CI/打包](build-ci-and-packaging.md)——`vitest.config.ts` 在 Windows 上关闭文件并行，正是因为重型 Git fixture 会争用进程与文件句柄并锁住临时目录。
 
@@ -427,7 +427,7 @@ flowchart TD
 
 实现或修改本文件时必须遵守：
 
-1. **同步的 `runtimeContext` 不得触发任何 Git/磁盘 I/O**；需要的新鲜数据由 `refreshBranchRaceGuards` 这类异步预热提供。
+1. **同步的 `runtimeContext` 不得触发任何 Git/磁盘 I/O**：它只读 registry 快照，不做任何 reflog 探测或异步预热。
 2. **单记录更新只走 `updateManagedCheckout`**（内部为 `registry.update`）；禁止 `read()` 后 `write()` 的裸两连——跨进程会丢更新。
 3. **动手前必须重读记录**：固定模式是「CAS 校验 → `inspectIsolated` → 再读 registry 复核 revision/phase/reviewId → 才执行」，因为校验期间可能有别的持锁操作插队。
 4. **瞬时故障不得升级为恢复态**：`unavailable` 与 `valid`/`invalid` 是三值而非两值，只有确定的身份/路径不匹配才持久进入 `recovery_required`。

@@ -4,12 +4,12 @@
 
 本模块是 session-checkout 域的 **Git 执行引擎层**：它回答的是「一次评审交付、预览或检查点在磁盘上到底该怎么写」，而不负责「什么时候写、写完台账怎么记」。后者由运行时状态机 [session_checkout_runtime](session_checkout_runtime.md)（`src/session-checkout-module.ts`）负责，二者通过 `SessionCheckoutDependencies.applyEngine` 端口装配。
 
-模块由两个文件组成：
+模块由一个文件组成：
 
 | 文件 | 职责 |
 | --- | --- |
 | `src/session-checkout-apply.ts` | `SessionCheckoutApplyEngine` 接口、`DefaultSessionCheckoutApplyEngine` 实现、全部输入/结果类型，以及 `runGit` 子进程基础设施 |
-| `src/concurrent-session-guard.ts` | 纯函数式「并发会话分支竞争」判定谓词，供运行时在同步系统提示中嵌入隔离引导 |
+
 
 引擎的全部写操作都遵循同一条安全哲学：**先快照取指纹（CAS），再在临时 `GIT_INDEX_FILE` 中预演目标树，最后以 `update-ref` CAS 与 `index.lock` 原子换写落地，并在写入前后各做一次独立校验**。任何一步失败都会把错误归类为 `unchanged`（可证明磁盘未被触碰）或 `uncertain`（保留恢复证据），由运行时决定把会话记录退回 ready 还是进入 recovery_required。
 
@@ -26,7 +26,8 @@ flowchart TB
         direction TB
         INTF["SessionCheckoutApplyEngine 接口<br/>plan / apply / finish / preview / rollback<br/>finalize / checkpoint / commitIsolated / inspect"]
         IMPL["DefaultSessionCheckoutApplyEngine<br/>plans 内存 plan 表 + 临时 index 预演"]
-        GUARD["detectLocalBranchRace<br/>纯谓词（无 IO）"]
+        INTF --> IMPL
+        INTF --> IMPL
         INTF --> IMPL
     end
 

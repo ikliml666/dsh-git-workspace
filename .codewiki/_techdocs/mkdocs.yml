@@ -15,7 +15,7 @@ nav:
     - src_adapters：会话检出（Session Checkout）的宿主适配层: core_worktree_domain_and_infrastructure/src_adapters.md
     - 持久化适配器：文件系统端口、原子注册表与崩溃安全 JSON IO: core_worktree_domain_and_infrastructure/src_adapters/src_adapters_persistence.md
     - Git 执行适配器：唯一出口 runGit、可证明的 Worktree 创建与首次提交协议: core_worktree_domain_and_infrastructure/src_adapters/src_adapters_git_execution.md
-    - 主机绑定适配层（src/adapters/lookup.ts、src/adapters/working-directory.ts 与 src/official-worktree-takeover.ts）: core_worktree_domain_and_infrastructure/src_adapters/src_adapters_host_binding.md
+    - 宿主绑定适配器（src_adapters_host_binding）: core_worktree_domain_and_infrastructure/src_adapters/src_adapters_host_binding.md
     - Project Skills 适配器：随会话携带的项目级 Skill 资源: core_worktree_domain_and_infrastructure/src_adapters/src_adapters_project_skills.md
   - Worktree 核心操作与纯函数工具层（worktree_core_operations）: core_worktree_domain_and_infrastructure/worktree_core_operations.md
   - 会话检出领域模块（session_checkout_domain）:

@@ -15,8 +15,8 @@ fsoft_page: core_worktree_domain_and_infrastructure/session_checkout_domain/sess
 1.  定义并导出全局稳定的 `SessionCheckoutError` 错误类、`SessionCheckoutModule` 核心业务接口，以及所有跨层共用的类型定义；
 2.  基于宿主提供的配置 schema，构建适配 DSH 运行时的 Git 执行、文件操作、跨进程原子化检出注册表、会话查找、项目技能加载等端口实现；
 3.  完成会话检出状态机与 Apply 引擎的依赖注入与实例化，确保所有端口实现与领域逻辑正确衔接；
-4.  向宿主注册所有对外能力面：模型可调用的 `worktree_*` 系列工具、用户可执行的 `/worktree` 验收命令、注入系统提示的动态会话运行时上下文、供客户端连接的 Worktree Console RPC 服务，并在官方 Worktree 工具接管开启时经 `ctx.provide('worktrees')` 提供宿主唯一的 `WorktreesService`（同时发布到宿主根与官方 forge 面板的隔离 `worktrees` realm，使该面板为新 Session 创建的 Worktree 落入本插件台账；接管显式关闭时由官方条目自行提供该键，插件不再发布）；
-5.  启动启动收敛、过期保留 Worktree 清理、已合并分支自动剪枝、并发分支竞态守卫预热等后台维护任务，并在插件卸载时完成所有资源清理。
+4.  向宿主注册所有对外能力面：模型可调用的 `worktree_*` 系列工具、用户可执行的 `/worktree` 验收命令、注入系统提示的动态会话运行时上下文、供客户端连接的 Worktree Console RPC 服务；
+5.  启动启动收敛、过期保留 Worktree 清理、已合并分支自动剪枝等后台维护任务，并在插件卸载时完成所有资源清理。
 
 ## 模块架构
 本模块处于宿主运行时与核心领域逻辑之间的装配层位置，依赖方向遵循「契约在上、实现在下」的设计原则，整体架构与依赖关系如下图所示：
@@ -44,7 +44,7 @@ flowchart TB
         CMD["用户命令<br/>/worktree 人工验收操作"]
         RUNTIME_CTX["动态运行时上下文<br/>注入系统提示的会话边界指导"]
         CONSOLE_SVC["Console RPC 服务<br/>供客户端连接的 Worktree 宿主服务"]
-        WT_SVC["WorktreesService 提供<br/>ctx.provide('worktrees') 宿主根 + 隔离 realm（随接管开关）"]
+
     end
 
     LOADER --> CONTRACT
@@ -61,7 +61,7 @@ flowchart TB
     ASSEMBLE --> CMD
     ASSEMBLE --> RUNTIME_CTX
     ASSEMBLE --> CONSOLE_SVC
-    ASSEMBLE --> WT_SVC
+
 ```
 
 > 架构设计说明：图中适配器与领域组件对本模块的反向依赖是刻意设计的结果——所有跨层契约从本模块导出，下层实现永远依赖稳定的契约层而非具体实现，从结构上避免循环依赖与跨层契约漂移。

@@ -64,7 +64,10 @@ graph TB
         subgraph HostGroup["宿主服务桥接族"]
             LOOKUP["lookup.ts<br/>createDshLookupPort"]
             WORKDIR["working-directory.ts<br/>Session cwd 迁移"]
-            TAKEOVER["official-worktree-takeover.ts<br/>官方 create_worktree 接管"]
+        end
+    end
+
+        end
         end
     end
 
@@ -99,7 +102,7 @@ graph TB
     SAFE --> NODEFS
     LOOKUP --> CORDIS
     WORKDIR --> CORDIS
-    TAKEOVER --> CORDIS
+    WORKDIR --> CORDIS
     PSP --> CORDIS
     SAFE --> DISK
     REG --> DISK
@@ -108,14 +111,14 @@ graph TB
 
 ## 4. 子模块划分
 
-本模块按「安全契约的边界」而不是按文件数量划分为四个子模块。下表是生成的子模块页面索引，四个页面共同覆盖 `src/adapters/` 与 `src/official-worktree-takeover.ts` 的全部 13 个文件：
+本模块按「安全契约的边界」而不是按文件数量划分为四个子模块。下表是生成的子模块页面索引，四个页面共同覆盖 `src/adapters/` 的全部 10 个文件：
 
 | 子模块页面 | 覆盖文件 | 一句话职责 |
 | --- | --- | --- |
 | [src_adapters_git_execution](src_adapters/src_adapters_git_execution.md) | `git.ts`、`git-options.ts`、`initial-commit.ts`、`worktree-creation.ts` | Git 命令的唯一出口、超时策略、首次提交协议与可证明的 Worktree 创建/回滚 |
 | [src_adapters_persistence](src_adapters/src_adapters_persistence.md) | `registry.ts`、`safe-file.ts`、`files.ts` | 崩溃安全的注册表落盘、跨进程文件锁、目录身份与安全删除 |
 | [src_adapters_project_skills](src_adapters/src_adapters_project_skills.md) | `project-skills.ts`、`project-skill-io.ts`、`project-skill-provider.ts` | 随会话携带的私有 Skill 资源：复制、遮蔽与发现 |
-| [src_adapters_host_binding](src_adapters/src_adapters_host_binding.md) | `lookup.ts`、`working-directory.ts`、`official-worktree-takeover.ts` | 把 Cordis 动态服务翻译成端口，并在服务缺失时降级而非报错；同时通过 Loader 接管官方 `create_worktree` 工具 |
+| [src_adapters_host_binding](src_adapters/src_adapters_host_binding.md) | `lookup.ts`、`working-directory.ts` | 把 Cordis 动态服务翻译成端口，并在服务缺失时降级而非报错 |
 
 ### 4.1 Git 执行族 → [src_adapters_git_execution](src_adapters/src_adapters_git_execution.md)
 
@@ -143,7 +146,7 @@ graph TB
 
 ### 4.4 宿主服务桥接族 → [src_adapters_host_binding](src_adapters/src_adapters_host_binding.md)
 
-包含 `lookup.ts`、`working-directory.ts`、`official-worktree-takeover.ts`。前二者的共同点是 **对宿主服务做结构性探测并优雅降级**：服务未挂载、形状不符或抛异常时返回 `undefined` / 空列表，让状态机把它读成「孤儿或恢复事实」而不是失败。`lookup.ts` 还包含一条重要的补偿逻辑——当 Harness 因不可变 cwd 已消失而把 Session 从 `Workspace.sessionIds` 过滤掉时，可用该 Session **仍存活**的 header cwd 精确恢复映射；其 `getSessionCwd` 则以宿主 `workingDirectory` 服务的实时 `get(session)` 投影为第一授权证据、冻结的 header cwd 为兜底（会话被 `workingDirectory.set` 搬进 Worktree 后 header 已失真）；`listProjects()` 把 Local 根反向归属宿主 Workspace 项目（官方工具创建的 Worktree 可能既无台账绑定也无会话投影覆盖）；`working-directory.ts` 则是把 Session 真正「放进」新检出的机制（官方实验性 worktree bundle 的最后一步即 `workingDirectory.set(agent, path)`）；`official-worktree-takeover.ts` 则是与 Workspace provider 选举平行的 Loader 接管——禁用官方 `create_worktree` 工具 bundle 条目并注册按工具名拦截的 `ctx.tools.guard`，卸载时只还原本插件亲手禁用的条目，绝不触碰用户 override。
+包含 `lookup.ts`、`working-directory.ts`。前二者的共同点是 **对宿主服务做结构性探测并优雅降级**：服务未挂载、形状不符或抛异常时返回 `undefined` / 空列表，让状态机把它读成「孤儿或恢复事实」而不是失败。`lookup.ts` 还包含一条重要的补偿逻辑——当 Harness 因不可变 cwd 已消失而把 Session 从 `Workspace.sessionIds` 过滤掉时，可用该 Session **仍存活**的 header cwd 精确恢复映射；其 `getSessionCwd` 则以宿主 `workingDirectory` 服务的实时 `get(session)` 投影为第一授权证据、冻结的 header cwd 为兜底（会话被 `workingDirectory.set` 搬进 Worktree 后 header 已失真）；`listProjects()` 把 Local 根反向归属宿主 Workspace 项目（官方工具创建的 Worktree 可能既无台账绑定也无会话投影覆盖）；`working-directory.ts` 则是把 Session 真正「放进」新检出的机制（官方实验性 worktree bundle 的最后一步即 `workingDirectory.set(agent, path)`）。
 
 ## 5. 关键数据流
 

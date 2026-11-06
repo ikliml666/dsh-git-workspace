@@ -6,7 +6,7 @@ description: srcadaptersgitexecution 是 srcadapters：会话检出（Session Ch
 # Git 执行适配器：唯一出口 runGit、可证明的 Worktree 创建与首次提交协议
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`8206c2a1`](https://github.com/wloops/dsh-git-worktree/commit/8206c2a19ed446899a5910eda03f5c0685bc27c2) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`e50f4121`](https://github.com/wloops/dsh-git-worktree/commit/e50f4121be2569531679e4f64bfc288bc20f70a3) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 `src_adapters_git_execution` 是 [src_adapters：会话检出（Session Checkout）的宿主适配层](../src_adapters.md) 四个子模块中风险最高的一片：**插件对 Git 仓库的每一处读写，最终都汇聚到这一个执行栈上**。它把领域端口 `SessionCheckoutGitPort`（契约见 [会话检出领域契约（session_checkout_domain_contracts）](../session_checkout_domain/session_checkout_domain_contracts.md)）实现为经 `ctx.subprocess`（`@deepseek-ai/dsh-subprocess`）驱动的 Git 命令执行器。四个文件的分工如下：
 
@@ -327,7 +327,7 @@ flowchart TD
 | 方法 | 关键命令 | 说明 |
 | --- | --- | --- |
 | `listLocalBranches` / `resolveLocalBranchTip` / `createLocalBranch` / `switchLocalBranch` / `deleteLocalBranch` | `for-each-ref refs/heads`、`rev-parse --verify --quiet`、`check-ref-format --branch`、`branch`、`switch` | `switchLocalBranch` 会把 Git 的 `already used by worktree at` / `already checked out at` 正则翻译成带路径的宿主文案；`deleteLocalBranch` 用 `-d`，绝不 `-D` |
-| `branchOverview` / `defaultBranch` / `branchTipTimes` / `branchCreationTimes` | `for-each-ref`（`%00` 分隔字段）、`symbolic-ref refs/remotes/origin/HEAD` → `config init.defaultBranch`、`reflog show --all --date=unix` | `branchCreationTimes` 一次 spawn 扫全部分支 reflog，取 `branch: Created from` 里最旧的一条作为出生时间，供 [会话检出领域模块（session_checkout_domain）](../session_checkout_domain.md) 里的分支竞争检测（`src/concurrent-session-guard.ts`）消费；`defaultBranch` 两个来源都落空时返回 `null`，**绝不猜 `main`** |
+| `branchOverview` / `defaultBranch` / `branchTipTimes` | `for-each-ref`（`%00` 分隔字段）、`symbolic-ref refs/remotes/origin/HEAD` → `config init.defaultBranch` | `branchTipTimes` 一次 spawn 取每条本地分支的尖端提交者时间（`%(committerdate:unix)`），供「陈旧分支」年龄过滤；`defaultBranch` 两个来源都落空时返回 `null`，**绝不猜 `main`** |
 | `mergeLocalBranch`（正向/反向合并） | `rev-parse HEAD` → `rev-parse --verify --quiet <source>^{commit}` → `merge-base` →（可选）`worktree add --detach <tmpdir 探针>` + `merge --no-commit --no-ff` → `diff --name-only` / `diff --name-only --diff-filter=U -z` + 逐文件 `diff --` | `dryRun` 在临时目录（`dsh-merge-probe-*`）建一个 detached 探针 worktree 试合并，`finally` 里必定 `worktree remove --force` 回收，**零改动触碰真实检出**；正式合并冲突时**不 abort**，把冲突状态留在 Local 并回传 `conflictingFiles`（受 `CONFLICT_DETAIL_FILE_LIMIT` 限制）与截断到 `CONFLICT_DETAIL_DIFF_LIMIT` 的 diff 供调用方解决。`headOid === tipOid` 或 `merge-base === tip` 直接判 `up_to_date` |
 | `listTags` / `createTag` / `deleteLocalTag` / `pushTag` / `deleteRemoteTag` | `for-each-ref refs/tags`（`*objectname` / `*subject` 展开附注标签）、`ls-remote --tags origin`、`check-ref-format refs/tags/<name>`、`tag [-a -m]`、`push origin refs/tags/x:refs/tags/x` | `pushed` 初始为 `null`：离线或没有 `origin` 时**不能被报告成「未推送」**；轻量标签没有消息体，故 `contents:subject` 只在附注标签上保留。`pushTag` 永不 `--force` |
 | `graphLog`（配合 `parseDecoration`） | `log --branches --tags --remotes --topo-order --parents --max-count=<1..1000> --format=%H%x00%P%x00%an%x00%at%x00%D%x00%s%x1e` | `\x1e` 分记录、`\x00` 分字段；`%D` 装饰串由 `parseDecoration()` 转成 ref 名：标签保留 `tag:` 前缀供客户端区分样式，`HEAD -> ` 前缀被剥离，裸 `HEAD`（detached）不算 ref；lane 布局由客户端计算 |
@@ -368,7 +368,7 @@ flowchart TD
 - **调用者**：状态机与编排在 [会话检出运行时模块（session_checkout_runtime）概述](../session_checkout_domain/session_checkout_runtime.md)；Apply / Preview / Checkpoint / Finish 的事务（含 `EffectiveApplyBase`、`StoredPlan`）在 [会话检出交付引擎（session_checkout_apply_engine）](../session_checkout_domain/session_checkout_apply_engine.md)，它同时自带一个只用于规划期比对的 `spawn` 通道。Console 侧的 Git 消费（分支总览、标签、提交图、合并预演）经 [Worktree Console 宿主服务（`src/console-host/`）](../../worktree_console_protocol_and_host_service/worktree_console_host.md) 的控制面复用同一个端口实例；评审 diff 读取器 `src/console-host/review-diff.ts` 是**另一条独立的最小权限通道**（自带 maxBytes 与 `core.quotePath=false`，只读），不经过本模块。
 - **协作适配器**：`createDetachedWorktree` / `removeWorktree` / `status` 与 `ProjectSkillStore` 深度耦合（快照、携带、辅助排除、可删性断言），细节见 [Project Skills 适配器：随会话携带的项目级 Skill 资源](src_adapters_project_skills.md)；`worktree-creation.ts` 的目录身份来自 `createNodeFilesPort()`，见 [持久化适配器：文件系统端口、原子注册表与崩溃安全 JSON IO](src_adapters_persistence.md)。
 - **纯函数层**：`WorktreeCreationFailure`（回滚语义）、`deliveryExcludePathspecs`（交付排除 pathspec）、`isValidCommitMessage` 等来自 [Worktree 核心操作与纯函数工具层（worktree_core_operations）](../worktree_core_operations.md)。
-- **宿主绑定**：授权 `cwd` 与项目根由 [主机绑定适配层（src/adapters/lookup.ts、src/adapters/working-directory.ts 与 src/official-worktree-takeover.ts）](src_adapters_host_binding.md) 提供；本模块从不自行猜测路径归属。
+- **宿主绑定**：授权 `cwd` 与项目根由 [宿主绑定适配器（src_adapters_host_binding）](src_adapters_host_binding.md) 提供；本模块从不自行猜测路径归属。
 - **配置与打包**：`gitTimeoutMs` / `worktreeAddTimeoutMs` 经 Cordis 配置以 `volatile` 字段注入（`src/index.ts:276-277`），可写进 `cordis.patch.yml`；构建、类型检查与测试链路见 [构建、CI 与打包（build_ci_and_packaging）](../../project_foundation_and_localization/build_ci_and_packaging.md)。
 
 ---
@@ -390,9 +390,9 @@ flowchart TD
 5. 最后回到 §7 的方法表，把每个端口方法映射回它实际发出的 argv。
 
 ??? abstract "Documented components (5)"
-    - [`GitTimeoutOptions`](https://github.com/wloops/dsh-git-worktree/blob/8206c2a19ed446899a5910eda03f5c0685bc27c2/src%5Cadapters%5Cgit-options.ts) — `src\adapters\git-options.ts`
-    - [`GitCommandResult`](https://github.com/wloops/dsh-git-worktree/blob/8206c2a19ed446899a5910eda03f5c0685bc27c2/src%5Cadapters%5Cgit.ts) — `src\adapters\git.ts`
-    - [`GitPortOptions`](https://github.com/wloops/dsh-git-worktree/blob/8206c2a19ed446899a5910eda03f5c0685bc27c2/src%5Cadapters%5Cgit.ts) — `src\adapters\git.ts`
-    - [`GitCommitProtocol`](https://github.com/wloops/dsh-git-worktree/blob/8206c2a19ed446899a5910eda03f5c0685bc27c2/src%5Cadapters%5Cinitial-commit.ts) — `src\adapters\initial-commit.ts`
-    - [`Result`](https://github.com/wloops/dsh-git-worktree/blob/8206c2a19ed446899a5910eda03f5c0685bc27c2/src%5Cadapters%5Cworktree-creation.ts) — `src\adapters\worktree-creation.ts`
+    - [`GitTimeoutOptions`](https://github.com/wloops/dsh-git-worktree/blob/e50f4121be2569531679e4f64bfc288bc20f70a3/src%5Cadapters%5Cgit-options.ts) — `src\adapters\git-options.ts`
+    - [`GitCommandResult`](https://github.com/wloops/dsh-git-worktree/blob/e50f4121be2569531679e4f64bfc288bc20f70a3/src%5Cadapters%5Cgit.ts) — `src\adapters\git.ts`
+    - [`GitPortOptions`](https://github.com/wloops/dsh-git-worktree/blob/e50f4121be2569531679e4f64bfc288bc20f70a3/src%5Cadapters%5Cgit.ts) — `src\adapters\git.ts`
+    - [`GitCommitProtocol`](https://github.com/wloops/dsh-git-worktree/blob/e50f4121be2569531679e4f64bfc288bc20f70a3/src%5Cadapters%5Cinitial-commit.ts) — `src\adapters\initial-commit.ts`
+    - [`Result`](https://github.com/wloops/dsh-git-worktree/blob/e50f4121be2569531679e4f64bfc288bc20f70a3/src%5Cadapters%5Cworktree-creation.ts) — `src\adapters\worktree-creation.ts`
 

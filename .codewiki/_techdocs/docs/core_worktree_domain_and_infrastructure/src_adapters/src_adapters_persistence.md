@@ -6,7 +6,7 @@ description: srcadapterspersistence 是 src/adapters 分层里唯一负责「落
 # 持久化适配器：文件系统端口、原子注册表与崩溃安全 JSON IO
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`8206c2a1`](https://github.com/wloops/dsh-git-worktree/commit/8206c2a19ed446899a5910eda03f5c0685bc27c2) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`e50f4121`](https://github.com/wloops/dsh-git-worktree/commit/e50f4121be2569531679e4f64bfc288bc20f70a3) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 `src_adapters_persistence` 是 `src/adapters` 分层里唯一负责「落盘」的子模块。它把会话检出（session-checkout）领域的两个抽象端口——`SessionCheckoutFilesPort` 与 `SessionCheckoutRegistryPort`——实现为可直接运行的 Node.js 适配器，并额外提供一个共享底座的崩溃安全 JSON 读写工具集：
 
@@ -16,7 +16,7 @@ description: srcadapterspersistence 是 src/adapters 分层里唯一负责「落
 
 这三者共同保证一条硬性约束：**领域状态机的每一步写入都必须可证明、可回滚、崩溃后可恢复**，任何不可证明的场景一律「保留现场并失败」，绝不猜测成功。
 
-本文是 [src_adapters：会话检出（Session Checkout）的宿主适配层](../src_adapters.md) 分层下的持久化子模块；其余三个兄弟子模块分别是 [Git 执行适配器：唯一出口 runGit、可证明的 Worktree 创建与首次提交协议](src_adapters_git_execution.md)（Git 命令执行）、[主机绑定适配层（src/adapters/lookup.ts、src/adapters/working-directory.ts 与 src/official-worktree-takeover.ts）](src_adapters_host_binding.md)（宿主会话绑定）与 [Project Skills 适配器：随会话携带的项目级 Skill 资源](src_adapters_project_skills.md)（随会话携带的 Project Skills）。
+本文是 [src_adapters：会话检出（Session Checkout）的宿主适配层](../src_adapters.md) 分层下的持久化子模块；其余三个兄弟子模块分别是 [Git 执行适配器：唯一出口 runGit、可证明的 Worktree 创建与首次提交协议](src_adapters_git_execution.md)（Git 命令执行）、[宿主绑定适配器（src_adapters_host_binding）](src_adapters_host_binding.md)（宿主会话绑定）与 [Project Skills 适配器：随会话携带的项目级 Skill 资源](src_adapters_project_skills.md)（随会话携带的 Project Skills）。
 
 ---
 
@@ -454,13 +454,13 @@ stateDir/
 - Apply/Preview/Checkpoint 引擎与 fingerprint CAS：[会话检出交付引擎（session_checkout_apply_engine）](../session_checkout_domain/session_checkout_apply_engine.md)
 - Git 命令端口（Worktree 创建证据、分支挂载）：[Git 执行适配器：唯一出口 runGit、可证明的 Worktree 创建与首次提交协议](src_adapters_git_execution.md)
 - Project Skills 携带与 provenance 校验（复用同一状态目录）：[Project Skills 适配器：随会话携带的项目级 Skill 资源](src_adapters_project_skills.md)
-- 宿主会话/工作目录绑定：[主机绑定适配层（src/adapters/lookup.ts、src/adapters/working-directory.ts 与 src/official-worktree-takeover.ts）](src_adapters_host_binding.md)
+- 宿主会话/工作目录绑定：[宿主绑定适配器（src_adapters_host_binding）](src_adapters_host_binding.md)
 - Console 侧对 registry 的只读投影：[Worktree Console 宿主服务（`src/console-host/`）](../../worktree_console_protocol_and_host_service/worktree_console_host.md)
 - 构建、打包与测试（`stateDir` 默认值、`vitest` 平台并发策略）：[构建、CI 与打包（build_ci_and_packaging）](../../project_foundation_and_localization/build_ci_and_packaging.md)
 
 ??? abstract "Documented components (4)"
-    - [`createNodeFilesPort`](https://github.com/wloops/dsh-git-worktree/blob/8206c2a19ed446899a5910eda03f5c0685bc27c2/src%5Cadapters%5Cfiles.ts) — `src\adapters\files.ts`
-    - [`AtomicJsonCheckoutRegistry`](https://github.com/wloops/dsh-git-worktree/blob/8206c2a19ed446899a5910eda03f5c0685bc27c2/src%5Cadapters%5Cregistry.ts) — `src\adapters\registry.ts`
-    - [`FileLockOptions`](https://github.com/wloops/dsh-git-worktree/blob/8206c2a19ed446899a5910eda03f5c0685bc27c2/src%5Cadapters%5Csafe-file.ts) — `src\adapters\safe-file.ts`
-    - [`FileLockPayload`](https://github.com/wloops/dsh-git-worktree/blob/8206c2a19ed446899a5910eda03f5c0685bc27c2/src%5Cadapters%5Csafe-file.ts) — `src\adapters\safe-file.ts`
+    - [`createNodeFilesPort`](https://github.com/wloops/dsh-git-worktree/blob/e50f4121be2569531679e4f64bfc288bc20f70a3/src%5Cadapters%5Cfiles.ts) — `src\adapters\files.ts`
+    - [`AtomicJsonCheckoutRegistry`](https://github.com/wloops/dsh-git-worktree/blob/e50f4121be2569531679e4f64bfc288bc20f70a3/src%5Cadapters%5Cregistry.ts) — `src\adapters\registry.ts`
+    - [`FileLockOptions`](https://github.com/wloops/dsh-git-worktree/blob/e50f4121be2569531679e4f64bfc288bc20f70a3/src%5Cadapters%5Csafe-file.ts) — `src\adapters\safe-file.ts`
+    - [`FileLockPayload`](https://github.com/wloops/dsh-git-worktree/blob/e50f4121be2569531679e4f64bfc288bc20f70a3/src%5Cadapters%5Csafe-file.ts) — `src\adapters\safe-file.ts`
 

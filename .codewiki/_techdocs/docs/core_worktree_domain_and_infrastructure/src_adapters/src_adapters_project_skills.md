@@ -6,7 +6,7 @@ description: srcadaptersprojectskills 是 srcadapters：会话检出（Session C
 # Project Skills 适配器：随会话携带的项目级 Skill 资源
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`8206c2a1`](https://github.com/wloops/dsh-git-worktree/commit/8206c2a19ed446899a5910eda03f5c0685bc27c2) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`e50f4121`](https://github.com/wloops/dsh-git-worktree/commit/e50f4121be2569531679e4f64bfc288bc20f70a3) on 2026-11-06 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 `src_adapters_project_skills` 是 [src_adapters：会话检出（Session Checkout）的宿主适配层](../src_adapters.md) 四个子模块中最「专职」的一片：它不负责执行 Git 命令，也不负责注册表落盘，只解决一个具体问题 —— **当会话从 Local 检出被搬进托管 Worktree 时，那些不属于版本库、但项目运行离不开的本地 Skill 资源（`.dsh/skills`、`.agents/skills`、`.claude/skills`）必须一起过去，并且在整个生命周期内既不被误当作「可交付改动」，也不被悄悄删除。**
 
@@ -84,7 +84,7 @@ graph TB
 
 - 领域层通过**可选注入**使用本模块：`SessionCheckoutApplyEngineOptions.projectSkills`（`src/session-checkout-apply.ts:324`）与 `GitPortOptions.projectSkills`（`src/adapters/git.ts:59-63`）。不注入时 Git 端口会自建一个 store（`src/adapters/git.ts:275`：`options.projectSkills ?? new ProjectSkillStore(join(dirname(options.hooksPath), 'project-skills'))`），因此不存在「忘记装配就静默降级」的缝隙 —— 顶多是清单目录换了一个位置。
 - `ClaudeProjectSkillProvider` 是**纯附加**的项目源：`rank: 250` 排在原生项目源之后，不改变 `.dsh` / `.agents` 的优先级；它也绝不接受 Skill 文件自己声称的根目录。
-- 兄弟子模块的职责边界：Git 命令执行与 Worktree 创建协议见 [Git 执行适配器：唯一出口 runGit、可证明的 Worktree 创建与首次提交协议](src_adapters_git_execution.md)；注册表与文件锁见 [持久化适配器：文件系统端口、原子注册表与崩溃安全 JSON IO](src_adapters_persistence.md)；宿主 Session / Workspace / cwd 服务探测与官方 `create_worktree` 接管见 [主机绑定适配层（src/adapters/lookup.ts、src/adapters/working-directory.ts 与 src/official-worktree-takeover.ts）](src_adapters_host_binding.md)。
+- 兄弟子模块的职责边界：Git 命令执行与 Worktree 创建协议见 [Git 执行适配器：唯一出口 runGit、可证明的 Worktree 创建与首次提交协议](src_adapters_git_execution.md)；注册表与文件锁见 [持久化适配器：文件系统端口、原子注册表与崩溃安全 JSON IO](src_adapters_persistence.md)；宿主 Session / Workspace / cwd 服务探测与官方 `create_worktree` 接管见 [宿主绑定适配器（src_adapters_host_binding）](src_adapters_host_binding.md)。
 
 ## 2. 数据模型
 
@@ -404,7 +404,7 @@ sequenceDiagram
 - 父模块装配总览：[src_adapters：会话检出（Session Checkout）的宿主适配层](../src_adapters.md)
 - Git 端口如何调用本模块（`status` / `createDetachedWorktree` / `removeWorktree`）：[Git 执行适配器：唯一出口 runGit、可证明的 Worktree 创建与首次提交协议](src_adapters_git_execution.md)
 - 注册表（`managedSkillRoot` 的数据来源）与原子写、文件锁：[持久化适配器：文件系统端口、原子注册表与崩溃安全 JSON IO](src_adapters_persistence.md)
-- 宿主 Session / Working Directory 绑定：[主机绑定适配层（src/adapters/lookup.ts、src/adapters/working-directory.ts 与 src/official-worktree-takeover.ts）](src_adapters_host_binding.md)
+- 宿主 Session / Working Directory 绑定：[宿主绑定适配器（src_adapters_host_binding）](src_adapters_host_binding.md)
 - 端口契约（`SessionCheckoutRegistryPort`、`SessionCheckoutApplyEngineOptions`、`ManagedCheckoutRecord.phase`）：[会话检出领域契约（session_checkout_domain_contracts）](../session_checkout_domain/session_checkout_domain_contracts.md)
 - Apply 引擎中的快照指纹与交付事务：[会话检出交付引擎（session_checkout_apply_engine）](../session_checkout_domain/session_checkout_apply_engine.md)
 - 插件入口与运行期装配：[会话检出运行时模块（session_checkout_runtime）概述](../session_checkout_domain/session_checkout_runtime.md)
@@ -421,13 +421,13 @@ sequenceDiagram
 5. 最后读 `project-skill-provider.ts` —— 理解 Skill 根为何只能从注册表加 `.git` 双向指针推出，以及发现之前的 `assertSkillTree` 预扫描为什么不可省略。
 
 ??? abstract "Documented components (9)"
-    - [`SkillBytes`](https://github.com/wloops/dsh-git-worktree/blob/8206c2a19ed446899a5910eda03f5c0685bc27c2/src%5Cadapters%5Cproject-skill-io.ts) — `src\adapters\project-skill-io.ts`
-    - [`SkillRead`](https://github.com/wloops/dsh-git-worktree/blob/8206c2a19ed446899a5910eda03f5c0685bc27c2/src%5Cadapters%5Cproject-skill-io.ts) — `src\adapters\project-skill-io.ts`
-    - [`ClaudeProjectSkillProvider`](https://github.com/wloops/dsh-git-worktree/blob/8206c2a19ed446899a5910eda03f5c0685bc27c2/src%5Cadapters%5Cproject-skill-provider.ts) — `src\adapters\project-skill-provider.ts`
-    - [`Locator`](https://github.com/wloops/dsh-git-worktree/blob/8206c2a19ed446899a5910eda03f5c0685bc27c2/src%5Cadapters%5Cproject-skill-provider.ts) — `src\adapters\project-skill-provider.ts`
-    - [`CarriedSkillState`](https://github.com/wloops/dsh-git-worktree/blob/8206c2a19ed446899a5910eda03f5c0685bc27c2/src%5Cadapters%5Cproject-skills.ts) — `src\adapters\project-skills.ts`
-    - [`Entry`](https://github.com/wloops/dsh-git-worktree/blob/8206c2a19ed446899a5910eda03f5c0685bc27c2/src%5Cadapters%5Cproject-skills.ts) — `src\adapters\project-skills.ts`
-    - [`Manifest`](https://github.com/wloops/dsh-git-worktree/blob/8206c2a19ed446899a5910eda03f5c0685bc27c2/src%5Cadapters%5Cproject-skills.ts) — `src\adapters\project-skills.ts`
-    - [`ProjectSkillStore`](https://github.com/wloops/dsh-git-worktree/blob/8206c2a19ed446899a5910eda03f5c0685bc27c2/src%5Cadapters%5Cproject-skills.ts) — `src\adapters\project-skills.ts`
-    - [`SkillSnapshot`](https://github.com/wloops/dsh-git-worktree/blob/8206c2a19ed446899a5910eda03f5c0685bc27c2/src%5Cadapters%5Cproject-skills.ts) — `src\adapters\project-skills.ts`
+    - [`SkillBytes`](https://github.com/wloops/dsh-git-worktree/blob/e50f4121be2569531679e4f64bfc288bc20f70a3/src%5Cadapters%5Cproject-skill-io.ts) — `src\adapters\project-skill-io.ts`
+    - [`SkillRead`](https://github.com/wloops/dsh-git-worktree/blob/e50f4121be2569531679e4f64bfc288bc20f70a3/src%5Cadapters%5Cproject-skill-io.ts) — `src\adapters\project-skill-io.ts`
+    - [`ClaudeProjectSkillProvider`](https://github.com/wloops/dsh-git-worktree/blob/e50f4121be2569531679e4f64bfc288bc20f70a3/src%5Cadapters%5Cproject-skill-provider.ts) — `src\adapters\project-skill-provider.ts`
+    - [`Locator`](https://github.com/wloops/dsh-git-worktree/blob/e50f4121be2569531679e4f64bfc288bc20f70a3/src%5Cadapters%5Cproject-skill-provider.ts) — `src\adapters\project-skill-provider.ts`
+    - [`CarriedSkillState`](https://github.com/wloops/dsh-git-worktree/blob/e50f4121be2569531679e4f64bfc288bc20f70a3/src%5Cadapters%5Cproject-skills.ts) — `src\adapters\project-skills.ts`
+    - [`Entry`](https://github.com/wloops/dsh-git-worktree/blob/e50f4121be2569531679e4f64bfc288bc20f70a3/src%5Cadapters%5Cproject-skills.ts) — `src\adapters\project-skills.ts`
+    - [`Manifest`](https://github.com/wloops/dsh-git-worktree/blob/e50f4121be2569531679e4f64bfc288bc20f70a3/src%5Cadapters%5Cproject-skills.ts) — `src\adapters\project-skills.ts`
+    - [`ProjectSkillStore`](https://github.com/wloops/dsh-git-worktree/blob/e50f4121be2569531679e4f64bfc288bc20f70a3/src%5Cadapters%5Cproject-skills.ts) — `src\adapters\project-skills.ts`
+    - [`SkillSnapshot`](https://github.com/wloops/dsh-git-worktree/blob/e50f4121be2569531679e4f64bfc288bc20f70a3/src%5Cadapters%5Cproject-skills.ts) — `src\adapters\project-skills.ts`
 

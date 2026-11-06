@@ -164,7 +164,7 @@ flowchart TD
 
 ### 3.1 cwd 安全契约（`tools.ts` 与 `commands.ts` 共用）
 
-自从 `worktree_create` 真的会把会话搬进新 checkout（对齐官方 `ctx.workingDirectory.set`），任何可能删掉该目录的操作都必须先把会话搬出来。两端各自实现了同一契约。与此同时，[src_adapters_host_binding](src_adapters/src_adapters_host_binding.md) 里的 `mountOfficialWorktreeTakeover` 会禁用官方实验性 `create_worktree` 条目并注册按工具名拦截的 `ctx.tools.guard`——本插件的 `worktree_create` 是会话 worktree 创建的唯一入口，官方工具在本插件激活期间不可达。
+自从 `worktree_create` 真的会把会话搬进新 checkout（对齐官方 `ctx.workingDirectory.set`），任何可能删掉该目录的操作都必须先把会话搬出来。两端各自实现了同一契约。
 
 | 函数 | 语义 | 失败处理 |
 | --- | --- | --- |

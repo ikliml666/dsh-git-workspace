@@ -37,7 +37,7 @@ flowchart TB
     end
 
     subgraph Domain["会话结账域"]
-        Module["SessionCheckoutModule<br/>runtimeContext / refreshBranchRaceGuards"]
+        Module["SessionCheckoutModule<br/>runtimeContext"]
         Flavor["host-compat.ts<br/>hostWorkspaceClientFlavor"]
     end
 
@@ -189,7 +189,7 @@ sequenceDiagram
 
     Apply->>RTC: 传入 SessionCheckoutModule
     RTC->>WD: createSessionWorkingDirectoryPort(ctx)
-    Note over RTC: 建立 45 秒后台轮询：<br/>module.refreshBranchRaceGuards()
+    Note over RTC: 本函数仅注入 systemPrompt 上下文<br/>不再自持后台定时器
     RTC->>SP: inject systemPrompt，注入 context<br/>name=git-worktree:session-target, order=118
     Model->>SP: 渲染上下文文本
     SP->>SP: 从 agent 读取 session.id（字符串才渲染）
@@ -200,7 +200,7 @@ sequenceDiagram
 
 三个设计要点：
 
-1. **同步快照、无 Git/文件 I/O**：`runtimeContext` 必须同步返回（system prompt 文本是同步求值的），所以分支竞争守卫的 reflog 探测被挪到 45 秒一次的后台 `setInterval` 里，喂给守卫缓存。
+1. **同步快照、无 Git/文件 I/O**：`runtimeContext` 必须同步返回（system prompt 文本是同步求值的），因此它只读注册表快照与分支竞态缓存；`registerSessionTargetContext` 不再自持任何后台 `setInterval`，分支竞态缓存的 reflog 探测不再由本函数周期驱动。
 2. **cwd 判定"是否已进 checkout"**：`worktree_create` 可能已把会话移进托管目录，上下文文本据此决定是否仍要宣布绝对路径规则。工作目录端口本身是可选服务——Host 不挂载 `workingDirectory` 时返回 `undefined`，降级为纯引导模式。详见 [主机绑定适配器](src-adapters-host-binding.md)。
 3. **语言隔离**：每个调用从 Agent 的 ctx 读取 settings.locale，经 `withHostLanguage` 的 `AsyncLocalStorage` 隔离，避免跨用户串语言。语言基础设施见 [国际化模块](src-i18n.md)。
 
@@ -253,4 +253,4 @@ flowchart TB
 | `DEFAULT_OPERATION_TIMEOUT_MS` | `10_000` | 单次 Loader 操作超时上限；wedged 操作只告警一次，下次 Loader 事件重选。 |
 | `UNLOADING` | `FiberState = 5` | Cordis 以声明性 const enum 暴露，代码内手写常量。 |
 | system prompt 名 | `git-worktree:session-target` | 注入上下文的名称，`order: 118`。 |
-| 守卫轮询间隔 | `45_000` ms | 后台刷新分支竞争守卫缓存的周期。 |
+| 守卫轮询间隔 | `45_000` ms | （已移除）`registerSessionTargetContext` 不再自持此后台定时器。 |
