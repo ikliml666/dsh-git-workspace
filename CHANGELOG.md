@@ -17,6 +17,13 @@
 
 ### Changed
 
+- 精简：删掉与官方 forge 重复的整套评审 UI，交付改由胶囊菜单直接触发（2026-11-07）。
+  - **删的东西**：`src/client/review-console/` 整个目录（2615 行：`WorktreeReviewPanel`、`ReviewActions`、`ReviewDetailsModal`、`PreflightStatus`、`DeliveryProof`、`preflight-cache`、`preview-recovery-cache`、`recovery-continuation`、`request-cache`、`review-console.styles`）、`src/client/WorktreeReviewRow.tsx`、`src/client/target-console/WorktreeReviewStatus.tsx`（输入框上方的验收状态条），以及 `worktree_ready_for_review` 工具（工具表 9 → 8）。
+  - **为什么**：官方 `@deepseek-ai/dsh-experimental-client-ui-forge` 已经自带完整的一套——`ChangesTab`（本地改动或某个变更请求的 diff，一个列表）、`ForgeTab`（会话在哪工作、本地改动、它创建或推送的变更请求）、`LocalChangesCard`、`DiffFile`（统一/并排两种）、`FileTreePane`、`ReviewComposer`、`ReviewThread`、`SubmitReview`、`ChangedFiles`。同一件事做两遍，用户看到两套入口、两套文案、两套状态机。
+  - **留下的两件共用件**：`ReviewIcon.tsx`（胶囊、侧边栏、创建卡都在用的图标集合）与 `status-events.ts`（刷新事件）。它们与评审面板无关，只是放在那个目录里。
+  - **交付路径不受影响**：`worktree_deliver` 本来就允许 `working` 直接交付（只有 `ready_for_review` 时才需要带 `expectedReviewId`），所以删掉 Ready for Review 这一站不用改交付逻辑；`markReadyForReview` 留在模块接口上，只是暂时没有调用方。
+  - **保留的部分**：跨会话台账、`worktree_deliver`、`worktree_merge`、`worktree_cleanup` 官方都没有，原样保留；分支相关（分支图、标签管理、`worktree_prune_branches`）按「做好 worktree、分支、胶囊」的要求保留。
+  - 移除的测试 7 个文件（`client-toolview`、`client-review-console`、`client-review-details`、`client-preflight-cache`、`client-preview-recovery-cache`、`client-recovery-continuation`、`client-conflict-display`），以及 `client-target-console.test.tsx` 里 21 项依赖被删组件的用例、`client-i18n.test.tsx` 里 2 项、`client-polling-diagnostic.test.tsx` 的 `consumers === 2` 分支（验收状态条曾是该诊断的第二个消费者）。全量 54 文件 / 718 项通过、7 项跳过。
 - 方向反转：不再接管官方 Worktree，改为「官方当底座，本插件只补官方没有的能力」（2026-11-07）。
   - **删除官方 Worktree 接管**：删掉 `src/official-worktree-takeover.ts` 与开关 `enableOfficialWorktreeTakeover`。该开关此前经 Loader 停用 `worktree` / `tool-worktree` / `forge-worktree` 三条官方条目，并用 `ctx.tools.guard` 按工具名拒绝 `create_worktree`——结果是用户安装官方 `@deepseek-ai/dsh-experimental-forge-bundle` 后，插件页七条全部显示「已关闭」，官方的建树工具与 forge 面板里的工作树入口也一并失效。现在三条官方条目照常运行，官方 `create_worktree` 工具恢复可用。
   - **删除官方 Worktree 纳管**：删掉 `src/official-worktree-adoption.ts` 里按 `.agents/worktrees/` 前缀反查归属并登记台账的 `adoptOfficialWorktrees`。它只在「本插件停用了官方条目」这个前提下才需要——用于把接管前官方建好的树纳入台账。前提消失后它只会把官方目录的树塞进本插件台账，与新的单一建树路径冲突。

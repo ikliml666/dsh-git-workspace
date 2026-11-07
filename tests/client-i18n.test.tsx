@@ -5,11 +5,9 @@ import { useState } from 'react'
 import { ClientI18nProvider, clientTranslator, readClientLanguage, useClientTranslator, translatorForServices } from '../src/client/i18n.js'
 import { clientMessages } from '../src/i18n/client-messages.js'
 import { WorktreeCreateRow } from '../src/client/WorktreeCreateRow.js'
-import { WorktreeReviewPanel } from '../src/client/review-console/WorktreeReviewPanel.js'
-import { parseCreateTool, parseReviewTool } from '../src/client/model.js'
+import { parseCreateTool } from '../src/client/model.js'
 import { finalizeCurrentSession, type WorktreeClientServices } from '../src/client/actions.js'
 import { apply } from '../src/client/index.js'
-import { buildWorktreeRecoveryPrompt } from '../src/client/review-console/recovery-continuation.js'
 import { projectManagedWorkspaceSidebar } from '../src/client/workspace-sidebar/model.js'
 import type { WorktreeReviewEvidence } from '../src/types.js'
 
@@ -85,24 +83,7 @@ describe('Client instance locale', () => {
     render(<ClientI18nProvider language="en"><WorktreeCreateRow services={{} as WorktreeClientServices} block={{}} /></ClientI18nProvider>)
     expect(screen.getByText('Creating the unique Worktree…')).toBeTruthy()
     expect(parseCreateTool({ kind: 'tool-result', content: [{ type: 'text', text: '{}' }] }, clientTranslator('en')).error).toBe('Malformed Worktree create result.')
-    expect(parseReviewTool({ kind: 'tool-result', isError: true }, clientTranslator('en')).error).toBe('Ready for Review failed.')
     expect(parseCreateTool({ kind: 'tool-result', isError: true, content: [{ type: 'text', text: 'Host 用户原文' }] }, clientTranslator('en')).error).toBe('Host 用户原文')
-  })
-
-  test('review headings, validation, aria and unavailable feedback switch while user data stays untouched', () => {
-    const locale = localeFace('zh')
-    render(<ClientI18nProvider locale={locale}><WorktreeReviewPanel review={evidence} /></ClientI18nProvider>)
-    act(() => locale.change('en'))
-    expect(screen.getByRole('region', { name: 'Worktree review' })).toBeTruthy()
-    expect(screen.getByText('Iteration 3 is ready for review')).toBeTruthy()
-    expect(screen.getByText('用户摘要 user summary')).toBeTruthy()
-    expect(screen.queryByTitle('Review review-原始 · r2')).toBeNull()
-    expect(screen.getByText('Automated validation passed')).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'Preview changes' })).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'View validation and version details' }))
-    expect(screen.getByText('用户验证结果')).toBeTruthy()
-    act(() => locale.change('zh'))
-    expect(screen.getByRole('button', { name: '收起验证与版本详情' }).getAttribute('aria-expanded')).toBe('true')
   })
 
   test('imperative actions read the locale at each invocation', async () => {
@@ -139,22 +120,4 @@ describe('Client instance locale', () => {
     expect(projection.managedBySessionId['owner']?.label).toBe('Ready for review')
     expect(projection.workspaces[0]?.path).toBe('/中文路径')
   })
-})
-
-test('English recovery prompts preserve exact IDs, hashes and JSON-encoded paths', () => {
-  const request = {
-    kind: 'worktree_apply_conflict' as const, sessionId: 'owner', requestId: 'request',
-    checkoutId: 'checkout-中文', reviewId: 'review-原始', revision: 8,
-    localHeadOid: 'a'.repeat(40), conflictingFiles: ['路径/文件.ts', 'a"b.ts'],
-  }
-  const prompt = buildWorktreeRecoveryPrompt(request, clientTranslator('en'))
-  expect(prompt).toContain('Resolve conflicts only in the current managed Worktree.')
-  expect(prompt).toContain('checkout-中文')
-  expect(prompt).toContain('review-原始')
-  expect(prompt).toContain(request.localHeadOid)
-  for (const path of request.conflictingFiles) expect(prompt).toContain(JSON.stringify(path))
-  expect(prompt).toContain('Do not call ApplyWorktree or FinishWorktree.')
-  const readOnly = buildWorktreeRecoveryPrompt({ ...request, kind: 'worktree_review_regeneration' }, clientTranslator('en'))
-  expect(readOnly).toContain('Remain strictly Read Only')
-  expect(readOnly).toContain('do not modify any files or write directly to Local')
 })

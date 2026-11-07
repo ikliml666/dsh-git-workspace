@@ -144,12 +144,17 @@ export function liveWorktreeRequest(ctx: Context, sessionId: string): WorktreeRe
 }
 
 /**
- * 在 turn 进入第 1 步之前把待办请求变成真实的 worktree。
+ * 在下一个 step 边界之前把待办请求变成真实的 worktree。
  *
  * 建树发生在 `agent/pre-step` 而不是 UI 点击时：官方 worktrees.create 要写
  * `.agents/worktrees/` 并做一次 `reset --hard`，勾选即建等于为用户没打算发的
  * 消息付一次完整 checkout 的代价；放在 pre-step 又比挂住 inbox 简单，消息在
  * 树上就绪后照常进入这一步。
+ *
+ * 不限定 `step === 1`：turn 正在跑时排队，那条消息会作为 steering 进入**当前
+ * turn 的后续 step**（`inbox.claim` 对其他 target 把它放进 `next-step`）。
+ * 只认第 1 步就永远等不到它，请求会一直挂着、消息照常在旧目录里跑——这正是
+ * 真机上观察到的现象。
  *
  * @param ctx - Host 插件上下文。
  * @param module - Worktree 领域模块。
@@ -157,8 +162,7 @@ export function liveWorktreeRequest(ctx: Context, sessionId: string): WorktreeRe
 export function mountWorktreeRequest(ctx: Context, module: SessionCheckoutModule): void {
   const workingDirectory = createSessionWorkingDirectoryPort(ctx)
   ctx.on('agent/pre-step', async (payload, next) => {
-    const { agent, step, messages } = payload
-    if (step !== 1) return next()
+    const { agent, messages } = payload
     const session = agent.session
     const pending = pendingWorktreeRequest(session)
     if (pending === null) return next()

@@ -1,4 +1,3 @@
-import { REVIEW_CONSOLE_STYLES } from './review-console/review-console.styles.js'
 
 export const WORKTREE_STYLES = String.raw`
 /* Managed owner decoration inside the version/hash-gated official Workspace row. */
@@ -134,7 +133,6 @@ export const WORKTREE_STYLES = String.raw`
 .dsh-wt-retain-actions { display:flex; gap:6px; flex-wrap:wrap; }
 .dsh-wt-visually-hidden { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
 @media (max-width: 560px) { .dsh-wt-grid { grid-template-columns:1fr; gap:3px; } .dsh-wt-label { margin-top:4px; } }
-${REVIEW_CONSOLE_STYLES}
 .dsh-wt-create-dialog .dsh-wt-button { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:34px; line-height:20px; box-sizing:border-box; }
 .dsh-wt-create-dialog .dsh-wt-button .dsh-wt-icon { width:16px; height:16px; flex:0 0 16px; vertical-align:middle; }
 `

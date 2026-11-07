@@ -41,14 +41,11 @@ describe('public surfaces', () => {
       'worktree_list',
       'worktree_resume_revision',
       'worktree_begin_next_iteration',
-      'worktree_ready_for_review',
       'worktree_deliver',
       'worktree_cleanup',
       'worktree_prune_branches',
       'worktree_merge',
     ])
-    const readyTool = tools.find(tool => tool.name === 'worktree_ready_for_review')
-    expect(readyTool?.output?.schema?.properties?.iteration).toEqual({ type: 'number' })
   })
 
   test('list output never carries a key whose value is undefined (the host rejects that as not lossless JSON)', async () => {

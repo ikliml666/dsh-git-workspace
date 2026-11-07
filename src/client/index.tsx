@@ -6,7 +6,6 @@ import type { WorktreeConsoleAdapter } from '../console-contract.js'
 import type { WorktreeClientServices } from './actions.js'
 import type { ToolCallViewPropsLike } from './model.js'
 import { WorktreeCreateRow } from './WorktreeCreateRow.js'
-import { WorktreeReviewRow } from './WorktreeReviewRow.js'
 import { WORKTREE_STYLES } from './styles.js'
 import { registerTargetConsole, type TargetConsoleContextLike } from './target-console/index.js'
 import { TARGET_CONSOLE_STYLES } from './target-console/target-console.styles.js'
@@ -75,14 +74,9 @@ export function apply(ctx: ClientContextLike, adapterOverride?: WorktreeConsoleA
   }, 'dsh-git-worktree: styles')
 
   const CreateRow = (props: ToolCallViewPropsLike) => <WorktreeCreateRow {...props} services={services} />
-  const ReviewRow = (props: ToolCallViewPropsLike) => <WorktreeReviewRow {...props} services={services} adapter={adapter} />
   ctx.slots.inject('tool.call.toolview', () => localizedSlots.register(
     { name: 'tool.call.toolview', key: 'worktree_create' },
     CreateRow,
-  ))
-  ctx.slots.inject('tool.call.toolview', () => localizedSlots.register(
-    { name: 'tool.call.toolview', key: 'worktree_ready_for_review' },
-    ReviewRow,
   ))
 
   // Backend integration provides this optional normalized adapter service.

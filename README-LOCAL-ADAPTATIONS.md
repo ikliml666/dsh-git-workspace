@@ -40,7 +40,7 @@ E:\ik\Documents\trae_projects\worktrae\<项目>\<主题>-<YYYYMMDD>
 
 官方 `@deepseek-ai/dsh-experimental-forge-bundle` 会插入三条与工作树有关的条目：`worktree`（宿主 `worktrees` 服务）、`tool-worktree`（官方 `create_worktree` 工具）、`forge-worktree`（面板隔离组里的第二个服务实例）。这三条**全部保持启用**，全机只有官方一份 `git worktree add` 实现。
 
-- **建树入口**：`worktree_create` 内部调宿主 `worktrees.create(agent, { name, from })`，目录由官方决定（`<repo>/.agents/worktrees/<branch>`）；官方 `create_worktree` 工具同样可用。两者建出的 checkout 都会由本插件登记成 `ready` 记录并建立 isolated binding，随后由本插件承担台账、交付、评审、清理、恢复。
+- **建树入口**：`worktree_create` 内部调宿主 `worktrees.create(agent, { name, from })`，目录由官方决定（`<repo>/.agents/worktrees/<branch>`）；官方 `create_worktree` 工具同样可用。两者建出的 checkout 都会由本插件登记成 `ready` 记录并建立 isolated binding，随后由本插件承担台账、交付、清理、恢复；改动查看与评论交给官方 forge 的 `ChangesTab` / `ForgeTab`。
 - **登记的落点**：`registerOfficialWorktree()` 读一次 `git.inspect(path)` 拿真实 root/commonDir/gitDir/headRef，写成 `ManagedCheckoutRecord`；不猜测路径布局。
 - **幂等**：官方每条请求都真的跑一次 `git worktree add`，所以 `createOfficialTarget` 在本会话已有未放弃的 isolated 记录时直接复用，避免留下第二棵没人认领的树。
 - **分支名**：`feat/sess-<session>[--<topic>]` 候选逐个探空位（`resolveLocalBranchTip`），全被占用时明确报错，不拼随机后缀。
@@ -51,6 +51,7 @@ E:\ik\Documents\trae_projects\worktrae\<项目>\<主题>-<YYYYMMDD>
 - **「新建工作树」收进目标胶囊**：官方 forge 面板在 `conversation.hero.options` 里注册的那对控件（`forge-panel.worktree`：分支按钮 + 「新建工作树」复选框）由本插件以 `priority: -1` 在同 id 上注册空组件盖掉——slot 只渲染 priority 最低的那条，于是那对控件整个让位，而 forge 的其余能力（变更请求、diff、review）不受影响。取代它的入口在 `🖥 <分支> ⌄` 胶囊菜单里，且只在 `state === 'local'` 时出现。
 - **建树时机与官方一致**：点了菜单项只是往 session log 写一条 plugin record（`plugin:dsh-git-worktree/worktree-request`），真正的建树发生在 `agent/pre-step` 的第 1 步——勾选即建等于为用户还没打算发的消息付一次完整 checkout 的代价。请求存在 log 里而不是内存里，所以刷新页面、重启 Host 之后仍然有效。
 - **建树失败不吞消息**：`inbox.claim()` 在 `agent/pre-step` 之前就执行，失败时那批消息已经离开队列，必须 `agent.inbox.prepend` 按逆序还回去，否则用户的消息凭空消失；请求保留，原因修好后重发即会重试。
+- **评审 UI 不再自建**：`src/client/review-console/`（2615 行）、`WorktreeReviewRow`、验收状态条与 `worktree_ready_for_review` 工具都已删除。官方 `client-ui-forge` 自带 `ChangesTab`（本地改动或变更请求的 diff）、`ForgeTab`、`DiffFile`（统一/并排）、`ReviewComposer`、`SubmitReview`、`ChangedFiles`，同一件事不做两遍。`worktree_deliver` 本来就允许 `working` 直接交付（只有 `ready_for_review` 才要求带 `expectedReviewId`），所以交付路径不受影响。
 
 ## 配置示例（profile cordis.patch.yml / 插件配置）
 

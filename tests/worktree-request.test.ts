@@ -144,18 +144,36 @@ describe('creating the Worktree at the first step of a turn', () => {
     expect(h.createOfficialTarget).not.toHaveBeenCalled()
   })
 
-  test('only the first step builds; a later step lets the turn continue', async () => {
+  test('a steering message in a later step still builds the worktree', async () => {
+    // 真机上抓到的第二个 bug：turn 正在跑时排队，那条消息作为 steering 进入
+    // **当前 turn 的后续 step**（inbox.claim 对其他 target 把它放进 next-step）。
+    // 只认 step === 1 就永远等不到它，请求一直挂着、消息照常在旧目录里跑。
     const s = session()
     h.ctxSessions.set(s.id, s)
     requestWorktree(s, null)
     const agent = { session: s, inbox: { prepend: vi.fn() } }
     const next = vi.fn(() => 'continued')
 
+    await h.listener()({ agent, step: 3, messages: [] }, next)
+
+    expect(h.createOfficialTarget).toHaveBeenCalledTimes(1)
+    expect(next).toHaveBeenCalled()
+    expect(pendingWorktreeRequest(s)).toBeNull()
+  })
+
+  test('the step after a build does not build a second tree', async () => {
+    const s = session()
+    h.ctxSessions.set(s.id, s)
+    requestWorktree(s, null)
+    const agent = { session: s, inbox: { prepend: vi.fn() } }
+    const next = vi.fn(() => 'continued')
+
+    await h.listener()({ agent, step: 1, messages: [] }, next)
     await h.listener()({ agent, step: 2, messages: [] }, next)
 
-    expect(next).toHaveBeenCalled()
-    expect(h.createOfficialTarget).not.toHaveBeenCalled()
-    expect(pendingWorktreeRequest(s)).toEqual({ from: null, failure: null })
+    // 请求在建完那一刻就被清掉，后续 step 读到 null 直接放行。
+    expect(h.createOfficialTarget).toHaveBeenCalledTimes(1)
+    expect(next).toHaveBeenCalledTimes(2)
   })
 
   test('a Session with no target yet still gets its worktree', async () => {

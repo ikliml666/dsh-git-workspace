@@ -4,7 +4,6 @@ import { afterEach, expect, test, vi } from 'vitest'
 import { act, cleanup, render } from '@testing-library/react'
 import type { WorktreeClientServices } from '../src/client/actions.js'
 import { TargetStatusAction } from '../src/client/target-console/TargetStatusAction.js'
-import { WorktreeReviewStatus } from '../src/client/target-console/WorktreeReviewStatus.js'
 import { WORKTREE_REVIEW_REFRESH_EVENT } from '../src/client/review-console/status-events.js'
 import { createWorktreeConsoleAdapterFixture } from './support/worktree-console.js'
 
@@ -23,7 +22,7 @@ function services(): WorktreeClientServices {
 
 afterEach(() => { cleanup(); vi.useRealTimers() })
 
-for (const consumers of [1, 2]) {
+for (const consumers of [1]) {
   test(`${consumers} display consumer(s) share one unresolved request over 30 seconds`, async () => {
     vi.useFakeTimers()
     const fixture = createWorktreeConsoleAdapterFixture()
@@ -36,16 +35,13 @@ for (const consumers of [1, 2]) {
       return new Promise<Awaited<ReturnType<typeof fixture.adapter.current>>>(resolve => {
         settle.push(() => {
           pending--
-          resolve({ ok: true, value: { target: fixture.target } })
+          resolve({ ok: true, value: { worktreeRequest: null, target: fixture.target } })
         })
       })
     })
     const adapter = { ...fixture.adapter, current }
     const runtime = services()
-    const view = render(<>
-      <TargetStatusAction sessionId="polling-probe" adapter={adapter} services={runtime} />
-      {consumers === 2 && <WorktreeReviewStatus session={{ sessionId: 'polling-probe' }} adapter={adapter} services={runtime} />}
-    </>)
+    const view = render(<TargetStatusAction sessionId="polling-probe" adapter={adapter} services={runtime} />)
     expect(current).toHaveBeenCalledTimes(1)
     await act(async () => { await vi.advanceTimersByTimeAsync(30_000) })
     expect(current).toHaveBeenCalledTimes(1)

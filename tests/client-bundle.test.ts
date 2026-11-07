@@ -213,9 +213,8 @@ describe('built Client ModuleLoader artifact', () => {
     const descriptors = register.mock.calls.map(call => call[0])
     expect(descriptors).toEqual(expect.arrayContaining([
       expect.objectContaining({ name: 'tool.call.toolview', key: 'worktree_create' }),
-      expect.objectContaining({ name: 'tool.call.toolview', key: 'worktree_ready_for_review' }),
       expect.objectContaining({ name: 'conversation.session.header.actions', id: 'worktree-target' }),
-      expect.objectContaining({ name: 'conversation.input.dock', id: 'worktree-review-status' }),
+      expect.objectContaining({ name: 'conversation.input.dock', id: 'worktree-hero-chip' }),
     ]))
     expect(descriptors).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ name: 'conversation.view', id: 'worktree' }),
