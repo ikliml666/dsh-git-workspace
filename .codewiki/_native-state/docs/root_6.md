@@ -324,7 +324,7 @@ flowchart TD
 
 | 目录 | 规模与用途 |
 | --- | --- |
-| `clientMessages` | 体量最大：覆盖验收详情、交付状态、预览/恢复提示、设置页、分支/标签/提交图、Worktree 管理弹窗等全部 UI 字符串。注释注明「Plugin-owned Client copy；参数为不透明的用户/Host 数据」。 |
+| `clientMessages` | 体量最大：覆盖验收详情、交付状态、预览/恢复提示、设置页、分支/标签/提交图、Worktree 管理弹窗，以及「下条消息在新工作树里开始」的待办建树请求文案（`worktree.request.*`，含上次建树失败后引导重试/撤回的 `worktree.request.failed`，对应 [root_4](root_4.md) 契约里 `WorktreeConsoleWorktreeRequestResponse` 的 `failure` 字段）等全部 UI 字符串。注释注明「Plugin-owned Client copy；参数为不透明的用户/Host 数据」。 |
 | `hostMessages` | Host 进程文案：初始化、验收/checkpoint/Apply/Preview/Finalize/Finish/Discard/Recover/清理等状态机错误，以及工具（`worktree_deliver` 等）的描述与参数说明。 |
 | `transportMessages` | 仅 4 条：远端 payload 不符契约、namespace 挂载失败、无法识别 Host Workspace 形态、远端调用超时。 |
 

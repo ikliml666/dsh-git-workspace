@@ -6,7 +6,7 @@ description: src/session-checkout-module.ts 是 dsh-git-worktree 插件的核心
 # 会话检出状态机模块（session-checkout-module）
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`6d81039c`](https://github.com/wloops/dsh-git-worktree/commit/6d81039ce01ef5706de5ddb6c447f0fa156535cb) on 2026-11-07 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`151e7614`](https://github.com/wloops/dsh-git-worktree/commit/151e761430563a407bc52e9644be451a60b2babf) on 2026-11-07 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 ## 简介
 
@@ -407,5 +407,5 @@ sequenceDiagram
 - 提交信息校验、面向模型的工具封装：[root_4：Worktree 控制台客户端与宿主命令面](root_4.md)（`commit-message.ts`）与 [root_7：dsh-git-worktree 插件出口层](root_7.md)（`tools.ts`）
 
 ??? abstract "Documented components (1)"
-    - [`ResolvedSessionProject`](https://github.com/wloops/dsh-git-worktree/blob/6d81039ce01ef5706de5ddb6c447f0fa156535cb/src%5Csession-checkout-module.ts) — `src\session-checkout-module.ts`
+    - [`ResolvedSessionProject`](https://github.com/wloops/dsh-git-worktree/blob/151e761430563a407bc52e9644be451a60b2babf/src%5Csession-checkout-module.ts) — `src\session-checkout-module.ts`
 

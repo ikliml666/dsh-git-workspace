@@ -2,36 +2,49 @@
   "stateVersion": 1,
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
-    "baseCommit": "3b380f512d4b049a24c20ef3a8b930040593b1c7",
-    "headCommit": "6d81039ce01ef5706de5ddb6c447f0fa156535cb"
+    "baseCommit": "6d81039ce01ef5706de5ddb6c447f0fa156535cb",
+    "headCommit": "d622ef3db9ca9f8d37b550984e9695132c0bdd81"
   },
   "pendingChanges": {
     "state": "ok",
-    "baseCommit": "3b380f512d4b049a24c20ef3a8b930040593b1c7",
-    "headCommit": "6d81039ce01ef5706de5ddb6c447f0fa156535cb",
-    "committed": [
-      "CHANGELOG.md",
+    "baseCommit": "6d81039ce01ef5706de5ddb6c447f0fa156535cb",
+    "headCommit": "d622ef3db9ca9f8d37b550984e9695132c0bdd81",
+    "committed": [],
+    "staged": [],
+    "unstaged": [
+      "src/client/target-console/TargetStatusAction.tsx",
+      "src/console-contract.ts",
+      "src/console-host/control-plane.ts",
+      "src/console-remote/schemas.ts",
+      "src/i18n/client-messages.ts",
       "src/worktree-request.ts",
-      "tests/real-repo-acceptance.test.ts",
       "tests/worktree-request.test.ts"
     ],
-    "staged": [],
-    "unstaged": [],
     "untracked": [],
     "deleted": [],
     "renamed": [],
     "reason": ""
   },
-  "unconsumed": [],
+  "unconsumed": [
+    "src/client/target-console/TargetStatusAction.tsx",
+    "src/console-contract.ts",
+    "src/console-host/control-plane.ts",
+    "src/console-remote/schemas.ts",
+    "src/i18n/client-messages.ts",
+    "src/worktree-request.ts",
+    "tests/worktree-request.test.ts"
+  ],
   "engineVersion": "2.0.0",
   "scope": "auto",
   "effectiveScope": "stale",
-  "updateOutcome": "no_change",
+  "updateOutcome": "incremental",
   "fallbackReason": "",
   "missingRepair": null,
   "notes": [
-    "持久化基线 35c1628 与本次 cw 基线 3b380f5 不同（以 cw 基线为准，未消费变化仍会并入）",
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw6bm47n-6-native（25 个文件）"
+    "持久化基线 3b380f5 与本次 cw 基线 6d81039 不同（以 cw 基线为准，未消费变化仍会并入）",
+    "工作区未提交改动已合成临时 commit 151e76143056（7 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw6cg29b-8-native（25 个文件）",
+    "本轮把 10 个未提交源码改动一并写进产物（快照 151e76143056）：src/client/target-console/TargetStatusAction.tsx、src/console-contract.ts、src/console-host/control-plane.ts、src/console-remote/schemas.ts、src/i18n/client-messages.ts 等"
   ],
-  "updatedAt": "2026-11-07T11:31:13.941Z"
+  "updatedAt": "2026-11-07T12:16:36.453Z"
 }

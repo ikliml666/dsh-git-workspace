@@ -106,7 +106,7 @@ stateDiagram-v2
 | 迭代操作 | 开始下一轮迭代（`begin_next_iteration`）、回到本地检出（`return_to_local`） | 对应 capability 为真 |
 | 底部（footer） | 重试环境清理（`retry_cleanup`）或丢弃任务并清理工作树（`discard`，危险项） | 对应 capability 为真 |
 
-「请求工作树」（`setWorktreeRequest`）的语义值得专门说明：它只是**排队一个标记**——真正的工作树创建发生在 Host 侧该会话下一次 step 之前；基点取当前分支（无分支时由 Host 用 HEAD），再次点击同一菜单项即撤回。这样「勾了但没发送」不会留下无人使用的 checkout。
+「请求工作树」（`setWorktreeRequest`）的语义值得专门说明：它只是**排队一个标记**——真正的工作树创建发生在 Host 侧该会话下一次 step 之前；基点取当前分支（无分支时由 Host 用 HEAD），再次点击同一菜单项即撤回。这样「勾了但没发送」不会留下无人使用的 checkout。pre-step 建树失败时**不撤销待办**：失败原因由 Host 落进会话记录，并经下一次 `current` 轮询的 `worktreeRequest.failure`（以及 `setWorktreeRequest` 响应的 `request.failure`）带回胶囊，把「发了消息却没动静」的真正原因显示出来；用户修好原因后重发即会重试。
 
 ### 2. BranchGraphModal — 提交图谱弹窗
 

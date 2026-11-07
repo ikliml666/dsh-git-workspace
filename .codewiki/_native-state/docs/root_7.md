@@ -183,11 +183,11 @@ flowchart LR
 | 导出 | 职责 |
 | --- | --- |
 | `WORKTREE_REQUEST_RECORD = 'plugin:dsh-git-worktree/worktree-request'` | session log 中的 plugin record 类型；经 `declare module '@deepseek-ai/dsh-session/types'` 增补 `PluginRecordMap`。 |
-| `WorktreeRequest { from: string\|null }` | 待建请求（基点分支；null = 当前 HEAD）。 |
-| `pendingWorktreeRequest(session)` | 折叠 session log 事件流，取最近一条有效 record（`request` 置位、`cancel` 清空）；非法数据跳过。 |
+| `WorktreeRequest { from: string\|null, failure: string\|null }` | 待建请求（`from` 为基点分支，null = 当前 HEAD；`failure` 是上一次 pre-step 建树失败的原因，null = 还没失败过）。 |
+| `pendingWorktreeRequest(session)` | 折叠 session log 事件流，取最近一条有效 record（`request` 置位、`cancel` 清空、`failed` 把原因挂到既有待办上而不撤销它）；非法数据跳过。 |
 | `setWorktreeRequest(ctx, sessionId, from?)` | Host 写入口：`from` 为 `undefined` 时撤回；会话不活抛错。 |
-| `liveWorktreeRequest(ctx, sessionId)` | 读活会话待办，供 `current` 回给胶囊（inbox 指示器）。 |
-| `mountWorktreeRequest(ctx, module)` | 监听 `agent/pre-step`：仅在 `step === 1` 且有待办时兑现；`module.inspect` **读得出且** `checkout.kind === 'isolated'` 时才视为「会话已站在树里」——只清标记不建第二棵树；读不出目标不算「过期」（未绑定的会话根本没有 Session Target，inspect 会抛 `target_unselected`，而那正是最需要建树的场景），一律按非 isolated 继续往下建，真实失败由下游 catch 兜住；建树失败把 `messages` **倒序放回 `agent.inbox`**（消息不丢）并 `reject`；成功则 `workingDirectory.enter` 进树。 |
+| `liveWorktreeRequest(ctx, sessionId)` | 读活会话待办，供 `current` 回给胶囊（inbox 指示器，并连同 `failure` 把建树失败原因带回界面）。 |
+| `mountWorktreeRequest(ctx, module)` | 监听 `agent/pre-step`：仅在 `step === 1` 且有待办时兑现；`module.inspect` **读得出且** `checkout.kind === 'isolated'` 时才视为「会话已站在树里」——只清标记不建第二棵树；读不出目标不算「过期」（未绑定的会话根本没有 Session Target，inspect 会抛 `target_unselected`，而那正是最需要建树的场景），一律按非 isolated 继续往下建，真实失败由下游 catch 兜住；建树失败把 `messages` **倒序放回 `agent.inbox`**（消息不丢）、调 `failWorktreeRequest(session, reason)` 把原因落进 session log（待办保留，改好原因重发即重试）并 `reject`；成功则 `workingDirectory.enter` 进树。 |
 
 持久化在 session log（plugin record）而非内存：刷新页面、重启 Host 后「勾了但还没发消息」依然成立。
 

@@ -6,7 +6,7 @@ description: 本模块是工作树（Worktree）管理客户端 UI 的目标控�
 # 目标控制台（target-console）模块
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`6d81039c`](https://github.com/wloops/dsh-git-worktree/commit/6d81039ce01ef5706de5ddb6c447f0fa156535cb) on 2026-11-07 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`151e7614`](https://github.com/wloops/dsh-git-worktree/commit/151e761430563a407bc52e9644be451a60b2babf) on 2026-11-07 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 ## 概述
 
@@ -114,7 +114,7 @@ stateDiagram-v2
 | 迭代操作 | 开始下一轮迭代（`begin_next_iteration`）、回到本地检出（`return_to_local`） | 对应 capability 为真 |
 | 底部（footer） | 重试环境清理（`retry_cleanup`）或丢弃任务并清理工作树（`discard`，危险项） | 对应 capability 为真 |
 
-「请求工作树」（`setWorktreeRequest`）的语义值得专门说明：它只是**排队一个标记**——真正的工作树创建发生在 Host 侧该会话下一次 step 之前；基点取当前分支（无分支时由 Host 用 HEAD），再次点击同一菜单项即撤回。这样「勾了但没发送」不会留下无人使用的 checkout。
+「请求工作树」（`setWorktreeRequest`）的语义值得专门说明：它只是**排队一个标记**——真正的工作树创建发生在 Host 侧该会话下一次 step 之前；基点取当前分支（无分支时由 Host 用 HEAD），再次点击同一菜单项即撤回。这样「勾了但没发送」不会留下无人使用的 checkout。pre-step 建树失败时**不撤销待办**：失败原因由 Host 落进会话记录，并经下一次 `current` 轮询的 `worktreeRequest.failure`（以及 `setWorktreeRequest` 响应的 `request.failure`）带回胶囊，把「发了消息却没动静」的真正原因显示出来；用户修好原因后重发即会重试。
 
 ### 2. BranchGraphModal — 提交图谱弹窗
 
@@ -245,11 +245,11 @@ flowchart TD
 - [root_5：控制台 Host 侧](../root_5.md) — 本模块所有 RPC 最终落地的 `WorktreeConsoleService` 与远程描述实现。
 
 ??? abstract "Documented components (7)"
-    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/6d81039ce01ef5706de5ddb6c447f0fa156535cb/src%5Cclient%5Creview-console%5Creview-console.styles.ts) — `src\client\review-console\review-console.styles.ts`
-    - [`BranchGraphModalProps`](https://github.com/wloops/dsh-git-worktree/blob/6d81039ce01ef5706de5ddb6c447f0fa156535cb/src%5Cclient%5Ctarget-console%5CBranchGraphModal.tsx) — `src\client\target-console\BranchGraphModal.tsx`
-    - [`GraphEdge`](https://github.com/wloops/dsh-git-worktree/blob/6d81039ce01ef5706de5ddb6c447f0fa156535cb/src%5Cclient%5Ctarget-console%5CBranchGraphModal.tsx) — `src\client\target-console\BranchGraphModal.tsx`
-    - [`GraphRefBadge`](https://github.com/wloops/dsh-git-worktree/blob/6d81039ce01ef5706de5ddb6c447f0fa156535cb/src%5Cclient%5Ctarget-console%5CBranchGraphModal.tsx) — `src\client\target-console\BranchGraphModal.tsx`
-    - [`GraphRowLanes`](https://github.com/wloops/dsh-git-worktree/blob/6d81039ce01ef5706de5ddb6c447f0fa156535cb/src%5Cclient%5Ctarget-console%5CBranchGraphModal.tsx) — `src\client\target-console\BranchGraphModal.tsx`
-    - [`TagManagerModalProps`](https://github.com/wloops/dsh-git-worktree/blob/6d81039ce01ef5706de5ddb6c447f0fa156535cb/src%5Cclient%5Ctarget-console%5CTagManagerModal.tsx) — `src\client\target-console\TagManagerModal.tsx`
-    - [`TargetStatusActionProps`](https://github.com/wloops/dsh-git-worktree/blob/6d81039ce01ef5706de5ddb6c447f0fa156535cb/src%5Cclient%5Ctarget-console%5CTargetStatusAction.tsx) — `src\client\target-console\TargetStatusAction.tsx`
+    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/151e761430563a407bc52e9644be451a60b2babf/src%5Cclient%5Creview-console%5Creview-console.styles.ts) — `src\client\review-console\review-console.styles.ts`
+    - [`BranchGraphModalProps`](https://github.com/wloops/dsh-git-worktree/blob/151e761430563a407bc52e9644be451a60b2babf/src%5Cclient%5Ctarget-console%5CBranchGraphModal.tsx) — `src\client\target-console\BranchGraphModal.tsx`
+    - [`GraphEdge`](https://github.com/wloops/dsh-git-worktree/blob/151e761430563a407bc52e9644be451a60b2babf/src%5Cclient%5Ctarget-console%5CBranchGraphModal.tsx) — `src\client\target-console\BranchGraphModal.tsx`
+    - [`GraphRefBadge`](https://github.com/wloops/dsh-git-worktree/blob/151e761430563a407bc52e9644be451a60b2babf/src%5Cclient%5Ctarget-console%5CBranchGraphModal.tsx) — `src\client\target-console\BranchGraphModal.tsx`
+    - [`GraphRowLanes`](https://github.com/wloops/dsh-git-worktree/blob/151e761430563a407bc52e9644be451a60b2babf/src%5Cclient%5Ctarget-console%5CBranchGraphModal.tsx) — `src\client\target-console\BranchGraphModal.tsx`
+    - [`TagManagerModalProps`](https://github.com/wloops/dsh-git-worktree/blob/151e761430563a407bc52e9644be451a60b2babf/src%5Cclient%5Ctarget-console%5CTagManagerModal.tsx) — `src\client\target-console\TagManagerModal.tsx`
+    - [`TargetStatusActionProps`](https://github.com/wloops/dsh-git-worktree/blob/151e761430563a407bc52e9644be451a60b2babf/src%5Cclient%5Ctarget-console%5CTargetStatusAction.tsx) — `src\client\target-console\TargetStatusAction.tsx`
 

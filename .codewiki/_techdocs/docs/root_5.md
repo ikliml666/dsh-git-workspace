@@ -6,7 +6,7 @@ description: 本模块是 git-worktree 插件的宿主控制台（console host�
 # Worktree Console 宿主与远程协议层（root_5）
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`6d81039c`](https://github.com/wloops/dsh-git-worktree/commit/6d81039ce01ef5706de5ddb6c447f0fa156535cb) on 2026-11-07 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`151e7614`](https://github.com/wloops/dsh-git-worktree/commit/151e761430563a407bc52e9644be451a60b2babf) on 2026-11-07 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 ## 模块定位
 
@@ -112,7 +112,7 @@ sequenceDiagram
 | `registry` | `SessionCheckoutRegistryPort` | 原子读取 `managedCheckouts` 与 `sessionBindings` |
 | `git` | `SessionCheckoutGitPort` | `inspect / status / branchOverview / graphLog / tag*` 等 git 端口 |
 | `reviewDiff` | `WorktreeReviewDiffReader` | 隔离 diff 取证（见 1.4） |
-| `setWorktreeRequest / pendingWorktreeRequest` | Host 侧注入回调 | 「下一次 turn 在新树里开始」的待办读写；真正建树由 [root_7：dsh-git-worktree 插件出口层](root_7.md) 的 `worktree-request.ts` 在 turn 第一步兑现 |
+| `setWorktreeRequest / pendingWorktreeRequest` | Host 侧注入回调 | 「下一次 turn 在新树里开始」的待办读写；两个回调返回（或读取）的待办对象形状均为 `{ from, failure }`——`failure` 把 pre-step 建树失败原因一并带回界面（失败不撤销待办，见 2.1）。真正建树由 [root_7：dsh-git-worktree 插件出口层](root_7.md) 的 `worktree-request.ts` 在 turn 第一步兑现 |
 | `createTargetSessionId` | 可选，默认 `randomUUID` | 预览恢复交接（handoff）时生成新隔离会话 id |
 
 **鉴权层级**（`authorize` / `linkedReadAccess`）
@@ -195,7 +195,7 @@ flowchart LR
 - **基础标量**：`sessionIdSchema / checkoutIdSchema / reviewIdSchema / previewIdSchema / requestIdSchema`（禁控制字符、`..`、分隔符）、`revisionSchema`（非负整数）、`oidSchema`（40/64 位 hex 或 `unversioned / unborn`）、`generationSchema`（64 hex）、`branchNameSchema`（禁 git 分支危险字符、不以 `-`/`/` 开头、非 `.lock` 结尾）、`commitMessageSchema`（走 `isValidCommitMessage`）、`retentionSchema = cleanup | retain_24h | retain_3d | retain_manual`。
 - **组合校验**：`targetSummarySchema` / `targetDetailsSchema`（strict object）、`recoveryContinuationSchema` 与 `previewRecoveryProofSchema` 等四类续传 proof 的判别联合、`preflightSchema`（ready / local_advanced / already_in_local / conflict / blocked 五态联合）。
 - **`outcomeSchema(value)`**：按 `ok` 字段判别的 `WorktreeConsoleOutcome<T>` 联合；`consoleErrorSchema` 用 superRefine 强制"只有 `apply_conflict` 错误可以携带 continuation"。
-- **向后兼容设计**：新增的能力位（如 `returnToLocal`）与 `worktreeRequest` 一律用 `.default(false)` / `.default(null)`——旧 Host 不认识这些键时整条响应仍能通过校验，避免胶囊塌成"不可用"。
+- **向后兼容设计**：新增的能力位（如 `returnToLocal`）与 `worktreeRequest` 一律用 `.default(false)` / `.default(null)`——旧 Host 不认识这些键时整条响应仍能通过校验，避免胶囊塌成"不可用"。`worktreeRequest` / `setWorktreeRequest` 响应里的待办对象形如 `{ from, failure }`：`failure` 用于把 pre-step 建树失败的原因带回界面（失败不撤销待办），缺省时按 `null` 处理。
 
 ### 2.2 `descriptors.ts`：RPC 调用描述符
 
@@ -246,23 +246,23 @@ flowchart LR
 - **i18n**：所有面向用户的消息经 `hostMessage` / `withHostLanguage` 产出，见 [组合根、领域端口与国际化（root_6）](root_6.md) 的 `src/i18n/`。
 
 ??? abstract "Documented components (19)"
-    - [`WorktreeConsoleControlPlane`](https://github.com/wloops/dsh-git-worktree/blob/6d81039ce01ef5706de5ddb6c447f0fa156535cb/src%5Cconsole-host%5Ccontrol-plane.ts) — `src\console-host\control-plane.ts`
-    - [`WorktreeConsoleControlPlaneOptions`](https://github.com/wloops/dsh-git-worktree/blob/6d81039ce01ef5706de5ddb6c447f0fa156535cb/src%5Cconsole-host%5Ccontrol-plane.ts) — `src\console-host\control-plane.ts`
-    - [`consoleFailure`](https://github.com/wloops/dsh-git-worktree/blob/6d81039ce01ef5706de5ddb6c447f0fa156535cb/src%5Cconsole-host%5Cerrors.ts) — `src\console-host\errors.ts`
-    - [`capabilities`](https://github.com/wloops/dsh-git-worktree/blob/6d81039ce01ef5706de5ddb6c447f0fa156535cb/src%5Cconsole-host%5Cprojection.ts) — `src\console-host\projection.ts`
-    - [`ChangedEntry`](https://github.com/wloops/dsh-git-worktree/blob/6d81039ce01ef5706de5ddb6c447f0fa156535cb/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
-    - [`GitOutput`](https://github.com/wloops/dsh-git-worktree/blob/6d81039ce01ef5706de5ddb6c447f0fa156535cb/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
-    - [`ReviewDiffReadInput`](https://github.com/wloops/dsh-git-worktree/blob/6d81039ce01ef5706de5ddb6c447f0fa156535cb/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
-    - [`ReviewDiffStaleError`](https://github.com/wloops/dsh-git-worktree/blob/6d81039ce01ef5706de5ddb6c447f0fa156535cb/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
-    - [`WorktreeReviewDiffReader`](https://github.com/wloops/dsh-git-worktree/blob/6d81039ce01ef5706de5ddb6c447f0fa156535cb/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
-    - [`WorktreeConsoleService`](https://github.com/wloops/dsh-git-worktree/blob/6d81039ce01ef5706de5ddb6c447f0fa156535cb/src%5Cconsole-host%5Cservice.ts) — `src\console-host\service.ts`
-    - [`descriptor`](https://github.com/wloops/dsh-git-worktree/blob/6d81039ce01ef5706de5ddb6c447f0fa156535cb/src%5Cconsole-remote%5Cdescriptors.ts) — `src\console-remote\descriptors.ts`
-    - [`TypertRemoteMap`](https://github.com/wloops/dsh-git-worktree/blob/6d81039ce01ef5706de5ddb6c447f0fa156535cb/src%5Cconsole-remote%5Cremote.ts) — `src\console-remote\remote.ts`
-    - [`TypertRemoteNamespaceMap`](https://github.com/wloops/dsh-git-worktree/blob/6d81039ce01ef5706de5ddb6c447f0fa156535cb/src%5Cconsole-remote%5Cremote.ts) — `src\console-remote\remote.ts`
-    - [`outcomeSchema`](https://github.com/wloops/dsh-git-worktree/blob/6d81039ce01ef5706de5ddb6c447f0fa156535cb/src%5Cconsole-remote%5Cschemas.ts) — `src\console-remote\schemas.ts`
-    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/6d81039ce01ef5706de5ddb6c447f0fa156535cb/src%5Cconsole-remote%5Ctypert.ts) — `src\console-remote\typert.ts`
-    - [`WorktreeCreationFailure`](https://github.com/wloops/dsh-git-worktree/blob/6d81039ce01ef5706de5ddb6c447f0fa156535cb/src%5Ccreation-failure.ts) — `src\creation-failure.ts`
-    - [`deliveryExcludePathspecs`](https://github.com/wloops/dsh-git-worktree/blob/6d81039ce01ef5706de5ddb6c447f0fa156535cb/src%5Cdelivery-excludes.ts) — `src\delivery-excludes.ts`
-    - [`WorkspaceFlavorAnchorDiagnostic`](https://github.com/wloops/dsh-git-worktree/blob/6d81039ce01ef5706de5ddb6c447f0fa156535cb/src%5Chost-compat.ts) — `src\host-compat.ts`
-    - [`WorkspaceFlavorDiagnostics`](https://github.com/wloops/dsh-git-worktree/blob/6d81039ce01ef5706de5ddb6c447f0fa156535cb/src%5Chost-compat.ts) — `src\host-compat.ts`
+    - [`WorktreeConsoleControlPlane`](https://github.com/wloops/dsh-git-worktree/blob/151e761430563a407bc52e9644be451a60b2babf/src%5Cconsole-host%5Ccontrol-plane.ts) — `src\console-host\control-plane.ts`
+    - [`WorktreeConsoleControlPlaneOptions`](https://github.com/wloops/dsh-git-worktree/blob/151e761430563a407bc52e9644be451a60b2babf/src%5Cconsole-host%5Ccontrol-plane.ts) — `src\console-host\control-plane.ts`
+    - [`consoleFailure`](https://github.com/wloops/dsh-git-worktree/blob/151e761430563a407bc52e9644be451a60b2babf/src%5Cconsole-host%5Cerrors.ts) — `src\console-host\errors.ts`
+    - [`capabilities`](https://github.com/wloops/dsh-git-worktree/blob/151e761430563a407bc52e9644be451a60b2babf/src%5Cconsole-host%5Cprojection.ts) — `src\console-host\projection.ts`
+    - [`ChangedEntry`](https://github.com/wloops/dsh-git-worktree/blob/151e761430563a407bc52e9644be451a60b2babf/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
+    - [`GitOutput`](https://github.com/wloops/dsh-git-worktree/blob/151e761430563a407bc52e9644be451a60b2babf/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
+    - [`ReviewDiffReadInput`](https://github.com/wloops/dsh-git-worktree/blob/151e761430563a407bc52e9644be451a60b2babf/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
+    - [`ReviewDiffStaleError`](https://github.com/wloops/dsh-git-worktree/blob/151e761430563a407bc52e9644be451a60b2babf/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
+    - [`WorktreeReviewDiffReader`](https://github.com/wloops/dsh-git-worktree/blob/151e761430563a407bc52e9644be451a60b2babf/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
+    - [`WorktreeConsoleService`](https://github.com/wloops/dsh-git-worktree/blob/151e761430563a407bc52e9644be451a60b2babf/src%5Cconsole-host%5Cservice.ts) — `src\console-host\service.ts`
+    - [`descriptor`](https://github.com/wloops/dsh-git-worktree/blob/151e761430563a407bc52e9644be451a60b2babf/src%5Cconsole-remote%5Cdescriptors.ts) — `src\console-remote\descriptors.ts`
+    - [`TypertRemoteMap`](https://github.com/wloops/dsh-git-worktree/blob/151e761430563a407bc52e9644be451a60b2babf/src%5Cconsole-remote%5Cremote.ts) — `src\console-remote\remote.ts`
+    - [`TypertRemoteNamespaceMap`](https://github.com/wloops/dsh-git-worktree/blob/151e761430563a407bc52e9644be451a60b2babf/src%5Cconsole-remote%5Cremote.ts) — `src\console-remote\remote.ts`
+    - [`outcomeSchema`](https://github.com/wloops/dsh-git-worktree/blob/151e761430563a407bc52e9644be451a60b2babf/src%5Cconsole-remote%5Cschemas.ts) — `src\console-remote\schemas.ts`
+    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/151e761430563a407bc52e9644be451a60b2babf/src%5Cconsole-remote%5Ctypert.ts) — `src\console-remote\typert.ts`
+    - [`WorktreeCreationFailure`](https://github.com/wloops/dsh-git-worktree/blob/151e761430563a407bc52e9644be451a60b2babf/src%5Ccreation-failure.ts) — `src\creation-failure.ts`
+    - [`deliveryExcludePathspecs`](https://github.com/wloops/dsh-git-worktree/blob/151e761430563a407bc52e9644be451a60b2babf/src%5Cdelivery-excludes.ts) — `src\delivery-excludes.ts`
+    - [`WorkspaceFlavorAnchorDiagnostic`](https://github.com/wloops/dsh-git-worktree/blob/151e761430563a407bc52e9644be451a60b2babf/src%5Chost-compat.ts) — `src\host-compat.ts`
+    - [`WorkspaceFlavorDiagnostics`](https://github.com/wloops/dsh-git-worktree/blob/151e761430563a407bc52e9644be451a60b2babf/src%5Chost-compat.ts) — `src\host-compat.ts`
 
