@@ -2,17 +2,22 @@
   "stateVersion": 1,
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
-    "baseCommit": "0ff18a1f2e107a41cadf53bd342c813da0775ebe",
-    "headCommit": "e6a84e5cb4639894e5ae8685a0816b00b22d9057"
+    "baseCommit": "e6a84e5cb4639894e5ae8685a0816b00b22d9057",
+    "headCommit": "b0979671ecdb749b8ca1bf1b3c9f06182f618b95"
   },
   "pendingChanges": {
     "state": "ok",
-    "baseCommit": "0ff18a1f2e107a41cadf53bd342c813da0775ebe",
-    "headCommit": "e6a84e5cb4639894e5ae8685a0816b00b22d9057",
+    "baseCommit": "e6a84e5cb4639894e5ae8685a0816b00b22d9057",
+    "headCommit": "b0979671ecdb749b8ca1bf1b3c9f06182f618b95",
     "committed": [
       "CHANGELOG.md",
+      "README-LOCAL-ADAPTATIONS.md",
+      "src/index.ts",
+      "src/official-worktree-registration.ts",
       "src/session-checkout-module.ts",
-      "tests/official-base-creation.test.ts"
+      "src/session-target-context.ts",
+      "tests/official-worktree-event.test.ts",
+      "tests/official-worktree-registration.test.ts"
     ],
     "staged": [],
     "unstaged": [],
@@ -25,12 +30,12 @@
   "engineVersion": "2.0.0",
   "scope": "auto",
   "effectiveScope": "stale",
-  "updateOutcome": "no_change",
+  "updateOutcome": "incremental",
   "fallbackReason": "",
   "missingRepair": null,
   "notes": [
-    "持久化基线 25f8bcd 与本次 cw 基线 0ff18a1 不同（以 cw 基线为准，未消费变化仍会并入）",
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw5hrqhw-s-native（31 个文件）"
+    "持久化基线 0ff18a1 与本次 cw 基线 e6a84e5 不同（以 cw 基线为准，未消费变化仍会并入）",
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw5rj1pn-0-native（31 个文件）"
   ],
-  "updatedAt": "2026-11-06T21:37:10.628Z"
+  "updatedAt": "2026-11-07T02:17:11.638Z"
 }

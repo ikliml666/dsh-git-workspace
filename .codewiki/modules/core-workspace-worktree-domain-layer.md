@@ -46,7 +46,7 @@ flowchart TB
     Cmd["commands.ts：/worktree 人类命令面"]
     Compat["host-compat.ts：宿主客户端风味探测"]
     Lifecycle["workspace-provider-lifecycle.ts：官方 Workspace 接管生命周期"]
-    Adoption["official-worktree-adoption.ts：官方 worktrees 服务纳管"]
+    Adoption["official-worktree-registration.ts：官方 worktrees 服务纳管"]
     Utils["checkpoint.ts / commit-message.ts / creation-failure.ts / delivery-excludes.ts：领域叶子工具"]
   end
 
@@ -169,6 +169,7 @@ sequenceDiagram
   Apply->>Surfaces: registerTools(ctx, module)
   Apply->>Surfaces: registerWorktreeCommand(ctx, module)
   Apply->>Surfaces: registerSessionTargetContext(ctx, module)
+  Apply->>Surfaces: registerOfficialWorktreeAdoption(ctx, module)
   Apply->>Surfaces: new WorktreeConsoleService(...)
   Note over Apply: ready 事件后 reconcile() + enforceWorktreeKeepCount()#59;每 15 分钟 cleanupExpiredRetained()#59;autoPruneMergedBranches 周期扫（默认关闭）
 ```
@@ -250,14 +251,14 @@ sequenceDiagram
 
 - `SessionCheckoutModule`：业务调用方的完整门面（约 30 个方法），分五组——
   - **目标观察**：`inspect`、`runtimeContext`、`preflight`、`preflightPreviewRecovery`、`observeManagedCheckout(s)`；
-  - **绑定与建树**：`bind`、`createIsolatedTarget`、`createOfficialTarget`（宿主唯一建树路径）、`beginNextIteration`、`resumeRevision`；
+  - **绑定与建树**：`bind`、`createIsolatedTarget`、`createOfficialTarget`（宿主唯一建树路径）、`adoptOfficialWorktree`（会话 cwd 进入官方树时的运行时纳管）、`beginNextIteration`、`resumeRevision`；
   - **交付与恢复**：`markReadyForReview`、`operate`、`prepareReviewRegeneration`、`preparePreviewRecoveryAnalysis`、`createPreviewRecoveryHandoff`；
   - **列表与维护**：`listManagedWorktrees(ForSession)`、`pruneMergedBranchesForSession`、`autoPruneStaleMergedBranches`、`mergeBranchForSession`、`listAbandonedWorktreeSnapshots` / `restoreAbandonedWorktreeSnapshot`、`manageManagedWorktree(ForSession)`、`bulkCleanupManagedWorktrees`、`inspectManagedWorktreeCleanup`、`cleanupExpiredRetained`、`enforceWorktreeKeepCount`、`reconcile`；
   - **根解析**：`resolveManagedRoot`、`resolveRoots`（cwd 恢复用，无 Git I/O）。
 - `SessionCheckoutError`：稳定领域失败类型，`code` 与 `message` 供工具层原样呈现。
 - `SessionCheckoutReconcileSummary`：启动对账结论——需要恢复 / 孤儿 / 脏孤儿 / 本地根失效 / 保留计数。
 - 输入类型：`MarkReadyForReviewInput`、`ManageManagedWorktreeInput`、`ListManagedWorktreesInput`、`PruneMergedBranchesInput`、`MergeBranchForSessionInput`、`IsolatedTargetLaunch`、`LocalAdaptationConfig`。
-- `apply(ctx, config)` 总装：校验 Git 超时 → 挂载 Workspace 接管生命周期 → 建状态目录 → 装配 lookup/git/files/registry/applyEngine/officialWorktrees → 建 `SessionCheckoutModule` → 挂控制台服务、模型工具、`/worktree` 命令、Session Target 上下文 → 注册启动与周期维护定时器（全部 `unref`，随 `ctx.effect` 清理）。
+- `apply(ctx, config)` 总装：校验 Git 超时 → 挂载 Workspace 接管生命周期 → 建状态目录 → 装配 lookup/git/files/registry/applyEngine/officialWorktrees → 建 `SessionCheckoutModule` → 挂控制台服务、模型工具、`/worktree` 命令、Session Target 上下文、官方 Worktree cwd 纳管事件订阅 → 注册启动与周期维护定时器（全部 `unref`，随 `ctx.effect` 清理）。
 
 ### 人类命令面（`commands.ts`）
 
@@ -284,11 +285,12 @@ Session 已身处 Worktree。
 - `workspaceFlavorDiagnostics(anchors)` / `hostWorkspaceClientFlavor()`：按「宿主入口脚本 → cwd → 插件自身」锚点顺序探测已解析的 agent 包版本；链接安装下插件 node_modules 会遮蔽宿主树，所以前两个锚点优先，每个探测都记录为 `WorkspaceFlavorAnchorDiagnostic`。
 - `mountWorkspaceProviderLifecycle(ctx, flavor, options)`：用 Loader 操作（`entry.update({ disabled: true })` / `disabled: null` + `init`/`refresh`）在 Host 侧**一次性选举唯一 `uiWorkspace` 提供者**，取代旧的客户端条件表达式（同一表达式在 apply 期与 renderer 审计期求值相反，曾导致 0.2.x web boot 崩溃，见 `cordis.patch.yml` 注释）。返回 `WorkspaceProviderLifecycleResult.officialWorkspaceActive`；每个 Loader 操作带 10 秒封顶，绝不阻塞插件激活，后续 Loader 事件自动重试选举。
 
-### 官方 Worktree 纳管（`official-worktree-adoption.ts`）
+### 官方 Worktree 纳管（`official-worktree-registration.ts`）
 
 - 布局契约：只认 `<repositoryRoot>/.agents/worktrees/<branch>` 前缀——`git worktree list` 会列出用户手工 add 的一切，纳管它们等于凭空接管用户目录。
-- `adoptOfficialWorktrees(deps)`：启动反查。归属只能来自「谁正站在这棵树里」（宿主实时 cwd）；多会话同树则跳过而不猜；已在台账或已绑定 isolated 的跳过。纳管记录直接置 `phase: 'ready'`、`delivery.working/iteration:1`。
-- `registerOfficialWorktree(deps, registration)`：`worktree_create` 的唯一建树路径登记——宿主 `worktrees.create` 做真正 Git 操作，插件把结果（`OfficialWorktreeRegistration`：owner/项目/路径/分支/基准提交）记入台账并建立 session 绑定。
+- `adoptWorktreeForSession(deps, sessionId, cwd)`：运行时纳管。当某 Session 的工作目录落在官方目录下、且该树**未被其他路径登记过**（本会话无绑定、台账中无同根记录，且 HEAD 必须是本地分支而非分离头）时，按同一登记路径把它补记入台账——让台账覆盖宿主面板、官方 `create_worktree` 工具等外部路径创建的 Worktree，而不仅是插件自己的 `worktree_create`。归属只能来自「谁正站在这棵树里」（宿主实时 cwd），多会话同树则跳过而不猜。
+- `registerOfficialWorktree(deps, registration)`：`worktree_create` 的唯一建树路径登记——宿主 `worktrees.create` 做真正 Git 操作，插件把结果（`OfficialWorktreeRegistration`：owner/项目/路径/分支/基准提交）记入台账并建立 session 绑定，记录直接置 `phase: 'ready'`、`delivery.working/iteration:1`。
+- `registerOfficialWorktreeAdoption(ctx, module)`（`session-target-context.ts`）：`apply()` 期注册的事件订阅——监听 `session/event` 的 `working-directory/change`，在 Session cwd 进入官方树时 fire-and-forget 地调用 `module.adoptOfficialWorktree(sessionId, cwd)`；事件 feed 不等待监听者，登记要读 Git 与写台账，异步 rejection 只记 `console.warn`，绝不让未捕获的 panic 逃出。
 
 ### 领域叶子工具
 

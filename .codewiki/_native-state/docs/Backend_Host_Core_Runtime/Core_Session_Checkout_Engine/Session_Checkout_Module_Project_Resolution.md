@@ -4,11 +4,12 @@
 
 本模块是 `dsh-git-worktree` 会话检出状态机的**门面与项目解析层**，落地于 `src/session-checkout-module.ts`。它对外导出工厂函数 `createSessionCheckoutModule(dependencies)`，返回完整的 `SessionCheckoutModule` 实现；其代表类型为 `ResolvedSessionProject`，把「一个 Agent 会话」解析成「会话记录 + 所属项目记录」的二元组，作为一切后续检出/交付动作的权威入口。
 
-该层承担三类职责：
+该层承担四类职责：
 
 1. **会话 → 项目解析**：通过 `SessionCheckoutLookupPort` 取回 `SessionCheckoutSessionRecord` 与 `SessionCheckoutProjectRecord`，校验项目根目录存在性，产出 `ResolvedSessionProject`。
 2. **会话绑定（binding）解析与目标投影**：把 `sessionId` 解析为 `SessionBindingRecord`（local / isolated 两种目标），再经身份校验（realpath / commonDir / inode）产出稳定的 `SessionTargetView`。
 3. **编排（orchestration）**：把工具接口发起的 mutate 操作（apply / preview / finish / checkpoint / discard / recover / cleanup…）序列化到同一把排他锁下，委托给 [Session_Checkout_Apply_Execution_Engine](Session_Checkout_Apply_Execution_Engine.md) 执行真正的 Git/索引写入，再把回写结果投影回 registry 台账。
+4. **官方 Worktree 台账补记（adoption）**：官方 `create_worktree` 与 forge 面板建的树只存在于磁盘上，而本模块的列表、交付、评审、清理全靠台账定位；当会话 cwd 走进 `.agents/worktrees/` 下的树时，`adoptOfficialWorktree` 在同一把排他锁内把它补记进台账，已有 binding 或树已在台账里则跳过。
 
 > 说明：`session-checkout-module.ts` 是整个会话检出模块的单体文件实现，但本页聚焦于其中「项目解析 / 绑定解析 / 目标投影 / 编排入口」这一面；真正的 Git apply、preview receipt、checkpoint 写入等执行细节见 apply 引擎页。
 
@@ -47,6 +48,7 @@ interface ResolvedSessionProject {
 - `reconcile`：启动期扫描台账，按 journal 步骤把中断的 mutating 记录回退到 ready / recovery_required / recovered。
 - `bindTarget` / `beginNextIterationTarget`：创建 / 复用 / 下一代迭代的完整工作树生命周期入口。
 - 官方建树后的插件补充能力：官方只做 `git worktree add`，本模块在登记台账前先用 `git.inspect` 读取本地项目根快照，把 `.worktreeinclude` 列出的 gitignored 文件拷入新 Worktree（`copyWorktreeincludeFiles`）；仅当新 Worktree 基点（`baseCommit`）恰等于本地 HEAD 且 `inheritLocalChanges` 未显式关闭时，才把本地未提交修改一并携带进 Worktree（`carryLocalWorkInProgress`）——补丁以本地 HEAD 为基准，基点为其他分支 tip 时不适用。
+- `adoptOfficialWorktree(sessionId, cwd)`：会话走进 `.agents/worktrees/` 下的树时在排他锁内把它补记进台账（委托 `src/official-worktree-registration.ts::adoptWorktreeForSession`）；已有 binding 或树已在台账里则跳过，重复 cwd 事件不产生第二条记录。
 
 ---
 

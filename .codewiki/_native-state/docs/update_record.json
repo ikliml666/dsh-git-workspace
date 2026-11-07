@@ -1,7 +1,7 @@
 {
-  "started_at": "2026-11-07T05:37:09+0800",
-  "finished_at": "2026-11-07T05:37:09+0800",
-  "outcome": "no_change",
+  "started_at": "2026-11-07T10:08:26+0800",
+  "finished_at": "2026-11-07T10:17:10+0800",
+  "outcome": "incremental",
   "options": {
     "rung": "3",
     "tau_ren": 0.95,
@@ -24,57 +24,1152 @@
     }
   },
   "revision": {
-    "old_commit": "24cbc7d6f68d4b0b944e65ba326690018feeda7a",
-    "new_commit": "e6a84e5cb4639894e5ae8685a0816b00b22d9057",
+    "old_commit": "e6a84e5cb4639894e5ae8685a0816b00b22d9057",
+    "new_commit": "b0979671ecdb749b8ca1bf1b3c9f06182f618b95",
     "repo_path": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree"
   },
   "diff": {
     "counts": {
-      "added": 0,
+      "added": 5,
       "deleted": 0,
       "interface": 0,
-      "body": 0,
-      "edge": 0,
+      "body": 3,
+      "edge": 1,
       "renamed": 0
     },
-    "added": [],
+    "added": [
+      "src\\official-worktree-registration.ts::adoptWorktreeForSession",
+      "src\\official-worktree-registration.ts::isOfficialWorktreePath",
+      "src\\official-worktree-registration.ts::isTracked",
+      "src\\official-worktree-registration.ts::normalize",
+      "src\\session-target-context.ts::registerOfficialWorktreeAdoption"
+    ],
     "deleted": [],
     "interface": [],
-    "body": [],
-    "edge": [],
+    "body": [
+      "src\\index.ts::SessionCheckoutModule",
+      "src\\index.ts::apply",
+      "src\\session-checkout-module.ts::createSessionCheckoutModule"
+    ],
+    "edge": [
+      "src\\console-host\\review-diff.ts::projectPath"
+    ],
     "renamed": {}
   },
-  "repair": {},
+  "repair": {
+    "renamed": {},
+    "removed": [],
+    "routing": [
+      {
+        "component_id": "src\\official-worktree-registration.ts::adoptWorktreeForSession",
+        "rule": "untracked",
+        "leaf_path": null,
+        "new_leaf": false,
+        "detail": "not a selected leaf node"
+      },
+      {
+        "component_id": "src\\official-worktree-registration.ts::isOfficialWorktreePath",
+        "rule": "untracked",
+        "leaf_path": null,
+        "new_leaf": false,
+        "detail": "not a selected leaf node"
+      },
+      {
+        "component_id": "src\\official-worktree-registration.ts::isTracked",
+        "rule": "untracked",
+        "leaf_path": null,
+        "new_leaf": false,
+        "detail": "not a selected leaf node"
+      },
+      {
+        "component_id": "src\\official-worktree-registration.ts::normalize",
+        "rule": "untracked",
+        "leaf_path": null,
+        "new_leaf": false,
+        "detail": "not a selected leaf node"
+      },
+      {
+        "component_id": "src\\session-target-context.ts::registerOfficialWorktreeAdoption",
+        "rule": "untracked",
+        "leaf_path": null,
+        "new_leaf": false,
+        "detail": "not a selected leaf node"
+      }
+    ],
+    "orphans": [],
+    "deleted_nodes": [],
+    "created_leaves": [],
+    "growth": {},
+    "growth_flagged": []
+  },
   "reclustered": [],
-  "reports": {},
-  "ownership": [],
-  "active": [],
-  "write_sets": {},
-  "fallback": {},
-  "verdicts": [],
-  "pages_written": [],
+  "reports": {
+    "Backend_Host_Core_Runtime/Core_Workspace___Worktree_Domain_Layer": {
+      "leaf_path": [
+        "Backend_Host_Core_Runtime",
+        "Core_Workspace___Worktree_Domain_Layer"
+      ],
+      "mode": "edit",
+      "own": [
+        "src\\index.ts::apply",
+        "src\\index.ts::SessionCheckoutModule"
+      ],
+      "adopted": {
+        "src\\index.ts::apply": "1:same_file"
+      },
+      "up": [],
+      "context": [
+        "src\\official-worktree-registration.ts::isTracked",
+        "src\\session-target-context.ts::registerOfficialWorktreeAdoption",
+        "src\\official-worktree-registration.ts::adoptWorktreeForSession"
+      ],
+      "refch": [],
+      "entered": [],
+      "left": [],
+      "children_added": [],
+      "children_removed": [],
+      "reclustered": false,
+      "page": "Core_Workspace___Worktree_Domain_Layer"
+    },
+    "Backend_Host_Core_Runtime/Worktree_Console_Host_Service/Worktree_Console_Host_Service_Control_Plane": {
+      "leaf_path": [
+        "Backend_Host_Core_Runtime",
+        "Worktree_Console_Host_Service",
+        "Worktree_Console_Host_Service_Control_Plane"
+      ],
+      "mode": "edit",
+      "own": [
+        "src\\console-host\\review-diff.ts::projectPath"
+      ],
+      "adopted": {
+        "src\\console-host\\review-diff.ts::projectPath": "1:same_file"
+      },
+      "up": [],
+      "context": [],
+      "refch": [],
+      "entered": [],
+      "left": [],
+      "children_added": [],
+      "children_removed": [],
+      "reclustered": false,
+      "page": "Worktree_Console_Host_Service_Control_Plane"
+    },
+    "Backend_Host_Core_Runtime/Core_Session_Checkout_Engine/Session_Checkout_Module_Project_Resolution": {
+      "leaf_path": [
+        "Backend_Host_Core_Runtime",
+        "Core_Session_Checkout_Engine",
+        "Session_Checkout_Module_Project_Resolution"
+      ],
+      "mode": "edit",
+      "own": [
+        "src\\session-checkout-module.ts::createSessionCheckoutModule"
+      ],
+      "adopted": {
+        "src\\session-checkout-module.ts::createSessionCheckoutModule": "1:same_file"
+      },
+      "up": [],
+      "context": [],
+      "refch": [],
+      "entered": [],
+      "left": [],
+      "children_added": [],
+      "children_removed": [],
+      "reclustered": false,
+      "page": "Session_Checkout_Module_Project_Resolution"
+    }
+  },
+  "ownership": [
+    {
+      "component_id": "src\\console-host\\review-diff.ts::projectPath",
+      "rule": "1:same_file",
+      "leaf_path": [
+        "Backend_Host_Core_Runtime",
+        "Worktree_Console_Host_Service",
+        "Worktree_Console_Host_Service_Control_Plane"
+      ],
+      "detail": "5 tracked components in file",
+      "deleted": false
+    },
+    {
+      "component_id": "src\\index.ts::apply",
+      "rule": "1:same_file",
+      "leaf_path": [
+        "Backend_Host_Core_Runtime",
+        "Core_Workspace___Worktree_Domain_Layer"
+      ],
+      "detail": "10 tracked components in file",
+      "deleted": false
+    },
+    {
+      "component_id": "src\\session-checkout-module.ts::createSessionCheckoutModule",
+      "rule": "1:same_file",
+      "leaf_path": [
+        "Backend_Host_Core_Runtime",
+        "Core_Session_Checkout_Engine",
+        "Session_Checkout_Module_Project_Resolution"
+      ],
+      "detail": "1 tracked components in file",
+      "deleted": false
+    }
+  ],
+  "active": [
+    {
+      "leaf": "Backend_Host_Core_Runtime/Core_Workspace___Worktree_Domain_Layer",
+      "page": "Core_Workspace___Worktree_Domain_Layer",
+      "mode": "edit",
+      "order": 0
+    },
+    {
+      "leaf": "Backend_Host_Core_Runtime/Worktree_Console_Host_Service/Worktree_Console_Host_Service_Control_Plane",
+      "page": "Worktree_Console_Host_Service_Control_Plane",
+      "mode": "edit",
+      "order": 1
+    },
+    {
+      "leaf": "Backend_Host_Core_Runtime/Core_Session_Checkout_Engine/Session_Checkout_Module_Project_Resolution",
+      "page": "Session_Checkout_Module_Project_Resolution",
+      "mode": "edit",
+      "order": 2
+    }
+  ],
+  "write_sets": {
+    "Core_Workspace___Worktree_Domain_Layer": [
+      "Adapter_Infrastructure_Implementations",
+      "Backend_Host_Core_Runtime",
+      "Console_Remote_Transport_Layer",
+      "Core_Workspace___Worktree_Domain_Layer",
+      "Session_Checkout_Apply_Execution_Engine",
+      "Session_Checkout_Module_Project_Resolution",
+      "Session_Checkout_User_Tool_Interface",
+      "Shared_Worktree_Console_API_Contract",
+      "Worktree_Console_Host_Service",
+      "Worktree_Console_Host_Service_Control_Plane",
+      "Worktree_Console_Host_Service_RPC_Facade",
+      "overview"
+    ],
+    "Worktree_Console_Host_Service_Control_Plane": [
+      "Backend_Host_Core_Runtime",
+      "Worktree_Console_Host_Service",
+      "Worktree_Console_Host_Service_Control_Plane",
+      "Worktree_Console_Host_Service_RPC_Facade",
+      "overview"
+    ],
+    "Session_Checkout_Module_Project_Resolution": [
+      "Backend_Host_Core_Runtime",
+      "Core_Session_Checkout_Engine",
+      "Managed_Worktree_Path_Candidate_Resolution",
+      "Session_Checkout_Apply_Execution_Engine",
+      "Session_Checkout_Module_Project_Resolution",
+      "Session_Checkout_User_Tool_Interface",
+      "overview"
+    ]
+  },
+  "fallback": {
+    "r_leaf": 0.17647058823529413,
+    "r_tree": 0.0,
+    "n_active": 3,
+    "n_leaves": 17,
+    "n_structural": 0,
+    "tau_full": 0.5,
+    "tau_tree": 0.3,
+    "fired": false
+  },
+  "verdicts": [
+    {
+      "page": "Core_Workspace___Worktree_Domain_Layer",
+      "verdict": "patch",
+      "reason": "Updated file name official-worktree-adoption.ts → official-worktree-registration.ts in mermaid + section heading; added adoptOfficialWorktree to facade method groups; added registerOfficialWorktreeAdoption step to apply() sequence diagram and apply() assembly bullet; rewrote the official worktree adoption section for the new runtime adoption flow (adoptWorktreeForSession + cwd-change event subscription).",
+      "by_leaf": "Core_Workspace___Worktree_Domain_Layer",
+      "changed_on_disk": true
+    },
+    {
+      "page": "Backend_Host_Core_Runtime",
+      "verdict": "no-op",
+      "reason": "Ancestor summary at module level; '官方 worktree 纳管' still accurate, no method-level enumeration affected.",
+      "by_leaf": "Core_Workspace___Worktree_Domain_Layer",
+      "changed_on_disk": false
+    },
+    {
+      "page": "overview",
+      "verdict": "no-op",
+      "reason": "Top-level module index only; no contract or method surface changes.",
+      "by_leaf": "Core_Workspace___Worktree_Domain_Layer",
+      "changed_on_disk": false
+    },
+    {
+      "page": "Adapter_Infrastructure_Implementations",
+      "verdict": "no-op",
+      "reason": "Port implementations unchanged; SessionCheckoutDependencies shape unchanged; no adapter calls the new method.",
+      "by_leaf": "Core_Workspace___Worktree_Domain_Layer",
+      "changed_on_disk": false
+    },
+    {
+      "page": "Session_Checkout_Apply_Execution_Engine",
+      "verdict": "no-op",
+      "reason": "Engine layer untouched by the adoption flow; no signature change in its consumed types.",
+      "by_leaf": "Core_Workspace___Worktree_Domain_Layer",
+      "changed_on_disk": false
+    },
+    {
+      "page": "Session_Checkout_Module_Project_Resolution",
+      "verdict": "no-op",
+      "reason": "createSessionCheckoutModule assembly unchanged; adoptOfficialWorktree is invoked by session-target-context.ts, not by this factory.",
+      "by_leaf": "Core_Workspace___Worktree_Domain_Layer",
+      "changed_on_disk": false
+    },
+    {
+      "page": "Session_Checkout_User_Tool_Interface",
+      "verdict": "no-op",
+      "reason": "Model tools unchanged; no new tool calls adoptOfficialWorktree; worktree_create flow (createOfficialTarget) untouched.",
+      "by_leaf": "Core_Workspace___Worktree_Domain_Layer",
+      "changed_on_disk": false
+    },
+    {
+      "page": "Worktree_Console_Host_Service_Control_Plane",
+      "verdict": "no-op",
+      "reason": "Control plane consumes existing module methods; no new RPC endpoint or contract changed.",
+      "by_leaf": "Core_Workspace___Worktree_Domain_Layer",
+      "changed_on_disk": false
+    },
+    {
+      "page": "Worktree_Console_Host_Service_RPC_Facade",
+      "verdict": "no-op",
+      "reason": "RPC facade unchanged; adoption is host-internal event subscription, not a remote method.",
+      "by_leaf": "Core_Workspace___Worktree_Domain_Layer",
+      "changed_on_disk": false
+    },
+    {
+      "page": "Console_Remote_Transport_Layer",
+      "verdict": "no-op",
+      "reason": "Wire descriptors / Zod schemas unchanged; no new remote method.",
+      "by_leaf": "Core_Workspace___Worktree_Domain_Layer",
+      "changed_on_disk": false
+    },
+    {
+      "page": "Shared_Worktree_Console_API_Contract",
+      "verdict": "no-op",
+      "reason": "Pure JSON DTO contract unchanged; adoption never crosses the wire.",
+      "by_leaf": "Core_Workspace___Worktree_Domain_Layer",
+      "changed_on_disk": false
+    },
+    {
+      "page": "Worktree_Console_Host_Service",
+      "verdict": "no-op",
+      "reason": "Parent page summarizes service architecture; the new event subscription is in the domain leaf, not in console-host.",
+      "by_leaf": "Core_Workspace___Worktree_Domain_Layer",
+      "changed_on_disk": false
+    },
+    {
+      "page": "Worktree_Console_Host_Service_Control_Plane",
+      "verdict": "no-op",
+      "reason": "projectPath 仅新增对 official-worktree-registration.ts::normalize 的内部依赖边；页面仅概括其「再次校验为项目相对路径」的可观察行为，与新代码一致，无错误陈述",
+      "by_leaf": "Worktree_Console_Host_Service_Control_Plane",
+      "changed_on_disk": false
+    },
+    {
+      "page": "Worktree_Console_Host_Service",
+      "verdict": "no-op",
+      "reason": "对 review-diff.ts 的沙箱取证与预算描述未被此内部依赖边触及，仍然准确",
+      "by_leaf": "Worktree_Console_Host_Service_Control_Plane",
+      "changed_on_disk": false
+    },
+    {
+      "page": "Backend_Host_Core_Runtime",
+      "verdict": "no-op",
+      "reason": "仅为子模块高层摘要，不涉及该内部实现细节",
+      "by_leaf": "Worktree_Console_Host_Service_Control_Plane",
+      "changed_on_disk": false
+    },
+    {
+      "page": "overview",
+      "verdict": "no-op",
+      "reason": "仓库顶层索引页，不描述本叶子模块的内部依赖",
+      "by_leaf": "Worktree_Console_Host_Service_Control_Plane",
+      "changed_on_disk": false
+    },
+    {
+      "page": "Worktree_Console_Host_Service_RPC_Facade",
+      "verdict": "no-op",
+      "reason": "门面到控制平面的委托契约（reviewDiff 请求形状、乐观锁参数）无任何签名变化",
+      "by_leaf": "Worktree_Console_Host_Service_Control_Plane",
+      "changed_on_disk": false
+    },
+    {
+      "page": "Session_Checkout_Module_Project_Resolution",
+      "verdict": "patch",
+      "reason": "新增 adoptOfficialWorktree 能力：简介职责由三类改为四类并补记 adoption 条目，工厂内部能力清单追加 adoptOfficialWorktree(sessionId, cwd) 一行",
+      "by_leaf": "Session_Checkout_Module_Project_Resolution",
+      "changed_on_disk": true
+    },
+    {
+      "page": "Core_Session_Checkout_Engine",
+      "verdict": "no-op",
+      "reason": "父页对子组件的通用摘要（绑定解析/排他锁/台账/崩溃收敛）仍成立，新能力落在其已概括范围内",
+      "by_leaf": "Session_Checkout_Module_Project_Resolution",
+      "changed_on_disk": false
+    },
+    {
+      "page": "Backend_Host_Core_Runtime",
+      "verdict": "no-op",
+      "reason": "顶层模块索引页不含叶子组件的具体契约描述",
+      "by_leaf": "Session_Checkout_Module_Project_Resolution",
+      "changed_on_disk": false
+    },
+    {
+      "page": "overview",
+      "verdict": "no-op",
+      "reason": "仓库总览页只描述分层架构，未涉及本叶子模块组件",
+      "by_leaf": "Session_Checkout_Module_Project_Resolution",
+      "changed_on_disk": false
+    },
+    {
+      "page": "Managed_Worktree_Path_Candidate_Resolution",
+      "verdict": "no-op",
+      "reason": "引用叶子页仅涉及路径候选生成与 runtimeContext，本次改动未触及这些契约",
+      "by_leaf": "Session_Checkout_Module_Project_Resolution",
+      "changed_on_disk": false
+    },
+    {
+      "page": "Session_Checkout_Apply_Execution_Engine",
+      "verdict": "no-op",
+      "reason": "仅把叶子页描述为 applyEngine 装配方，新增方法与执行引擎无关",
+      "by_leaf": "Session_Checkout_Module_Project_Resolution",
+      "changed_on_disk": false
+    },
+    {
+      "page": "Session_Checkout_User_Tool_Interface",
+      "verdict": "no-op",
+      "reason": "工具页描述的 cwd 迁入/迁出生命周期与工具调用契约未发生删除或重移，新增 adoptOfficialWorktree 不破坏现有描述",
+      "by_leaf": "Session_Checkout_Module_Project_Resolution",
+      "changed_on_disk": false
+    }
+  ],
+  "pages_written": [
+    "Core_Workspace___Worktree_Domain_Layer",
+    "Session_Checkout_Module_Project_Resolution"
+  ],
   "pages_removed": [],
   "write_set_violations": [],
-  "stale_scan": {},
-  "calls": [],
-  "detector_notes": [],
+  "stale_scan": {
+    "scanned": 21,
+    "pages_with_hits": {},
+    "fixed": []
+  },
+  "calls": [
+    {
+      "kind": "leaf_agent",
+      "target": "Core_Workspace___Worktree_Domain_Layer",
+      "seconds": 340.96010518074036,
+      "usage": {
+        "input_tokens": 1392382,
+        "output_tokens": 22802,
+        "cache_read_tokens": 874712,
+        "cache_write_tokens": 0,
+        "total_tokens": 1415184,
+        "requests": 20
+      },
+      "error": null
+    },
+    {
+      "kind": "leaf_agent",
+      "target": "Worktree_Console_Host_Service_Control_Plane",
+      "seconds": 99.24418020248413,
+      "usage": {
+        "input_tokens": 70907,
+        "output_tokens": 7203,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "total_tokens": 78110,
+        "requests": 4
+      },
+      "error": null
+    },
+    {
+      "kind": "leaf_agent",
+      "target": "Session_Checkout_Module_Project_Resolution",
+      "seconds": 181.9954137802124,
+      "usage": {
+        "input_tokens": 1069488,
+        "output_tokens": 11094,
+        "cache_read_tokens": 483096,
+        "cache_write_tokens": 0,
+        "total_tokens": 1080582,
+        "requests": 12
+      },
+      "error": null
+    },
+    {
+      "kind": "missing_pages",
+      "target": "-",
+      "seconds": 0.02706599235534668,
+      "usage": null,
+      "error": null
+    }
+  ],
+  "detector_notes": [
+    "[Core_Workspace___Worktree_Domain_Layer] agent notes: The change is additive and internal: a new host-side event subscription (session 'working-directory/change' → module.adoptOfficialWorktree) lets the ledger absorb Worktrees created by external paths (official create_worktree tool, forge panel). The documented file official-worktree-adoption.ts was renamed to official-worktree-registration.ts in the fresh tree, so all leaf references were corrected.",
+    "[Worktree_Console_Host_Service_Control_Plane] agent notes: 该变更为 review-diff.ts 内部 projectPath 辅助函数的依赖边新增（接入 official-worktree-registration 的平台感知路径规范化），非导出面或行为变化；五页文档均未将其列为具名依赖，且现有安全行为描述（项目相对路径二次校验）与新鲜代码完全吻合。",
+    "[Session_Checkout_Module_Project_Resolution] agent notes: adoptOfficialWorktree 委托给 src/official-worktree-registration.ts::adoptWorktreeForSession；该文件不在本写集中，若后续为官方 Worktree 纳管单独建页（Backend_Host_Core_Runtime.md 已提到「官方 worktree 纳管」属领域层公共逻辑），需同步把本叶新增条目与其关联。"
+  ],
   "errors": [],
-  "wall_seconds": 0.07,
+  "wall_seconds": 523.62,
   "usage_report": {
     "schema_version": 2,
     "scope": "this run only (modules resumed from disk cost nothing)",
     "currency": "USD",
-    "cost_status": "complete",
+    "cost_status": "unknown",
     "incomplete": false,
     "unknown_usage_calls": 0,
-    "n_calls": 0,
+    "n_calls": 36,
     "totals": {
-      "cost_usd": 0.0
+      "input_tokens": 2532777,
+      "output_tokens": 41099,
+      "cache_read_tokens": 1357808,
+      "cache_write_tokens": 0,
+      "requests": 36,
+      "total_tokens": 2573876
     },
-    "by_phase": {},
-    "by_model": {},
-    "unpriced_models": [],
-    "calls": []
+    "by_phase": {
+      "update": {
+        "calls": 36,
+        "input_tokens": 2532777,
+        "output_tokens": 41099,
+        "cache_read_tokens": 1357808,
+        "cache_write_tokens": 0,
+        "requests": 36,
+        "total_tokens": 2573876,
+        "unpriced_calls": 36
+      }
+    },
+    "by_model": {
+      "doubao-seed-2.1-lite": {
+        "calls": 36,
+        "input_tokens": 2532777,
+        "output_tokens": 41099,
+        "cache_read_tokens": 1357808,
+        "cache_write_tokens": 0,
+        "requests": 36,
+        "total_tokens": 2573876,
+        "unpriced_calls": 36
+      }
+    },
+    "unpriced_models": [
+      "doubao-seed-2.1-lite"
+    ],
+    "calls": [
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Worktree_Console_Host_Service_Control_Plane",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 9.73,
+        "input_tokens": 9264,
+        "output_tokens": 843,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 10107,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Worktree_Console_Host_Service_Control_Plane",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 4.56,
+        "input_tokens": 18796,
+        "output_tokens": 395,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 19191,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Worktree_Console_Host_Service_Control_Plane",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 13.66,
+        "input_tokens": 20540,
+        "output_tokens": 942,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 21482,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Core_Workspace___Worktree_Domain_Layer",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 28.81,
+        "input_tokens": 15759,
+        "output_tokens": 2329,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 18088,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Core_Workspace___Worktree_Domain_Layer",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 4.39,
+        "input_tokens": 21186,
+        "output_tokens": 383,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 21569,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Core_Workspace___Worktree_Domain_Layer",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 4.55,
+        "input_tokens": 42384,
+        "output_tokens": 486,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 42870,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Worktree_Console_Host_Service_Control_Plane",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 71.28,
+        "input_tokens": 22307,
+        "output_tokens": 5023,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 27330,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Core_Workspace___Worktree_Domain_Layer",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 87.89,
+        "input_tokens": 71717,
+        "output_tokens": 7953,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 79670,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Core_Workspace___Worktree_Domain_Layer",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 54.67,
+        "input_tokens": 72612,
+        "output_tokens": 5698,
+        "cache_read_tokens": 71480,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 78310,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Core_Workspace___Worktree_Domain_Layer",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 4.69,
+        "input_tokens": 73313,
+        "output_tokens": 287,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 73600,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Core_Workspace___Worktree_Domain_Layer",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 2.53,
+        "input_tokens": 73723,
+        "output_tokens": 123,
+        "cache_read_tokens": 71480,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 73846,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Core_Workspace___Worktree_Domain_Layer",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 2.28,
+        "input_tokens": 74307,
+        "output_tokens": 103,
+        "cache_read_tokens": 73528,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 74410,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Core_Workspace___Worktree_Domain_Layer",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 4.23,
+        "input_tokens": 75148,
+        "output_tokens": 289,
+        "cache_read_tokens": 21048,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 75437,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Core_Workspace___Worktree_Domain_Layer",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 3.75,
+        "input_tokens": 75499,
+        "output_tokens": 176,
+        "cache_read_tokens": 74296,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 75675,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Core_Workspace___Worktree_Domain_Layer",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 5.0,
+        "input_tokens": 75948,
+        "output_tokens": 249,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 76197,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Core_Workspace___Worktree_Domain_Layer",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 5.12,
+        "input_tokens": 76700,
+        "output_tokens": 380,
+        "cache_read_tokens": 21048,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 77080,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Core_Workspace___Worktree_Domain_Layer",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 3.86,
+        "input_tokens": 77672,
+        "output_tokens": 103,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 77775,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Core_Workspace___Worktree_Domain_Layer",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 2.34,
+        "input_tokens": 77825,
+        "output_tokens": 103,
+        "cache_read_tokens": 75320,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 77928,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Core_Workspace___Worktree_Domain_Layer",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 8.17,
+        "input_tokens": 79082,
+        "output_tokens": 707,
+        "cache_read_tokens": 76600,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 79789,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Core_Workspace___Worktree_Domain_Layer",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 4.05,
+        "input_tokens": 80044,
+        "output_tokens": 200,
+        "cache_read_tokens": 75320,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 80244,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Core_Workspace___Worktree_Domain_Layer",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 4.89,
+        "input_tokens": 80843,
+        "output_tokens": 385,
+        "cache_read_tokens": 75832,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 81228,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Core_Workspace___Worktree_Domain_Layer",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 4.78,
+        "input_tokens": 81783,
+        "output_tokens": 440,
+        "cache_read_tokens": 80696,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 82223,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Core_Workspace___Worktree_Domain_Layer",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 14.45,
+        "input_tokens": 82831,
+        "output_tokens": 1212,
+        "cache_read_tokens": 75320,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 84043,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Core_Workspace___Worktree_Domain_Layer",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 15.19,
+        "input_tokens": 84006,
+        "output_tokens": 1196,
+        "cache_read_tokens": 82744,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 85202,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Session_Checkout_Module_Project_Resolution",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 9.2,
+        "input_tokens": 7529,
+        "output_tokens": 695,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 8224,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Session_Checkout_Module_Project_Resolution",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 10.05,
+        "input_tokens": 80609,
+        "output_tokens": 834,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 81443,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Session_Checkout_Module_Project_Resolution",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 4.16,
+        "input_tokens": 92054,
+        "output_tokens": 164,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 92218,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Session_Checkout_Module_Project_Resolution",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 75.36,
+        "input_tokens": 95236,
+        "output_tokens": 6381,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 101617,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Session_Checkout_Module_Project_Resolution",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 4.39,
+        "input_tokens": 96139,
+        "output_tokens": 168,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 96307,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Session_Checkout_Module_Project_Resolution",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 2.92,
+        "input_tokens": 97202,
+        "output_tokens": 187,
+        "cache_read_tokens": 96056,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 97389,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Session_Checkout_Module_Project_Resolution",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 6.02,
+        "input_tokens": 97759,
+        "output_tokens": 425,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 98184,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Session_Checkout_Module_Project_Resolution",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 3.5,
+        "input_tokens": 98742,
+        "output_tokens": 144,
+        "cache_read_tokens": 95032,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 98886,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Session_Checkout_Module_Project_Resolution",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 5.59,
+        "input_tokens": 99408,
+        "output_tokens": 511,
+        "cache_read_tokens": 95032,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 99919,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Session_Checkout_Module_Project_Resolution",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 3.99,
+        "input_tokens": 100503,
+        "output_tokens": 109,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 100612,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Session_Checkout_Module_Project_Resolution",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 10.03,
+        "input_tokens": 101066,
+        "output_tokens": 638,
+        "cache_read_tokens": 96056,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 101704,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      },
+      {
+        "phase": "update",
+        "kind": "update_agent",
+        "target": "Session_Checkout_Module_Project_Resolution",
+        "model": "doubao-seed-2.1-lite",
+        "seconds": 11.08,
+        "input_tokens": 103241,
+        "output_tokens": 838,
+        "cache_read_tokens": 100920,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "total_tokens": 104079,
+        "usage_reported": true,
+        "provider": "openai-compatible",
+        "requested_model": "doubao-seed-2.1-lite",
+        "cost_source": "unknown"
+      }
+    ]
   },
-  "run_id": "320b76da-5aaf-44c9-bf69-c3d97e3e7712"
+  "run_id": "bef366dd-3971-437e-978a-116403c3ffae"
 }
