@@ -162,7 +162,7 @@ describe('Harness-native Session Target slots', () => {
     const fixture = createWorktreeConsoleAdapterFixture()
     fixture.adapter.current = vi.fn(async () => ({
       ok: true,
-      value: { target: { ...fixture.target, state, phase: state === 'recovery_required' ? 'recovery_required' : 'ready' } },
+      value: { worktreeRequest: null, target: { ...fixture.target, state, phase: state === 'recovery_required' ? 'recovery_required' : 'ready' } },
     }))
     render(<TargetStatusAction sessionId="target-session" adapter={fixture.adapter} services={clientServices()} />)
     await waitFor(() => expect(screen.getByText(label)).toBeTruthy())
@@ -205,7 +205,7 @@ describe('Harness-native Session Target slots', () => {
   })
 
   test('registers the exact Header action, reads props.sessionId, and disposes it', async () => {    const fixture = createWorktreeConsoleAdapterFixture()
-    fixture.adapter.current = vi.fn(async request => ({ ok: true, value: { target: localTarget() } }))
+    fixture.adapter.current = vi.fn(async request => ({ ok: true, value: { worktreeRequest: null, target: localTarget() } }))
     const slots = new SlotsDouble()
 
     registerTargetConsole({ slots }, fixture.adapter, clientServices())
@@ -530,11 +530,11 @@ describe('Harness-native Session Target slots', () => {
     view.rerender(<TargetStatusAction sessionId="session-b" adapter={fixture.adapter} services={services} />)
 
     await waitFor(() => expect(fixture.adapter.current).toHaveBeenCalledWith({ sessionId: 'session-b' }))
-    resolveA({ ok: true, value: { target: { ...fixture.target, project: { id: 'project-a', name: 'Project A' }, sourceSessionId: 'source-a', managedRoot: '/managed-a' } } })
+    resolveA({ ok: true, value: { worktreeRequest: null, target: { ...fixture.target, project: { id: 'project-a', name: 'Project A' }, sourceSessionId: 'source-a', managedRoot: '/managed-a' } } })
     await Promise.resolve()
     expect(screen.queryByRole('button', { name: 'Session Target：Worktree · 待验收' })).toBeNull()
 
-    resolveB({ ok: true, value: { target: { ...fixture.target, project: { id: 'project-b', name: 'Project B' }, sourceSessionId: 'source-b', managedRoot: '/managed-b' } } })
+    resolveB({ ok: true, value: { worktreeRequest: null, target: { ...fixture.target, project: { id: 'project-b', name: 'Project B' }, sourceSessionId: 'source-b', managedRoot: '/managed-b' } } })
     expect(await screen.findByRole('button', { name: 'Session Target：Worktree · 待验收' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Session Target：Worktree · 待验收' }))
     expect(screen.getByText('Project B')).toBeTruthy()
@@ -605,7 +605,7 @@ describe('Harness-native Session Target slots', () => {
         rollbackPreview: true,
       },
     }
-    fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { target: preview } }))
+    fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { worktreeRequest: null, target: preview } }))
     render(<TargetStatusAction sessionId="target-session" adapter={fixture.adapter} services={clientServices()} />)
 
     fireEvent.click(await screen.findByRole('button', { name: 'Session Target：Worktree · Local 验收中' }))
@@ -637,8 +637,8 @@ describe('Harness-native Session Target slots', () => {
 
     rendered.rerender(<Dock session={{ sessionId: 'session-b' }} input={{}} />)
     await waitFor(() => expect(fixture.adapter.current).toHaveBeenCalledWith({ sessionId: 'session-b' }))
-    resolveA({ ok: true, value: { target: fixture.target } })
-    resolveB({ ok: true, value: { target: {
+    resolveA({ ok: true, value: { worktreeRequest: null, target: fixture.target } })
+    resolveB({ ok: true, value: { worktreeRequest: null, target: {
       ...fixture.target, checkoutId: null, targetSessionId: null, state: 'local', phase: 'local', review: undefined,
       managedRoot: null, sourceRoot: null, capabilities: { ...fixture.target.capabilities, create: true, preflight: false, preview: false },
     } } })
@@ -654,7 +654,7 @@ describe('Harness-native Session Target slots', () => {
       capabilities: { ...fixture.target.capabilities, create: true, preflight: false, preview: false, finalize: false },
     }
     fixture.adapter.current = vi.fn(async ({ sessionId }) => ({
-      ok: true, value: { target: sessionId === 'session-a' ? fixture.target : localTarget },
+      ok: true, value: { worktreeRequest: null, target: sessionId === 'session-a' ? fixture.target : localTarget },
     }))
     let resolvePreview!: (value: Awaited<ReturnType<typeof fixture.adapter.preview>>) => void
     fixture.adapter.preview = vi.fn(async () => new Promise(resolve => { resolvePreview = resolve }))
@@ -679,7 +679,7 @@ describe('Harness-native Session Target slots', () => {
   test('在 input dock 注册 Domi 式待验收状态条，并只显示一个主操作与更多菜单', async () => {
     const fixture = createWorktreeConsoleAdapterFixture()
     let current = fixture.target
-    fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { target: current } }))
+    fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { worktreeRequest: null, target: current } }))
     const originalPreview = fixture.adapter.preview
     fixture.adapter.preview = async request => {
       const outcome = await originalPreview(request)
@@ -717,7 +717,7 @@ describe('Harness-native Session Target slots', () => {
   test('Host revision 在 Preview 操作外部变化时清除旧操作提示，避免 recovery 状态继续显示过期 preflight 文案', async () => {
     const fixture = createWorktreeConsoleAdapterFixture()
     let current = fixture.target
-    fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { target: current } }))
+    fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { worktreeRequest: null, target: current } }))
     const originalPreview = fixture.adapter.preview
     fixture.adapter.preview = async request => {
       const outcome = await originalPreview(request)
@@ -740,7 +740,7 @@ describe('Harness-native Session Target slots', () => {
       previewRecovery: { previewId: 'preview-1', detachedAt: Date.UTC(2026, 7, 20), reason: 'stale_local' as const, attemptedAction: 'rollback_preview' as const },
       capabilities: { ...fixture.target.capabilities, discard: false, preflight: false, preview: false, rollbackPreview: true, finalize: false, finalizePreview: false },
     }
-    fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { target: detached } }))
+    fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { worktreeRequest: null, target: detached } }))
 
     window.dispatchEvent(new CustomEvent(WORKTREE_REVIEW_REFRESH_EVENT, { detail: { sessionId: 'target-session' } }))
 
@@ -759,7 +759,7 @@ describe('Harness-native Session Target slots', () => {
       previewRecovery: { previewId: 'preview-1', detachedAt: Date.UTC(2026, 7, 20), reason: 'stale_local' as const, attemptedAction: 'rollback_preview' as const },
       capabilities: { ...fixture.target.capabilities, discard: false, preflight: false, preview: false, rollbackPreview: true, finalize: false, finalizePreview: false },
     }
-    fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { target: detached } }))
+    fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { worktreeRequest: null, target: detached } }))
     const slots = new SlotsDouble()
     registerTargetConsole({ slots }, fixture.adapter, clientServices())
     const Dock = slots.entries.find(candidate => candidate.descriptor.id === 'worktree-review-status')!.component
@@ -785,7 +785,7 @@ describe('Harness-native Session Target slots', () => {
       previewRecovery: { previewId: 'preview-1', detachedAt: Date.UTC(2026, 7, 20), reason: 'preview_modified' as const, attemptedAction: 'rollback_preview' as const },
       capabilities: { ...fixture.target.capabilities, discard: false, preflight: false, preview: false, rollbackPreview: true, finalize: false, finalizePreview: false },
     }
-    fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { target: detached } }))
+    fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { worktreeRequest: null, target: detached } }))
     const slots = new SlotsDouble()
     registerTargetConsole({ slots }, fixture.adapter, clientServices())
     const Dock = slots.entries.find(candidate => candidate.descriptor.id === 'worktree-review-status')!.component
@@ -804,7 +804,7 @@ describe('Harness-native Session Target slots', () => {
     const fixture = createWorktreeConsoleAdapterFixture()
     for (const state of ['working', 'delivered'] as const) {
       const target = { ...fixture.target, state, capabilities: { ...fixture.target.capabilities, beginNextIteration: false } }
-      fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { target } }))
+      fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { worktreeRequest: null, target } }))
       const slots = new SlotsDouble()
       registerTargetConsole({ slots }, fixture.adapter, clientServices())
       const Dock = slots.entries.find(candidate => candidate.descriptor.id === 'worktree-review-status')!.component
@@ -842,7 +842,7 @@ describe('Harness-native Session Target slots', () => {
         beginNextIteration: true,
       },
     }
-    fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { target: delivered } }))
+    fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { worktreeRequest: null, target: delivered } }))
     const slots = new SlotsDouble()
     registerTargetConsole({ slots }, fixture.adapter, clientServices())
     const Dock = slots.entries.find(candidate => candidate.descriptor.id === 'worktree-review-status')!.component
@@ -874,7 +874,7 @@ describe('Harness-native Session Target slots', () => {
       commitOid: 'c'.repeat(40),
       capabilities: { ...fixture.target.capabilities, beginNextIteration: true, returnToLocal: true },
     }
-    fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { target: delivered } }))
+    fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { worktreeRequest: null, target: delivered } }))
     const slots = new SlotsDouble()
     registerTargetConsole({ slots }, fixture.adapter, clientServices())
 
@@ -892,7 +892,7 @@ describe('Harness-native Session Target slots', () => {
     const fixture = createWorktreeConsoleAdapterFixture()
     fixture.adapter.current = vi.fn(async () => ({
       ok: true,
-      value: { target: { ...fixture.target, capabilities: { ...fixture.target.capabilities, returnToLocal: false } } },
+      value: { worktreeRequest: null, target: { ...fixture.target, capabilities: { ...fixture.target.capabilities, returnToLocal: false } } },
     }))
     const slots = new SlotsDouble()
     registerTargetConsole({ slots }, fixture.adapter, clientServices())
@@ -911,7 +911,7 @@ describe('Harness-native Session Target slots', () => {
       revision: 9,
       capabilities: { ...fixture.target.capabilities, discard: false, preflight: false, preview: false, rollbackPreview: true, finalize: false, finalizePreview: false },
     }
-    fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { target: recovery } }))
+    fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { worktreeRequest: null, target: recovery } }))
     const slots = new SlotsDouble()
     registerTargetConsole({ slots }, fixture.adapter, clientServices())
     const Dock = slots.entries.find(candidate => candidate.descriptor.id === 'worktree-review-status')!.component
@@ -939,7 +939,7 @@ describe('Harness-native Session Target slots', () => {
 
   test('空白会话 hero 行 portal 出 Session Target 胶囊；无 hero 行与非 blank 会话不渲染', async () => {
     const fixture = createWorktreeConsoleAdapterFixture()
-    fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { target: localTarget() } }))
+    fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { worktreeRequest: null, target: localTarget() } }))
     const slots = new SlotsDouble()
     registerTargetConsole({ slots }, fixture.adapter, clientServices())
 
@@ -973,7 +973,7 @@ describe('Worktree Console loading and inspection', () => {
   test('renders explicit empty and stable error states', async () => {
     const fixture = createWorktreeConsoleAdapterFixture()
     const local = localTarget()
-    fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { target: local } }))
+    fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { worktreeRequest: null, target: local } }))
     fixture.adapter.list = vi.fn(async () => ({ ok: true, value: { project: local.project, worktrees: [] } }))
     const view = renderConsole(fixture.adapter)
     expect(await screen.findByText('这个项目还没有受管 Worktree。')).toBeTruthy()
@@ -1012,7 +1012,7 @@ describe('Worktree Console loading and inspection', () => {
     const view = renderConsole(fixture.adapter)
     view.unmount()
 
-    resolveCurrent({ ok: true, value: { target: fixture.target } })
+    resolveCurrent({ ok: true, value: { worktreeRequest: null, target: fixture.target } })
     resolveList({ ok: true, value: { project: fixture.target.project, worktrees: [summaryOf(fixture.target)] } })
     await Promise.resolve()
     expect(consoleError).not.toHaveBeenCalled()
@@ -1030,7 +1030,7 @@ describe('Worktree Console loading and inspection', () => {
       cleanupMessage: 'Manual recovery is required.',
       capabilities: { ...fixture.target.capabilities, create: true, finalize: true },
     }
-    fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { target: recovery } }))
+    fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { worktreeRequest: null, target: recovery } }))
     fixture.adapter.list = vi.fn(async () => ({ ok: true, value: { project: recovery.project, worktrees: [summaryOf(recovery)] } }))
     renderConsole(fixture.adapter)
 
@@ -1182,9 +1182,9 @@ describe('Worktree Console guarded mutations', () => {
       revision: 8,
       capabilities: { ...fixture.target.capabilities, preflight: false, preview: false, rollbackPreview: true, finalize: false, finalizePreview: true },
     }
-    fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { target: preview } }))
+    fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { worktreeRequest: null, target: preview } }))
     fixture.adapter.list = vi.fn(async () => ({ ok: true, value: { project: preview.project, worktrees: [summaryOf(preview)] } }))
-    fixture.adapter.discard = vi.fn(async () => ({ ok: true, value: { target: { ...summaryOf(preview), state: 'delivered', phase: 'discarded' } } }))
+    fixture.adapter.discard = vi.fn(async () => ({ ok: true, value: { worktreeRequest: null, target: { ...summaryOf(preview), state: 'delivered', phase: 'discarded' } } }))
     renderConsole(fixture.adapter, clientServices(), 'target-session')
 
     const row = await screen.findByRole('listitem')
@@ -1200,7 +1200,7 @@ describe('Worktree Console guarded mutations', () => {
   test('uses the mutation response revision instead of incrementing it optimistically', async () => {
     const fixture = createWorktreeConsoleAdapterFixture()
     const clean = { ...fixture.target, dirty: false }
-    fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { target: clean } }))
+    fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { worktreeRequest: null, target: clean } }))
     let listCalls = 0
     fixture.adapter.list = vi.fn(async () => {
       listCalls++
@@ -1230,7 +1230,7 @@ describe('Worktree Console guarded mutations', () => {
   test('refreshes a stale target without replaying the destructive action', async () => {
     const fixture = createWorktreeConsoleAdapterFixture()
     const clean = { ...fixture.target, dirty: false }
-    fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { target: clean } }))
+    fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { worktreeRequest: null, target: clean } }))
     fixture.adapter.list = vi.fn(async () => ({
       ok: true,
       value: { project: clean.project, worktrees: [{ ...summaryOf(clean), revision: 8 }] },
@@ -1264,11 +1264,11 @@ describe('Worktree Console guarded mutations', () => {
         retryCleanup: true,
       },
     }
-    fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { target: cleanupTarget } }))
+    fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { worktreeRequest: null, target: cleanupTarget } }))
     fixture.adapter.list = vi.fn(async () => ({ ok: true, value: { project: cleanupTarget.project, worktrees: [summaryOf(cleanupTarget)] } }))
     fixture.adapter.retryCleanup = vi.fn(async () => ({
       ok: true,
-      value: { target: { ...summaryOf(cleanupTarget), revision: 9, state: 'delivered', phase: 'discarded', capabilities: { ...cleanupTarget.capabilities, retryCleanup: false } } },
+      value: { worktreeRequest: null, target: { ...summaryOf(cleanupTarget), revision: 9, state: 'delivered', phase: 'discarded', capabilities: { ...cleanupTarget.capabilities, retryCleanup: false } } },
     }))
     renderConsole(fixture.adapter)
 
@@ -1381,7 +1381,7 @@ test('late withdrawal result cannot populate another session', async () => {
   fireEvent.click(screen.getByLabelText('更多交付操作'))
   fireEvent.click(screen.getByRole('menuitem', { name: '撤回本次预览' }))
   await screen.findByText('正在撤回本地预览…')
-  fixture.adapter.current = async () => ({ ok: true, value: { target: { ...fixture.target, state: 'working', checkoutId: 'checkout-other', review: undefined } } })
+  fixture.adapter.current = async () => ({ ok: true, value: { worktreeRequest: null, target: { ...fixture.target, state: 'working', checkoutId: 'checkout-other', review: undefined } } })
   view.rerender(<WorktreeReviewStatus session={{ sessionId: 'other-session' }} adapter={fixture.adapter} services={clientServices()} />)
   complete()
   await waitFor(() => expect(fixture.target.state).toBe('ready_for_review'))
@@ -1397,7 +1397,7 @@ test('a delayed refresh snapshot cannot regress the withdrawn review revision', 
   fireEvent.click(screen.getByLabelText('更多交付操作'))
   fireEvent.click(screen.getByRole('menuitem', { name: '撤回本次预览' }))
   await screen.findByRole('button', { name: '预览修改' })
-  fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { target: oldPreview } }))
+  fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { worktreeRequest: null, target: oldPreview } }))
   window.dispatchEvent(new CustomEvent(WORKTREE_REVIEW_REFRESH_EVENT, { detail: { sessionId: 'target-session' } }))
   await waitFor(() => expect(fixture.adapter.current).toHaveBeenCalled())
   expect(screen.queryByRole('button', { name: '确认并保存' })).toBeNull()
@@ -1437,7 +1437,7 @@ test('管理弹窗只保留一个标题，以任务摘要为主、标识为辅',
 test('列表过滤开关把 needsAttention/includeDelivered 传给 list 适配器', async () => {
   const fixture = createWorktreeConsoleAdapterFixture()
   const local = localTarget()
-  fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { target: local } }))
+  fixture.adapter.current = vi.fn(async () => ({ ok: true, value: { worktreeRequest: null, target: local } }))
   fixture.adapter.list = vi.fn(async () => ({ ok: true, value: { project: local.project, worktrees: [] } }))
   renderConsole(fixture.adapter)
 

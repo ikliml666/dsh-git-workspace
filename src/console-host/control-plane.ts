@@ -43,6 +43,8 @@ import type {
   WorktreeConsoleReturnToLocalResponse,
   WorktreeConsoleReviewDiffRequest,
   WorktreeConsoleReviewDiffResponse,
+  WorktreeConsoleWorktreeRequestRequest,
+  WorktreeConsoleWorktreeRequestResponse,
   WorktreeConsoleSetRetentionRequest,
   WorktreeConsoleSetPermanentRequest,
   WorktreeConsoleTargetSummary,
@@ -73,6 +75,20 @@ export interface WorktreeConsoleControlPlaneOptions {
   git: SessionCheckoutGitPort
   reviewDiff: WorktreeReviewDiffReader
   createTargetSessionId?: () => string
+  /**
+   * 记录或撤回「下一次 turn 在新树里开始」。
+   *
+   * 由 Host 侧注入而不是在这里直接读 session：写 plugin record 需要活的
+   * Session 对象，而 control-plane 只拿得到 lookup 的只读导航记录。
+   */
+  setWorktreeRequest: (sessionId: string, from: string | null | undefined) => { from: string | null } | null
+  /**
+   * 读「还在排队等下一个 turn」的请求，供 `current` 一并回给胶囊。
+   *
+   * 会话不在活列表里（已归档、或还没在本进程恢复）时返回 null：没有会话就
+   * 不可能有待办，这里不需要为不可达的 Session 造一个空记录。
+   */
+  pendingWorktreeRequest: (sessionId: string) => { from: string | null } | null
 }
 
 export interface WorktreeConsoleControlPlane {
@@ -99,6 +115,8 @@ export interface WorktreeConsoleControlPlane {
   retryCleanup(request: WorktreeConsoleRetryCleanupRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   beginNextIteration(request: WorktreeConsoleBeginNextIterationRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   returnToLocal(request: WorktreeConsoleReturnToLocalRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleReturnToLocalResponse>>
+  /** 记录或撤回「下一次 turn 在新树里开始」的待办请求。 */
+  setWorktreeRequest(request: WorktreeConsoleWorktreeRequestRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleWorktreeRequestResponse>>
   clearSidebarBadge(request: WorktreeConsoleClearSidebarBadgeRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   gitOverview(sessionId: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitOverviewResponse>>
   gitGraph(sessionId: string, limit?: number): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitGraphResponse>>
@@ -766,9 +784,11 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
 
     current: sessionId => outcome(async () => {
       const target = await callerTarget(sessionId)
-      if (target.checkout.kind === 'local') return { target: projectLocal(target, sessionId) }
+      const worktreeRequest = options.pendingWorktreeRequest(sessionId)
+      if (target.checkout.kind === 'local') return { target: projectLocal(target, sessionId), worktreeRequest }
       return {
         target: await details(sessionId, target.checkout.id, deliveryProofFromTarget(target), target),
+        worktreeRequest,
       }
     }),
 
@@ -1502,8 +1522,7 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
     // 边界：只放行已交付（delivered/finalized/retained）的记录。未交付时解绑会把
     // 未合并的工作留在冻结目录里，那一律拒绝。记录本身不动，保留期倒计时与已
     // 交付徽章照旧，回滚材料还在。
-    returnToLocal: request => outcome(async () => {
-      const record = recordOf(options.registry, request.checkoutId)
+    returnToLocal: request => outcome(async () => {      const record = recordOf(options.registry, request.checkoutId)
       if (record.ownerSessionId !== request.sessionId) {
         throw domainError('not_owner', hostMessage('onlyTheOwnerSessionCanBeginTheNextIteration'))
       }
@@ -1526,5 +1545,12 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
       }
       return { target: projectLocal(target, request.sessionId) }
     }),
+
+    // 「下一次 turn 在新树里开始」的待办请求。写入只落一条 session record，
+    // 真正的 `git worktree add` 由 mountWorktreeRequest 在 turn 的第 1 步兑现：
+    // 勾选立刻建树会为用户没打算发的消息付一次完整 checkout 的代价。
+    setWorktreeRequest: request => outcome(async () => ({
+      request: options.setWorktreeRequest(request.sessionId, request.from),
+    })),
   }
 }

@@ -1,4 +1,5 @@
 import type { InvocationDescriptor, InvocationParameterDescriptor, TypertCodec, TypertRemoteContribution, TypertSchema } from '@deepseek-ai/dsh-typert-protocol'
+import { z } from 'zod'
 import {
   booleanSchema,
   branchNameSchema,
@@ -38,6 +39,7 @@ import {
   reviewIdSchema,
   revisionSchema,
   sessionIdSchema,
+  worktreeRequestResponseSchema,
   sidebarTopologyResponseSchema,
 } from './schemas.js'
 
@@ -208,6 +210,8 @@ export const WORKTREE_CONSOLE_DESCRIPTORS: readonly InvocationDescriptor[] = Obj
   descriptor('returnToLocal', [
     json('checkoutId', checkoutIdSchema, `${PACKAGE}/console-contract#WorktreeConsoleReturnToLocalRequest.checkoutId`),
   ], outcomeSchema(currentResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleReturnToLocalResponse>'),
+  descriptor('setWorktreeRequest', [
+    json('from', z.union([branchNameSchema, z.null()]).optional(), `${PACKAGE}/console-contract#WorktreeConsoleWorktreeRequestRequest.from`, true),  ], outcomeSchema(worktreeRequestResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleWorktreeRequestResponse>'),
   descriptor('clearSidebarBadge', [
     json('checkoutId', checkoutIdSchema, `${PACKAGE}/console-contract#WorktreeConsoleClearSidebarBadgeRequest.checkoutId`),
     json('expectedRevision', revisionSchema, `${PACKAGE}/console-contract#WorktreeConsoleClearSidebarBadgeRequest.expectedRevision`),

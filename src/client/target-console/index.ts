@@ -7,12 +7,24 @@ import { WorktreeReviewStatus } from './WorktreeReviewStatus.js'
 
 export interface TargetConsoleContextLike {
   slots: {
-    inject(name: 'conversation.session.header.actions' | 'conversation.input.dock', callback: () => unknown): void
+    inject(name: 'conversation.session.header.actions' | 'conversation.input.dock' | 'conversation.hero.options', callback: () => unknown): void
     register(
       descriptor: Record<string, unknown>,
       component: ComponentType<any>,
     ): unknown
   }
+}
+
+/**
+ * 官方 forge 面板那对「分支按钮 + 新建工作树复选框」的空占位。
+ *
+ * 同一个 cell（id `forge-panel.worktree`）里更低的 priority 会 shadow 掉官方
+ * 注册：slot 只渲染 priority 最低的那一条，所以这里渲染 null 就把那对控件整个
+ * 让出来，功能收进本插件的目标胶囊菜单。用 shadow 而不是去停用官方插件，是因为
+ * 变更请求、diff、review 都在同一个包里，停用会连带砍掉那些真正的功能。
+ */
+function HiddenForgeWorktreeOption(): null {
+  return null
 }
 
 /** Register the Harness-native Session Target contributions against an injected adapter seam. */
@@ -43,6 +55,12 @@ export function registerTargetConsole(
     id: 'worktree-hero-chip',
     order: 20,
   }, HeroChip))
+  // -1 低于官方的默认 0，于是这一个 cell 由本插件渲染（内容为空）。
+  ctx.slots.inject('conversation.hero.options', () => ctx.slots.register({
+    name: 'conversation.hero.options',
+    id: 'forge-panel.worktree',
+    priority: -1,
+  }, HiddenForgeWorktreeOption))
 }
 
 export { TargetStatusAction } from './TargetStatusAction.js'

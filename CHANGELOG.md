@@ -4,6 +4,16 @@
 
 ## [Unreleased]
 
+### Added
+
+- 「新建工作树」取代官方 forge 面板控件，收进目标胶囊菜单（2026-11-07）。
+  - **取代的控件**：官方在 `conversation.hero.options` 注册的 `forge-panel.worktree`（分支按钮 + 「新建工作树」复选框）。本插件用同一个 id 在 `priority: -1` 注册一个空组件——slot 只渲染 priority 最低的那条，于是那对控件让位，而 forge 的变更请求、diff、review 全不受影响（不是停用整个官方插件）。
+  - **新入口**：`🖥 <分支> ⌄` 胶囊菜单里的「下条消息在新工作树里开始」，只在 `state === 'local'` 时出现。菜单文案随状态改写：已排队时显示基点分支，再点一次即撤回，不必去别处找开关。
+  - **建树时机与官方一致**：点击只往 session log 写一条 plugin record（`plugin:dsh-git-worktree/worktree-request`），真正的建树在 `agent/pre-step` 第 1 步发生。勾选即建等于为用户还没打算发的消息付一次完整 checkout 的代价。请求存在 log 里，刷新页面、重启 Host 之后仍然有效。
+  - **失败不吞消息**：`inbox.claim()` 在 `agent/pre-step` 之前执行，失败时那批消息已离开队列，必须按逆序 `agent.inbox.prepend` 还回去，否则用户的消息凭空消失；请求保留，原因修好后重发即会重试。
+  - **旧 Host 兼容**：`current` 响应里新增的 `worktreeRequest` 字段写成 `.default(null)`。Client 与 Host 是两份独立部署的产物，旧 Host 不认识这个字段；写成必填会让整条 `current` 校验失败、胶囊直接塌成不可用（旁边 `capabilities.returnToLocal` 也正是这么处理的）。
+  - 新增 `src/worktree-request.ts` 与 `tests/worktree-request.test.ts`（12 项，覆盖请求折叠、重启后重放、Host 侧写入口、pre-step 建树、已绑定会话只清标记、失败还回消息）。
+
 ### Changed
 
 - 方向反转：不再接管官方 Worktree，改为「官方当底座，本插件只补官方没有的能力」（2026-11-07）。

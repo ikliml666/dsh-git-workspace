@@ -206,6 +206,8 @@ export interface WorktreeConsoleCurrentRequest {
 
 export interface WorktreeConsoleCurrentResponse {
   target: WorktreeConsoleTargetDetails
+  /** 仍在等待的「下一次 turn 在新树里开始」请求；null 表示没有待办。 */
+  worktreeRequest: { from: string | null } | null
 }
 
 export interface WorktreeConsoleListRequest {
@@ -433,6 +435,23 @@ export interface WorktreeConsoleReturnToLocalRequest {
 
 export interface WorktreeConsoleReturnToLocalResponse {
   target: WorktreeConsoleTargetDetails
+}
+
+/**
+ * 「下一次 turn 在新树里开始」的请求。
+ *
+ * `from` 是基点分支；`null` 表示当前 HEAD；整个字段省略表示撤回请求。写入
+ * 只落一条 session record，真正的 `git worktree add` 发生在 turn 的第 1 步，
+ * 所以勾选本身不会为一个没发出的消息付一次完整 checkout。
+ */
+export interface WorktreeConsoleWorktreeRequestRequest {
+  sessionId: string
+  from?: string | null
+}
+
+export interface WorktreeConsoleWorktreeRequestResponse {
+  /** 仍在等待的请求；null 表示当前没有待办。 */
+  request: { from: string | null } | null
 }
 
 export interface WorktreeConsoleMutationResponse {
@@ -770,6 +789,8 @@ export interface WorktreeConsoleAdapter {
   retryCleanup(request: WorktreeConsoleRetryCleanupRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   beginNextIteration(request: WorktreeConsoleBeginNextIterationRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   returnToLocal(request: WorktreeConsoleReturnToLocalRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleReturnToLocalResponse>>
+  /** 记录或撤回「下一次 turn 在新树里开始」的待办请求。 */
+  setWorktreeRequest(request: WorktreeConsoleWorktreeRequestRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleWorktreeRequestResponse>>
   clearSidebarBadge(request: WorktreeConsoleClearSidebarBadgeRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   gitOverview(sessionId: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitOverviewResponse>>
   gitGraph(sessionId: string, limit?: number): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitGraphResponse>>

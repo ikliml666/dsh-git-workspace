@@ -1015,6 +1015,22 @@ export const clientMessages = {
     "zh": "新建分支",
     "en": "Create branch"
   },
+  "worktree.request.title": {
+    "zh": "下条消息在新工作树里开始",
+    "en": "Start the next message in a new worktree"
+  },
+  "worktree.request.active": {
+    "zh": "已排队：发送后在新树里开始（基于 {p0}）",
+    "en": "Queued: starts in a new worktree on send (from {p0})"
+  },
+  "worktree.request.cancel": {
+    "zh": "取消：下条消息仍在当前目录",
+    "en": "Cancel: the next message stays in the current directory"
+  },
+  "worktree.request.pending": {
+    "zh": "待建",
+    "en": "Queued"
+  },
   "branch.create.description": {
     "zh": "基于当前 HEAD 创建新的本地分支。",
     "en": "Create a new local branch from the current HEAD."

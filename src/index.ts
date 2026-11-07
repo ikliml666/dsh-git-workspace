@@ -261,6 +261,7 @@ import { createSessionCheckoutModule } from './session-checkout-module.js'
 import { registerTools } from './tools.js'
 import { registerWorktreeCommand } from './commands.js'
 import { registerOfficialWorktreeAdoption, registerSessionTargetContext } from './session-target-context.js'
+import { liveWorktreeRequest, mountWorktreeRequest, setWorktreeRequest } from './worktree-request.js'
 import { createWorktreeConsoleControlPlane } from './console-host/control-plane.js'
 import { createGitWorktreeReviewDiffReader } from './console-host/review-diff.js'
 import { WorktreeConsoleService } from './console-host/service.js'
@@ -426,12 +427,15 @@ export async function apply(ctx: Context, config: { stateDir?: string } & GitTim
     registry,
     git,
     reviewDiff: createGitWorktreeReviewDiffReader(projectSkills),
+    setWorktreeRequest: (sessionId, from) => setWorktreeRequest(ctx, sessionId, from),
+    pendingWorktreeRequest: (sessionId) => liveWorktreeRequest(ctx, sessionId),
   }), join(stateDir, 'sidebar-diag.ndjson'), providerLifecycle.officialWorkspaceActive)
 
   registerTools(ctx, module)
   registerWorktreeCommand(ctx, module)
   registerSessionTargetContext(ctx, module)
   registerOfficialWorktreeAdoption(ctx, module)
+  mountWorktreeRequest(ctx, module)
 
   // Startup recovery plus periodic expiry of retained worktrees. cordis's
   // typed Events map omits the runtime 'ready' event; the events service's

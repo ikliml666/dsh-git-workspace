@@ -168,6 +168,8 @@ function plane(record = readyRecord(), overrides: {
       files: overrides.files ?? filesDouble(),
       registry: overrides.registry ?? registry(record), git: overrides.git ?? gitDouble(), createTargetSessionId: () => 'host-target',
       reviewDiff: { read: vi.fn(async input => ({ reviewId: input.reviewId, revision: input.revision, files: [], truncated: false })) },
+      setWorktreeRequest: () => null,
+      pendingWorktreeRequest: () => null,
     }),
   }
 }

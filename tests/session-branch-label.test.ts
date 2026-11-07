@@ -102,6 +102,8 @@ it('names the Session branch on the conversation target capsule right after crea
       registry: env.dependencies.registry,
       git: env.port,
       reviewDiff: { read: async input => ({ reviewId: input.reviewId, revision: input.revision, files: [], truncated: false }) },
+      setWorktreeRequest: () => null,
+      pendingWorktreeRequest: () => null,
     })
 
     const current = await control.current('owner')
@@ -151,6 +153,8 @@ it('keeps naming the Session branch after delivery, when Local is back in charge
       registry: env.dependencies.registry,
       git: env.port,
       reviewDiff: { read: async input => ({ reviewId: input.reviewId, revision: input.revision, files: [], truncated: false }) },
+      setWorktreeRequest: () => null,
+      pendingWorktreeRequest: () => null,
     })
     const current = await control.current('owner')
     if (!current.ok) throw Error(JSON.stringify(current))

@@ -53,6 +53,8 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
   const language = useClientLanguage()
 
   const [target, setTarget] = useState<WorktreeConsoleTargetDetails | null>(null)
+  /** 「下一次 turn 在新树里开始」的待办；null 表示没有排队。 */
+  const [worktreeRequest, setWorktreeRequest] = useState<{ from: string | null } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   /** Why the last `current` probe failed; surfaced in the trigger tooltip. */
@@ -117,6 +119,7 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
     setTagTarget(null)
     setBranchQuery('')
     setSwitchNotice(null)
+    setWorktreeRequest(null)
     return subscribeCurrent(adapter, sessionId, language, result => {
       if ('error' in result) {
         const message = result.error instanceof Error ? result.error.message : String(result.error)
@@ -124,6 +127,7 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
         setError(message)
       } else if (result.outcome.ok) {
         setTarget(result.outcome.value.target)
+        setWorktreeRequest(result.outcome.value.worktreeRequest)
         setFailure(null)
         setError(null)
       } else {
@@ -183,8 +187,35 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
     }
   }
 
-  const switchBranch = async (branch: string): Promise<void> => {
+  /**
+   * 排队或撤回「下条消息在新工作树里开始」。
+   *
+   * 这里只写请求标记，不建树：建树发生在 Host 侧该会话的第一个 step 之前，
+   * 所以勾了不发送不会留下没人用的 checkout。基点取当前分支（胶囊上写着
+   * 的那个），没有分支时交给 Host 用 HEAD。
+   */
+  const toggleWorktreeRequest = async (): Promise<void> => {
     if (pendingAction !== null) return
+    const scope = actionScope.current
+    const active = () => mounted.current && scope === actionScope.current
+    setMenuOpen(false)
+    setError(null)
+    const from = worktreeRequest === null ? (target?.currentBranch ?? null) : undefined
+    const result = await adapter.setWorktreeRequest({ sessionId, from })
+    if (!active()) return
+    if (!result.ok) {
+      setError(result.error.message)
+      return
+    }
+    setWorktreeRequest(result.value.request)
+    setSwitchNotice(
+      result.value.request === null
+        ? t("worktree.request.cancel")
+        : t("worktree.request.active", { p0: result.value.request.from ?? 'HEAD' }),
+    )
+  }
+
+  const switchBranch = async (branch: string): Promise<void> => {    if (pendingAction !== null) return
     const scope = actionScope.current
     const active = () => mounted.current && scope === actionScope.current
     setMenuOpen(false)
@@ -541,6 +572,18 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
     ...(hiddenBranchCount > 0 ? [{ id: 'branches-more', label: <span className="dsh-wtc-branches-more">{t("branch.list.more", { p0: hiddenBranchCount })}</span>, disabled: true } satisfies MenuEntry] : []),
     ...(overviewBranches.length > 0 ? [{ type: 'separator' as const, id: 'branches-separator' }] : []),
     { id: 'create_branch', icon: <ReviewIcon name="create" />, label: t("branch.create.title"), disabled: pendingAction !== null },
+    ...(state === 'local'
+      ? [{
+        id: 'request_worktree',
+        icon: <ReviewIcon name="branch" />,
+        // 唯一的「新建工作树」入口；官方那对控件由本插件压掉。文案随状态改写：
+        // 已排队时写明基点，再点一次即撤回，不必去别处找开关。
+        label: worktreeRequest === null
+          ? t("worktree.request.title")
+          : t("worktree.request.active", { p0: worktreeRequest.from ?? 'HEAD' }),
+        disabled: pendingAction !== null,
+      } satisfies MenuEntry]
+      : []),
     { id: 'prune_branches', icon: <ReviewIcon name="refresh" />, label: t("branch.prune.title"), disabled: pendingAction !== null },
     { id: 'manage_tags', icon: <ReviewIcon name="list" />, label: t("tag.manager.title"), disabled: pendingAction !== null },
     { id: 'graph', icon: <ReviewIcon name="list" />, label: t("commit.graph.title"), disabled: pendingAction !== null },
@@ -577,6 +620,7 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
           if (id === 'retry_cleanup') void retryCleanup()
           if (id === 'discard') { setMenuOpen(false); setCleanupConfirmOpen(true) }
           if (id === 'create_branch') { setMenuOpen(false); setCreateName(''); setError(null); setCreateOpen(true) }
+          if (id === 'request_worktree') void toggleWorktreeRequest()
           if (id === 'prune_branches') openPrunePreview()
           if (id === 'manage_tags') { setMenuOpen(false); setTagTarget(null); setTagsOpen(true) }
           if (id === 'graph') { setMenuOpen(false); setGraphOpen(true) }

@@ -55,7 +55,7 @@ test.each([1, 3])('bounds real Git queries for a one-file delivery and a %i-work
     }
     writeFileSync(join(launch.managedRoot, 'hello.txt'), 'Hello, Worktree\n')
     await module.markReadyForReview('owner', { summary: 'One line', validationStatus: 'passed', tests: [], suggestedCommitMessage: 'test: line' })
-    const plane = createWorktreeConsoleControlPlane({ module, lookup, files: deps.files, registry: deps.registry, git: deps.git })
+    const plane = createWorktreeConsoleControlPlane({ module, lookup, files: deps.files, registry: deps.registry, git: deps.git, setWorktreeRequest: () => null, pendingWorktreeRequest: () => null })
     async function measure(label: string, fn: () => Promise<unknown>, expectOk = true) {
       traces.calls.length = 0
       const start = performance.now(); const result = await fn()

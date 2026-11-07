@@ -5,6 +5,7 @@ import {
   WORKTREE_CONSOLE_TARGET_STATES,
   type WorktreeConsoleAbandonedListResponse,
   type WorktreeConsoleAbandonedSnapshot,
+  type WorktreeConsoleWorktreeRequestResponse,
   type WorktreeConsoleCreatePreviewRecoveryHandoffResponse,
   type WorktreeConsoleCurrentResponse,
   type WorktreeConsoleInspectResponse,
@@ -230,7 +231,11 @@ export function outcomeSchema<T>(value: z.ZodType<T>): z.ZodType<WorktreeConsole
   ]) as z.ZodType<WorktreeConsoleOutcome<T>>
 }
 
-export const currentResponseSchema: z.ZodType<WorktreeConsoleCurrentResponse> = strict({ target: targetDetailsSchema })
+export const currentResponseSchema: z.ZodType<WorktreeConsoleCurrentResponse> = strict({
+  target: targetDetailsSchema,
+  // 旧 Host 不认识这个字段：写成必填会让整条 current 校验失败、胶囊塌成不可用。
+  worktreeRequest: z.object({ from: z.union([branchNameSchema, z.null()]) }).nullable().default(null),
+})
 export const inspectResponseSchema: z.ZodType<WorktreeConsoleInspectResponse> = strict({ target: targetDetailsSchema })
 export const listResponseSchema: z.ZodType<WorktreeConsoleListResponse> = strict({ project: projectSchema, worktrees: z.array(targetSummarySchema) })
 export const sidebarTopologyResponseSchema: z.ZodType<WorktreeSidebarTopologyResponse> = strict({
@@ -450,4 +455,9 @@ export const abandonedListResponseSchema: z.ZodType<WorktreeConsoleAbandonedList
 export const restoreAbandonedResponseSchema: z.ZodType<WorktreeConsoleRestoreAbandonedResponse> = strict({
   checkoutId: checkoutIdSchema,
   branch: z.string().min(1).max(300),
+})
+
+/** 「下一次 turn 在新树里开始」的响应：只回待办状态本身。 */
+export const worktreeRequestResponseSchema: z.ZodType<WorktreeConsoleWorktreeRequestResponse> = strict({
+  request: z.object({ from: z.union([branchNameSchema, z.null()]) }).nullable(),
 })
