@@ -15,9 +15,18 @@
   - **补回官方没有的两件事**：官方只做 `git worktree add`，不带 `.worktreeinclude` 列的 gitignored 文件，也不继承本地未提交修改。`createOfficialTarget` 在建好之后补上这两步（后者仅在基点就是本地 HEAD 时执行——补丁以本地 HEAD 为基准，基点不同不适用），沿用原有 `copyWorktreeincludeFiles` / `carryLocalWorkInProgress`。新增三项测试验证它们真的发生：`.worktreeinclude` 命中文件被带入、本地 tracked/untracked 改动被带入、基点换成别的分支 tip 时不带。
   - **删除新建对话时的 Worktree 开关**：整个 `src/client/pre-session/` 目录（`PreSessionWorktreeToggle`、controller、harness-input）删除，`registerPreSessionWorktree` 连同 `.dsh-wt-pre-session*` 样式一并移除。会话内的 Worktree 控制台也移除了「从某分支创建」的分支选择器与创建按钮——建树现在只有两个入口：模型调 `worktree_create`，或官方 forge 面板新建会话时建树。
   - **删除分支竞态守卫**：`src/concurrent-session-guard.ts` 与 `detectLocalBranchRace` 整体删除，连同 `branchRaceGuard` / `branchRaceWindowMs` 两个配置、`git.branchCreationTimes` 端口、45 秒定时刷新与模型可见的竞态提示。该守卫用「30 分钟内有人建了分支」推断「别的会话在抢 Local HEAD」，可这条证据同样由本会话自己产生（`git checkout -b` 之后自己的分支立刻成为「别人在抢」的物证）；而时间来源用的是 `reflog` 里的 `%ct`（commit 的 committer date），实测与分支真正诞生时刻差 11 分钟到 4 小时，窗口判定看的根本不是「谁刚动了 HEAD」。归因在这一层根本不存在：git 身份全机统一，`reflog` 里没有会话信息，纯函数无法把分支归给某个会话。于是删掉，而不是在错误归因上继续打补丁。
-  - 移除的测试：`tests/official-worktree-takeover.test.ts`、`tests/worktrees-service.test.ts`、`tests/concurrent-session-guard.test.ts`、`tests/client-pre-session.test.tsx`、`tests/official-worktree-adoption.test.ts`，以及 `client-target-console.test.tsx` 的 `Worktree Console Create/Open`、`console-host.test.ts` 的 `initial version confirmation on the host`、`console-remote.test.ts` 的 `initial version Remote boundary`、`git-unborn.test.ts` 的 host/module 全流程用例；新增 `tests/official-base-creation.test.ts`（9 项，用真实 `git worktree add` 跑通官方建树路径与两项补回能力）与 `tests/official-worktree-registration.test.ts`（9 项）。全量 57 文件 / 798 项通过、4 项跳过。
+  - 移除的测试：`tests/official-worktree-takeover.test.ts`、`tests/worktrees-service.test.ts`、`tests/concurrent-session-guard.test.ts`、`tests/client-pre-session.test.tsx`、`tests/official-worktree-adoption.test.ts`，以及 `client-target-console.test.tsx` 的 `Worktree Console Create/Open`、`console-host.test.ts` 的 `initial version confirmation on the host`、`console-remote.test.ts` 的 `initial version Remote boundary`、`git-unborn.test.ts` 的 host/module 全流程用例；新增 `tests/official-base-creation.test.ts`（9 项，用真实 `git worktree add` 跑通官方建树路径与两项补回能力）与 `tests/official-worktree-registration.test.ts`（9 项）。全量 58 文件 / 799 项通过、4 项跳过。
+
+### Fixed
+
+- 官方建树后 `sessionBranch` 记成短名导致交付被拒（2026-11-07）。
+  - **现象**：走官方 `worktrees.create` 建出来的树，`worktree_deliver` 报「Worktree 的 HEAD 不在会话分支上（期望 feat/xxx，实际 refs/heads/feat/xxx）」。同一个分支，只是台账里存的是 `feat/xxx`，而 `src/session-checkout-apply.ts:1555` 拿 `git symbolic-ref` 的完整 ref 去比。
+  - **根因**：`registerOfficialWorktree` 直接用了官方 `CreatedWorktree.branch`（短名）。台账里的 `sessionBranch` 一律是完整 ref —— `attachSessionBranch` 写的是 `attached.branchRef`（`src/session-checkout-module.ts:887`），`branchNameOf` 也是按 `refs/heads/` 前缀剥短名的。
+  - **修法**：改用 checkout 自己的 `snapshot.headRef`（权威值），删掉 `OfficialWorktreeRegistration.branch` 这个多余字段。顺带拒绝不在分支上的 checkout：`headRef` 为空或不是 `refs/heads/` 时直接报错，而不是记下一条注定失败的记录。
+  - **发现方式**：用 `lib/` 构建产物在真实 Git 仓库跑完整生命周期（建树 → 台账 → 评审 → 交付）时才暴露；单元测试跑的是 ts 源码，路径上没走到真实 `symbolic-ref` 比较。
 
 ### Added
+
 
 - 官方建的 Worktree 在会话走进去时接进台账（2026-11-07）。
   - **背景**：官方 `create_worktree` 与 forge 面板直接在 `<repo>/.agents/worktrees/<branch>` 建树，只存在于磁盘上。本插件的 9 个工具全部先查台账（`listManagedWorktreesForSession` 按 ownerSessionId 过滤、`worktree_deliver` 等开头就要求 `binding.target.kind === 'isolated'`、`worktree_cleanup` 按 `managedRoot` 定位），所以那些树列不出、交付不了、清理不掉——但也不影响官方功能。

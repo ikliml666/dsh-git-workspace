@@ -5383,7 +5383,6 @@ export function createSessionCheckoutModule(
           projectName: project.name,
           localRoot: project.root,
           path: created.path,
-          branch: created.branch,
           baseCommit: created.baseCommit,
         },
       )

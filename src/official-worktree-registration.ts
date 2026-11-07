@@ -29,8 +29,6 @@ export interface OfficialWorktreeRegistration {
   localRoot: string
   /** 官方建好的 checkout 目录。 */
   path: string
-  /** 官方建好的分支名（同时是目录名）。 */
-  branch: string
   /** 分叉基准提交。 */
   baseCommit: string
 }
@@ -59,6 +57,9 @@ export async function registerOfficialWorktree(
     throw new Error(`The new worktree at ${registration.path} is not a readable Git checkout`)
   }
   const checkoutId = dependencies.createCheckoutId()
+  if (snapshot.headRef === null || !snapshot.headRef.startsWith('refs/heads/')) {
+    throw new Error(`The new worktree at ${registration.path} is not on a branch, so it cannot back a Session`)
+  }
   const record: ManagedCheckoutRecord = {
     checkoutId,
     projectId: registration.projectId,
@@ -72,7 +73,8 @@ export async function registerOfficialWorktree(
     gitDir: snapshot.gitDir,
     baseOid: registration.baseCommit,
     sourceRef: snapshot.headRef,
-    sessionBranch: registration.branch,
+    // 台账里的分支一律是完整 ref，与 attachSessionBranch 写出的 branchRef 同形。
+    sessionBranch: snapshot.headRef,
     // 官方已经完成 checkout，这棵树从诞生起就是就绪态。
     phase: 'ready',
     delivery: { state: 'working', iteration: 1 },
@@ -136,7 +138,6 @@ export async function adoptWorktreeForSession(
     projectName: project.name,
     localRoot: project.root,
     path: snapshot.root,
-    branch: branchRef.slice('refs/heads/'.length),
     baseCommit: snapshot.headOid,
   })
 }

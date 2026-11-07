@@ -44,7 +44,6 @@ const registration = {
   projectName: 'repo',
   localRoot: REPO,
   path: CHECKOUT,
-  branch: 'feat/sess-abc',
   baseCommit: 'b'.repeat(40),
 }
 
@@ -61,7 +60,7 @@ describe('registering a Worktree the official service created', () => {
       sourceSessionId: 'session-abc',
       managedRoot: CHECKOUT,
       baseOid: 'b'.repeat(40),
-      sessionBranch: 'feat/sess-abc',
+      sessionBranch: 'refs/heads/feat/sess-abc',
       phase: 'ready',
       delivery: { state: 'working', iteration: 1 },
       journal: null,
@@ -107,7 +106,7 @@ describe('adopting the Worktree a Session walked into', () => {
     expect(record).toMatchObject({
       ownerSessionId: 'session-abc',
       managedRoot: CHECKOUT,
-      sessionBranch: 'feat/sess-abc',
+      sessionBranch: 'refs/heads/feat/sess-abc',
       phase: 'ready',
     })
     expect(f.current().sessionBindings['session-abc']).toMatchObject({ target: { kind: 'isolated' } })
