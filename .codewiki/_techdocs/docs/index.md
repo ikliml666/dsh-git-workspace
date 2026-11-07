@@ -1,127 +1,148 @@
 ---
-title: dsh-git-worktree 仓库总览
-description: dsh-git-worktree 是 DeepSeek Harness（DSH）的 Git worktree 会话目标插件，包版本为 0.14.0，MIT 许可证。它为 Agent 会话提供隔离的 Git 工作树环境，核心能力包括：
+title: dsh-git-worktree 仓库概览
+description: dsh-git-worktree 是一个面向 DeepSeek Harness（DSH）的插件：它让单个会话在隔离的 Git Worktree 中工作，并在「创建 → 编辑 → 评审 → 交付 → 清理」的完整生命周期里保证 Local checkout 的工作区、索引与 HEAD 不被污染。插件以 Cordis…
 ---
 
-# dsh-git-worktree 仓库总览
+# dsh-git-worktree 仓库概览
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`46e0c382`](https://github.com/wloops/dsh-git-worktree/commit/46e0c382490ad42db423bf5c77b7b61d01910892) on 2026-11-07 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`e01d7c5f`](https://github.com/wloops/dsh-git-worktree/commit/e01d7c5f2f3a0d2f734a5a3415598ae6d7d6f387) on 2026-11-07 with `deepseek-v4.1-flash`. Check the code before relying on details.
 
-## 仓库定位
+`dsh-git-worktree` 是一个面向 DeepSeek Harness（DSH）的插件：它让**单个会话在隔离的 Git Worktree 中工作**，并在「创建 → 编辑 → 评审 → 交付 → 清理」的完整生命周期里保证 **Local checkout 的工作区、索引与 HEAD 不被污染**。插件以 Cordis 插件形式挂载到 Host 条目树，同时向 Web 端提供一套 Harness 原生的界面元素（会话目标胶囊、Workspace 侧栏装饰、工具卡片与设置页）。
 
-`dsh-git-worktree` 是 DeepSeek Harness（DSH）的 **Git worktree 会话目标插件**，包版本为 `0.14.0`，MIT 许可证。它为 Agent 会话提供隔离的 Git 工作树环境，核心能力包括：
+## 仓库要解决的问题
 
-- 将会话绑定到独立的托管 worktree，避免污染本地检出；
-- 支持评审检查点、预览写入本地、人工验收后再交付；
-- 提供冲突恢复、崩溃对账、已放弃快照恢复与过期 worktree 清理；
-- 通过原子 JSON 台账、目录身份校验、乐观锁与 Git 原子写入降低误删、并发覆盖和符号链接攻击风险；
-- 同时暴露模型工具、`/worktree` 斜杠命令与浏览器控制台 UI 三类操作入口。
+| 问题 | 本仓库的答案 |
+| --- | --- |
+| 多个会话在同一仓库上并行编辑会互相踩踏 | 每个会话对应一棵受管 Worktree，`managedRoot` 与不可变 cwd 绑定 |
+| 模型的改动直接落进 Local，人类失去审阅机会 | 模型只推进到 `ready_for_review`；`discard` / `remove` 等破坏性动作保留给人类 |
+| 交付过程崩溃后无法判断「做到了哪一步」 | 先写 journal / receipt，再动作；`reconcile()` 依据台账判定恢复路径 |
+| 删除目录可能误伤用户数据 | 删除前必须通过路径、`device`/`inode`/`birthtimeNs`、Git common dir 等身份证据 |
+| 同一份 UI 要适配多代官方 Workspace Client | 构建期按版本 + SHA-256 校验派生 4 个虚拟模块，运行期按 `workspaceClientFlavor` 选择接管或装饰 |
 
 ## 端到端架构
 
-下图展示从入口层、宿主服务层、领域内核、端口契约到 DSH 适配器的完整分层关系：
+整个仓库可以按「浏览器侧 → 共享契约 → Host 侧 → 宿主能力」四段理解。依赖方向严格单向：契约层不引用任何实现，领域层不引用任何适配器，适配器是唯一接触 `ctx.subprocess`、`node:fs` 与宿主服务的地方。
 
 ```mermaid
 flowchart TB
-  subgraph Entry["入口层"]
-    Model["模型工具 worktree_*<br/>root_7"]
-    Cmd["/worktree 斜杠命令<br/>root_4"]
-    UI["客户端控制台 UI<br/>root_2 / root_3 / root_4"]
+  subgraph ClientSide["浏览器侧 client_ui"]
+    UI["目标胶囊 / 侧栏装饰 / ToolView / 设置页"]
+    AD["Remote 适配器<br/>超时档位 · 严格编解码归一"]
   end
 
-  subgraph HostLayer["宿主服务层"]
-    RPC["Typert RPC 命名空间 gitWorktree<br/>root_5"]
-    Contract["console-contract 纯 JSON DTO<br/>root_4"]
-    Assembly["组合根、端口定义与 i18n<br/>root_6"]
+  subgraph Wire["共享契约层"]
+    CTR["console_contract<br/>DTO · 能力位 · 错误码 · 纯投影函数"]
+    REM["console_remote<br/>38 条 descriptor · zod strict schema"]
   end
 
-  subgraph Domain["领域内核（宿主无关）"]
-    State["SessionCheckoutModule<br/>状态机、台账与并发锁"]
-    Engine["session-checkout-apply 引擎<br/>快照、合并、预览与原子交付"]
+  subgraph HostSide["Host 侧（Node）"]
+    SRV["console_host<br/>service / control-plane / projection / review-diff"]
+    DOM["core_domain<br/>状态机 · 编排 · Apply 引擎"]
+    ADP["adapters<br/>git / files / registry / lookup / skills"]
+    I18N["i18n<br/>hostMessage · 调用级语言快照"]
   end
 
-  subgraph Ports["端口契约"]
-    GitPort["SessionCheckoutGitPort"]
-    FilesPort["SessionCheckoutFilesPort"]
-    RegistryPort["SessionCheckoutRegistryPort"]
-    LookupPort["SessionCheckoutLookupPort"]
-  end
+  EXT["DSH 宿主能力<br/>ctx.subprocess · node:fs · workspaceRegistry · sessions · skills"]
 
-  subgraph Adapters["DSH 适配器与持久化"]
-    GitAdapter["git/subprocess 适配器<br/>root"]
-    FilesAdapter["Node fs 安全文件适配器<br/>root"]
-    RegistryAdapter["AtomicJsonCheckoutRegistry / safe-file<br/>root_2"]
-    LookupAdapter["session / project 映射<br/>root"]
-  end
-
-  Model --> State
-  Cmd --> State
-  UI --> Contract
-  Contract --> RPC
-  RPC --> State
-  Assembly --> State
-  State --> Engine
-  State --> GitPort
-  State --> FilesPort
-  State --> RegistryPort
-  State --> LookupPort
-  Engine --> GitPort
-  Engine --> FilesPort
-  GitPort -.-> GitAdapter
-  FilesPort -.-> FilesAdapter
-  RegistryPort -.-> RegistryAdapter
-  LookupPort -.-> LookupAdapter
+  UI --> AD
+  AD -->|"RPC 调用"| REM
+  REM --> SRV
+  CTR -.->|"类型与判定共享"| UI
+  CTR --> SRV
+  SRV -->|"inspect / operate / bind"| DOM
+  DOM -.->|"端口接口注入"| ADP
+  ADP --> EXT
+  SRV --> I18N
+  UI --> I18N
 ```
 
-下图展示一次典型变更请求从客户端或模型入口，经过鉴权、状态机、应用引擎，最终落到 Git 与文件系统的调用链路：
+### 一次「交付」的协作路径
+
+所有界面动作共享同一条链路：组件调用 `WorktreeConsoleAdapter`，适配层附加超时与 schema 校验，经 Typert Remote 进入 Host，Host 先证明身份再证明状态，最后才产生副作用。
 
 ```mermaid
 sequenceDiagram
-  participant Caller["客户端 UI 或模型工具"]
-  participant Host["WorktreeConsoleService 与 ControlPlane"]
-  participant Module["SessionCheckoutModule"]
-  participant Engine["apply 应用引擎"]
-  participant Port["Git / Files / Registry 端口"]
-  participant FS["本地检出与隔离 worktree"]
+  participant U as 用户或模型
+  participant UI as client_ui
+  participant RM as console_remote
+  participant HS as console_host
+  participant DM as core_domain
+  participant AD as adapters
+  U->>UI: 触发交付
+  UI->>RM: remote.gitWorktree.deliver(agentId, checkoutId, revision, message, retention, locale)
+  RM->>HS: strict schema 校验后进入 @Remote 方法
+  HS->>HS: withHostLanguage + authorize(owner / project / cwd)
+  HS->>DM: operate 带 expectedRevision 的 CAS 令牌
+  DM->>AD: git / files / registry 端口调用
+  AD-->>DM: 命令结果与落盘收据
+  DM-->>HS: 交付证明与新的 phase
+  HS-->>RM: WorktreeConsoleOutcome 含 capabilities
+  RM-->>UI: ok 或 error(code, message)
+  UI->>UI: 按 capabilities 刷新胶囊与侧栏
+```
 
-  Caller->>Host: 操作请求，携带 sessionId、checkoutId、expectedRevision
-  Host->>Host: 多级鉴权、状态守卫、schema 校验与投影
-  Host->>Module: inspect / preflight / bind / operate / manage
-  Module->>Port: 读取台账、会话项目映射与导航证据
-  Module->>Engine: plan / apply / preview / rollback / finalize
-  Engine->>Port: 捕获快照指纹、临时合并计算、原子补丁写入
-  Port->>FS: git worktree add、git apply、目录隔离与台账更新
-  FS-->>Port: 退出码、stdout、stderr 或文件身份
-  Port-->>Engine: GitCommandResult 或目录 CAS 结果
-  Engine-->>Module: 成功结果、冲突清单或 stale 错误
-  Module-->>Host: 台账记录与能力投影
-  Host-->>Caller: WorktreeConsoleOutcome，stale 时触发客户端刷新
+### 核心域的纵向分层
+
+`core_domain` 是整个插件的心脏，内部再分五层，每层可独立阅读与单测：
+
+```mermaid
+flowchart LR
+  API["core_domain_public_api<br/>SessionCheckoutModule 契约"]
+  SC["core_domain_session_checkout"]
+  ORCH["session_checkout_orchestration<br/>状态机 · 台账 CAS · 身份校验"]
+  ENG["session_checkout_apply_engine<br/>唯一直接改写 Git 的层"]
+  PORTS["core_domain_ports<br/>五大端口与账本模型"]
+  PRIM["core_domain_primitives<br/>无 I/O 纯原语"]
+  LIFE["core_domain_workspace_lifecycle<br/>Provider 选举与官方树登记"]
+
+  API --> SC
+  SC --> ORCH
+  SC --> ENG
+  ORCH --> PORTS
+  ORCH --> PRIM
+  ENG --> PORTS
+  ENG --> PRIM
+  LIFE --> API
 ```
 
 ## 核心模块文档
 
-| 模块 | 说明 |
-| --- | ---
-| [根模块与工程配置](root.md) | 仓库打包配置、CI、`cordis.patch.yml`、Git 文件与 Skill 适配器总览 |
-| [持久化适配器与浏览器桥接层](root_2.md) | 原子 JSON 注册表、崩溃安全文件读写、worktree 创建回滚、Typert 远程客户端与工具卡片 |
-| [客户端控制台 UI](root_3.md) | 评审控制台、设置卡片、目标胶囊、分支图谱与标签管理弹窗 |
-| [控制台客户端与宿主命令面](root_4.md) | 目标控制台 UI、Workspace 侧边栏集成、跨进程 JSON 契约与 `/worktree` 命令 |
-| [宿主控制台与远程协议层](root_5.md) | `gitWorktree` RPC 服务、鉴权、状态守卫、领域记录投影与隔离 diff 取证 |
-| [组合根、领域端口与国际化](root_6.md) | `apply(ctx, config)` 装配、端口契约、台账数据模型、配置与 i18n |
-| [插件出口层](root_7.md) | 8 个模型工具、会话目标上下文、官方 worktree 收养、宿主兼容桥与共享类型面 |
-| [会话检出状态机](src_session-checkout-module.ts.md) | 托管 worktree 全生命周期、台账并发锁、崩溃恢复与交付状态机 |
-| [会话检出应用引擎](src_session-checkout-apply.ts.md) | 快照指纹、临时三方合并、预览/回滚/定稿、检查点与原子写入 |
+| 模块 | 文档 | 概要 |
+| --- | --- | --- |
+| 核心域总览 | [core_domain 核心域概览](core_domain.md) | 宿主无关领域层：原语、端口、生命周期、状态机与对外 API |
+| 纯原语 | [core_domain_primitives 核心域基础原语](core_domain/core_domain_primitives.md) | 提交信息守卫、受管路径与分支命名、交付排除 pathspec、指纹与结果渲染 |
+| 端口契约 | [core_domain_ports 端口契约与持久化数据模型](core_domain/core_domain_ports.md) | lookup / git / files / registry / officialWorktrees 五大端口与账本数据模型 |
+| Workspace 生命周期 | [工作区与官方工作树生命周期（core_domain_workspace_lifecycle）](core_domain/core_domain_workspace_lifecycle.md) | 宿主版本识别、`uiWorkspace` Provider 选举、官方 `.agents/worktrees/` 树接管 |
+| 会话检出 | [core_domain_session_checkout：会话检出领域核心](core_domain/core_domain_session_checkout.md) | 编排状态机与 Git 应用引擎的总览入口 |
+| 编排核心 | [session_checkout_orchestration_core：会话检出编排核心](core_domain/core_domain_session_checkout/session_checkout_orchestration/session_checkout_orchestration_core.md) | 状态机与台账 CAS 实现 |
+| 工具边界 | [会话结账工具层（session_checkout_tools）](core_domain/core_domain_session_checkout/session_checkout_orchestration/session_checkout_tools.md) | 面向模型的工具边界（`worktree_*`） |
+| Apply 引擎 | [session_checkout_apply_engine：Git 级应用引擎](core_domain/core_domain_session_checkout/session_checkout_apply_engine.md) | 唯一直接改写 Git 的层：WIP 补丁、交付、回滚 |
+| 对外 API | [core_domain_public_api — 会话检出领域的公共 API 面](core_domain/core_domain_public_api.md) | `SessionCheckoutModule` 契约、操作联合、错误码、插件入口 `apply` 与配置面 |
+| 宿主适配层 | [adapters 模块：DSH 宿主适配层](adapters.md) | 把端口落到 `ctx.subprocess`、`node:fs`、注册表与 Skill 服务；原子写与跨平台细节 |
+| 共享契约 | [console_contract：Worktree Console 共享契约层](console_contract.md) | JSON-only DTO、16 个能力位、`consoleStateFromDomain` 等纯投影函数 |
+| Host 服务层 | [console_host：Worktree 控制台的 Host 侧服务层](console_host.md) | 授权、编排、投影与错误归一；37 个控制平面方法 |
+| Remote 契约 | [console_remote —— Worktree Console 的严格 Remote 契约层](console_remote.md) | 38 条 descriptor、zod strict schema、Typert 类型面与 Host 贡献 |
+| 浏览器 UI | [client_ui — 浏览器端 UI 层](client_ui.md) | 跨 Host 代数装配、胶囊、侧栏、工具卡片、设置页 |
+| 多语言 | [i18n：多语言文案目录与本地化解析层](i18n.md) | 双语目录、类型安全插值、调用级语言快照与持久化文案投影 |
 
-## 构建、测试与运行
+### client_ui 的子模块
 
-该插件通过 `package.json` 管理构建、检查、测试与本地开发循环：
+[client_ui_bootstrap：浏览器端启动与 Remote 适配引导](client_ui/client_ui_bootstrap.md)（装配与远程适配）、[client_ui_tool_views_and_actions — ToolView 卡片与 Session 导航动作](client_ui/client_ui_tool_views_and_actions.md)（工具视图与 Session 导航）、[client_ui_target_console —— 会话目标胶囊与工作树管理控制台](client_ui/client_ui_target_console.md)（目标胶囊与控制台）、[client_ui_git_views：Git 视图（提交图、标签管理、分支概览缓存）](client_ui/client_ui_git_views.md)（提交图与标签）、[client_ui_workspace_sidebar —— Workspace 侧栏投影与装饰](client_ui/client_ui_workspace_sidebar.md)（侧栏投影与装饰）、[client_ui_settings_card：Worktree 插件设置卡片](client_ui/client_ui_settings_card.md)（设置页）、[client_ui_i18n_presentation：国际化桥接与呈现基础层](client_ui/client_ui_i18n_presentation.md)（i18n 与呈现基础）。
 
-- **构建**：`pnpm build`，依次执行 `scripts/clean-lib.mjs`、`tsc` 类型编译与 `tsdown` 客户端打包。
-- **类型检查**：`pnpm typecheck`，即 `tsc --noEmit`。
-- **测试**：`pnpm test`，即 `vitest run`。
-- **发布校验**：`check:sidebar-version`、`check:publish`、`check:publish:release` 会在发布前检查版本、工作区干净度与产物兼容性；`prepublishOnly` 会串联版本检查、构建、发布校验与测试。
-- **本地 DSH 开发**：`dev:dsh`、`dev:dsh:install`、`dev:dsh:smoke`、`dev:dsh:remove` 通过 `scripts/dev-dsh.mjs` 完成插件安装、冒烟验证与卸载循环。
-- **CI**：`.github/workflows/ci.yml` 在 push 与 PR 时执行冻结依赖安装、类型检查、构建、发布校验与测试。
+## 贯穿全局的设计原则
 
-Node.js 引擎要求为 `>=24.9.0`。入口导出为 `lib/index.js`，并额外暴露 `./client`、`./typert`、`./remote`、`./console-contract` 等子路径。插件 bundle 补丁、DSH 客户端注入、pnpm workspace 供应链豁免与文档截图清单等工程细节，详见 [根模块与工程配置](root.md)。
+- **Host 是唯一权威**：界面上的状态、能力位与文案全部来自 Host 投影；Client 只读不推断，写操作一律带 `expectedRevision` 等 CAS 令牌。
+- **先收据、后动作**：任何改盘操作先把 journal / receipt 写入台账，崩溃后由 `reconcile()` 判定实际进度。
+- **授权看活的 cwd**：托管 owner 的运行期 cwd 就是不可变 Worktree 根，因此 `verifyCallerRoot` 优先用 `lookup.getSessionCwd()`，且该证据只对 owner 生效。
+- **能力位而非布尔散列**：`capabilities` 的推导集中在一个函数里，避免 Host 与 Client 两处规则漂移。
+- **构建期 fail-closed**：上游 Workspace Client 的版本与字节摘要不匹配时直接中断构建，不生成语义错误的派生客户端。
+- **错误不抛给传输层**：方法体统一包在 `outcome(...)` 中，异常被归一成带稳定 `code` 的 `WorktreeConsoleError`。
+
+## 构建与运行
+
+工程侧遵循一条串行流水线：`pnpm run build` 依次执行 `scripts/clean-lib.mjs`（清空 `lib/`，因为 `tsc` 不会删除已移除源文件的旧产物）、`tsc`（类型检查 + Host 侧 ESM 与 `.d.ts` 产出）、`tsdown`（把浏览器入口打成 `window.__ModuleLoader__.load({ id, factory })` 载荷，并在构建期物化 4 个官方 Workspace Client 的派生代码）。
+
+发布前由 `check:publish` / `check:publish:release` 机械校验不变量（每个 `exports` 目标被 `files` 覆盖、`dsh.bundle.patch` 存在、`./typert` 与 `./remote` 导出同一个 descriptor 数组实例、无 stale 产物），`check:sidebar-version` 复验派生客户端与上游版本的兼容性，测试由 `vitest run` 执行（Windows 上关闭文件并行以避免 Git fixture 争抢句柄）。本地集成验证使用 `dev:dsh` 系列脚本在真实 Harness 上安装、冒烟与卸载；CI 的 `check` 作业按 `install → typecheck → build → check:publish:release → test` 复现同一套流程。
+
+上述内容（含 `package.json` 字段语义、`cordis.patch.yml` 的挂载补丁与历史教训、`tsdown.config.ts` 的虚拟模块机制）详见 [build_and_config 构建与配置](build_and_config.md)。

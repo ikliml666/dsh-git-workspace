@@ -1,28 +1,43 @@
 site_name: dsh-git-worktree
-site_description: dsh-git-worktree 是 DeepSeek Harness（DSH）的 Git worktree 会话目标插件，包版本为 0.14.0，MIT 许可证。它为 Agent 会话提供隔离的 Git 工作树环境，核心能力包括：
+site_description: dsh-git-worktree 是一个面向 DeepSeek Harness（DSH）的插件：它让单个会话在隔离的 Git Worktree 中工作，并在「创建 → 编辑 → 评审 → 交付 → 清理」的完整生命周期里保证 Local checkout 的工作区、索引与 HEAD 不被污染。插件以 Cordis…
 repo_url: https://github.com/wloops/dsh-git-worktree
 edit_uri: ''
 docs_dir: docs
 nav:
-- dsh-git-worktree 仓库总览: index.md
-- dsh-git-worktree 根模块总览: root.md
-- root_2：持久化适配器与浏览器客户端桥接层:
-  - root_2：持久化适配器与浏览器客户端桥接层: root_2.md
-  - 主机适配层（Host Adapters）: root_2/root_2_host_adapters.md
-  - 工具调用视图（Tool Views）: root_2/root_2_tool_views.md
-  - 客户端核心（root_2_client_core）: root_2/root_2_client_core.md
-  - 控制台远程客户端（console-remote Client 侧）: root_2/root_2_console_remote.md
-- root_3：Worktree 客户端控制台 UI（评审、设置与目标胶囊）:
-  - root_3：Worktree 客户端控制台 UI（评审、设置与目标胶囊）: root_3.md
-  - 评审控制台（review-console）: root_3/root_3_review_console.md
-  - 设置卡片模块（settings-card）: root_3/root_3_settings_card.md
-  - 目标控制台（target-console）模块: root_3/root_3_target_console.md
-- root_4：Worktree 控制台客户端与宿主命令面: root_4.md
-- Worktree Console 宿主与远程协议层（root_5）: root_5.md
-- 组合根、领域端口与国际化（root_6）: root_6.md
-- session-checkout-apply 应用引擎: src_session-checkout-apply.ts.md
-- 会话检出状态机模块（session-checkout-module）: src_session-checkout-module.ts.md
-- root_7：dsh-git-worktree 插件出口层: root_7.md
+- dsh-git-worktree 仓库概览: index.md
+- build_and_config 构建与配置: build_and_config.md
+- adapters 模块：DSH 宿主适配层: adapters.md
+- core_domain 核心域概览:
+  - core_domain 核心域概览: core_domain.md
+  - core_domain_primitives 核心域基础原语: core_domain/core_domain_primitives.md
+  - 工作区与官方工作树生命周期（core_domain_workspace_lifecycle）: core_domain/core_domain_workspace_lifecycle.md
+  - core_domain_public_api — 会话检出领域的公共 API 面: core_domain/core_domain_public_api.md
+  - core_domain_ports 端口契约与持久化数据模型: core_domain/core_domain_ports.md
+  - core_domain_session_checkout：会话检出领域核心:
+    - core_domain_session_checkout：会话检出领域核心: core_domain/core_domain_session_checkout.md
+    - session_checkout_apply_engine：Git 级应用引擎: core_domain/core_domain_session_checkout/session_checkout_apply_engine.md
+    - 会话检出编排（session_checkout_orchestration）:
+      - 会话检出编排（session_checkout_orchestration）: core_domain/core_domain_session_checkout/session_checkout_orchestration.md
+      - session_checkout_orchestration_core：会话检出编排核心: core_domain/core_domain_session_checkout/session_checkout_orchestration/session_checkout_orchestration_core.md
+      - 会话结账工具层（session_checkout_tools）: core_domain/core_domain_session_checkout/session_checkout_orchestration/session_checkout_tools.md
+- client_ui — 浏览器端 UI 层:
+  - client_ui — 浏览器端 UI 层: client_ui.md
+  - client_ui_tool_views_and_actions — ToolView 卡片与 Session 导航动作: client_ui/client_ui_tool_views_and_actions.md
+  - client_ui_bootstrap：浏览器端启动与 Remote 适配引导: client_ui/client_ui_bootstrap.md
+  - client_ui_i18n_presentation：国际化桥接与呈现基础层: client_ui/client_ui_i18n_presentation.md
+  - client_ui_settings_card：Worktree 插件设置卡片: client_ui/client_ui_settings_card.md
+  - client_ui_git_views：Git 视图（提交图、标签管理、分支概览缓存）: client_ui/client_ui_git_views.md
+  - client_ui_target_console —— 会话目标胶囊与工作树管理控制台: client_ui/client_ui_target_console.md
+  - client_ui_workspace_sidebar —— Workspace 侧栏投影与装饰: client_ui/client_ui_workspace_sidebar.md
+- console_contract：Worktree Console 共享契约层: console_contract.md
+- console_host：Worktree 控制台的 Host 侧服务层:
+  - console_host：Worktree 控制台的 Host 侧服务层: console_host.md
+  - console_host_control_plane 控制平面: console_host/console_host_control_plane.md
+  - console_host_remote_face 模块文档: console_host/console_host_remote_face.md
+  - console_host_projection 投影层: console_host/console_host_projection.md
+  - console_host_review_diff：评审差异读取器: console_host/console_host_review_diff.md
+- console_remote —— Worktree Console 的严格 Remote 契约层: console_remote.md
+- i18n：多语言文案目录与本地化解析层: i18n.md
 plugins:
 - techdocs-core
 markdown_extensions:
