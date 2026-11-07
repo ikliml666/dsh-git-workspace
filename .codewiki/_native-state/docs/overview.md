@@ -1,53 +1,119 @@
 # dsh-git-worktree 仓库总览
 
 ## 仓库定位
-`dsh-git-worktree` 是面向 DeepSeek Harness（DSH）平台的 Cordis 插件，核心目标是为 AI 编码 Agent 提供隔离、事务化、安全硬化的托管 Git Worktree 运行环境，解决传统 AI 编码过程中的状态污染问题：
-- **工作边界隔离**：所有 AI Agent 触发的代码变更都在独立 Worktree 中完成，全程不干扰用户本地工作区的未提交改动，避免跨任务的状态污染。
-- **可靠状态管理**：通过持久化台账与原子文件锁实现崩溃可恢复、并发安全的全生命周期状态管理，任意操作中断后可通过启动期对账收敛到一致状态，不留孤立残留文件。
-- **安全规则收敛**：统一收拢 Git 命令净化、超时控制、原子文件写入、目录身份校验、符号链接防护等安全逻辑，从底层杜绝命令注入、仓库劫持、误删文件等风险。
-- **统一服务接口**：对外提供经过鉴权与视图投影的类型化 RPC 接口，支撑客户端目标状态展示、评审工作流、工作区拓扑投影等交互功能。
+
+`dsh-git-worktree` 是 DeepSeek Harness（DSH）的 **Git worktree 会话目标插件**，包版本为 `0.14.0`，MIT 许可证。它为 Agent 会话提供隔离的 Git 工作树环境，核心能力包括：
+
+- 将会话绑定到独立的托管 worktree，避免污染本地检出；
+- 支持评审检查点、预览写入本地、人工验收后再交付；
+- 提供冲突恢复、崩溃对账、已放弃快照恢复与过期 worktree 清理；
+- 通过原子 JSON 台账、目录身份校验、乐观锁与 Git 原子写入降低误删、并发覆盖和符号链接攻击风险；
+- 同时暴露模型工具、`/worktree` 斜杠命令与浏览器控制台 UI 三类操作入口。
 
 ## 端到端架构
-本项目遵循严格的分层依赖原则，核心领域逻辑不依赖具体底层实现（六边形/端口-适配器架构），所有与宿主打交道的细节都被隔离在适配器层。整体分层架构如下图所示：
+
+下图展示从入口层、宿主服务层、领域内核、端口契约到 DSH 适配器的完整分层关系：
 
 ```mermaid
-flowchart LR
-    USER["用户 / AI Agent 交互入口"]
-    BUILD["Build, CI & Project Configuration<br/>双段构建管线 · 发布门禁 · 测试基础设施"]
-    
-    subgraph RUNTIME["应用运行时分层"]
-        direction TB
-        CLIENT["Client_UI_Application_Layer<br/>目标控制台 · 评审面板 · 工作区侧栏 · 设置卡片"]
-        SHARED["Shared_Cross-Tier_Contracts___Utilities<br/>类型化 RPC 传输 · i18n 文案 · Zod 校验规则"]
-        API["Shared_Worktree_Console_API_Contract<br/>纯 JSON DTO · 状态投影 · 能力矩阵 · 错误模型"]
-        BACKEND["Backend_Host_Core_Runtime<br/>RPC 门面 · 领域台账 · 会话检出引擎 · 安全硬化适配器"]
-    end
+flowchart TB
+  subgraph Entry["入口层"]
+    Model["模型工具 worktree_*<br/>root_7"]
+    Cmd["/worktree 斜杠命令<br/>root_4"]
+    UI["客户端控制台 UI<br/>root_2 / root_3 / root_4"]
+  end
 
-    INFRA["底层依赖<br/>Git 可执行文件 · 磁盘文件系统 · DSH 宿主服务"]
+  subgraph HostLayer["宿主服务层"]
+    RPC["Typert RPC 命名空间 gitWorktree<br/>root_5"]
+    Contract["console-contract 纯 JSON DTO<br/>root_4"]
+    Assembly["组合根、端口定义与 i18n<br/>root_6"]
+  end
 
-    USER --> CLIENT
-    CLIENT -->|"Web RPC 通道"| SHARED
-    SHARED -->|"引用类型形状与校验规则"| API
-    SHARED -->|"远程方法分发"| BACKEND
-    BACKEND -->|"复用契约类型与投影逻辑"| API
-    BACKEND -->|"调用真实 Git / 文件操作"| INFRA
-    BUILD -.->|"编译、打包、校验、挂载"| CLIENT
-    BUILD -.->|"编译、打包、发布校验"| BACKEND
-    BUILD -.->|"构建跨层契约产物"| API
+  subgraph Domain["领域内核（宿主无关）"]
+    State["SessionCheckoutModule<br/>状态机、台账与并发锁"]
+    Engine["session-checkout-apply 引擎<br/>快照、合并、预览与原子交付"]
+  end
+
+  subgraph Ports["端口契约"]
+    GitPort["SessionCheckoutGitPort"]
+    FilesPort["SessionCheckoutFilesPort"]
+    RegistryPort["SessionCheckoutRegistryPort"]
+    LookupPort["SessionCheckoutLookupPort"]
+  end
+
+  subgraph Adapters["DSH 适配器与持久化"]
+    GitAdapter["git/subprocess 适配器<br/>root"]
+    FilesAdapter["Node fs 安全文件适配器<br/>root"]
+    RegistryAdapter["AtomicJsonCheckoutRegistry / safe-file<br/>root_2"]
+    LookupAdapter["session / project 映射<br/>root"]
+  end
+
+  Model --> State
+  Cmd --> State
+  UI --> Contract
+  Contract --> RPC
+  RPC --> State
+  Assembly --> State
+  State --> Engine
+  State --> GitPort
+  State --> FilesPort
+  State --> RegistryPort
+  State --> LookupPort
+  Engine --> GitPort
+  Engine --> FilesPort
+  GitPort -.-> GitAdapter
+  FilesPort -.-> FilesAdapter
+  RegistryPort -.-> RegistryAdapter
+  LookupPort -.-> LookupAdapter
 ```
 
-## 核心模块文档索引
-仓库按职责拆分为五个独立的顶层模块，各模块的详细设计、接口定义与实现细节可通过以下文档入口查阅：
+下图展示一次典型变更请求从客户端或模型入口，经过鉴权、状态机、应用引擎，最终落到 Git 与文件系统的调用链路：
 
-| 模块 | 核心职责 | 详细文档 |
-| --- | --- | --- |
-| 客户端 UI 应用层 | 浏览器端交互组装，负责状态只读投影、用户动作编排、写前预检、客户端缓存与恢复队列，遵循「Host 权威、客户端投影」原则，不实现 Git 与 Worktree 领域规则 | [客户端 UI 应用层文档](Client_UI_Application_Layer.md) |
-| 后端宿主核心运行时 | 服务端核心承载，实现六边形架构的领域台账、会话检出事务引擎、安全硬化的适配器实现、面向客户端的鉴权 RPC 服务，提供崩溃可恢复的全生命周期 Worktree 管理 | [后端宿主核心运行时文档](Backend_Host_Core_Runtime.md) |
-| 共享跨层契约与工具层 | Client 与 Host 之间的纯共享层，提供类型化 RPC 描述符、Zod 运行时校验、中英双语 i18n 机制，作为跨进程调用形状的单一事实来源 | [共享跨层契约与工具层文档](Shared_Cross-Tier_Contracts___Utilities.md) |
-| 共享 Worktree 控制台 API 契约 | 单一文件定义的跨层纯契约，包含 JSON 可序列化 DTO、11 态 UI 状态投影规则、15 项操作能力矩阵、统一错误码与恢复元数据 | [共享 Worktree 控制台 API 契约文档](Shared_Worktree_Console_API_Contract.md) |
-| 构建、CI 与项目配置层 | 工程化支撑，覆盖双段 TypeScript 构建管线、七重发布完整性门禁、Vitest 测试基础设施、GitHub Actions CI 流水线、DSH 宿主挂载补丁、本地开发联调脚本 | [构建、CI 与项目配置层文档](Build,_CI___Project_Configuration.md) |
+```mermaid
+sequenceDiagram
+  participant Caller["客户端 UI 或模型工具"]
+  participant Host["WorktreeConsoleService 与 ControlPlane"]
+  participant Module["SessionCheckoutModule"]
+  participant Engine["apply 应用引擎"]
+  participant Port["Git / Files / Registry 端口"]
+  participant FS["本地检出与隔离 worktree"]
 
-## 构建与运行
-项目采用「源码 → 双段编译 → 多层校验 → 宿主挂载」的标准化发布链路：Host 侧 Node 源码经 `tsc` 编译为 NodeNext ESM 产物，Client 侧浏览器源码经 `tsdown` 打包为 DSH ModuleLoader 可消费的 CJS 闭包；发布流程内置类型检查、上游 UI 产物版本校验、七重发布完整性门禁、全量单元测试，通过 GitHub Actions CI 流水线完成自动校验；最终产物通过 `cordis.patch.yml` 补丁自动注册到 DSH 宿主插件清单。项目同时提供本地开发脚本族，支持无公开发布的快照安装、DSH 进程启动与冒烟校验，实现快速本地联调。
+  Caller->>Host: 操作请求，携带 sessionId、checkoutId、expectedRevision
+  Host->>Host: 多级鉴权、状态守卫、schema 校验与投影
+  Host->>Module: inspect / preflight / bind / operate / manage
+  Module->>Port: 读取台账、会话项目映射与导航证据
+  Module->>Engine: plan / apply / preview / rollback / finalize
+  Engine->>Port: 捕获快照指纹、临时合并计算、原子补丁写入
+  Port->>FS: git worktree add、git apply、目录隔离与台账更新
+  FS-->>Port: 退出码、stdout、stderr 或文件身份
+  Port-->>Engine: GitCommandResult 或目录 CAS 结果
+  Engine-->>Module: 成功结果、冲突清单或 stale 错误
+  Module-->>Host: 台账记录与能力投影
+  Host-->>Caller: WorktreeConsoleOutcome，stale 时触发客户端刷新
+```
 
-完整的构建命令、测试配置、发布规则与 CI 流程说明，请参考 [构建、CI 与项目配置层文档](Build,_CI___Project_Configuration.md)。
+## 核心模块文档
+
+| 模块 | 说明 |
+| --- | ---
+| [根模块与工程配置](root.md) | 仓库打包配置、CI、`cordis.patch.yml`、Git 文件与 Skill 适配器总览 |
+| [持久化适配器与浏览器桥接层](root_2.md) | 原子 JSON 注册表、崩溃安全文件读写、worktree 创建回滚、Typert 远程客户端与工具卡片 |
+| [客户端控制台 UI](root_3.md) | 评审控制台、设置卡片、目标胶囊、分支图谱与标签管理弹窗 |
+| [控制台客户端与宿主命令面](root_4.md) | 目标控制台 UI、Workspace 侧边栏集成、跨进程 JSON 契约与 `/worktree` 命令 |
+| [宿主控制台与远程协议层](root_5.md) | `gitWorktree` RPC 服务、鉴权、状态守卫、领域记录投影与隔离 diff 取证 |
+| [组合根、领域端口与国际化](root_6.md) | `apply(ctx, config)` 装配、端口契约、台账数据模型、配置与 i18n |
+| [插件出口层](root_7.md) | 8 个模型工具、会话目标上下文、官方 worktree 收养、宿主兼容桥与共享类型面 |
+| [会话检出状态机](src_session-checkout-module.ts.md) | 托管 worktree 全生命周期、台账并发锁、崩溃恢复与交付状态机 |
+| [会话检出应用引擎](src_session-checkout-apply.ts.md) | 快照指纹、临时三方合并、预览/回滚/定稿、检查点与原子写入 |
+
+## 构建、测试与运行
+
+该插件通过 `package.json` 管理构建、检查、测试与本地开发循环：
+
+- **构建**：`pnpm build`，依次执行 `scripts/clean-lib.mjs`、`tsc` 类型编译与 `tsdown` 客户端打包。
+- **类型检查**：`pnpm typecheck`，即 `tsc --noEmit`。
+- **测试**：`pnpm test`，即 `vitest run`。
+- **发布校验**：`check:sidebar-version`、`check:publish`、`check:publish:release` 会在发布前检查版本、工作区干净度与产物兼容性；`prepublishOnly` 会串联版本检查、构建、发布校验与测试。
+- **本地 DSH 开发**：`dev:dsh`、`dev:dsh:install`、`dev:dsh:smoke`、`dev:dsh:remove` 通过 `scripts/dev-dsh.mjs` 完成插件安装、冒烟验证与卸载循环。
+- **CI**：`.github/workflows/ci.yml` 在 push 与 PR 时执行冻结依赖安装、类型检查、构建、发布校验与测试。
+
+Node.js 引擎要求为 `>=24.9.0`。入口导出为 `lib/index.js`，并额外暴露 `./client`、`./typert`、`./remote`、`./console-contract` 等子路径。插件 bundle 补丁、DSH 客户端注入、pnpm workspace 供应链豁免与文档截图清单等工程细节，详见 [根模块与工程配置](root.md)。
