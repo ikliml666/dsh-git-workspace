@@ -6,7 +6,7 @@ description: 本模块是 dsh-git-worktree 插件的基础设施桥接层，横�
 # root_2：持久化适配器与浏览器客户端桥接层
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`36d78408`](https://github.com/wloops/dsh-git-worktree/commit/36d784083cde39e99b6017025ce0d6c21dd439fe) on 2026-11-07 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`35c16281`](https://github.com/wloops/dsh-git-worktree/commit/35c16281d5695247926eca63b278150f7983e291) on 2026-11-07 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 ## 模块定位
 
@@ -158,35 +158,35 @@ flowchart TB
 | [聊天工具卡片与评审展示组件](root_2/root_2_tool_views.md) | `client/WorktreeCreateRow.tsx` · `client/WorktreeReviewRow.tsx` · `client/review-console/DeliveryProof.tsx` · `client/review-console/PreflightStatus.tsx` | 创建/评审卡片、交付证据展示、只读预检状态展示 |
 
 ??? abstract "Documented components (31)"
-    - [`AtomicJsonCheckoutRegistry`](https://github.com/wloops/dsh-git-worktree/blob/36d784083cde39e99b6017025ce0d6c21dd439fe/src%5Cadapters%5Cregistry.ts) — `src\adapters\registry.ts`
-    - [`FileLockOptions`](https://github.com/wloops/dsh-git-worktree/blob/36d784083cde39e99b6017025ce0d6c21dd439fe/src%5Cadapters%5Csafe-file.ts) — `src\adapters\safe-file.ts`
-    - [`FileLockPayload`](https://github.com/wloops/dsh-git-worktree/blob/36d784083cde39e99b6017025ce0d6c21dd439fe/src%5Cadapters%5Csafe-file.ts) — `src\adapters\safe-file.ts`
-    - [`SessionWorkingDirectoryPort`](https://github.com/wloops/dsh-git-worktree/blob/36d784083cde39e99b6017025ce0d6c21dd439fe/src%5Cadapters%5Cworking-directory.ts) — `src\adapters\working-directory.ts`
-    - [`WorkingDirectoryServiceLike`](https://github.com/wloops/dsh-git-worktree/blob/36d784083cde39e99b6017025ce0d6c21dd439fe/src%5Cadapters%5Cworking-directory.ts) — `src\adapters\working-directory.ts`
-    - [`Result`](https://github.com/wloops/dsh-git-worktree/blob/36d784083cde39e99b6017025ce0d6c21dd439fe/src%5Cadapters%5Cworktree-creation.ts) — `src\adapters\worktree-creation.ts`
-    - [`canonicalJson`](https://github.com/wloops/dsh-git-worktree/blob/36d784083cde39e99b6017025ce0d6c21dd439fe/src%5Ccheckpoint.ts) — `src\checkpoint.ts`
-    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/36d784083cde39e99b6017025ce0d6c21dd439fe/src%5Cclient%5CWorktreeCreateRow.tsx) — `src\client\WorktreeCreateRow.tsx`
-    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/36d784083cde39e99b6017025ce0d6c21dd439fe/src%5Cclient%5CWorktreeReviewRow.tsx) — `src\client\WorktreeReviewRow.tsx`
-    - [`ClientSessionBinding`](https://github.com/wloops/dsh-git-worktree/blob/36d784083cde39e99b6017025ce0d6c21dd439fe/src%5Cclient%5Cactions.ts) — `src\client\actions.ts`
-    - [`ClientSessionSnapshot`](https://github.com/wloops/dsh-git-worktree/blob/36d784083cde39e99b6017025ce0d6c21dd439fe/src%5Cclient%5Cactions.ts) — `src\client\actions.ts`
-    - [`ClientSessions`](https://github.com/wloops/dsh-git-worktree/blob/36d784083cde39e99b6017025ce0d6c21dd439fe/src%5Cclient%5Cactions.ts) — `src\client\actions.ts`
-    - [`ClientWorkspaces`](https://github.com/wloops/dsh-git-worktree/blob/36d784083cde39e99b6017025ce0d6c21dd439fe/src%5Cclient%5Cactions.ts) — `src\client\actions.ts`
-    - [`IsolatedTargetLocation`](https://github.com/wloops/dsh-git-worktree/blob/36d784083cde39e99b6017025ce0d6c21dd439fe/src%5Cclient%5Cactions.ts) — `src\client\actions.ts`
-    - [`SnapshotStore`](https://github.com/wloops/dsh-git-worktree/blob/36d784083cde39e99b6017025ce0d6c21dd439fe/src%5Cclient%5Cactions.ts) — `src\client\actions.ts`
-    - [`WorktreeClientServices`](https://github.com/wloops/dsh-git-worktree/blob/36d784083cde39e99b6017025ce0d6c21dd439fe/src%5Cclient%5Cactions.ts) — `src\client\actions.ts`
-    - [`createWorktreeConsoleRemoteAdapter`](https://github.com/wloops/dsh-git-worktree/blob/36d784083cde39e99b6017025ce0d6c21dd439fe/src%5Cclient%5Cconsole-remote%5Cadapter.ts) — `src\client\console-remote\adapter.ts`
-    - [`ConsoleClientContext`](https://github.com/wloops/dsh-git-worktree/blob/36d784083cde39e99b6017025ce0d6c21dd439fe/src%5Cclient%5Cconsole-remote%5Cindex.ts) — `src\client\console-remote\index.ts`
-    - [`Context`](https://github.com/wloops/dsh-git-worktree/blob/36d784083cde39e99b6017025ce0d6c21dd439fe/src%5Cclient%5Cconsole-remote%5Cindex.ts) — `src\client\console-remote\index.ts`
-    - [`MenuEntry`](https://github.com/wloops/dsh-git-worktree/blob/36d784083cde39e99b6017025ce0d6c21dd439fe/src%5Cclient%5Charness-platform.d.ts) — `src\client\harness-platform.d.ts`
-    - [`ClientLocaleSource`](https://github.com/wloops/dsh-git-worktree/blob/36d784083cde39e99b6017025ce0d6c21dd439fe/src%5Cclient%5Ci18n.tsx) — `src\client\i18n.tsx`
-    - [`ClientContextLike`](https://github.com/wloops/dsh-git-worktree/blob/36d784083cde39e99b6017025ce0d6c21dd439fe/src%5Cclient%5Cindex.tsx) — `src\client\index.tsx`
-    - [`ParsedTool`](https://github.com/wloops/dsh-git-worktree/blob/36d784083cde39e99b6017025ce0d6c21dd439fe/src%5Cclient%5Cmodel.ts) — `src\client\model.ts`
-    - [`ReviewArgs`](https://github.com/wloops/dsh-git-worktree/blob/36d784083cde39e99b6017025ce0d6c21dd439fe/src%5Cclient%5Cmodel.ts) — `src\client\model.ts`
-    - [`ToolCallBlockLike`](https://github.com/wloops/dsh-git-worktree/blob/36d784083cde39e99b6017025ce0d6c21dd439fe/src%5Cclient%5Cmodel.ts) — `src\client\model.ts`
-    - [`ToolCallViewPropsLike`](https://github.com/wloops/dsh-git-worktree/blob/36d784083cde39e99b6017025ce0d6c21dd439fe/src%5Cclient%5Cmodel.ts) — `src\client\model.ts`
-    - [`ToolContentBlock`](https://github.com/wloops/dsh-git-worktree/blob/36d784083cde39e99b6017025ce0d6c21dd439fe/src%5Cclient%5Cmodel.ts) — `src\client\model.ts`
-    - [`WorktreeCreatePayload`](https://github.com/wloops/dsh-git-worktree/blob/36d784083cde39e99b6017025ce0d6c21dd439fe/src%5Cclient%5Cmodel.ts) — `src\client\model.ts`
-    - [`WorktreeReviewPayload`](https://github.com/wloops/dsh-git-worktree/blob/36d784083cde39e99b6017025ce0d6c21dd439fe/src%5Cclient%5Cmodel.ts) — `src\client\model.ts`
-    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/36d784083cde39e99b6017025ce0d6c21dd439fe/src%5Cclient%5Creview-console%5CDeliveryProof.tsx) — `src\client\review-console\DeliveryProof.tsx`
-    - [`PreflightStatus`](https://github.com/wloops/dsh-git-worktree/blob/36d784083cde39e99b6017025ce0d6c21dd439fe/src%5Cclient%5Creview-console%5CPreflightStatus.tsx) — `src\client\review-console\PreflightStatus.tsx`
+    - [`AtomicJsonCheckoutRegistry`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cadapters%5Cregistry.ts) — `src\adapters\registry.ts`
+    - [`FileLockOptions`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cadapters%5Csafe-file.ts) — `src\adapters\safe-file.ts`
+    - [`FileLockPayload`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cadapters%5Csafe-file.ts) — `src\adapters\safe-file.ts`
+    - [`SessionWorkingDirectoryPort`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cadapters%5Cworking-directory.ts) — `src\adapters\working-directory.ts`
+    - [`WorkingDirectoryServiceLike`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cadapters%5Cworking-directory.ts) — `src\adapters\working-directory.ts`
+    - [`Result`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cadapters%5Cworktree-creation.ts) — `src\adapters\worktree-creation.ts`
+    - [`canonicalJson`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ccheckpoint.ts) — `src\checkpoint.ts`
+    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cclient%5CWorktreeCreateRow.tsx) — `src\client\WorktreeCreateRow.tsx`
+    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cclient%5CWorktreeReviewRow.tsx) — `src\client\WorktreeReviewRow.tsx`
+    - [`ClientSessionBinding`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cclient%5Cactions.ts) — `src\client\actions.ts`
+    - [`ClientSessionSnapshot`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cclient%5Cactions.ts) — `src\client\actions.ts`
+    - [`ClientSessions`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cclient%5Cactions.ts) — `src\client\actions.ts`
+    - [`ClientWorkspaces`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cclient%5Cactions.ts) — `src\client\actions.ts`
+    - [`IsolatedTargetLocation`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cclient%5Cactions.ts) — `src\client\actions.ts`
+    - [`SnapshotStore`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cclient%5Cactions.ts) — `src\client\actions.ts`
+    - [`WorktreeClientServices`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cclient%5Cactions.ts) — `src\client\actions.ts`
+    - [`createWorktreeConsoleRemoteAdapter`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cclient%5Cconsole-remote%5Cadapter.ts) — `src\client\console-remote\adapter.ts`
+    - [`ConsoleClientContext`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cclient%5Cconsole-remote%5Cindex.ts) — `src\client\console-remote\index.ts`
+    - [`Context`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cclient%5Cconsole-remote%5Cindex.ts) — `src\client\console-remote\index.ts`
+    - [`MenuEntry`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cclient%5Charness-platform.d.ts) — `src\client\harness-platform.d.ts`
+    - [`ClientLocaleSource`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cclient%5Ci18n.tsx) — `src\client\i18n.tsx`
+    - [`ClientContextLike`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cclient%5Cindex.tsx) — `src\client\index.tsx`
+    - [`ParsedTool`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cclient%5Cmodel.ts) — `src\client\model.ts`
+    - [`ReviewArgs`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cclient%5Cmodel.ts) — `src\client\model.ts`
+    - [`ToolCallBlockLike`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cclient%5Cmodel.ts) — `src\client\model.ts`
+    - [`ToolCallViewPropsLike`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cclient%5Cmodel.ts) — `src\client\model.ts`
+    - [`ToolContentBlock`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cclient%5Cmodel.ts) — `src\client\model.ts`
+    - [`WorktreeCreatePayload`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cclient%5Cmodel.ts) — `src\client\model.ts`
+    - [`WorktreeReviewPayload`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cclient%5Cmodel.ts) — `src\client\model.ts`
+    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cclient%5Creview-console%5CDeliveryProof.tsx) — `src\client\review-console\DeliveryProof.tsx`
+    - [`PreflightStatus`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cclient%5Creview-console%5CPreflightStatus.tsx) — `src\client\review-console\PreflightStatus.tsx`
 
