@@ -135,8 +135,14 @@ export function mountWorktreeRequest(ctx: Context, module: SessionCheckoutModule
     const pending = pendingWorktreeRequest(session)
     if (pending === null) return next()
     // 请求过期（会话已经不是 Local）时只清掉标记，不建第二棵树。
-    const current = await module.inspect(session.id)
-    if (current.checkout.kind === 'isolated') {
+    // 读不出目标不算「过期」：还没绑定的会话根本没有 Session Target，inspect
+    // 会抛 target_unselected——而那正是最需要建树的场景。所以只认读得出的
+    // isolated；读不出来就继续往下建，失败由下面的 catch 兜住。
+    const isolated = await module.inspect(session.id).then(
+      current => current.checkout.kind === 'isolated',
+      () => false,
+    )
+    if (isolated) {
       cancelWorktreeRequest(session)
       return next()
     }

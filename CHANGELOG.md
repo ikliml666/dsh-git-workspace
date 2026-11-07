@@ -30,6 +30,12 @@
 
 ### Fixed
 
+- 「下条消息在新工作树里开始」对尚未选目标的会话直接崩掉（2026-11-07）。
+  - **现象**：新建会话里点菜单排队、发首条消息，`agent/pre-step` 抛 `会话尚未选择 Session Target`，树没建、消息也没发出去。
+  - **根因**：`mountWorktreeRequest` 先 `await module.inspect(session.id)` 判断会话是否已经是 isolated，而这次调用在 try 之外。还没绑定的会话根本没有 Session Target，`inspectTarget` → `resolveBinding` 会抛 `target_unselected`——**而这正是最需要建树的场景**。异常冲出 waterfall 后，`inbox.claim()` 已经把这批消息移出队列，等于消息丢失。
+  - **修法**：只认读得出的 isolated；`inspect` 失败按「不是 isolated」处理，继续往下建树，失败再由既有的 catch 兜住并还回消息。
+  - **为什么单元测试没抓到**：`tests/worktree-request.test.ts` 的假 module 让 `inspect` 永远返回 `local`，这条路径压根没被走到。现在补了 unbound 用例，并把修复临时改回旧写法反证过——旧代码下该用例必然失败（`→ 会话尚未选择 Session Target`）。
+
 - 官方建树后 `sessionBranch` 记成短名导致交付被拒（2026-11-07）。
   - **现象**：走官方 `worktrees.create` 建出来的树，`worktree_deliver` 报「Worktree 的 HEAD 不在会话分支上（期望 feat/xxx，实际 refs/heads/feat/xxx）」。同一个分支，只是台账里存的是 `feat/xxx`，而 `src/session-checkout-apply.ts:1555` 拿 `git symbolic-ref` 的完整 ref 去比。
   - **根因**：`registerOfficialWorktree` 直接用了官方 `CreatedWorktree.branch`（短名）。台账里的 `sessionBranch` 一律是完整 ref —— `attachSessionBranch` 写的是 `attached.branchRef`（`src/session-checkout-module.ts:887`），`branchNameOf` 也是按 `refs/heads/` 前缀剥短名的。

@@ -79,7 +79,7 @@ type PreStepListener = (
   next: () => unknown,
 ) => unknown
 
-function harness(options: { kind?: 'local' | 'isolated' } = {}) {
+function harness(options: { kind?: 'local' | 'isolated'; unbound?: boolean } = {}) {
   const listeners: PreStepListener[] = []
   const ctxSessions = new Map<string, Session>()
   const ctx = {
@@ -100,7 +100,11 @@ function harness(options: { kind?: 'local' | 'isolated' } = {}) {
     managedRoot: 'C:/repo/.agents/worktrees/x',
     target: {},
   }))
-  const inspect = vi.fn(async () => ({ checkout: { kind: options.kind ?? 'local' } }))
+  // unbound: 还没选 Session Target 的会话，inspect 直接抛 target_unselected。
+  const inspect = vi.fn(async () => {
+    if (options.unbound === true) throw new Error('会话尚未选择 Session Target')
+    return { checkout: { kind: options.kind ?? 'local' } }
+  })
   const module = { inspect, createOfficialTarget } as unknown as SessionCheckoutModule
   mountWorktreeRequest(ctx as never, module)
   return { ctx, ctxSessions, createOfficialTarget, inspect, listener: () => listeners[0]! }
@@ -152,6 +156,25 @@ describe('creating the Worktree at the first step of a turn', () => {
     expect(next).toHaveBeenCalled()
     expect(h.createOfficialTarget).not.toHaveBeenCalled()
     expect(pendingWorktreeRequest(s)).toEqual({ from: null })
+  })
+
+  test('a Session with no target yet still gets its worktree', async () => {
+    // 真仓库上抓到的 bug：unbound 会话 inspect 抛 target_unselected，而抛出点在
+    // try 之外，于是 pre-step 直接炸掉——消息已 claim，等于凭空丢失。这是新建会话
+    // 最常见的入口，绝不能因为「读不出当前目标」就放弃建树。
+    h = harness({ unbound: true })
+    const s = session()
+    h.ctxSessions.set(s.id, s)
+    requestWorktree(s, 'main')
+    const agent = { session: s, inbox: { prepend: vi.fn() } }
+    const next = vi.fn(() => 'continued')
+
+    const result = await h.listener()({ agent, step: 1, messages: [{ id: 1 }] }, next)
+
+    expect(result).toBe('continued')
+    expect(h.createOfficialTarget).toHaveBeenCalledWith(agent, { branch: 'main' })
+    expect(pendingWorktreeRequest(s)).toBeNull()
+    expect(agent.inbox.prepend).not.toHaveBeenCalled()
   })
 
   test('a request that outlived its purpose only clears the flag', async () => {
