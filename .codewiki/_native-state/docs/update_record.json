@@ -1,7 +1,7 @@
 {
-  "started_at": "2026-11-07T18:58:30+0800",
-  "finished_at": "2026-11-07T19:01:34+0800",
-  "outcome": "incremental",
+  "started_at": "2026-11-07T19:31:12+0800",
+  "finished_at": "2026-11-07T19:31:12+0800",
+  "outcome": "no_change",
   "options": {
     "rung": "3",
     "tau_ren": 0.95,
@@ -24,8 +24,8 @@
     }
   },
   "revision": {
-    "old_commit": "35c16281d5695247926eca63b278150f7983e291",
-    "new_commit": "a31b439621dc58eaf810ac3b10e09abe2c2d3de6",
+    "old_commit": "a31b439621dc58eaf810ac3b10e09abe2c2d3de6",
+    "new_commit": "6d81039ce01ef5706de5ddb6c447f0fa156535cb",
     "repo_path": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree"
   },
   "diff": {
@@ -33,479 +33,48 @@
       "added": 0,
       "deleted": 0,
       "interface": 0,
-      "body": 1,
+      "body": 0,
       "edge": 0,
       "renamed": 0
     },
     "added": [],
     "deleted": [],
     "interface": [],
-    "body": [
-      "src\\worktree-request.ts::mountWorktreeRequest"
-    ],
+    "body": [],
     "edge": [],
     "renamed": {}
   },
-  "repair": {
-    "renamed": {},
-    "removed": [],
-    "routing": [],
-    "orphans": [],
-    "deleted_nodes": [],
-    "created_leaves": [],
-    "growth": {},
-    "growth_flagged": []
-  },
+  "repair": {},
   "reclustered": [],
-  "reports": {
-    "root_7": {
-      "leaf_path": [
-        "root_7"
-      ],
-      "mode": "edit",
-      "own": [
-        "src\\worktree-request.ts::mountWorktreeRequest"
-      ],
-      "adopted": {
-        "src\\worktree-request.ts::mountWorktreeRequest": "1:same_file"
-      },
-      "up": [],
-      "context": [],
-      "refch": [],
-      "entered": [],
-      "left": [],
-      "children_added": [],
-      "children_removed": [],
-      "reclustered": false,
-      "page": "root_7"
-    }
-  },
-  "ownership": [
-    {
-      "component_id": "src\\worktree-request.ts::mountWorktreeRequest",
-      "rule": "1:same_file",
-      "leaf_path": [
-        "root_7"
-      ],
-      "detail": "3 tracked components in file",
-      "deleted": false
-    }
-  ],
-  "active": [
-    {
-      "leaf": "root_7",
-      "page": "root_7",
-      "mode": "edit",
-      "order": 0
-    }
-  ],
-  "write_sets": {
-    "root_7": [
-      "overview",
-      "root",
-      "root_2",
-      "root_2_console_remote",
-      "root_3_review_console",
-      "root_4",
-      "root_5",
-      "root_6",
-      "root_7",
-      "src_session-checkout-apply.ts",
-      "src_session-checkout-module.ts"
-    ]
-  },
-  "fallback": {
-    "r_leaf": 0.07142857142857142,
-    "r_tree": 0.0,
-    "n_active": 1,
-    "n_leaves": 14,
-    "n_structural": 0,
-    "tau_full": 0.5,
-    "tau_tree": 0.3,
-    "fired": false
-  },
-  "verdicts": [
-    {
-      "page": "root_7",
-      "verdict": "patch",
-      "reason": "更新 mountWorktreeRequest 行：inspect 失败（如 target_unselected 的未绑定会话）不再视为会话已在树内，而是按非 isolated 继续建树，真实失败由下游 catch 兜底",
-      "by_leaf": "root_7",
-      "changed_on_disk": true
-    },
-    {
-      "page": "overview",
-      "verdict": "no-op",
-      "reason": "对 root_7 的高层摘要（8 工具/上下文/收养/兼容桥/类型面）不涉及本次内部行为改动",
-      "by_leaf": "root_7",
-      "changed_on_disk": false
-    },
-    {
-      "page": "root_4",
-      "verdict": "no-op",
-      "reason": "仅引用 root_7 的 types.ts 视图类型与 setWorktreeRequest 适配器方法名，签名与语义未变",
-      "by_leaf": "root_7",
-      "changed_on_disk": false
-    },
-    {
-      "page": "root_5",
-      "verdict": "no-op",
-      "reason": "对 setWorktreeRequest/pendingWorktreeRequest 回调的描述（turn 第一步由 root_7 兑现）仍然成立",
-      "by_leaf": "root_7",
-      "changed_on_disk": false
-    },
-    {
-      "page": "root_6",
-      "verdict": "no-op",
-      "reason": "装配序列仅列出 mountWorktreeRequest 的注册点，签名未变；body 行为不属于装配层",
-      "by_leaf": "root_7",
-      "changed_on_disk": false
-    },
-    {
-      "page": "src_session-checkout-apply.ts",
-      "verdict": "no-op",
-      "reason": "仅引用 root_7 的 types.ts（ApplyConflictDetail 等），与 worktree-request.ts 无关",
-      "by_leaf": "root_7",
-      "changed_on_disk": false
-    },
-    {
-      "page": "root",
-      "verdict": "no-op",
-      "reason": "对 root_7 的列举（视图类型、worktree 请求记录、构建配置）不涉及本次 body 改动",
-      "by_leaf": "root_7",
-      "changed_on_disk": false
-    },
-    {
-      "page": "root_2",
-      "verdict": "no-op",
-      "reason": "未描述 mountWorktreeRequest 的 inspect 语义",
-      "by_leaf": "root_7",
-      "changed_on_disk": false
-    },
-    {
-      "page": "root_2_console_remote",
-      "verdict": "no-op",
-      "reason": "仅引用 workspace-provider-lifecycle 选举机制与 types.ts 字段类型，均未变",
-      "by_leaf": "root_7",
-      "changed_on_disk": false
-    },
-    {
-      "page": "root_3_review_console",
-      "verdict": "no-op",
-      "reason": "仅消费 types.ts 的视图类型，与本次改动无关",
-      "by_leaf": "root_7",
-      "changed_on_disk": false
-    },
-    {
-      "page": "src_session-checkout-module.ts",
-      "verdict": "no-op",
-      "reason": "引用 SessionCheckoutModule 接口；inspect 的消费方容错改动不改变模块契约",
-      "by_leaf": "root_7",
-      "changed_on_disk": false
-    },
-    {
-      "page": "root_5",
-      "verdict": "patch",
-      "reason": "移除了指向已不存在页面 src_session-checkout-apply.md 的悬空链接子句（无替代页面），句子其余部分保持不变且仍为真",
-      "by_leaf": "stale_scan",
-      "changed_on_disk": true
-    }
-  ],
-  "pages_written": [
-    "root_7",
-    "root_5"
-  ],
+  "reports": {},
+  "ownership": [],
+  "active": [],
+  "write_sets": {},
+  "fallback": {},
+  "verdicts": [],
+  "pages_written": [],
   "pages_removed": [],
   "write_set_violations": [],
-  "stale_scan": {
-    "scanned": 16,
-    "pages_with_hits": {
-      "root_5": [
-        {
-          "kind": "deleted_page",
-          "old": "src_session-checkout-apply",
-          "replacement": null
-        }
-      ]
-    },
-    "fixed": [
-      "root_5"
-    ]
-  },
-  "calls": [
-    {
-      "kind": "leaf_agent",
-      "target": "root_7",
-      "seconds": 139.32642674446106,
-      "usage": {
-        "input_tokens": 354909,
-        "output_tokens": 6882,
-        "cache_read_tokens": 140512,
-        "cache_write_tokens": 0,
-        "total_tokens": 361791,
-        "requests": 8
-      },
-      "error": null
-    },
-    {
-      "kind": "missing_pages",
-      "target": "-",
-      "seconds": 0.0430452823638916,
-      "usage": null,
-      "error": null
-    },
-    {
-      "kind": "stale_fix",
-      "target": "root_5",
-      "seconds": 44.007832050323486,
-      "usage": {
-        "input_tokens": 20043,
-        "output_tokens": 937,
-        "cache_read_tokens": 1848,
-        "cache_write_tokens": 0,
-        "total_tokens": 20980,
-        "requests": 3
-      },
-      "error": null
-    }
-  ],
-  "detector_notes": [
-    "reference index rebuilt from pages (none saved by previous build)",
-    "[root_7] agent notes: 改动为 mountWorktreeRequest 的内部容错：module.inspect reject（未绑定会话抛 target_unselected）时按非 isolated 处理并继续建树。除 root_7.md 的组件职责表行外，无其他页面描述该语义，故其余页面均为 no-op。"
-  ],
+  "stale_scan": {},
+  "calls": [],
+  "detector_notes": [],
   "errors": [],
-  "wall_seconds": 184.02,
+  "wall_seconds": 0.17,
   "usage_report": {
     "schema_version": 2,
     "scope": "this run only (modules resumed from disk cost nothing)",
     "currency": "USD",
-    "cost_status": "unknown",
+    "cost_status": "complete",
     "incomplete": false,
     "unknown_usage_calls": 0,
-    "n_calls": 11,
+    "n_calls": 0,
     "totals": {
-      "input_tokens": 374952,
-      "output_tokens": 7819,
-      "cache_read_tokens": 142360,
-      "cache_write_tokens": 0,
-      "requests": 11,
-      "total_tokens": 382771
+      "cost_usd": 0.0
     },
-    "by_phase": {
-      "update": {
-        "calls": 11,
-        "input_tokens": 374952,
-        "output_tokens": 7819,
-        "cache_read_tokens": 142360,
-        "cache_write_tokens": 0,
-        "requests": 11,
-        "total_tokens": 382771,
-        "unpriced_calls": 11
-      }
-    },
-    "by_model": {
-      "doubao-seed-2.1-lite": {
-        "calls": 11,
-        "input_tokens": 374952,
-        "output_tokens": 7819,
-        "cache_read_tokens": 142360,
-        "cache_write_tokens": 0,
-        "requests": 11,
-        "total_tokens": 382771,
-        "unpriced_calls": 11
-      }
-    },
-    "unpriced_models": [
-      "doubao-seed-2.1-lite"
-    ],
-    "calls": [
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "root_7",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 13.66,
-        "input_tokens": 9363,
-        "output_tokens": 999,
-        "cache_read_tokens": 0,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 10362,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "root_7",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 15.78,
-        "input_tokens": 15183,
-        "output_tokens": 1354,
-        "cache_read_tokens": 0,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 16537,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "root_7",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 4.06,
-        "input_tokens": 25697,
-        "output_tokens": 276,
-        "cache_read_tokens": 0,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 25973,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "root_7",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 3.27,
-        "input_tokens": 39059,
-        "output_tokens": 216,
-        "cache_read_tokens": 15160,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 39275,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "root_7",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 2.97,
-        "input_tokens": 53653,
-        "output_tokens": 178,
-        "cache_read_tokens": 0,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 53831,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "root_7",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 3.16,
-        "input_tokens": 62642,
-        "output_tokens": 178,
-        "cache_read_tokens": 25656,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 62820,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "root_7",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 25.67,
-        "input_tokens": 74204,
-        "output_tokens": 2552,
-        "cache_read_tokens": 25656,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 76756,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "root_7",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 14.03,
-        "input_tokens": 75108,
-        "output_tokens": 1129,
-        "cache_read_tokens": 74040,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 76237,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "root_5",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 1.23,
-        "input_tokens": 2003,
-        "output_tokens": 83,
-        "cache_read_tokens": 0,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 2086,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "root_5",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 7.09,
-        "input_tokens": 8627,
-        "output_tokens": 626,
-        "cache_read_tokens": 1848,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 9253,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      },
-      {
-        "phase": "update",
-        "kind": "update_agent",
-        "target": "root_5",
-        "model": "doubao-seed-2.1-lite",
-        "seconds": 3.81,
-        "input_tokens": 9413,
-        "output_tokens": 228,
-        "cache_read_tokens": 0,
-        "cache_write_tokens": 0,
-        "requests": 1,
-        "total_tokens": 9641,
-        "usage_reported": true,
-        "provider": "openai-compatible",
-        "requested_model": "doubao-seed-2.1-lite",
-        "cost_source": "unknown"
-      }
-    ]
+    "by_phase": {},
+    "by_model": {},
+    "unpriced_models": [],
+    "calls": []
   },
-  "run_id": "1d8f63b7-8980-4ade-92a8-632394d2cf0f"
+  "run_id": "537c2a21-0e35-4883-a4aa-e42d869edf75"
 }

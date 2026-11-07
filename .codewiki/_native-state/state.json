@@ -2,42 +2,36 @@
   "stateVersion": 1,
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
-    "baseCommit": "35c16281d5695247926eca63b278150f7983e291",
-    "headCommit": "3b380f512d4b049a24c20ef3a8b930040593b1c7"
+    "baseCommit": "3b380f512d4b049a24c20ef3a8b930040593b1c7",
+    "headCommit": "6d81039ce01ef5706de5ddb6c447f0fa156535cb"
   },
   "pendingChanges": {
     "state": "ok",
-    "baseCommit": "35c16281d5695247926eca63b278150f7983e291",
-    "headCommit": "3b380f512d4b049a24c20ef3a8b930040593b1c7",
-    "committed": [],
-    "staged": [],
-    "unstaged": [
+    "baseCommit": "3b380f512d4b049a24c20ef3a8b930040593b1c7",
+    "headCommit": "6d81039ce01ef5706de5ddb6c447f0fa156535cb",
+    "committed": [
+      "CHANGELOG.md",
       "src/worktree-request.ts",
+      "tests/real-repo-acceptance.test.ts",
       "tests/worktree-request.test.ts"
     ],
-    "untracked": [
-      "tests/real-repo-acceptance.test.ts"
-    ],
+    "staged": [],
+    "unstaged": [],
+    "untracked": [],
     "deleted": [],
     "renamed": [],
     "reason": ""
   },
-  "unconsumed": [
-    "src/worktree-request.ts",
-    "tests/real-repo-acceptance.test.ts",
-    "tests/worktree-request.test.ts"
-  ],
+  "unconsumed": [],
   "engineVersion": "2.0.0",
   "scope": "auto",
   "effectiveScope": "stale",
-  "updateOutcome": "incremental",
+  "updateOutcome": "no_change",
   "fallbackReason": "",
   "missingRepair": null,
   "notes": [
-    "持久化基线 36d7840 与本次 cw 基线 35c1628 不同（以 cw 基线为准，未消费变化仍会并入）",
-    "工作区未提交改动已合成临时 commit a31b439621dc（3 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw6aaw6b-4-native（25 个文件）",
-    "本轮把 3 个未提交源码改动一并写进产物（快照 a31b439621dc）：src/worktree-request.ts、tests/worktree-request.test.ts、tests/real-repo-acceptance.test.ts"
+    "持久化基线 35c1628 与本次 cw 基线 3b380f5 不同（以 cw 基线为准，未消费变化仍会并入）",
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw6bm47n-6-native（25 个文件）"
   ],
-  "updatedAt": "2026-11-07T11:01:36.079Z"
+  "updatedAt": "2026-11-07T11:31:13.941Z"
 }
