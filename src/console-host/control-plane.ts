@@ -81,14 +81,14 @@ export interface WorktreeConsoleControlPlaneOptions {
    * 由 Host 侧注入而不是在这里直接读 session：写 plugin record 需要活的
    * Session 对象，而 control-plane 只拿得到 lookup 的只读导航记录。
    */
-  setWorktreeRequest: (sessionId: string, from: string | null | undefined) => { from: string | null } | null
+  setWorktreeRequest: (sessionId: string, from: string | null | undefined) => { from: string | null; failure: string | null } | null
   /**
    * 读「还在排队等下一个 turn」的请求，供 `current` 一并回给胶囊。
    *
    * 会话不在活列表里（已归档、或还没在本进程恢复）时返回 null：没有会话就
    * 不可能有待办，这里不需要为不可达的 Session 造一个空记录。
    */
-  pendingWorktreeRequest: (sessionId: string) => { from: string | null } | null
+  pendingWorktreeRequest: (sessionId: string) => { from: string | null; failure: string | null } | null
 }
 
 export interface WorktreeConsoleControlPlane {

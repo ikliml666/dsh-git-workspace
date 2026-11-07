@@ -54,7 +54,7 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
 
   const [target, setTarget] = useState<WorktreeConsoleTargetDetails | null>(null)
   /** 「下一次 turn 在新树里开始」的待办；null 表示没有排队。 */
-  const [worktreeRequest, setWorktreeRequest] = useState<{ from: string | null } | null>(null)
+  const [worktreeRequest, setWorktreeRequest] = useState<{ from: string | null; failure: string | null } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   /** Why the last `current` probe failed; surfaced in the trigger tooltip. */
@@ -577,10 +577,14 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
         id: 'request_worktree',
         icon: <ReviewIcon name="branch" />,
         // 唯一的「新建工作树」入口；官方那对控件由本插件压掉。文案随状态改写：
-        // 已排队时写明基点，再点一次即撤回，不必去别处找开关。
+        // 已排队时写明基点，再点一次即撤回，不必去别处找开关。失败过的请求仍
+        // 排在队列里（用户修好原因后重发即重试），所以文案要把原因说出来，
+        // 否则用户只会看到「发了消息却没动静」。
         label: worktreeRequest === null
           ? t("worktree.request.title")
-          : t("worktree.request.active", { p0: worktreeRequest.from ?? 'HEAD' }),
+          : worktreeRequest.failure !== null
+            ? t("worktree.request.failed", { p0: worktreeRequest.failure })
+            : t("worktree.request.active", { p0: worktreeRequest.from ?? 'HEAD' }),
         disabled: pendingAction !== null,
       } satisfies MenuEntry]
       : []),

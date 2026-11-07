@@ -19,9 +19,9 @@ describe('the queued "start in a new worktree" request', () => {
     const s = session()
     expect(pendingWorktreeRequest(s)).toBeNull()
     requestWorktree(s, 'main')
-    expect(pendingWorktreeRequest(s)).toEqual({ from: 'main' })
+    expect(pendingWorktreeRequest(s)).toEqual({ from: 'main', failure: null })
     requestWorktree(s, null)
-    expect(pendingWorktreeRequest(s)).toEqual({ from: null })
+    expect(pendingWorktreeRequest(s)).toEqual({ from: null, failure: null })
   })
 
   test('a cancel clears the request and leaves nothing pending', () => {
@@ -35,7 +35,7 @@ describe('the queued "start in a new worktree" request', () => {
     const s = session()
     requestWorktree(s, 'main')
     // 重放整份日志（重启 / 刷新页面）必须得到同一个待办，不能依赖内存状态。
-    expect(pendingWorktreeRequest(Session.create('session-1', s.snapshotEvents()))).toEqual({ from: 'main' })
+    expect(pendingWorktreeRequest(Session.create('session-1', s.snapshotEvents()))).toEqual({ from: 'main', failure: null })
   })
 })
 
@@ -52,8 +52,8 @@ describe('the Host side write entry point', () => {
 
   test('records a request for a live session', () => {
     const { ctx, s } = store()
-    expect(setWorktreeRequest(ctx as never, s.id, 'main')).toEqual({ from: 'main' })
-    expect(pendingWorktreeRequest(s)).toEqual({ from: 'main' })
+    expect(setWorktreeRequest(ctx as never, s.id, 'main')).toEqual({ from: 'main', failure: null })
+    expect(pendingWorktreeRequest(s)).toEqual({ from: 'main', failure: null })
   })
 
   test('undefined withdraws the request', () => {
@@ -155,7 +155,7 @@ describe('creating the Worktree at the first step of a turn', () => {
 
     expect(next).toHaveBeenCalled()
     expect(h.createOfficialTarget).not.toHaveBeenCalled()
-    expect(pendingWorktreeRequest(s)).toEqual({ from: null })
+    expect(pendingWorktreeRequest(s)).toEqual({ from: null, failure: null })
   })
 
   test('a Session with no target yet still gets its worktree', async () => {
@@ -210,8 +210,8 @@ describe('creating the Worktree at the first step of a turn', () => {
     expect(agent.inbox.prepend.mock.calls.map(call => call[1]).reverse()).toEqual([{ id: 1 }, { id: 2 }])
     expect(result).toEqual({ kind: 'reject' })
     expect(warn).toHaveBeenCalled()
-    // 请求留着：用户修好原因后重发即会重试。
-    expect(pendingWorktreeRequest(s)).toEqual({ from: 'main' })
+    // 请求留着（用户修好原因后重发即会重试），并把原因写进日志供胶囊显示。
+    expect(pendingWorktreeRequest(s)).toEqual({ from: 'main', failure: 'git timed out' })
     warn.mockRestore()
   })
 })

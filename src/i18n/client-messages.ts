@@ -1031,6 +1031,10 @@ export const clientMessages = {
     "zh": "待建",
     "en": "Queued"
   },
+  "worktree.request.failed": {
+    "zh": "上次建树失败：{p0}（再点一次重试，或点一下撤回）",
+    "en": "The last worktree attempt failed: {p0}. Click again to retry, or click once more to withdraw."
+  },
   "branch.create.description": {
     "zh": "基于当前 HEAD 创建新的本地分支。",
     "en": "Create a new local branch from the current HEAD."

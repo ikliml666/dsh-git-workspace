@@ -206,8 +206,12 @@ export interface WorktreeConsoleCurrentRequest {
 
 export interface WorktreeConsoleCurrentResponse {
   target: WorktreeConsoleTargetDetails
-  /** 仍在等待的「下一次 turn 在新树里开始」请求；null 表示没有待办。 */
-  worktreeRequest: { from: string | null } | null
+  /**
+   * 仍在等待的「下一次 turn 在新树里开始」请求；null 表示没有待办。
+   * `failure` 是上一次建树失败的原因——建树发生在 pre-step，客户端看不到那条
+   * 链路，只能靠这里把原因带回界面。
+   */
+  worktreeRequest: { from: string | null; failure: string | null } | null
 }
 
 export interface WorktreeConsoleListRequest {
@@ -451,7 +455,7 @@ export interface WorktreeConsoleWorktreeRequestRequest {
 
 export interface WorktreeConsoleWorktreeRequestResponse {
   /** 仍在等待的请求；null 表示当前没有待办。 */
-  request: { from: string | null } | null
+  request: { from: string | null; failure: string | null } | null
 }
 
 export interface WorktreeConsoleMutationResponse {

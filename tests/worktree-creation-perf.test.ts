@@ -133,7 +133,7 @@ describe('folding the queued request out of the session log', () => {
       requestWorktree(session, 'main')
       const rounds = 100
       const started = performance.now()
-      for (let round = 0; round < rounds; round++) expect(pendingWorktreeRequest(session)).toEqual({ from: 'main' })
+      for (let round = 0; round < rounds; round++) expect(pendingWorktreeRequest(session)).toEqual({ from: 'main', failure: null })
       samples.push({ size, perCallMs: (performance.now() - started) / rounds })
     }
     report(samples.map(sample => ({ label: `pendingWorktreeRequest over ${sample.size} records (per call)`, ms: sample.perCallMs, commands: 0 })))

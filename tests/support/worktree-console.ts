@@ -48,6 +48,8 @@ import type {
   WorktreeConsoleSetRetentionRequest,
   WorktreeConsoleSetPermanentRequest,
   WorktreeConsoleTargetDetails,
+  WorktreeConsoleWorktreeRequestRequest,
+  WorktreeConsoleWorktreeRequestResponse,
 } from '../../src/console-contract.js'
 
 export type WorktreeConsoleFixtureMethod = keyof WorktreeConsoleAdapter
@@ -419,6 +421,12 @@ export function createWorktreeConsoleAdapterFixture(stateful = false): WorktreeC
         commitOid: null,
         capabilities: { ...target.capabilities, preflight: false, preview: false, resumeRevision: false, finalize: false, beginNextIteration: false },
       } })
+    },
+    async setWorktreeRequest(request: WorktreeConsoleWorktreeRequestRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleWorktreeRequestResponse>> {
+      record('setWorktreeRequest', request)
+      // `from: undefined` 表示撤回；其余情况回一条待办（失败原因留空，由各个
+      // 用例自己覆盖 adapter.current 来呈现失败态）。
+      return outcome({ request: request.from === undefined ? null : { from: request.from, failure: null } })
     },
     async returnToLocal(request: WorktreeConsoleReturnToLocalRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleReturnToLocalResponse>> {
       record('returnToLocal', request)

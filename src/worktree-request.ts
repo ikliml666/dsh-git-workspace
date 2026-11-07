@@ -26,21 +26,31 @@ declare module '@deepseek-ai/dsh-session/types' {
   }
 }
 
-/** 一个待建请求：基点分支（null 表示当前 HEAD）。 */
+/** 一个待建请求：基点分支（null 表示当前 HEAD）与上次失败的原因。 */
 export interface WorktreeRequest {
   readonly from: string | null
+  /**
+   * 上一次建树失败的说明；null 表示还没失败过。
+   *
+   * 失败发生在 `agent/pre-step`，客户端不在那条链路上，只能靠这条记录把原因
+   * 带回界面——否则用户看到的只是「发了消息却没动静」。
+   */
+  readonly failure: string | null
 }
 
 interface RequestRecord {
-  readonly action: 'request' | 'cancel'
+  readonly action: 'request' | 'cancel' | 'failed'
   readonly from?: string | null
+  readonly reason?: string
 }
 
 function isRequestRecord(value: unknown): value is RequestRecord {
   if (value === null || typeof value !== 'object') return false
-  const record = value as { action?: unknown; from?: unknown }
-  if (record.action !== 'request' && record.action !== 'cancel') return false
-  return record.from === undefined || record.from === null || typeof record.from === 'string'
+  const record = value as { action?: unknown; from?: unknown; reason?: unknown }
+  if (record.action !== 'request' && record.action !== 'cancel' && record.action !== 'failed') return false
+  const fromValid = record.from === undefined || record.from === null || typeof record.from === 'string'
+  const reasonValid = record.reason === undefined || typeof record.reason === 'string'
+  return fromValid && reasonValid
 }
 
 /**
@@ -54,7 +64,16 @@ export function pendingWorktreeRequest(session: Session): WorktreeRequest | null
     const record = pluginRecordOf(event)
     if (record === undefined || record.type !== WORKTREE_REQUEST_RECORD) continue
     if (!isRequestRecord(record.data)) continue
-    pending = record.data.action === 'request' ? { from: record.data.from ?? null } : null
+    if (record.data.action === 'cancel') {
+      pending = null
+      continue
+    }
+    if (record.data.action === 'failed') {
+      // 失败不撤销请求：用户修好原因后重发即会重试。只把原因挂上去。
+      if (pending !== null) pending = { from: pending.from, failure: record.data.reason ?? 'unknown' }
+      continue
+    }
+    pending = { from: record.data.from ?? null, failure: null }
   }
   return pending
 }
@@ -74,6 +93,15 @@ export function requestWorktree(session: Session, from: string | null): void {
  */
 export function cancelWorktreeRequest(session: Session): void {
   appendPluginRecord(session, WORKTREE_REQUEST_RECORD, { action: 'cancel' })
+}
+
+/**
+ * 记下这次建树失败的原因，请求本身保留。
+ * @param session - 目标会话。
+ * @param reason - 给用户看的失败说明。
+ */
+export function failWorktreeRequest(session: Session, reason: string): void {
+  appendPluginRecord(session, WORKTREE_REQUEST_RECORD, { action: 'failed', reason })
 }
 
 /**
@@ -157,6 +185,9 @@ export function mountWorktreeRequest(ctx: Context, module: SessionCheckoutModule
       // inbox.claim() 已经把这批消息移出队列，这里是它们唯一的归途：不还回去
       // 就等于用户的消息凭空消失。请求也留着，改好原因后重发即会重试。
       for (const message of [...messages].reverse()) agent.inbox.prepend('next-turn', message)
+      // pre-step 之后没有第二次机会跟用户说话：原因必须落进 session log，胶囊
+      // 下一次轮询 current 时才读得到。只写 console 等于用户永远看不见。
+      failWorktreeRequest(session, error instanceof Error ? error.message : String(error))
       console.warn('[dsh-git-worktree] could not create the queued Worktree:', error)
       return { kind: 'reject' }
     }

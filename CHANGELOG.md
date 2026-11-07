@@ -30,6 +30,12 @@
 
 ### Fixed
 
+- 建树失败时用户看不到任何原因（2026-11-07）。
+  - **问题**：建树发生在 `agent/pre-step`，客户端不在那条链路上。失败时只写了 `console.warn`，界面上表现为「发了消息却没动静」——请求还挂着，树没建，消息被退回队列，下一次发又会再失败一次。
+  - **修法**：失败原因写进 session log（新的 `action: 'failed'` 记录），`pendingWorktreeRequest` 折叠出 `{ from, failure }`，胶囊菜单把原因直接显示成「上次建树失败：…（再点一次重试，或点一下撤回）」。原因写在日志里而不是内存里，刷新页面、重启 Host 之后仍然在。
+  - **不撤销请求**：失败后请求保留，用户修好原因重发即重试；重新排队（换了基点）会清掉旧原因，避免胶囊一直显示已经过期的错误。
+  - **旧 Host 兼容**：`failure` 在 schema 里是 `.default(null)`，新 Client 配旧 Host 时读作「没失败过」，不会让整条 `current` 校验失败。
+
 - 「下条消息在新工作树里开始」对尚未选目标的会话直接崩掉（2026-11-07）。
   - **现象**：新建会话里点菜单排队、发首条消息，`agent/pre-step` 抛 `会话尚未选择 Session Target`，树没建、消息也没发出去。
   - **根因**：`mountWorktreeRequest` 先 `await module.inspect(session.id)` 判断会话是否已经是 isolated，而这次调用在 try 之外。还没绑定的会话根本没有 Session Target，`inspectTarget` → `resolveBinding` 会抛 `target_unselected`——**而这正是最需要建树的场景**。异常冲出 waterfall 后，`inbox.claim()` 已经把这批消息移出队列，等于消息丢失。

@@ -204,6 +204,39 @@ describe('Harness-native Session Target slots', () => {
       .toEqual({ sourceSessionId: 'target-session' })
   })
 
+  test('已排队的建树请求把基点写在菜单里，再点一次即撤回', async () => {
+    const fixture = createWorktreeConsoleAdapterFixture()
+    fixture.adapter.current = vi.fn(async () => ({
+      ok: true as const,
+      value: { worktreeRequest: { from: 'main', failure: null }, target: localTarget() },
+    }))
+    render(<TargetStatusAction sessionId="target-session" adapter={fixture.adapter} services={clientServices()} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Session Target：main' }))
+    const entry = await screen.findByText(/已排队：发送后在新树里开始/)
+    expect(entry.textContent).toContain('main')
+
+    fireEvent.click(entry)
+    // from: undefined 就是「撤回」——同一个入口开关同一个状态，不去别处找取消。
+    await waitFor(() => expect(fixture.calls.some(call => call.method === 'setWorktreeRequest')).toBe(true))
+    expect(fixture.calls.find(call => call.method === 'setWorktreeRequest')?.request)
+      .toEqual({ sessionId: 'target-session', from: undefined })
+  })
+
+  test('建树失败过时，菜单里直接写明原因', async () => {
+    // pre-step 里建树失败后没有第二次机会跟用户说话，原因只能落进 session log
+    // 再由 current 带回来；这里验证 Client 真的把它显示出来。
+    const fixture = createWorktreeConsoleAdapterFixture()
+    fixture.adapter.current = vi.fn(async () => ({
+      ok: true as const,
+      value: { worktreeRequest: { from: 'main', failure: 'git worktree add 失败: 磁盘空间不足' }, target: localTarget() },
+    }))
+    render(<TargetStatusAction sessionId="target-session" adapter={fixture.adapter} services={clientServices()} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Session Target：main' }))
+    expect(await screen.findByText(/上次建树失败：git worktree add 失败: 磁盘空间不足/)).toBeTruthy()
+  })
+
   test('registers the exact Header action, reads props.sessionId, and disposes it', async () => {    const fixture = createWorktreeConsoleAdapterFixture()
     fixture.adapter.current = vi.fn(async request => ({ ok: true, value: { worktreeRequest: null, target: localTarget() } }))
     const slots = new SlotsDouble()

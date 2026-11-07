@@ -234,7 +234,11 @@ export function outcomeSchema<T>(value: z.ZodType<T>): z.ZodType<WorktreeConsole
 export const currentResponseSchema: z.ZodType<WorktreeConsoleCurrentResponse> = strict({
   target: targetDetailsSchema,
   // 旧 Host 不认识这个字段：写成必填会让整条 current 校验失败、胶囊塌成不可用。
-  worktreeRequest: z.object({ from: z.union([branchNameSchema, z.null()]) }).nullable().default(null),
+  // failure 同理可选：新 Client 配旧 Host 时它不存在，读作「没失败过」。
+  worktreeRequest: z.object({
+    from: z.union([branchNameSchema, z.null()]),
+    failure: z.string().nullable().default(null),
+  }).nullable().default(null),
 })
 export const inspectResponseSchema: z.ZodType<WorktreeConsoleInspectResponse> = strict({ target: targetDetailsSchema })
 export const listResponseSchema: z.ZodType<WorktreeConsoleListResponse> = strict({ project: projectSchema, worktrees: z.array(targetSummarySchema) })
@@ -459,5 +463,8 @@ export const restoreAbandonedResponseSchema: z.ZodType<WorktreeConsoleRestoreAba
 
 /** 「下一次 turn 在新树里开始」的响应：只回待办状态本身。 */
 export const worktreeRequestResponseSchema: z.ZodType<WorktreeConsoleWorktreeRequestResponse> = strict({
-  request: z.object({ from: z.union([branchNameSchema, z.null()]) }).nullable(),
+  request: z.object({
+    from: z.union([branchNameSchema, z.null()]),
+    failure: z.string().nullable().default(null),
+  }).nullable(),
 })
