@@ -13,6 +13,7 @@
   - **失败不吞消息**：`inbox.claim()` 在 `agent/pre-step` 之前执行，失败时那批消息已离开队列，必须按逆序 `agent.inbox.prepend` 还回去，否则用户的消息凭空消失；请求保留，原因修好后重发即会重试。
   - **旧 Host 兼容**：`current` 响应里新增的 `worktreeRequest` 字段写成 `.default(null)`。Client 与 Host 是两份独立部署的产物，旧 Host 不认识这个字段；写成必填会让整条 `current` 校验失败、胶囊直接塌成不可用（旁边 `capabilities.returnToLocal` 也正是这么处理的）。
   - 新增 `src/worktree-request.ts` 与 `tests/worktree-request.test.ts`（12 项，覆盖请求折叠、重启后重放、Host 侧写入口、pre-step 建树、已绑定会话只清标记、失败还回消息）。
+  - **实测性能**：新增 `tests/worktree-creation-perf.test.ts` 把三条成本钉成回归基线。首次建树（官方 `worktree add` + `reset --hard` + 登记 + 补回 `.worktreeinclude`/WIP）533 ms；已绑定时的复用路径 116 ms 且不产生第二次建树；`pendingWorktreeRequest` 单次折叠在 1 万条记录下 2 ms。前两条断言 <15 s / <1 s，第三条 <10 ms/次——胶囊每次 `current` 都会折叠一次日志，单次成本才是有意义的量。
 
 ### Changed
 
