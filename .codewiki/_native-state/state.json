@@ -2,49 +2,44 @@
   "stateVersion": 1,
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
-    "baseCommit": "6d81039ce01ef5706de5ddb6c447f0fa156535cb",
-    "headCommit": "d622ef3db9ca9f8d37b550984e9695132c0bdd81"
+    "baseCommit": "d622ef3db9ca9f8d37b550984e9695132c0bdd81",
+    "headCommit": "46e0c382490ad42db423bf5c77b7b61d01910892"
   },
   "pendingChanges": {
     "state": "ok",
-    "baseCommit": "6d81039ce01ef5706de5ddb6c447f0fa156535cb",
-    "headCommit": "d622ef3db9ca9f8d37b550984e9695132c0bdd81",
-    "committed": [],
-    "staged": [],
-    "unstaged": [
+    "baseCommit": "d622ef3db9ca9f8d37b550984e9695132c0bdd81",
+    "headCommit": "46e0c382490ad42db423bf5c77b7b61d01910892",
+    "committed": [
+      "CHANGELOG.md",
       "src/client/target-console/TargetStatusAction.tsx",
       "src/console-contract.ts",
       "src/console-host/control-plane.ts",
       "src/console-remote/schemas.ts",
       "src/i18n/client-messages.ts",
       "src/worktree-request.ts",
+      "tests/client-target-console.test.tsx",
+      "tests/support/worktree-console.ts",
+      "tests/worktree-creation-perf.test.ts",
+      "tests/worktree-request-failure.test.ts",
       "tests/worktree-request.test.ts"
     ],
+    "staged": [],
+    "unstaged": [],
     "untracked": [],
     "deleted": [],
     "renamed": [],
     "reason": ""
   },
-  "unconsumed": [
-    "src/client/target-console/TargetStatusAction.tsx",
-    "src/console-contract.ts",
-    "src/console-host/control-plane.ts",
-    "src/console-remote/schemas.ts",
-    "src/i18n/client-messages.ts",
-    "src/worktree-request.ts",
-    "tests/worktree-request.test.ts"
-  ],
+  "unconsumed": [],
   "engineVersion": "2.0.0",
   "scope": "auto",
   "effectiveScope": "stale",
-  "updateOutcome": "incremental",
+  "updateOutcome": "no_change",
   "fallbackReason": "",
   "missingRepair": null,
   "notes": [
-    "持久化基线 3b380f5 与本次 cw 基线 6d81039 不同（以 cw 基线为准，未消费变化仍会并入）",
-    "工作区未提交改动已合成临时 commit 151e76143056（7 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw6cg29b-8-native（25 个文件）",
-    "本轮把 10 个未提交源码改动一并写进产物（快照 151e76143056）：src/client/target-console/TargetStatusAction.tsx、src/console-contract.ts、src/console-host/control-plane.ts、src/console-remote/schemas.ts、src/i18n/client-messages.ts 等"
+    "持久化基线 6d81039 与本次 cw 基线 d622ef3 不同（以 cw 基线为准，未消费变化仍会并入）",
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw6e7jo7-b-native（25 个文件）"
   ],
-  "updatedAt": "2026-11-07T12:16:36.453Z"
+  "updatedAt": "2026-11-07T12:43:18.931Z"
 }
