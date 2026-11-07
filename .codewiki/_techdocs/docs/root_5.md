@@ -6,7 +6,7 @@ description: 本模块是 git-worktree 插件的宿主控制台（console host�
 # Worktree Console 宿主与远程协议层（root_5）
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`35c16281`](https://github.com/wloops/dsh-git-worktree/commit/35c16281d5695247926eca63b278150f7983e291) on 2026-11-07 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`a31b4396`](https://github.com/wloops/dsh-git-worktree/commit/a31b439621dc58eaf810ac3b10e09abe2c2d3de6) on 2026-11-07 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 ## 模块定位
 
@@ -241,28 +241,28 @@ flowchart LR
 ## 与其他模块的关系
 
 - **契约类型**：本模块所有进出消息的类型（`WorktreeConsoleOutcome`、`WorktreeConsoleMutationResponse`、`WorktreeConsoleTargetDetails` 等）定义在 [root_4：Worktree 控制台客户端与宿主命令面](root_4.md) 的 `src/console-contract.ts`，projection 与 control-plane 都是该契约的服务端实现。
-- **领域委派**：真正的 git 操作通过 `SessionCheckoutModule`（[组合根、领域端口与国际化（root_6）](root_6.md) 的 `src/index.ts`）与 `ports.ts` 的端口接口完成；应用引擎细节见 [src_session-checkout-apply.ts](src_session-checkout-apply.md)，视图类型见 [root_7：dsh-git-worktree 插件出口层](root_7.md)。
+- **领域委派**：真正的 git 操作通过 `SessionCheckoutModule`（[组合根、领域端口与国际化（root_6）](root_6.md) 的 `src/index.ts`）与 `ports.ts` 的端口接口完成；视图类型见 [root_7：dsh-git-worktree 插件出口层](root_7.md)。
 - **客户端消费方**：RPC 的发起侧是 [root_2：持久化适配器与浏览器客户端桥接层](root_2.md) 的 `console_remote` 适配器与 `client_core`，面板与胶囊组件分布在 [root_3：Worktree 客户端控制台 UI（评审、设置与目标胶囊）](root_3.md) 与 [root_4：Worktree 控制台客户端与宿主命令面](root_4.md)。
 - **i18n**：所有面向用户的消息经 `hostMessage` / `withHostLanguage` 产出，见 [组合根、领域端口与国际化（root_6）](root_6.md) 的 `src/i18n/`。
 
 ??? abstract "Documented components (19)"
-    - [`WorktreeConsoleControlPlane`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cconsole-host%5Ccontrol-plane.ts) — `src\console-host\control-plane.ts`
-    - [`WorktreeConsoleControlPlaneOptions`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cconsole-host%5Ccontrol-plane.ts) — `src\console-host\control-plane.ts`
-    - [`consoleFailure`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cconsole-host%5Cerrors.ts) — `src\console-host\errors.ts`
-    - [`capabilities`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cconsole-host%5Cprojection.ts) — `src\console-host\projection.ts`
-    - [`ChangedEntry`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
-    - [`GitOutput`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
-    - [`ReviewDiffReadInput`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
-    - [`ReviewDiffStaleError`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
-    - [`WorktreeReviewDiffReader`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
-    - [`WorktreeConsoleService`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cconsole-host%5Cservice.ts) — `src\console-host\service.ts`
-    - [`descriptor`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cconsole-remote%5Cdescriptors.ts) — `src\console-remote\descriptors.ts`
-    - [`TypertRemoteMap`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cconsole-remote%5Cremote.ts) — `src\console-remote\remote.ts`
-    - [`TypertRemoteNamespaceMap`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cconsole-remote%5Cremote.ts) — `src\console-remote\remote.ts`
-    - [`outcomeSchema`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cconsole-remote%5Cschemas.ts) — `src\console-remote\schemas.ts`
-    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cconsole-remote%5Ctypert.ts) — `src\console-remote\typert.ts`
-    - [`WorktreeCreationFailure`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ccreation-failure.ts) — `src\creation-failure.ts`
-    - [`deliveryExcludePathspecs`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cdelivery-excludes.ts) — `src\delivery-excludes.ts`
-    - [`WorkspaceFlavorAnchorDiagnostic`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Chost-compat.ts) — `src\host-compat.ts`
-    - [`WorkspaceFlavorDiagnostics`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Chost-compat.ts) — `src\host-compat.ts`
+    - [`WorktreeConsoleControlPlane`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Cconsole-host%5Ccontrol-plane.ts) — `src\console-host\control-plane.ts`
+    - [`WorktreeConsoleControlPlaneOptions`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Cconsole-host%5Ccontrol-plane.ts) — `src\console-host\control-plane.ts`
+    - [`consoleFailure`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Cconsole-host%5Cerrors.ts) — `src\console-host\errors.ts`
+    - [`capabilities`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Cconsole-host%5Cprojection.ts) — `src\console-host\projection.ts`
+    - [`ChangedEntry`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
+    - [`GitOutput`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
+    - [`ReviewDiffReadInput`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
+    - [`ReviewDiffStaleError`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
+    - [`WorktreeReviewDiffReader`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Cconsole-host%5Creview-diff.ts) — `src\console-host\review-diff.ts`
+    - [`WorktreeConsoleService`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Cconsole-host%5Cservice.ts) — `src\console-host\service.ts`
+    - [`descriptor`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Cconsole-remote%5Cdescriptors.ts) — `src\console-remote\descriptors.ts`
+    - [`TypertRemoteMap`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Cconsole-remote%5Cremote.ts) — `src\console-remote\remote.ts`
+    - [`TypertRemoteNamespaceMap`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Cconsole-remote%5Cremote.ts) — `src\console-remote\remote.ts`
+    - [`outcomeSchema`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Cconsole-remote%5Cschemas.ts) — `src\console-remote\schemas.ts`
+    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Cconsole-remote%5Ctypert.ts) — `src\console-remote\typert.ts`
+    - [`WorktreeCreationFailure`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ccreation-failure.ts) — `src\creation-failure.ts`
+    - [`deliveryExcludePathspecs`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Cdelivery-excludes.ts) — `src\delivery-excludes.ts`
+    - [`WorkspaceFlavorAnchorDiagnostic`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Chost-compat.ts) — `src\host-compat.ts`
+    - [`WorkspaceFlavorDiagnostics`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Chost-compat.ts) — `src\host-compat.ts`
 

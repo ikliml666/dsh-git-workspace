@@ -6,7 +6,7 @@ description: 本模块是 dsh-git-worktree 插件（DeepSeek Harness 的 Git wor
 # root_7：dsh-git-worktree 插件出口层
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`35c16281`](https://github.com/wloops/dsh-git-worktree/commit/35c16281d5695247926eca63b278150f7983e291) on 2026-11-07 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`a31b4396`](https://github.com/wloops/dsh-git-worktree/commit/a31b439621dc58eaf810ac3b10e09abe2c2d3de6) on 2026-11-07 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 ## 引言与用途
 
@@ -195,7 +195,7 @@ flowchart LR
 | `pendingWorktreeRequest(session)` | 折叠 session log 事件流，取最近一条有效 record（`request` 置位、`cancel` 清空）；非法数据跳过。 |
 | `setWorktreeRequest(ctx, sessionId, from?)` | Host 写入口：`from` 为 `undefined` 时撤回；会话不活抛错。 |
 | `liveWorktreeRequest(ctx, sessionId)` | 读活会话待办，供 `current` 回给胶囊（inbox 指示器）。 |
-| `mountWorktreeRequest(ctx, module)` | 监听 `agent/pre-step`：仅在 `step === 1` 且有待办时兑现；会话已不是 Local 则只清标记不建第二棵树；建树失败把 `messages` **倒序放回 `agent.inbox`**（消息不丢）并 `reject`；成功则 `workingDirectory.enter` 进树。 |
+| `mountWorktreeRequest(ctx, module)` | 监听 `agent/pre-step`：仅在 `step === 1` 且有待办时兑现；`module.inspect` **读得出且** `checkout.kind === 'isolated'` 时才视为「会话已站在树里」——只清标记不建第二棵树；读不出目标不算「过期」（未绑定的会话根本没有 Session Target，inspect 会抛 `target_unselected`，而那正是最需要建树的场景），一律按非 isolated 继续往下建，真实失败由下游 catch 兜住；建树失败把 `messages` **倒序放回 `agent.inbox`**（消息不丢）并 `reject`；成功则 `workingDirectory.enter` 进树。 |
 
 持久化在 session log（plugin record）而非内存：刷新页面、重启 Host 后「勾了但还没发消息」依然成立。
 
@@ -229,55 +229,55 @@ flowchart TB
 - 深度操作引擎（apply/preview/recover 的真实 Git 语义）在 [src_session-checkout-apply.ts](src_session-checkout-apply.ts)，本模块的操作类型只是其输入输出契约。
 
 ??? abstract "Documented components (55)"
-    - [`ContextAgent`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Csession-target-context.ts) — `src\session-target-context.ts`
-    - [`enterCheckout`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctools.ts) — `src\tools.ts`
-    - [`AbandonedWorktreeSnapshotView`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`ApplyConflictDetail`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`BulkCleanupManagedWorktreeCandidate`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`BulkCleanupManagedWorktreesResult`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`ManagedWorktreeCleanupView`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`ManagedWorktreeSummaryView`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`MergeBranchForSessionView`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`MergeLocalBranchResult`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`PruneMergedBranchEntry`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`PruneMergedBranchesView`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`SessionCheckoutAppliedResult`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`SessionCheckoutApplyOperation`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`SessionCheckoutCheckpointOperation`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`SessionCheckoutCheckpointedResult`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`SessionCheckoutConflictResult`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`SessionCheckoutDiscardOperation`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`SessionCheckoutDiscardedResult`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`SessionCheckoutFailure`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`SessionCheckoutFinalizePreviewOperation`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`SessionCheckoutFinishOperation`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`SessionCheckoutFinishedResult`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`SessionCheckoutOperationBase`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`SessionCheckoutOperationErrorResult`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`SessionCheckoutPreviewDetachedResult`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`SessionCheckoutPreviewOperation`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`SessionCheckoutPreviewRolledBackResult`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`SessionCheckoutPreviewedResult`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`SessionCheckoutRecoverOperation`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`SessionCheckoutRecoveredResult`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`SessionCheckoutRetryCleanupOperation`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`SessionCheckoutRollbackPreviewOperation`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`SessionTargetCheckoutView`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`SessionTargetCurrentView`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`SessionTargetProjectView`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`SessionTargetSourceView`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`SessionTargetView`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`WorktreeAcceptanceBlockerView`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`WorktreeApplyPreflightFacts`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`WorktreeCheckpointView`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`WorktreeDeliveryProofView`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`WorktreePreviewRecoveryProof`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`WorktreePushOutcome`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`WorktreeReviewView`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`WorktreeValidationItem`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Ctypes.ts) — `src\types.ts`
-    - [`Context`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cworkspace-provider-lifecycle.ts) — `src\workspace-provider-lifecycle.ts`
-    - [`WorkspaceProviderLifecycleOptions`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cworkspace-provider-lifecycle.ts) — `src\workspace-provider-lifecycle.ts`
-    - [`WorkspaceProviderLifecycleResult`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cworkspace-provider-lifecycle.ts) — `src\workspace-provider-lifecycle.ts`
-    - [`PluginRecordMap`](https://github.com/wloops/dsh-git-worktree/blob/35c16281d5695247926eca63b278150f7983e291/src%5Cworktree-request.ts) — `src\worktree-request.ts`
+    - [`ContextAgent`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Csession-target-context.ts) — `src\session-target-context.ts`
+    - [`enterCheckout`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctools.ts) — `src\tools.ts`
+    - [`AbandonedWorktreeSnapshotView`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`ApplyConflictDetail`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`BulkCleanupManagedWorktreeCandidate`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`BulkCleanupManagedWorktreesResult`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`ManagedWorktreeCleanupView`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`ManagedWorktreeSummaryView`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`MergeBranchForSessionView`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`MergeLocalBranchResult`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`PruneMergedBranchEntry`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`PruneMergedBranchesView`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`SessionCheckoutAppliedResult`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`SessionCheckoutApplyOperation`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`SessionCheckoutCheckpointOperation`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`SessionCheckoutCheckpointedResult`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`SessionCheckoutConflictResult`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`SessionCheckoutDiscardOperation`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`SessionCheckoutDiscardedResult`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`SessionCheckoutFailure`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`SessionCheckoutFinalizePreviewOperation`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`SessionCheckoutFinishOperation`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`SessionCheckoutFinishedResult`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`SessionCheckoutOperationBase`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`SessionCheckoutOperationErrorResult`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`SessionCheckoutPreviewDetachedResult`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`SessionCheckoutPreviewOperation`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`SessionCheckoutPreviewRolledBackResult`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`SessionCheckoutPreviewedResult`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`SessionCheckoutRecoverOperation`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`SessionCheckoutRecoveredResult`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`SessionCheckoutRetryCleanupOperation`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`SessionCheckoutRollbackPreviewOperation`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`SessionTargetCheckoutView`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`SessionTargetCurrentView`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`SessionTargetProjectView`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`SessionTargetSourceView`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`SessionTargetView`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`WorktreeAcceptanceBlockerView`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`WorktreeApplyPreflightFacts`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`WorktreeCheckpointView`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`WorktreeDeliveryProofView`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`WorktreePreviewRecoveryProof`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`WorktreePushOutcome`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`WorktreeReviewView`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`WorktreeValidationItem`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Ctypes.ts) — `src\types.ts`
+    - [`Context`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Cworkspace-provider-lifecycle.ts) — `src\workspace-provider-lifecycle.ts`
+    - [`WorkspaceProviderLifecycleOptions`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Cworkspace-provider-lifecycle.ts) — `src\workspace-provider-lifecycle.ts`
+    - [`WorkspaceProviderLifecycleResult`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Cworkspace-provider-lifecycle.ts) — `src\workspace-provider-lifecycle.ts`
+    - [`PluginRecordMap`](https://github.com/wloops/dsh-git-worktree/blob/a31b439621dc58eaf810ac3b10e09abe2c2d3de6/src%5Cworktree-request.ts) — `src\worktree-request.ts`
     - … and 5 more
 

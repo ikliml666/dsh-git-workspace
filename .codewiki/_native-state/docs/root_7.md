@@ -187,7 +187,7 @@ flowchart LR
 | `pendingWorktreeRequest(session)` | 折叠 session log 事件流，取最近一条有效 record（`request` 置位、`cancel` 清空）；非法数据跳过。 |
 | `setWorktreeRequest(ctx, sessionId, from?)` | Host 写入口：`from` 为 `undefined` 时撤回；会话不活抛错。 |
 | `liveWorktreeRequest(ctx, sessionId)` | 读活会话待办，供 `current` 回给胶囊（inbox 指示器）。 |
-| `mountWorktreeRequest(ctx, module)` | 监听 `agent/pre-step`：仅在 `step === 1` 且有待办时兑现；会话已不是 Local 则只清标记不建第二棵树；建树失败把 `messages` **倒序放回 `agent.inbox`**（消息不丢）并 `reject`；成功则 `workingDirectory.enter` 进树。 |
+| `mountWorktreeRequest(ctx, module)` | 监听 `agent/pre-step`：仅在 `step === 1` 且有待办时兑现；`module.inspect` **读得出且** `checkout.kind === 'isolated'` 时才视为「会话已站在树里」——只清标记不建第二棵树；读不出目标不算「过期」（未绑定的会话根本没有 Session Target，inspect 会抛 `target_unselected`，而那正是最需要建树的场景），一律按非 isolated 继续往下建，真实失败由下游 catch 兜住；建树失败把 `messages` **倒序放回 `agent.inbox`**（消息不丢）并 `reject`；成功则 `workingDirectory.enter` 进树。 |
 
 持久化在 session log（plugin record）而非内存：刷新页面、重启 Host 后「勾了但还没发消息」依然成立。
 

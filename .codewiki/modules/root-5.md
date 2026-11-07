@@ -253,6 +253,6 @@ flowchart LR
 ## 与其他模块的关系
 
 - **契约类型**：本模块所有进出消息的类型（`WorktreeConsoleOutcome`、`WorktreeConsoleMutationResponse`、`WorktreeConsoleTargetDetails` 等）定义在 [root_4](root-4.md) 的 `src/console-contract.ts`，projection 与 control-plane 都是该契约的服务端实现。
-- **领域委派**：真正的 git 操作通过 `SessionCheckoutModule`（[root_6](root-6.md) 的 `src/index.ts`）与 `ports.ts` 的端口接口完成；应用引擎细节见 [src_session-checkout-apply.ts](src-session-checkout-apply-ts.md)，视图类型见 [root_7](root-7.md)。
+- **领域委派**：真正的 git 操作通过 `SessionCheckoutModule`（[root_6](root-6.md) 的 `src/index.ts`）与 `ports.ts` 的端口接口完成；视图类型见 [root_7](root-7.md)。
 - **客户端消费方**：RPC 的发起侧是 [root_2](root-2.md) 的 `console_remote` 适配器与 `client_core`，面板与胶囊组件分布在 [root_3](root-3.md) 与 [root_4](root-4.md)。
 - **i18n**：所有面向用户的消息经 `hostMessage` / `withHostLanguage` 产出，见 [root_6](root-6.md) 的 `src/i18n/`。
