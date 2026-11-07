@@ -289,7 +289,7 @@ Session 已身处 Worktree。
 
 - 布局契约：只认 `<repositoryRoot>/.agents/worktrees/<branch>` 前缀——`git worktree list` 会列出用户手工 add 的一切，纳管它们等于凭空接管用户目录。
 - `adoptWorktreeForSession(deps, sessionId, cwd)`：运行时纳管。当某 Session 的工作目录落在官方目录下、且该树**未被其他路径登记过**（本会话无绑定、台账中无同根记录，且 HEAD 必须是本地分支而非分离头）时，按同一登记路径把它补记入台账——让台账覆盖宿主面板、官方 `create_worktree` 工具等外部路径创建的 Worktree，而不仅是插件自己的 `worktree_create`。归属只能来自「谁正站在这棵树里」（宿主实时 cwd），多会话同树则跳过而不猜。
-- `registerOfficialWorktree(deps, registration)`：`worktree_create` 的唯一建树路径登记——宿主 `worktrees.create` 做真正 Git 操作，插件把结果（`OfficialWorktreeRegistration`：owner/项目/路径/分支/基准提交）记入台账并建立 session 绑定，记录直接置 `phase: 'ready'`、`delivery.working/iteration:1`。
+- `registerOfficialWorktree(deps, registration)`：`worktree_create` 的唯一建树路径登记——宿主 `worktrees.create` 做真正 Git 操作，插件把结果（`OfficialWorktreeRegistration`：owner/项目/路径/基准提交，该记录不再携带分支名字段）记入台账并建立 session 绑定，记录直接置 `phase: 'ready'`、`delivery.working/iteration:1`。登记前先用 `git.inspect` 读取新树快照：路径不是可读 Git checkout 即抛错；快照 HEAD 不在本地分支上（`headRef` 为空或不以 `refs/heads/` 开头，即分离头）时同样抛错——这类树不能作为 Session 的载体。台账里的 `sessionBranch` 一律落快照给出的完整 `refs/heads/...` 引用（与 `attachSessionBranch` 写出的 branchRef 同形），而非短分支名。
 - `registerOfficialWorktreeAdoption(ctx, module)`（`session-target-context.ts`）：`apply()` 期注册的事件订阅——监听 `session/event` 的 `working-directory/change`，在 Session cwd 进入官方树时 fire-and-forget 地调用 `module.adoptOfficialWorktree(sessionId, cwd)`；事件 feed 不等待监听者，登记要读 Git 与写台账，异步 rejection 只记 `console.warn`，绝不让未捕获的 panic 逃出。
 
 ### 领域叶子工具

@@ -6,7 +6,7 @@ description: 本模块是会话检出引擎（会话检出核心引擎（CoreSes
 # 托管 Worktree 路径候选解析（Managed_Worktree_Path_Candidate_Resolution）
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`b0979671`](https://github.com/wloops/dsh-git-worktree/commit/b0979671ecdb749b8ca1bf1b3c9f06182f618b95) on 2026-11-07 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`4910b846`](https://github.com/wloops/dsh-git-worktree/commit/4910b846b1a2225eb764858a3a7f38e857681333) on 2026-11-07 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 ## 简介
 
@@ -249,6 +249,6 @@ flowchart TB
 - 修改 `registerSessionTargetContext` 的 `order`（当前 118）会影响系统提示中该段上下文的相对位置；调整前请确认不与其它插件 cordis patch 冲突（参考仓库根的 `cordis.patch.yml`）。
 
 ??? abstract "Documented components (2)"
-    - [`ManagedWorktreePathCandidates`](https://github.com/wloops/dsh-git-worktree/blob/b0979671ecdb749b8ca1bf1b3c9f06182f618b95/src%5Cmanaged-worktree-path.ts) — `src\managed-worktree-path.ts`
-    - [`ContextAgent`](https://github.com/wloops/dsh-git-worktree/blob/b0979671ecdb749b8ca1bf1b3c9f06182f618b95/src%5Csession-target-context.ts) — `src\session-target-context.ts`
+    - [`ManagedWorktreePathCandidates`](https://github.com/wloops/dsh-git-worktree/blob/4910b846b1a2225eb764858a3a7f38e857681333/src%5Cmanaged-worktree-path.ts) — `src\managed-worktree-path.ts`
+    - [`ContextAgent`](https://github.com/wloops/dsh-git-worktree/blob/4910b846b1a2225eb764858a3a7f38e857681333/src%5Csession-target-context.ts) — `src\session-target-context.ts`
 

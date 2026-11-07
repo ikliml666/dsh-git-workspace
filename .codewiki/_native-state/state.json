@@ -2,31 +2,33 @@
   "stateVersion": 1,
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
-    "baseCommit": "e6a84e5cb4639894e5ae8685a0816b00b22d9057",
-    "headCommit": "b0979671ecdb749b8ca1bf1b3c9f06182f618b95"
+    "baseCommit": "b0979671ecdb749b8ca1bf1b3c9f06182f618b95",
+    "headCommit": "0e88826926089d1933a22a5c51f06d6c21ea1286"
   },
   "pendingChanges": {
     "state": "ok",
-    "baseCommit": "e6a84e5cb4639894e5ae8685a0816b00b22d9057",
-    "headCommit": "b0979671ecdb749b8ca1bf1b3c9f06182f618b95",
-    "committed": [
-      "CHANGELOG.md",
-      "README-LOCAL-ADAPTATIONS.md",
-      "src/index.ts",
+    "baseCommit": "b0979671ecdb749b8ca1bf1b3c9f06182f618b95",
+    "headCommit": "0e88826926089d1933a22a5c51f06d6c21ea1286",
+    "committed": [],
+    "staged": [],
+    "unstaged": [
       "src/official-worktree-registration.ts",
       "src/session-checkout-module.ts",
-      "src/session-target-context.ts",
-      "tests/official-worktree-event.test.ts",
       "tests/official-worktree-registration.test.ts"
     ],
-    "staged": [],
-    "unstaged": [],
-    "untracked": [],
+    "untracked": [
+      "tests/lib-artifact-lifecycle.test.ts"
+    ],
     "deleted": [],
     "renamed": [],
     "reason": ""
   },
-  "unconsumed": [],
+  "unconsumed": [
+    "src/official-worktree-registration.ts",
+    "src/session-checkout-module.ts",
+    "tests/lib-artifact-lifecycle.test.ts",
+    "tests/official-worktree-registration.test.ts"
+  ],
   "engineVersion": "2.0.0",
   "scope": "auto",
   "effectiveScope": "stale",
@@ -34,8 +36,9 @@
   "fallbackReason": "",
   "missingRepair": null,
   "notes": [
-    "持久化基线 0ff18a1 与本次 cw 基线 e6a84e5 不同（以 cw 基线为准，未消费变化仍会并入）",
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw5rj1pn-0-native（31 个文件）"
+    "持久化基线 e6a84e5 与本次 cw 基线 b097967 不同（以 cw 基线为准，未消费变化仍会并入）",
+    "工作区未提交改动已合成临时 commit 4910b846b1a2（4 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw5uatl4-5-native（31 个文件）"
   ],
-  "updatedAt": "2026-11-07T02:17:11.638Z"
+  "updatedAt": "2026-11-07T03:33:59.950Z"
 }
