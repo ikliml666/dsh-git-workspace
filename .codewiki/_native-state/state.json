@@ -2,43 +2,34 @@
   "stateVersion": 1,
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
-    "baseCommit": "b0979671ecdb749b8ca1bf1b3c9f06182f618b95",
-    "headCommit": "0e88826926089d1933a22a5c51f06d6c21ea1286"
+    "baseCommit": "29e13111fbb6b793edfb77e737fd21d49754d212",
+    "headCommit": "418761d328549f22e4aed5d0dec38a04e134170a"
   },
   "pendingChanges": {
     "state": "ok",
-    "baseCommit": "b0979671ecdb749b8ca1bf1b3c9f06182f618b95",
-    "headCommit": "0e88826926089d1933a22a5c51f06d6c21ea1286",
-    "committed": [],
+    "baseCommit": "29e13111fbb6b793edfb77e737fd21d49754d212",
+    "headCommit": "418761d328549f22e4aed5d0dec38a04e134170a",
+    "committed": [
+      "docs/REPORT-official-entries-and-dsh-ops.md"
+    ],
     "staged": [],
-    "unstaged": [
-      "src/official-worktree-registration.ts",
-      "src/session-checkout-module.ts",
-      "tests/official-worktree-registration.test.ts"
-    ],
-    "untracked": [
-      "tests/lib-artifact-lifecycle.test.ts"
-    ],
+    "unstaged": [],
+    "untracked": [],
     "deleted": [],
     "renamed": [],
     "reason": ""
   },
-  "unconsumed": [
-    "src/official-worktree-registration.ts",
-    "src/session-checkout-module.ts",
-    "tests/lib-artifact-lifecycle.test.ts",
-    "tests/official-worktree-registration.test.ts"
-  ],
+  "unconsumed": [],
   "engineVersion": "2.0.0",
   "scope": "auto",
   "effectiveScope": "stale",
-  "updateOutcome": "incremental",
+  "updateOutcome": "no_change",
   "fallbackReason": "",
   "missingRepair": null,
   "notes": [
-    "持久化基线 e6a84e5 与本次 cw 基线 b097967 不同（以 cw 基线为准，未消费变化仍会并入）",
-    "工作区未提交改动已合成临时 commit 4910b846b1a2（4 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw5uatl4-5-native（31 个文件）"
+    "丢弃 4 条已不存在且从未提交的旧账（src/official-worktree-registration.ts、src/session-checkout-module.ts、tests/lib-artifact-lifecycle.test.ts 等）——只有 committed 才算消化的规则会让它们被永久携带，白跑整轮",
+    "持久化基线 b097967 与本次 cw 基线 29e1311 不同（以 cw 基线为准，未消费变化仍会并入）",
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw5wfzex-8-native（31 个文件）"
   ],
-  "updatedAt": "2026-11-07T03:33:59.950Z"
+  "updatedAt": "2026-11-07T05:36:52.267Z"
 }
