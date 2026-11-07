@@ -1,10 +1,18 @@
-import { resolve } from 'node:path'
+import { relative, resolve } from 'node:path'
 import type {
   ManagedCheckoutRecord,
   SessionCheckoutGitPort,
   SessionCheckoutLookupPort,
   SessionCheckoutRegistryPort,
 } from './ports.js'
+
+/**
+ * 官方目录布局：`<repositoryRoot>/.agents/worktrees/<branch>`。
+ *
+ * 只认这个前缀是有意的：用户手工 `git worktree add` 出来的目录不属于本插件，
+ * 纳管它们等于凭空接管别人的目录。
+ */
+const OFFICIAL_WORKTREE_DIRECTORY = '.agents/worktrees'
 
 export interface OfficialWorktreeRegistrationDependencies {
   lookup: SessionCheckoutLookupPort
@@ -25,6 +33,13 @@ export interface OfficialWorktreeRegistration {
   branch: string
   /** 分叉基准提交。 */
   baseCommit: string
+}
+
+/** 这个目录是否位于本项目官方的 `.agents/worktrees` 下。 */
+export function isOfficialWorktreePath(localRoot: string, path: string): boolean {
+  const officialRoot = resolve(localRoot, OFFICIAL_WORKTREE_DIRECTORY)
+  const candidate = relative(officialRoot, resolve(path))
+  return candidate !== '' && !candidate.startsWith('..')
 }
 
 /**
@@ -83,4 +98,58 @@ export async function registerOfficialWorktree(
     },
   }))
   return record
+}
+
+/**
+ * 会话走到一棵官方建的工作树里时，把它接进台账。
+ *
+ * 官方 `worktrees.create` 的最后一步是 `workingDirectory.set`，因此
+ * `working-directory/change` 是「这棵树建好了且有人站在里面」的唯一可靠信号
+ * —— 比轮询 `git worktree list` 及时，也不需要为每个项目起子进程。
+ *
+ * 只接管 `.agents/worktrees/` 下的路径；会话已有 binding、或这棵树已在台账里
+ * 时什么都不做（官方每条请求都真的建树，重复登记会产生指向同一目录的两条记录）。
+ * 返回登记的结果，未接管时返回 undefined。
+ */
+export async function adoptWorktreeForSession(
+  dependencies: OfficialWorktreeRegistrationDependencies,
+  sessionId: string,
+  cwd: string,
+): Promise<ManagedCheckoutRecord | undefined> {
+  const projectId = dependencies.lookup.getSession(sessionId)?.projectId
+  if (projectId === undefined) return undefined
+  const project = dependencies.lookup.getProject(projectId)
+  if (project === undefined) return undefined
+  if (!isOfficialWorktreePath(project.root, cwd)) return undefined
+
+  const registry = dependencies.registry.read()
+  if (registry.sessionBindings[sessionId] !== undefined) return undefined
+  if (isTracked(registry.managedCheckouts, cwd)) return undefined
+
+  const snapshot = await dependencies.git.inspect(cwd)
+  if (snapshot === null) return undefined
+  const branchRef = snapshot.headRef
+  if (!branchRef.startsWith('refs/heads/')) return undefined
+  return registerOfficialWorktree(dependencies, {
+    ownerSessionId: sessionId,
+    projectId,
+    projectName: project.name,
+    localRoot: project.root,
+    path: snapshot.root,
+    branch: branchRef.slice('refs/heads/'.length),
+    baseCommit: snapshot.headOid,
+  })
+}
+
+/** 台账里是否已经有记录指向这棵树（按工作树根或 Git 目录两边对齐）。 */
+function isTracked(recorded: Record<string, ManagedCheckoutRecord>, path: string): boolean {
+  const target = normalize(path)
+  return Object.values(recorded).some(record =>
+    record.phase !== 'discarded'
+    && (normalize(record.managedRoot) === target || normalize(record.managedGitRoot) === target))
+}
+
+function normalize(path: string): string {
+  const absolute = resolve(path)
+  return process.platform === 'win32' ? absolute.toLowerCase() : absolute
 }

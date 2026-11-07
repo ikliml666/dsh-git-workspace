@@ -46,6 +46,7 @@ E:\ik\Documents\trae_projects\worktrae\<项目>\<主题>-<YYYYMMDD>
 - **分支名**：`feat/sess-<session>[--<topic>]` 候选逐个探空位（`resolveLocalBranchTip`），全被占用时明确报错，不拼随机后缀。
 - **没有「预建树」**：官方 `worktrees.create` 必须传 live Agent，而「给还没启动的会话先建好树」拿不到 Agent。这个能力连同它的 UI（新建对话时的 Worktree 开关、会话内控制台的分支选择器与创建按钮）一起删除了。
 - **`restore` 不由本插件提供**：官方条目的 `restore` 照常可用；本插件没有「原地重建已交付目录」的操作，续作走 `begin_next_iteration`。
+- **会话走进去就登记**：官方 `create_worktree` 与 forge 面板建的树只存在于磁盘上。监听 `session/event` 的 `working-directory/change` —— 官方 `worktrees.create` 的最后一步是 `workingDirectory.set` —— 一旦 cwd 落在 `<repo>/.agents/worktrees/` 下且该会话还没有 binding，就把这棵树记为 `ready` 并建立 isolated binding。之后 `worktree_list` / `worktree_deliver` / `worktree_cleanup` 对它们一样有效。事件驱动而非轮询：不用为每个项目起 `git worktree list` 子进程。
 
 ## 配置示例（profile cordis.patch.yml / 插件配置）
 

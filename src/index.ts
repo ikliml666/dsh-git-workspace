@@ -148,6 +148,13 @@ export interface SessionCheckoutModule {
    * and cleanup for the result.
    */
   createOfficialTarget(agent: unknown, createOptions?: { topic?: string; branch?: string }): Promise<IsolatedTargetLaunch>
+  /**
+   * Record a Worktree that appeared under `.agents/worktrees/` because some
+   * other path created it (the official `create_worktree` tool, the forge
+   * panel). Called when a Session's working directory lands inside one, so the
+   * ledger covers every Worktree the host can produce, not only ours.
+   */
+  adoptOfficialWorktree(sessionId: string, cwd: string): Promise<void>
   /** Recreate a cleaned delivered owner's immutable cwd as the next isolated iteration. */
   beginNextIteration(sessionId: string, expectedRevision: number): Promise<SessionTargetView>
   /** Invalidate an unsynced review and resume the same iteration without touching Local. */
@@ -253,7 +260,7 @@ import { createSessionCheckoutApplyEngine } from './session-checkout-apply.js'
 import { createSessionCheckoutModule } from './session-checkout-module.js'
 import { registerTools } from './tools.js'
 import { registerWorktreeCommand } from './commands.js'
-import { registerSessionTargetContext } from './session-target-context.js'
+import { registerOfficialWorktreeAdoption, registerSessionTargetContext } from './session-target-context.js'
 import { createWorktreeConsoleControlPlane } from './console-host/control-plane.js'
 import { createGitWorktreeReviewDiffReader } from './console-host/review-diff.js'
 import { WorktreeConsoleService } from './console-host/service.js'
@@ -424,6 +431,7 @@ export async function apply(ctx: Context, config: { stateDir?: string } & GitTim
   registerTools(ctx, module)
   registerWorktreeCommand(ctx, module)
   registerSessionTargetContext(ctx, module)
+  registerOfficialWorktreeAdoption(ctx, module)
 
   // Startup recovery plus periodic expiry of retained worktrees. cordis's
   // typed Events map omits the runtime 'ready' event; the events service's

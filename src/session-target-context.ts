@@ -30,3 +30,25 @@ export function registerSessionTargetContext(ctx: Context, module: SessionChecko
     })
   })
 }
+
+/**
+ * 会话走进树时把这棵树接进台账。
+ *
+ * 官方 `worktrees.create` 的最后一步是 `workingDirectory.set`，所以
+ * `working-directory/change` 是「树建好了、且是某个会话的落脚点」的唯一信号：
+ * 官方 `create_worktree` 与 forge 面板都走这条路，比轮询 `git worktree list`
+ * 及时，也不需要为每个项目起子进程。
+ */
+export function registerOfficialWorktreeAdoption(ctx: Context, module: SessionCheckoutModule): void {
+  ctx.on('session/event', (session: { id?: unknown }, event: { type?: unknown; data?: unknown }) => {
+    if (event.type !== 'working-directory/change') return
+    const sessionId = session.id
+    const cwd = (event.data as { cwd?: unknown } | undefined)?.cwd
+    if (typeof sessionId !== 'string' || typeof cwd !== 'string') return
+    // 事件 feed 不等待监听者：登记要读 Git 与写台账，只能异步做。未捕获的
+    // rejection 会逃出这个 fire-and-forget 调用，所以这里必须接住并记录。
+    void module.adoptOfficialWorktree(sessionId, cwd).catch(error => {
+      console.warn('[dsh-git-worktree] could not adopt the official Worktree:', error)
+    })
+  })
+}

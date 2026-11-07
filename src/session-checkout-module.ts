@@ -36,7 +36,7 @@ import { worktreeReachedDelivery } from './console-contract.js'
 import { SessionCheckoutError } from './index.js'
 import { WorktreeCreationFailure } from './creation-failure.js'
 import type { WorktreeCreationEvidence } from './ports.js'
-import { registerOfficialWorktree } from './official-worktree-registration.js'
+import { adoptWorktreeForSession, registerOfficialWorktree } from './official-worktree-registration.js'
 import { checkpointGenerationForRecord } from './checkpoint.js'
 import {
   createManagedWorktreePathCandidates,
@@ -5407,9 +5407,32 @@ export function createSessionCheckoutModule(
     )
   }
 
+  /**
+   * 会话走进 `.agents/worktrees/` 下的树时把它接进台账。
+   *
+   * 官方 `create_worktree` 与 forge 面板建的树只存在于磁盘上，本插件的列表、
+   * 交付、评审、清理全靠台账定位，所以必须在这一刻补记。已有的 binding 与已
+   * 在台账里的树都会被跳过，重复的 cwd 事件不会产生第二条记录。
+   */
+  async function adoptOfficialWorktree(sessionId: string, cwd: string): Promise<void> {
+    await withBindingLock(async () => {
+      await adoptWorktreeForSession(
+        {
+          lookup: dependencies.lookup,
+          git: dependencies.git,
+          registry: dependencies.registry,
+          createCheckoutId: dependencies.createCheckoutId,
+        },
+        sessionId,
+        cwd,
+      )
+    })
+  }
+
   return {
     inspect: inspectAvailable,
     runtimeContext,
+    adoptOfficialWorktree,
     preflight: (sessionId, expectedRevision) => withBindingLock(
       () => preflightTarget(sessionId, expectedRevision),
     ),

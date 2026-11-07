@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from 'vitest'
-import { registerOfficialWorktree } from '../src/official-worktree-registration.js'
+import { adoptWorktreeForSession, registerOfficialWorktree } from '../src/official-worktree-registration.js'
 import type { ManagedCheckoutsRegistry } from '../src/ports.js'
 
 const REPO = 'C:\\work\\repo'
@@ -87,6 +87,83 @@ describe('registering a Worktree the official service created', () => {
     const f = fixture({ snapshot: null })
     await expect(registerOfficialWorktree(f.dependencies as never, registration))
       .rejects.toThrow(/not a readable Git checkout/)
+    expect(f.current().managedCheckouts).toEqual({})
+  })
+})
+
+describe('adopting the Worktree a Session walked into', () => {
+  const deps = (f: ReturnType<typeof fixture>, project = { id: 'p1', name: 'repo', root: REPO }) => ({
+    ...f.dependencies,
+    lookup: {
+      getSession: (id: string) => (id === 'session-abc' ? { id, projectId: 'p1' } : undefined),
+      getProject: (pid: string) => (pid === 'p1' ? project : undefined),
+    },
+  })
+
+  test('records the checkout the Session just entered', async () => {
+    const f = fixture()
+    const record = await adoptWorktreeForSession(deps(f) as never, 'session-abc', CHECKOUT)
+
+    expect(record).toMatchObject({
+      ownerSessionId: 'session-abc',
+      managedRoot: CHECKOUT,
+      sessionBranch: 'feat/sess-abc',
+      phase: 'ready',
+    })
+    expect(f.current().sessionBindings['session-abc']).toMatchObject({ target: { kind: 'isolated' } })
+  })
+
+  test('ignores a working directory outside the official layout', async () => {
+    const f = fixture()
+    const result = await adoptWorktreeForSession(deps(f) as never, 'session-abc', 'C:\\work\\repo\\src')
+
+    expect(result).toBeUndefined()
+    expect(f.current().managedCheckouts).toEqual({})
+    expect(f.inspect).not.toHaveBeenCalled()
+  })
+
+  test('ignores a path that merely looks like the official layout but escapes it', async () => {
+    const f = fixture()
+    const result = await adoptWorktreeForSession(deps(f) as never, 'session-abc', `${REPO}\\.agents\\worktrees\\..\\..\\escape`)
+
+    expect(result).toBeUndefined()
+    expect(f.current().managedCheckouts).toEqual({})
+  })
+
+  test('does nothing for a Session that already has a target', async () => {
+    const f = fixture()
+    await adoptWorktreeForSession(deps(f) as never, 'session-abc', CHECKOUT)
+    const again = await adoptWorktreeForSession(deps(f) as never, 'session-abc', CHECKOUT)
+
+    expect(again).toBeUndefined()
+    expect(Object.keys(f.current().managedCheckouts)).toHaveLength(1)
+  })
+
+  test('does nothing when the checkout is already in the ledger', async () => {
+    const f = fixture()
+    await registerOfficialWorktree(f.dependencies as never, registration)
+    const adopted = await adoptWorktreeForSession(
+      {
+        ...deps(f),
+        registry: f.dependencies.registry,
+      } as never,
+      'other-session',
+      CHECKOUT,
+    )
+
+    expect(adopted).toBeUndefined()
+    expect(Object.keys(f.current().managedCheckouts)).toHaveLength(1)
+  })
+
+  test('ignores a Session with no project', async () => {
+    const f = fixture()
+    const result = await adoptWorktreeForSession(
+      { ...f.dependencies, lookup: { getSession: () => undefined } } as never,
+      'nobody',
+      CHECKOUT,
+    )
+
+    expect(result).toBeUndefined()
     expect(f.current().managedCheckouts).toEqual({})
   })
 })
