@@ -6,7 +6,7 @@ description: root3settingscard 是 Worktree 插件的设置页模块：它把插
 # 设置卡片模块（settings-card）
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`987ec76d`](https://github.com/wloops/dsh-git-worktree/commit/987ec76d79a175159f4ec899c0064deb84cec783) on 2026-11-07 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`4c472668`](https://github.com/wloops/dsh-git-worktree/commit/4c472668067fdf9c6675bca31a97cef07c5b23aa) on 2026-11-07 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 ## 简介
 
@@ -257,21 +257,21 @@ stateDiagram-v2
 - 客户端 bundle 必须保持自包含——表单模型是从 harness 的 `@deepseek-ai/dsh-client-ui-primitives`（0.1.7-rc.2）设置表单模型裁剪而来的（去掉了只写密钥控件），因此升级共享 UI 原语版本时需要复核裁剪差异，而不是直接替换。
 
 ??? abstract "Documented components (17)"
-    - [`WorktreeSettingsCardProps`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cclient%5Csettings-card%5CWorktreeSettingsCard.tsx) — `src\client\settings-card\WorktreeSettingsCard.tsx`
-    - [`PlannedWrite`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cclient%5Csettings-card%5Cform-model.ts) — `src\client\settings-card\form-model.ts`
-    - [`SettingsFieldSpec`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cclient%5Csettings-card%5Cform-model.ts) — `src\client\settings-card\form-model.ts`
-    - [`SettingsFieldState`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cclient%5Csettings-card%5Cform-model.ts) — `src\client\settings-card\form-model.ts`
-    - [`SettingsFormActions`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cclient%5Csettings-card%5Cform-model.ts) — `src\client\settings-card\form-model.ts`
-    - [`SettingsFormModel`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cclient%5Csettings-card%5Cform-model.ts) — `src\client\settings-card\form-model.ts`
-    - [`SettingsFormScope`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cclient%5Csettings-card%5Cform-model.ts) — `src\client\settings-card\form-model.ts`
-    - [`SettingsFormScopeSnapshot`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cclient%5Csettings-card%5Cform-model.ts) — `src\client\settings-card\form-model.ts`
-    - [`SettingsFormShell`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cclient%5Csettings-card%5Cform-model.ts) — `src\client\settings-card\form-model.ts`
-    - [`StagedEdit`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cclient%5Csettings-card%5Cform-model.ts) — `src\client\settings-card\form-model.ts`
-    - [`ConfigFormsService`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cclient%5Csettings-card%5Cindex.ts) — `src\client\settings-card\index.ts`
-    - [`SlotsService`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cclient%5Csettings-card%5Cindex.ts) — `src\client\settings-card\index.ts`
-    - [`WorktreeSettings`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cclient%5Csettings-card%5Cworktree-settings-card.ts) — `src\client\settings-card\worktree-settings-card.ts`
-    - [`WorktreeSettingsCardController`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cclient%5Csettings-card%5Cworktree-settings-card.ts) — `src\client\settings-card\worktree-settings-card.ts`
-    - [`WorktreeSettingsCardFace`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cclient%5Csettings-card%5Cworktree-settings-card.ts) — `src\client\settings-card\worktree-settings-card.ts`
-    - [`WorktreeSettingsCardState`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cclient%5Csettings-card%5Cworktree-settings-card.ts) — `src\client\settings-card\worktree-settings-card.ts`
-    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cclient%5Cstyles.ts) — `src\client\styles.ts`
+    - [`WorktreeSettingsCardProps`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cclient%5Csettings-card%5CWorktreeSettingsCard.tsx) — `src\client\settings-card\WorktreeSettingsCard.tsx`
+    - [`PlannedWrite`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cclient%5Csettings-card%5Cform-model.ts) — `src\client\settings-card\form-model.ts`
+    - [`SettingsFieldSpec`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cclient%5Csettings-card%5Cform-model.ts) — `src\client\settings-card\form-model.ts`
+    - [`SettingsFieldState`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cclient%5Csettings-card%5Cform-model.ts) — `src\client\settings-card\form-model.ts`
+    - [`SettingsFormActions`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cclient%5Csettings-card%5Cform-model.ts) — `src\client\settings-card\form-model.ts`
+    - [`SettingsFormModel`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cclient%5Csettings-card%5Cform-model.ts) — `src\client\settings-card\form-model.ts`
+    - [`SettingsFormScope`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cclient%5Csettings-card%5Cform-model.ts) — `src\client\settings-card\form-model.ts`
+    - [`SettingsFormScopeSnapshot`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cclient%5Csettings-card%5Cform-model.ts) — `src\client\settings-card\form-model.ts`
+    - [`SettingsFormShell`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cclient%5Csettings-card%5Cform-model.ts) — `src\client\settings-card\form-model.ts`
+    - [`StagedEdit`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cclient%5Csettings-card%5Cform-model.ts) — `src\client\settings-card\form-model.ts`
+    - [`ConfigFormsService`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cclient%5Csettings-card%5Cindex.ts) — `src\client\settings-card\index.ts`
+    - [`SlotsService`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cclient%5Csettings-card%5Cindex.ts) — `src\client\settings-card\index.ts`
+    - [`WorktreeSettings`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cclient%5Csettings-card%5Cworktree-settings-card.ts) — `src\client\settings-card\worktree-settings-card.ts`
+    - [`WorktreeSettingsCardController`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cclient%5Csettings-card%5Cworktree-settings-card.ts) — `src\client\settings-card\worktree-settings-card.ts`
+    - [`WorktreeSettingsCardFace`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cclient%5Csettings-card%5Cworktree-settings-card.ts) — `src\client\settings-card\worktree-settings-card.ts`
+    - [`WorktreeSettingsCardState`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cclient%5Csettings-card%5Cworktree-settings-card.ts) — `src\client\settings-card\worktree-settings-card.ts`
+    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cclient%5Cstyles.ts) — `src\client\styles.ts`
 

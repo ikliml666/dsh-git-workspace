@@ -23,7 +23,6 @@ nav:
 - session-checkout-apply 应用引擎: src_session-checkout-apply.ts.md
 - 会话检出状态机模块（session-checkout-module）: src_session-checkout-module.ts.md
 - root_7：dsh-git-worktree 插件出口层: root_7.md
-- 临时占位: root_detailed.md
 plugins:
 - techdocs-core
 markdown_extensions:

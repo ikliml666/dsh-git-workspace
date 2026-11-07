@@ -6,7 +6,7 @@ description: root4 是 dsh-git-worktree 插件中「面向用户的交互层」�
 # root_4：Worktree 控制台客户端与宿主命令面
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`987ec76d`](https://github.com/wloops/dsh-git-worktree/commit/987ec76d79a175159f4ec899c0064deb84cec783) on 2026-11-07 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`4c472668`](https://github.com/wloops/dsh-git-worktree/commit/4c472668067fdf9c6675bca31a97cef07c5b23aa) on 2026-11-07 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 ## 模块定位
 
@@ -213,55 +213,55 @@ sequenceDiagram
 - [root_7：dsh-git-worktree 插件出口层](root_7.md)：`types.ts` 中的领域视图类型（`SessionTargetView`、`WorktreeRetentionMode`、`WorktreeCleanupReason`、各种 Proof 视图），是契约 DTO 的类型来源。
 
 ??? abstract "Documented components (87)"
-    - [`WorktreeConsoleViewProps`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cclient%5Ctarget-console%5CWorktreeConsoleView.tsx) — `src\client\target-console\WorktreeConsoleView.tsx`
-    - [`WorktreeHeroChipProps`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cclient%5Ctarget-console%5CWorktreeHeroChip.tsx) — `src\client\target-console\WorktreeHeroChip.tsx`
-    - [`WorktreeManagerModalProps`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cclient%5Ctarget-console%5CWorktreeManagerModal.tsx) — `src\client\target-console\WorktreeManagerModal.tsx`
-    - [`WorktreeReviewStatusProps`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cclient%5Ctarget-console%5CWorktreeReviewStatus.tsx) — `src\client\target-console\WorktreeReviewStatus.tsx`
-    - [`bumpEpoch`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cclient%5Ctarget-console%5Cbranch-overview-cache.ts) — `src\client\target-console\branch-overview-cache.ts`
-    - [`Poll`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cclient%5Ctarget-console%5Ccurrent-polling.ts) — `src\client\target-console\current-polling.ts`
-    - [`TargetConsoleContextLike`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cclient%5Ctarget-console%5Cindex.ts) — `src\client\target-console\index.ts`
-    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cclient%5Ctarget-console%5Ctarget-console.styles.ts) — `src\client\target-console\target-console.styles.ts`
-    - [`ManagedWorktreeSessionDecoration`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cclient%5Cworkspace-sidebar%5Cindex.tsx) — `src\client\workspace-sidebar\index.tsx`
-    - [`ManagedWorkspaceSidebarProjection`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cclient%5Cworkspace-sidebar%5Cmodel.ts) — `src\client\workspace-sidebar\model.ts`
-    - [`ProjectedManagedTask`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cclient%5Cworkspace-sidebar%5Cmodel.ts) — `src\client\workspace-sidebar\model.ts`
-    - [`SidebarSessionSummary`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cclient%5Cworkspace-sidebar%5Cmodel.ts) — `src\client\workspace-sidebar\model.ts`
-    - [`SidebarWorkspaceView`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cclient%5Cworkspace-sidebar%5Cmodel.ts) — `src\client\workspace-sidebar\model.ts`
-    - [`finishedText`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Ccommands.ts) — `src\commands.ts`
-    - [`isValidCommitMessage`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Ccommit-message.ts) — `src\commit-message.ts`
-    - [`WorktreeApplyConflictContinuation`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cconsole-contract.ts) — `src\console-contract.ts`
-    - [`WorktreeApplyConflictRecoveryProof`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cconsole-contract.ts) — `src\console-contract.ts`
-    - [`WorktreeClientBootReport`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cconsole-contract.ts) — `src\console-contract.ts`
-    - [`WorktreeConsoleAbandonedListRequest`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cconsole-contract.ts) — `src\console-contract.ts`
-    - [`WorktreeConsoleAbandonedListResponse`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cconsole-contract.ts) — `src\console-contract.ts`
-    - [`WorktreeConsoleAbandonedSnapshot`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cconsole-contract.ts) — `src\console-contract.ts`
-    - [`WorktreeConsoleAdapter`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cconsole-contract.ts) — `src\console-contract.ts`
-    - [`WorktreeConsoleBeginNextIterationRequest`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cconsole-contract.ts) — `src\console-contract.ts`
-    - [`WorktreeConsoleCapabilities`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cconsole-contract.ts) — `src\console-contract.ts`
-    - [`WorktreeConsoleCheckpointRequest`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cconsole-contract.ts) — `src\console-contract.ts`
-    - [`WorktreeConsoleClearSidebarBadgeRequest`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cconsole-contract.ts) — `src\console-contract.ts`
-    - [`WorktreeConsoleCreatePreviewRecoveryHandoffRequest`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cconsole-contract.ts) — `src\console-contract.ts`
-    - [`WorktreeConsoleCreatePreviewRecoveryHandoffResponse`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cconsole-contract.ts) — `src\console-contract.ts`
-    - [`WorktreeConsoleCreateResponse`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cconsole-contract.ts) — `src\console-contract.ts`
-    - [`WorktreeConsoleCurrentRequest`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cconsole-contract.ts) — `src\console-contract.ts`
-    - [`WorktreeConsoleCurrentResponse`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cconsole-contract.ts) — `src\console-contract.ts`
-    - [`WorktreeConsoleDiffFile`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cconsole-contract.ts) — `src\console-contract.ts`
-    - [`WorktreeConsoleDiscardRequest`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cconsole-contract.ts) — `src\console-contract.ts`
-    - [`WorktreeConsoleError`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cconsole-contract.ts) — `src\console-contract.ts`
-    - [`WorktreeConsoleErrorMeta`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cconsole-contract.ts) — `src\console-contract.ts`
-    - [`WorktreeConsoleFinalizePreviewRequest`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cconsole-contract.ts) — `src\console-contract.ts`
-    - [`WorktreeConsoleFinalizeRequest`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cconsole-contract.ts) — `src\console-contract.ts`
-    - [`WorktreeConsoleGitBranch`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cconsole-contract.ts) — `src\console-contract.ts`
-    - [`WorktreeConsoleGitCreateTagRequest`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cconsole-contract.ts) — `src\console-contract.ts`
-    - [`WorktreeConsoleGitDeleteTagRequest`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cconsole-contract.ts) — `src\console-contract.ts`
-    - [`WorktreeConsoleGitGraphCommit`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cconsole-contract.ts) — `src\console-contract.ts`
-    - [`WorktreeConsoleGitGraphResponse`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cconsole-contract.ts) — `src\console-contract.ts`
-    - [`WorktreeConsoleGitMutationResponse`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cconsole-contract.ts) — `src\console-contract.ts`
-    - [`WorktreeConsoleGitOverviewResponse`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cconsole-contract.ts) — `src\console-contract.ts`
-    - [`WorktreeConsoleGitPruneEntry`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cconsole-contract.ts) — `src\console-contract.ts`
-    - [`WorktreeConsoleGitPruneResponse`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cconsole-contract.ts) — `src\console-contract.ts`
-    - [`WorktreeConsoleGitPushTagRequest`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cconsole-contract.ts) — `src\console-contract.ts`
-    - [`WorktreeConsoleGitTag`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cconsole-contract.ts) — `src\console-contract.ts`
-    - [`WorktreeConsoleGitTagListResponse`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cconsole-contract.ts) — `src\console-contract.ts`
-    - [`WorktreeConsoleGitTagMutationResponse`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cconsole-contract.ts) — `src\console-contract.ts`
+    - [`WorktreeConsoleViewProps`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cclient%5Ctarget-console%5CWorktreeConsoleView.tsx) — `src\client\target-console\WorktreeConsoleView.tsx`
+    - [`WorktreeHeroChipProps`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cclient%5Ctarget-console%5CWorktreeHeroChip.tsx) — `src\client\target-console\WorktreeHeroChip.tsx`
+    - [`WorktreeManagerModalProps`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cclient%5Ctarget-console%5CWorktreeManagerModal.tsx) — `src\client\target-console\WorktreeManagerModal.tsx`
+    - [`WorktreeReviewStatusProps`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cclient%5Ctarget-console%5CWorktreeReviewStatus.tsx) — `src\client\target-console\WorktreeReviewStatus.tsx`
+    - [`bumpEpoch`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cclient%5Ctarget-console%5Cbranch-overview-cache.ts) — `src\client\target-console\branch-overview-cache.ts`
+    - [`Poll`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cclient%5Ctarget-console%5Ccurrent-polling.ts) — `src\client\target-console\current-polling.ts`
+    - [`TargetConsoleContextLike`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cclient%5Ctarget-console%5Cindex.ts) — `src\client\target-console\index.ts`
+    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cclient%5Ctarget-console%5Ctarget-console.styles.ts) — `src\client\target-console\target-console.styles.ts`
+    - [`ManagedWorktreeSessionDecoration`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cclient%5Cworkspace-sidebar%5Cindex.tsx) — `src\client\workspace-sidebar\index.tsx`
+    - [`ManagedWorkspaceSidebarProjection`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cclient%5Cworkspace-sidebar%5Cmodel.ts) — `src\client\workspace-sidebar\model.ts`
+    - [`ProjectedManagedTask`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cclient%5Cworkspace-sidebar%5Cmodel.ts) — `src\client\workspace-sidebar\model.ts`
+    - [`SidebarSessionSummary`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cclient%5Cworkspace-sidebar%5Cmodel.ts) — `src\client\workspace-sidebar\model.ts`
+    - [`SidebarWorkspaceView`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cclient%5Cworkspace-sidebar%5Cmodel.ts) — `src\client\workspace-sidebar\model.ts`
+    - [`finishedText`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Ccommands.ts) — `src\commands.ts`
+    - [`isValidCommitMessage`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Ccommit-message.ts) — `src\commit-message.ts`
+    - [`WorktreeApplyConflictContinuation`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cconsole-contract.ts) — `src\console-contract.ts`
+    - [`WorktreeApplyConflictRecoveryProof`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cconsole-contract.ts) — `src\console-contract.ts`
+    - [`WorktreeClientBootReport`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cconsole-contract.ts) — `src\console-contract.ts`
+    - [`WorktreeConsoleAbandonedListRequest`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cconsole-contract.ts) — `src\console-contract.ts`
+    - [`WorktreeConsoleAbandonedListResponse`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cconsole-contract.ts) — `src\console-contract.ts`
+    - [`WorktreeConsoleAbandonedSnapshot`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cconsole-contract.ts) — `src\console-contract.ts`
+    - [`WorktreeConsoleAdapter`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cconsole-contract.ts) — `src\console-contract.ts`
+    - [`WorktreeConsoleBeginNextIterationRequest`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cconsole-contract.ts) — `src\console-contract.ts`
+    - [`WorktreeConsoleCapabilities`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cconsole-contract.ts) — `src\console-contract.ts`
+    - [`WorktreeConsoleCheckpointRequest`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cconsole-contract.ts) — `src\console-contract.ts`
+    - [`WorktreeConsoleClearSidebarBadgeRequest`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cconsole-contract.ts) — `src\console-contract.ts`
+    - [`WorktreeConsoleCreatePreviewRecoveryHandoffRequest`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cconsole-contract.ts) — `src\console-contract.ts`
+    - [`WorktreeConsoleCreatePreviewRecoveryHandoffResponse`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cconsole-contract.ts) — `src\console-contract.ts`
+    - [`WorktreeConsoleCreateResponse`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cconsole-contract.ts) — `src\console-contract.ts`
+    - [`WorktreeConsoleCurrentRequest`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cconsole-contract.ts) — `src\console-contract.ts`
+    - [`WorktreeConsoleCurrentResponse`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cconsole-contract.ts) — `src\console-contract.ts`
+    - [`WorktreeConsoleDiffFile`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cconsole-contract.ts) — `src\console-contract.ts`
+    - [`WorktreeConsoleDiscardRequest`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cconsole-contract.ts) — `src\console-contract.ts`
+    - [`WorktreeConsoleError`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cconsole-contract.ts) — `src\console-contract.ts`
+    - [`WorktreeConsoleErrorMeta`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cconsole-contract.ts) — `src\console-contract.ts`
+    - [`WorktreeConsoleFinalizePreviewRequest`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cconsole-contract.ts) — `src\console-contract.ts`
+    - [`WorktreeConsoleFinalizeRequest`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cconsole-contract.ts) — `src\console-contract.ts`
+    - [`WorktreeConsoleGitBranch`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cconsole-contract.ts) — `src\console-contract.ts`
+    - [`WorktreeConsoleGitCreateTagRequest`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cconsole-contract.ts) — `src\console-contract.ts`
+    - [`WorktreeConsoleGitDeleteTagRequest`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cconsole-contract.ts) — `src\console-contract.ts`
+    - [`WorktreeConsoleGitGraphCommit`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cconsole-contract.ts) — `src\console-contract.ts`
+    - [`WorktreeConsoleGitGraphResponse`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cconsole-contract.ts) — `src\console-contract.ts`
+    - [`WorktreeConsoleGitMutationResponse`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cconsole-contract.ts) — `src\console-contract.ts`
+    - [`WorktreeConsoleGitOverviewResponse`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cconsole-contract.ts) — `src\console-contract.ts`
+    - [`WorktreeConsoleGitPruneEntry`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cconsole-contract.ts) — `src\console-contract.ts`
+    - [`WorktreeConsoleGitPruneResponse`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cconsole-contract.ts) — `src\console-contract.ts`
+    - [`WorktreeConsoleGitPushTagRequest`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cconsole-contract.ts) — `src\console-contract.ts`
+    - [`WorktreeConsoleGitTag`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cconsole-contract.ts) — `src\console-contract.ts`
+    - [`WorktreeConsoleGitTagListResponse`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cconsole-contract.ts) — `src\console-contract.ts`
+    - [`WorktreeConsoleGitTagMutationResponse`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cconsole-contract.ts) — `src\console-contract.ts`
     - … and 37 more
 

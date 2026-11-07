@@ -6,7 +6,7 @@ description: dsh-git-worktree 是 DeepSeek Harness（DSH）的 Git worktree 会�
 # dsh-git-worktree 仓库总览
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`987ec76d`](https://github.com/wloops/dsh-git-worktree/commit/987ec76d79a175159f4ec899c0064deb84cec783) on 2026-11-07 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`4c472668`](https://github.com/wloops/dsh-git-worktree/commit/4c472668067fdf9c6675bca31a97cef07c5b23aa) on 2026-11-07 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 ## 仓库定位
 

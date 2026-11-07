@@ -6,7 +6,7 @@ description: 本模块（src/adapters/ 与 src/checkpoint.ts）是 session-check
 # 主机适配层（Host Adapters）
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`987ec76d`](https://github.com/wloops/dsh-git-worktree/commit/987ec76d79a175159f4ec899c0064deb84cec783) on 2026-11-07 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`4c472668`](https://github.com/wloops/dsh-git-worktree/commit/4c472668067fdf9c6675bca31a97cef07c5b23aa) on 2026-11-07 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 本模块（`src/adapters/` 与 `src/checkpoint.ts`）是 session-checkout 领域与
 DSH 宿主运行环境之间的**唯一接缝**：领域状态机与 apply 引擎只依赖 [ports 抽象](../root_6.md)，
@@ -539,11 +539,11 @@ flowchart TB
   被 registry 的记录守卫与 checkpoint 校验复用。
 
 ??? abstract "Documented components (7)"
-    - [`AtomicJsonCheckoutRegistry`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cadapters%5Cregistry.ts) — `src\adapters\registry.ts`
-    - [`FileLockOptions`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cadapters%5Csafe-file.ts) — `src\adapters\safe-file.ts`
-    - [`FileLockPayload`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cadapters%5Csafe-file.ts) — `src\adapters\safe-file.ts`
-    - [`SessionWorkingDirectoryPort`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cadapters%5Cworking-directory.ts) — `src\adapters\working-directory.ts`
-    - [`WorkingDirectoryServiceLike`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cadapters%5Cworking-directory.ts) — `src\adapters\working-directory.ts`
-    - [`Result`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Cadapters%5Cworktree-creation.ts) — `src\adapters\worktree-creation.ts`
-    - [`canonicalJson`](https://github.com/wloops/dsh-git-worktree/blob/987ec76d79a175159f4ec899c0064deb84cec783/src%5Ccheckpoint.ts) — `src\checkpoint.ts`
+    - [`AtomicJsonCheckoutRegistry`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cadapters%5Cregistry.ts) — `src\adapters\registry.ts`
+    - [`FileLockOptions`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cadapters%5Csafe-file.ts) — `src\adapters\safe-file.ts`
+    - [`FileLockPayload`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cadapters%5Csafe-file.ts) — `src\adapters\safe-file.ts`
+    - [`SessionWorkingDirectoryPort`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cadapters%5Cworking-directory.ts) — `src\adapters\working-directory.ts`
+    - [`WorkingDirectoryServiceLike`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cadapters%5Cworking-directory.ts) — `src\adapters\working-directory.ts`
+    - [`Result`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Cadapters%5Cworktree-creation.ts) — `src\adapters\worktree-creation.ts`
+    - [`canonicalJson`](https://github.com/wloops/dsh-git-worktree/blob/4c472668067fdf9c6675bca31a97cef07c5b23aa/src%5Ccheckpoint.ts) — `src\checkpoint.ts`
 
