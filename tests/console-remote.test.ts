@@ -68,6 +68,7 @@ const METHODS = [
   'rollbackPreview',
   'discard',
   'finalize',
+  'deliver',
   'finalizePreview',
   'setRetention',
   'setPermanent',
@@ -181,7 +182,7 @@ describe('manual strict Worktree Console Remote contribution', () => {
 
   it('accepts complete multiline Commit Messages beyond 500 characters for every commit action', () => {
     const message = `feat: 完整提交说明\n\n${'保留正文与 emoji 😀\n'.repeat(100)}`.trim()
-    for (const method of ['checkpoint', 'finalize', 'finalizePreview']) {
+    for (const method of ['checkpoint', 'finalize', 'deliver', 'finalizePreview']) {
       const descriptor = WORKTREE_CONSOLE_DESCRIPTORS.find(item => item.method === method)!
       const codec = descriptor.parameters.find(parameter => parameter.name === 'commitMessage')!.codec
       if (codec.mode !== 'strict') throw new Error('expected strict codec')

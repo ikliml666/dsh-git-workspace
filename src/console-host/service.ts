@@ -261,6 +261,18 @@ export class WorktreeConsoleService extends TypertRemoteService {
   }
 
   @Remote
+  deliver(
+    agent: Agent,
+    checkoutId: string,
+    expectedRevision: number,
+    commitMessage: string,
+    retention: WorktreeRetentionMode,
+    locale?: Language,
+  ): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>> {
+    return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.deliver({ sessionId: agent.id, checkoutId, expectedRevision, commitMessage, retention }))
+  }
+
+  @Remote
   finalizePreview(
     agent: Agent,
     checkoutId: string,

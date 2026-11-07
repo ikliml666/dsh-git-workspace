@@ -1051,6 +1051,38 @@ export const clientMessages = {
     "zh": "创建",
     "en": "Create"
   },
+  "deliver.title": {
+    "zh": "交付到会话分支",
+    "en": "Deliver to the session branch"
+  },
+  "deliver.description": {
+    "zh": "把这次工作提交到当前会话的分支上，Local 不会被写入。工作树的去留由保留策略决定。",
+    "en": "Commit this work onto the session's branch. Local is never written; what happens to the worktree follows the retention policy."
+  },
+  "deliver.placeholder": {
+    "zh": "提交信息，例如 feat: 加入重试",
+    "en": "Commit message, e.g. feat: add retry"
+  },
+  "deliver.confirm": {
+    "zh": "交付",
+    "en": "Deliver"
+  },
+  "deliver.processing": {
+    "zh": "正在交付…",
+    "en": "Delivering…"
+  },
+  "deliver.invalid": {
+    "zh": "提交信息不能为空，也不能包含 NUL 字符。",
+    "en": "A commit message is required and must not contain NUL."
+  },
+  "deliver.done": {
+    "zh": "已交付到 {p0}",
+    "en": "Delivered to {p0}"
+  },
+  "deliver.no.branch": {
+    "zh": "当前会话没有可交付的工作树。",
+    "en": "This session has no worktree to deliver."
+  },
   "branch.prune.title": {
     "zh": "清理已合并分支",
     "en": "Prune merged branches"

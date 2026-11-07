@@ -376,6 +376,19 @@ export interface WorktreeConsoleFinalizeRequest {
   retention: WorktreeRetentionMode
 }
 
+/**
+ * 评审面板已删除，会话做完工作就停在 `working`。`finalize` 强制要求
+ * `ready_for_review` + reviewId，那条路只剩 `/worktree finalize` 那个老命令能走；
+ * 胶囊菜单的「交付」用这个：不要求评审身份，直接从 `working` 交付。
+ */
+export interface WorktreeConsoleDeliverRequest {
+  sessionId: string
+  checkoutId: string
+  expectedRevision: number
+  commitMessage: string
+  retention: WorktreeRetentionMode
+}
+
 export interface WorktreeConsoleFinalizePreviewRequest {
   sessionId: string
   checkoutId: string
@@ -787,6 +800,7 @@ export interface WorktreeConsoleAdapter {
   rollbackPreview(request: WorktreeConsoleRollbackPreviewRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   discard(request: WorktreeConsoleDiscardRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   finalize(request: WorktreeConsoleFinalizeRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
+  deliver(request: WorktreeConsoleDeliverRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   finalizePreview(request: WorktreeConsoleFinalizePreviewRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   setRetention(request: WorktreeConsoleSetRetentionRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   setPermanent(request: WorktreeConsoleSetPermanentRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>

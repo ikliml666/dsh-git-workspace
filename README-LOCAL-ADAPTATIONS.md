@@ -51,6 +51,7 @@ E:\ik\Documents\trae_projects\worktrae\<项目>\<主题>-<YYYYMMDD>
 - **「新建工作树」收进目标胶囊**：官方 forge 面板在 `conversation.hero.options` 里注册的那对控件（`forge-panel.worktree`：分支按钮 + 「新建工作树」复选框）由本插件以 `priority: -1` 在同 id 上注册空组件盖掉——slot 只渲染 priority 最低的那条，于是那对控件整个让位，而 forge 的其余能力（变更请求、diff、review）不受影响。取代它的入口在 `🖥 <分支> ⌄` 胶囊菜单里，且只在 `state === 'local'` 时出现。
 - **建树时机与官方一致**：点了菜单项只是往 session log 写一条 plugin record（`plugin:dsh-git-worktree/worktree-request`），真正的建树发生在 `agent/pre-step` 的第 1 步——勾选即建等于为用户还没打算发的消息付一次完整 checkout 的代价。请求存在 log 里而不是内存里，所以刷新页面、重启 Host 之后仍然有效。
 - **建树失败不吞消息**：`inbox.claim()` 在 `agent/pre-step` 之前就执行，失败时那批消息已经离开队列，必须 `agent.inbox.prepend` 按逆序还回去，否则用户的消息凭空消失；请求保留，原因修好后重发即会重试。
+- **交付入口在胶囊里**：评审状态条删掉后，交付落在 `🖥 <分支> ⌄` 菜单的「交付到会话分支」——填提交信息、确认，走 `deliver` RPC。它和 `finalize` 只差一条：不要求 `expectedReviewId`，所以会话停在 `working` 也能交付（`/worktree finalize` 那条老命令仍要求 `ready_for_review`，只留给脚本）。
 - **评审 UI 不再自建**：`src/client/review-console/`（2615 行）、`WorktreeReviewRow`、验收状态条与 `worktree_ready_for_review` 工具都已删除。官方 `client-ui-forge` 自带 `ChangesTab`（本地改动或变更请求的 diff）、`ForgeTab`、`DiffFile`（统一/并排）、`ReviewComposer`、`SubmitReview`、`ChangedFiles`，同一件事不做两遍。`worktree_deliver` 本来就允许 `working` 直接交付（只有 `ready_for_review` 才要求带 `expectedReviewId`），所以交付路径不受影响。
 
 ## 配置示例（profile cordis.patch.yml / 插件配置）

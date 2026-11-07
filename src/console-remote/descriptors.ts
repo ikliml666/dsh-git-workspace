@@ -180,6 +180,12 @@ export const WORKTREE_CONSOLE_DESCRIPTORS: readonly InvocationDescriptor[] = Obj
     json('commitMessage', commitMessageSchema, `${PACKAGE}/console-contract#WorktreeConsoleFinalizeRequest.commitMessage`),
     json('retention', retentionSchema, `${PACKAGE}/types#WorktreeRetentionMode`),
   ], outcomeSchema(mutationResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>'),
+  descriptor('deliver', [
+    json('checkoutId', checkoutIdSchema, `${PACKAGE}/console-contract#WorktreeConsoleDeliverRequest.checkoutId`),
+    json('expectedRevision', revisionSchema, `${PACKAGE}/console-contract#WorktreeConsoleDeliverRequest.expectedRevision`),
+    json('commitMessage', commitMessageSchema, `${PACKAGE}/console-contract#WorktreeConsoleDeliverRequest.commitMessage`),
+    json('retention', retentionSchema, `${PACKAGE}/types#WorktreeRetentionMode`),
+  ], outcomeSchema(mutationResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>'),
   descriptor('finalizePreview', [
     json('checkoutId', checkoutIdSchema, `${PACKAGE}/console-contract#WorktreeConsoleFinalizePreviewRequest.checkoutId`),
     json('expectedRevision', revisionSchema, `${PACKAGE}/console-contract#WorktreeConsoleFinalizePreviewRequest.expectedRevision`),

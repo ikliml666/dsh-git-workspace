@@ -12,6 +12,7 @@ import type {
   WorktreeConsoleCurrentResponse,
   WorktreeConsoleDiscardRequest,
   WorktreeConsoleFinalizePreviewRequest,
+  WorktreeConsoleDeliverRequest,
   WorktreeConsoleFinalizeRequest,
   WorktreeConsoleGitCreateTagRequest,
   WorktreeConsoleGitDeleteTagRequest,
@@ -109,6 +110,7 @@ export interface WorktreeConsoleControlPlane {
   rollbackPreview(request: WorktreeConsoleRollbackPreviewRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   discard(request: WorktreeConsoleDiscardRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   finalize(request: WorktreeConsoleFinalizeRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
+  deliver(request: WorktreeConsoleDeliverRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   finalizePreview(request: WorktreeConsoleFinalizePreviewRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   setRetention(request: WorktreeConsoleSetRetentionRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   setPermanent(request: WorktreeConsoleSetPermanentRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
@@ -1362,6 +1364,39 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
               request.checkoutId,
               deliveryProofFromTarget(result.target),
             )),
+            changedFiles: [...result.changedFiles],
+            commitOid: result.commitOid,
+          },
+        }
+      } catch (error) {
+        return consoleFailure(error)
+      }
+    },
+
+    deliver: async request => {
+      try {
+        const record = await authorize(request.sessionId, request.checkoutId)
+        if (record.ownerSessionId !== request.sessionId) return failure('not_owner', hostMessage('onlyTheOwnerIsolatedSessionCanCommitAcceptance'))
+        if (record.revision !== request.expectedRevision) return failure('stale_target', hostMessage('theSessionTargetHasChangedRefresh'))
+        const commitMessage = request.commitMessage.trim()
+        if (!isValidCommitMessage(commitMessage)) return failure('invalid_input', hostMessage('theCommitMessageMustBeNonemptyAndContainNoNul'))
+        // 不传 expectedReviewId：这条路径不要求评审身份，会话停在 working 也能交付。
+        const result = await options.module.operate({
+          sessionId: request.sessionId,
+          expectedRevision: request.expectedRevision,
+          action: 'finish',
+          commitMessage,
+          retention: request.retention,
+        })
+        if (result.status === 'error') return failure(result.code, result.message)
+        if (result.status === 'conflict') {
+          return failure('apply_conflict', hostMessage('applyingToLocalCausedConflicts'), undefined, applyConflictContinuation(result, record.delivery.state === 'ready_for_review' ? record.delivery.review.reviewId : ''))
+        }
+        if (result.status !== 'finished') return failure('operation_not_allowed', hostMessage('finalizeReturnedAnUnexpectedState'))
+        return {
+          ok: true,
+          value: {
+            ...(await mutationResponse(request.sessionId, request.checkoutId, deliveryProofFromTarget(result.target))),
             changedFiles: [...result.changedFiles],
             commitOid: result.commitOid,
           },

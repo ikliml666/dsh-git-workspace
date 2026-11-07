@@ -10,6 +10,7 @@ import type {
   WorktreeConsoleTargetDetails,
 } from '../../console-contract.js'
 import { branchNameSchema } from '../../console-remote/schemas.js'
+import { DEFAULT_WORKTREE_RETENTION } from '../../types.js'
 import { openExistingSession, type WorktreeClientServices } from '../actions.js'
 import { requestWorktreeReviewRefresh } from '../review-console/status-events.js'
 import { WorktreeManagerModal } from './WorktreeManagerModal.js'
@@ -80,6 +81,9 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
   /** `git init` + first-commit confirmation for a non-Git project directory. */
   const [initializeOpen, setInitializeOpen] = useState(false)
   const [initializeBusy, setInitializeBusy] = useState(false)
+  const [deliverOpen, setDeliverOpen] = useState(false)
+  const [deliverMessage, setDeliverMessage] = useState('')
+  const [deliverBusy, setDeliverBusy] = useState(false)
   const actionScope = useRef(0)
   const activeSession = useRef(sessionId)
   if (activeSession.current !== sessionId) {
@@ -120,6 +124,9 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
     setBranchQuery('')
     setSwitchNotice(null)
     setWorktreeRequest(null)
+    setDeliverOpen(false)
+    setDeliverMessage('')
+    setDeliverBusy(false)
     return subscribeCurrent(adapter, sessionId, language, result => {
       if ('error' in result) {
         const message = result.error instanceof Error ? result.error.message : String(result.error)
@@ -282,6 +289,45 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
       if (active()) setError(reason instanceof Error ? reason.message : String(reason))
     } finally {
       if (active()) setCreateBusy(false)
+    }
+  }
+
+  // 交付：评审面板删掉之后，客户端只剩这一个交付入口。它走 `deliver` RPC——
+  // 不要求 reviewId，会话停在 working 也能直接交付（`/worktree finalize` 那条
+  // 老命令仍然要求 ready_for_review，只留给脚本用）。
+  const deliver = async (): Promise<void> => {
+    if (!target?.checkoutId || deliverBusy) return
+    const commitMessage = deliverMessage.trim()
+    if (commitMessage.length === 0 || commitMessage.includes('\0')) {
+      setError(t("deliver.invalid"))
+      return
+    }
+    const scope = actionScope.current
+    const active = () => mounted.current && scope === actionScope.current
+    setDeliverBusy(true)
+    setError(null)
+    try {
+      const outcome = await adapter.deliver({
+        sessionId,
+        checkoutId: target.checkoutId,
+        expectedRevision: target.revision,
+        commitMessage,
+        // 与 `/worktree finish` 一致：不提保留策略就按默认走。
+        retention: DEFAULT_WORKTREE_RETENTION,
+      })
+      if (!active()) return
+      if (!outcome.ok) {
+        setError(outcome.error.message)
+        return
+      }
+      setDeliverOpen(false)
+      setDeliverMessage('')
+      setSwitchNotice(t("deliver.done", { p0: target.currentBranch ?? '' }))
+      requestWorktreeReviewRefresh(sessionId)
+    } catch (reason) {
+      if (active()) setError(reason instanceof Error ? reason.message : String(reason))
+    } finally {
+      if (active()) setDeliverBusy(false)
     }
   }
 
@@ -596,6 +642,11 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
       ? [{ id: 'source', icon: <ReviewIcon name="external" />, label: t("return.to.source.session") } satisfies MenuEntry]
       : []),
     ...(target?.capabilities.beginNextIteration ? [{ id: 'begin_next_iteration', icon: <ReviewIcon name="create" />, label: pendingAction === 'begin_next_iteration' ? t("creating") : t("start.next.iteration"), disabled: pendingAction !== null } satisfies MenuEntry] : []),
+    // 评审面板已删，这里是客户端唯一的交付入口：会话做完工作就停在 working，
+    // 交付完这棵树按保留策略收尾。只在有托管 checkout 且不是交付后态时出现。
+    ...(target?.checkoutId && (target.state === 'working' || target.state === 'ready_for_review')
+      ? [{ id: 'deliver', icon: <ReviewIcon name="send" />, label: pendingAction !== null || deliverBusy ? t("deliver.processing") : t("deliver.title"), disabled: pendingAction !== null || deliverBusy } satisfies MenuEntry]
+      : []),
     ...(target?.capabilities.returnToLocal ? [{ id: 'return_to_local', icon: <ReviewIcon name="external" />, label: pendingAction === 'return_to_local' ? t("processing") : t("back.to.local.checkout"), disabled: pendingAction !== null } satisfies MenuEntry] : []),
     ...(target ? [{ id: 'manager', icon: <ReviewIcon name="manager" />, label: t("manage.linked.worktrees") } satisfies MenuEntry] : []),
   ]
@@ -625,6 +676,7 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
           if (id === 'discard') { setMenuOpen(false); setCleanupConfirmOpen(true) }
           if (id === 'create_branch') { setMenuOpen(false); setCreateName(''); setError(null); setCreateOpen(true) }
           if (id === 'request_worktree') void toggleWorktreeRequest()
+          if (id === 'deliver') { setMenuOpen(false); setError(null); setDeliverMessage(''); setDeliverOpen(true) }
           if (id === 'prune_branches') openPrunePreview()
           if (id === 'manage_tags') { setMenuOpen(false); setTagTarget(null); setTagsOpen(true) }
           if (id === 'graph') { setMenuOpen(false); setGraphOpen(true) }
@@ -731,6 +783,38 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
         target={tagTarget}
         onClose={() => { setTagsOpen(false); setTagTarget(null) }}
       />
+      <Modal
+        open={deliverOpen}
+        onClose={() => { if (!deliverBusy) setDeliverOpen(false) }}
+        title={t("deliver.title")}
+        closeLabel={t("cancel")}
+        description={t("deliver.description")}
+        footer={(
+          <span className="dsh-wtc-confirm-actions">
+            <button type="button" className="dsh-wtc-button" disabled={deliverBusy} onClick={() => setDeliverOpen(false)}>{t("cancel")}</button>
+            <button
+              type="button"
+              className="dsh-wtc-button dsh-wtc-primary"
+              disabled={deliverBusy || deliverMessage.trim().length === 0}
+              onClick={() => { void deliver() }}
+            >
+              {deliverBusy ? t("deliver.processing") : t("deliver.confirm")}
+            </button>
+          </span>
+        )}
+      >
+        <div className="dsh-wtc-create-branch">
+          <input
+            className="dsh-wtc-create-branch-input"
+            value={deliverMessage}
+            placeholder={t("deliver.placeholder")}
+            autoFocus
+            onChange={event => setDeliverMessage(event.target.value)}
+            onKeyDown={event => { if (event.key === 'Enter' && !deliverBusy) void deliver() }}
+          />
+          {error ? <span className="dsh-wtc-menu-error">{error}</span> : null}
+        </div>
+      </Modal>
       <Modal
         open={createOpen}
         onClose={() => { if (!createBusy) setCreateOpen(false) }}

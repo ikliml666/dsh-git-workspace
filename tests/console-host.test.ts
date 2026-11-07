@@ -175,6 +175,39 @@ function plane(record = readyRecord(), overrides: {
 }
 
 describe('Worktree Console Host control plane', () => {
+  it('deliver commits from the working state without demanding a review identity', async () => {
+    const { module, control } = plane()
+    vi.mocked(module.operate).mockResolvedValueOnce({
+      status: 'finished',
+      changedFiles: ['src/index.ts'],
+      commitOid: 'c'.repeat(40),
+      target: {
+        project: { id: 'project-1', name: 'Project' },
+        checkout: { id: 'checkout-1', kind: 'isolated', label: 'Task', phase: 'discarded' },
+        source: { ref: 'refs/heads/main', oid: 'a'.repeat(40) },
+        current: { branch: 'feat/sess-target', oid: 'c'.repeat(40) },
+        ownership: 'owner', dirty: false, revision: 8,
+        delivery: { state: 'delivered' },
+      },
+    } as never)
+
+    const result = await control.deliver({
+      sessionId: 'target-session',
+      checkoutId: 'checkout-1',
+      expectedRevision: 7,
+      commitMessage: 'feat: ship it',
+      retention: 'retain_manual',
+    })
+
+    expect(result.ok).toBe(true)
+    const call = vi.mocked(module.operate).mock.calls[0]![0]
+    // 关键点：没有 expectedReviewId。评审面板删掉以后会话停在 working，
+    // finalize 那条路要求 ready_for_review，客户端只能走 deliver。
+    expect(call).toMatchObject({ action: 'finish', commitMessage: 'feat: ship it', retention: 'retain_manual' })
+    expect(call).not.toHaveProperty('expectedReviewId')
+  })
+
+
   it('projects an unselected live Git Session as Local without mutating its binding', async () => {
     const { module, control } = plane()
     vi.mocked(module.inspect).mockRejectedValueOnce(Object.assign(

@@ -11,6 +11,7 @@ import type {
   WorktreeConsoleCurrentResponse,
   WorktreeConsoleDiscardRequest,
   WorktreeConsoleFinalizePreviewRequest,
+  WorktreeConsoleDeliverRequest,
   WorktreeConsoleFinalizeRequest,
   WorktreeConsoleGitBranch,
   WorktreeConsoleGitCreateTagRequest,
@@ -377,6 +378,10 @@ export function createWorktreeConsoleAdapterFixture(stateful = false): WorktreeC
     },
     async finalize(request: WorktreeConsoleFinalizeRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>> {
       record('finalize', request)
+      return outcome(delivered())
+    },
+    async deliver(request: WorktreeConsoleDeliverRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>> {
+      record('deliver', request)
       return outcome(delivered())
     },
     async finalizePreview(request: WorktreeConsoleFinalizePreviewRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>> {
