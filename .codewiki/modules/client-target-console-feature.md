@@ -38,6 +38,7 @@ flowchart TB
     subgraph Shell["Harness 外壳插槽"]
         SLOT1["conversation.session.header.actions<br/>order=30"]
         SLOT2["conversation.input.dock<br/>order=10 与 order=20"]
+        SLOT3["conversation.hero.options<br/>priority=-1"]
     end
 
     REG["registerTargetConsole<br/>target-console/index.ts"]
@@ -66,9 +67,11 @@ flowchart TB
 
     REG --> SLOT1
     REG --> SLOT2
+    REG --> SLOT3
     SLOT1 --> TSA
     SLOT2 --> WRS
     SLOT2 --> WHC
+    SLOT3 --> HWO["HiddenForgeWorktreeOption<br/>（空单元，遮蔽官方默认项）"]
     WHC -->|portal| TSA
     TSA --> WMM
     TSA --> BGM
@@ -98,11 +101,12 @@ flowchart TB
 
 ### 入口与插槽注册 — `index.ts`
 
-- `TargetConsoleContextLike`：描述外壳插槽能力（`slots.inject` / `slots.register`），与 [Client_Settings_Card_Feature](client-settings-card-feature.md) 中 `SlotsService` 属同一类外壳注入协议。
-- `registerTargetConsole(ctx, adapter, services)`：在三处注册组件：
+- `TargetConsoleContextLike`：描述外壳插槽能力（`slots.inject` / `slots.register`），`inject` 目前接受三个插槽名：`conversation.session.header.actions`、`conversation.input.dock`、`conversation.hero.options`；与 [Client_Settings_Card_Feature](client-settings-card-feature.md) 中 `SlotsService` 属同一类外壳注入协议。
+- `registerTargetConsole(ctx, adapter, services)`：在四处注册组件：
   - `conversation.session.header.actions`（order=30）→ `TargetStatusAction`
   - `conversation.input.dock`（order=10）→ `WorktreeReviewStatus`
   - `conversation.input.dock`（order=20）→ `WorktreeHeroChip`（仅空白会话渲染）
+  - `conversation.hero.options`（id=`forge-panel.worktree`，priority=-1）→ `HiddenForgeWorktreeOption`：priority 低于官方默认的 0，于是该 hero options cell 由本插件渲染（内容为空），用于接管/遮蔽官方默认的 forge worktree 选项单元。
 - 同时再导出 `TargetStatusAction`、`WorktreeConsoleView`、`WorktreeHeroChip`、`WorktreeManagerModal`、`WorktreeReviewStatus`，供宿主或其他客户端模块复用。
 
 ### 目标胶囊 — `TargetStatusAction.tsx`

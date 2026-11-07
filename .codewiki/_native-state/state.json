@@ -2,34 +2,60 @@
   "stateVersion": 1,
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
-    "baseCommit": "29e13111fbb6b793edfb77e737fd21d49754d212",
-    "headCommit": "418761d328549f22e4aed5d0dec38a04e134170a"
+    "baseCommit": "418761d328549f22e4aed5d0dec38a04e134170a",
+    "headCommit": "3de7eb140d120d3244de9279ee5283a27a10ee9c"
   },
   "pendingChanges": {
     "state": "ok",
-    "baseCommit": "29e13111fbb6b793edfb77e737fd21d49754d212",
-    "headCommit": "418761d328549f22e4aed5d0dec38a04e134170a",
-    "committed": [
-      "docs/REPORT-official-entries-and-dsh-ops.md"
-    ],
+    "baseCommit": "418761d328549f22e4aed5d0dec38a04e134170a",
+    "headCommit": "3de7eb140d120d3244de9279ee5283a27a10ee9c",
+    "committed": [],
     "staged": [],
-    "unstaged": [],
-    "untracked": [],
+    "unstaged": [
+      "src/client/console-remote/adapter.ts",
+      "src/client/target-console/TargetStatusAction.tsx",
+      "src/client/target-console/index.ts",
+      "src/console-contract.ts",
+      "src/console-host/control-plane.ts",
+      "src/console-host/service.ts",
+      "src/console-remote/descriptors.ts",
+      "src/console-remote/remote.ts",
+      "src/console-remote/schemas.ts",
+      "src/i18n/client-messages.ts",
+      "src/index.ts"
+    ],
+    "untracked": [
+      "src/worktree-request.ts"
+    ],
     "deleted": [],
     "renamed": [],
     "reason": ""
   },
-  "unconsumed": [],
+  "unconsumed": [
+    "src/client/console-remote/adapter.ts",
+    "src/client/target-console/TargetStatusAction.tsx",
+    "src/client/target-console/index.ts",
+    "src/console-contract.ts",
+    "src/console-host/control-plane.ts",
+    "src/console-host/service.ts",
+    "src/console-remote/descriptors.ts",
+    "src/console-remote/remote.ts",
+    "src/console-remote/schemas.ts",
+    "src/i18n/client-messages.ts",
+    "src/index.ts",
+    "src/worktree-request.ts"
+  ],
   "engineVersion": "2.0.0",
   "scope": "auto",
   "effectiveScope": "stale",
-  "updateOutcome": "no_change",
+  "updateOutcome": "incremental",
   "fallbackReason": "",
   "missingRepair": null,
   "notes": [
-    "丢弃 4 条已不存在且从未提交的旧账（src/official-worktree-registration.ts、src/session-checkout-module.ts、tests/lib-artifact-lifecycle.test.ts 等）——只有 committed 才算消化的规则会让它们被永久携带，白跑整轮",
-    "持久化基线 b097967 与本次 cw 基线 29e1311 不同（以 cw 基线为准，未消费变化仍会并入）",
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw5wfzex-8-native（31 个文件）"
+    "持久化基线 29e1311 与本次 cw 基线 418761d 不同（以 cw 基线为准，未消费变化仍会并入）",
+    "工作区未提交改动已合成临时 commit 3e52684b7fe9（12 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw61t65k-3-native（31 个文件）",
+    "本轮把 13 个未提交源码改动一并写进产物（快照 3e52684b7fe9）：src/client/console-remote/adapter.ts、src/client/target-console/TargetStatusAction.tsx、src/client/target-console/index.ts、src/console-contract.ts、src/console-host/control-plane.ts 等"
   ],
-  "updatedAt": "2026-11-07T05:36:52.267Z"
+  "updatedAt": "2026-11-07T07:35:27.793Z"
 }

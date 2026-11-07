@@ -6,7 +6,7 @@ description: dsh-git-worktree 是面向 DeepSeek Harness（DSH）平台的 Cordi
 # dsh-git-worktree 仓库总览
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`418761d3`](https://github.com/wloops/dsh-git-worktree/commit/418761d328549f22e4aed5d0dec38a04e134170a) on 2026-11-07 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`3e52684b`](https://github.com/wloops/dsh-git-worktree/commit/3e52684b7fe9828f1095e076b810db542fa5dfbb) on 2026-11-07 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 ## 仓库定位
 `dsh-git-worktree` 是面向 DeepSeek Harness（DSH）平台的 Cordis 插件，核心目标是为 AI 编码 Agent 提供隔离、事务化、安全硬化的托管 Git Worktree 运行环境，解决传统 AI 编码过程中的状态污染问题：

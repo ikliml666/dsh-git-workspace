@@ -6,7 +6,7 @@ description: ConsoleRemoteTransportLayer 是 Web 端 Console 与 Node 端 Host �
 # Console Remote 传输层（Console_Remote_Transport_Layer）
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`418761d3`](https://github.com/wloops/dsh-git-worktree/commit/418761d328549f22e4aed5d0dec38a04e134170a) on 2026-11-07 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`3e52684b`](https://github.com/wloops/dsh-git-worktree/commit/3e52684b7fe9828f1095e076b810db542fa5dfbb) on 2026-11-07 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 ## 简介
 
@@ -293,9 +293,9 @@ flowchart TB
 - [Client_Core_Infrastructure（客户端核心基础设施层）](../Client_UI_Application_Layer/Client_Core_Infrastructure.md) — `GitWorktreeRemote` 在 Client 侧的装配与适配器
 
 ??? abstract "Documented components (5)"
-    - [`descriptor`](https://github.com/wloops/dsh-git-worktree/blob/418761d328549f22e4aed5d0dec38a04e134170a/src%5Cconsole-remote%5Cdescriptors.ts) — `src\console-remote\descriptors.ts`
-    - [`TypertRemoteMap`](https://github.com/wloops/dsh-git-worktree/blob/418761d328549f22e4aed5d0dec38a04e134170a/src%5Cconsole-remote%5Cremote.ts) — `src\console-remote\remote.ts`
-    - [`TypertRemoteNamespaceMap`](https://github.com/wloops/dsh-git-worktree/blob/418761d328549f22e4aed5d0dec38a04e134170a/src%5Cconsole-remote%5Cremote.ts) — `src\console-remote\remote.ts`
-    - [`outcomeSchema`](https://github.com/wloops/dsh-git-worktree/blob/418761d328549f22e4aed5d0dec38a04e134170a/src%5Cconsole-remote%5Cschemas.ts) — `src\console-remote\schemas.ts`
-    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/418761d328549f22e4aed5d0dec38a04e134170a/src%5Cconsole-remote%5Ctypert.ts) — `src\console-remote\typert.ts`
+    - [`descriptor`](https://github.com/wloops/dsh-git-worktree/blob/3e52684b7fe9828f1095e076b810db542fa5dfbb/src%5Cconsole-remote%5Cdescriptors.ts) — `src\console-remote\descriptors.ts`
+    - [`TypertRemoteMap`](https://github.com/wloops/dsh-git-worktree/blob/3e52684b7fe9828f1095e076b810db542fa5dfbb/src%5Cconsole-remote%5Cremote.ts) — `src\console-remote\remote.ts`
+    - [`TypertRemoteNamespaceMap`](https://github.com/wloops/dsh-git-worktree/blob/3e52684b7fe9828f1095e076b810db542fa5dfbb/src%5Cconsole-remote%5Cremote.ts) — `src\console-remote\remote.ts`
+    - [`outcomeSchema`](https://github.com/wloops/dsh-git-worktree/blob/3e52684b7fe9828f1095e076b810db542fa5dfbb/src%5Cconsole-remote%5Cschemas.ts) — `src\console-remote\schemas.ts`
+    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/3e52684b7fe9828f1095e076b810db542fa5dfbb/src%5Cconsole-remote%5Ctypert.ts) — `src\console-remote\typert.ts`
 

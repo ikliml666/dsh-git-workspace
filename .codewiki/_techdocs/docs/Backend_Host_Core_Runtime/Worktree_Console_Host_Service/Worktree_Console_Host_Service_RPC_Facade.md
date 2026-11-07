@@ -6,7 +6,7 @@ description: WorktreeConsoleHostServiceRPCFacade 是宿主侧（Host 进程）�
 # Worktree 控制台宿主服务 RPC 门面
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`418761d3`](https://github.com/wloops/dsh-git-worktree/commit/418761d328549f22e4aed5d0dec38a04e134170a) on 2026-11-07 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`3e52684b`](https://github.com/wloops/dsh-git-worktree/commit/3e52684b7fe9828f1095e076b810db542fa5dfbb) on 2026-11-07 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 ## 简介
 
@@ -257,6 +257,6 @@ flowchart LR
 - 客户端调用方：[Client 核心基础设施](../../Client_UI_Application_Layer/Client_Core_Infrastructure.md)
 
 ??? abstract "Documented components (2)"
-    - [`consoleFailure`](https://github.com/wloops/dsh-git-worktree/blob/418761d328549f22e4aed5d0dec38a04e134170a/src%5Cconsole-host%5Cerrors.ts) — `src\console-host\errors.ts`
-    - [`WorktreeConsoleService`](https://github.com/wloops/dsh-git-worktree/blob/418761d328549f22e4aed5d0dec38a04e134170a/src%5Cconsole-host%5Cservice.ts) — `src\console-host\service.ts`
+    - [`consoleFailure`](https://github.com/wloops/dsh-git-worktree/blob/3e52684b7fe9828f1095e076b810db542fa5dfbb/src%5Cconsole-host%5Cerrors.ts) — `src\console-host\errors.ts`
+    - [`WorktreeConsoleService`](https://github.com/wloops/dsh-git-worktree/blob/3e52684b7fe9828f1095e076b810db542fa5dfbb/src%5Cconsole-host%5Cservice.ts) — `src\console-host\service.ts`
 

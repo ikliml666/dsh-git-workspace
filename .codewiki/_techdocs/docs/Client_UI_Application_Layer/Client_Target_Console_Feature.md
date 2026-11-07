@@ -6,7 +6,7 @@ description: 本模块是 DeepSeek Harness 客户端 UI 应用层中面向用户
 # 客户端目标控制台特性（Client_Target_Console_Feature）
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`418761d3`](https://github.com/wloops/dsh-git-worktree/commit/418761d328549f22e4aed5d0dec38a04e134170a) on 2026-11-07 with `doubao-seed-2.1-lite`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`3e52684b`](https://github.com/wloops/dsh-git-worktree/commit/3e52684b7fe9828f1095e076b810db542fa5dfbb) on 2026-11-07 with `doubao-seed-2.1-lite`. Check the code before relying on details.
 
 ## 简介
 
@@ -27,6 +27,7 @@ flowchart TB
     subgraph Shell["Harness 外壳插槽"]
         SLOT1["conversation.session.header.actions<br/>order=30"]
         SLOT2["conversation.input.dock<br/>order=10 与 order=20"]
+        SLOT3["conversation.hero.options<br/>priority=-1"]
     end
 
     REG["registerTargetConsole<br/>target-console/index.ts"]
@@ -55,9 +56,11 @@ flowchart TB
 
     REG --> SLOT1
     REG --> SLOT2
+    REG --> SLOT3
     SLOT1 --> TSA
     SLOT2 --> WRS
     SLOT2 --> WHC
+    SLOT3 --> HWO["HiddenForgeWorktreeOption<br/>（空单元，遮蔽官方默认项）"]
     WHC -->|portal| TSA
     TSA --> WMM
     TSA --> BGM
@@ -87,11 +90,12 @@ flowchart TB
 
 ### 入口与插槽注册 — `index.ts`
 
-- `TargetConsoleContextLike`：描述外壳插槽能力（`slots.inject` / `slots.register`），与 [Client_Settings_Card_Feature（设置卡片功能）](Client_Settings_Card_Feature.md) 中 `SlotsService` 属同一类外壳注入协议。
-- `registerTargetConsole(ctx, adapter, services)`：在三处注册组件：
+- `TargetConsoleContextLike`：描述外壳插槽能力（`slots.inject` / `slots.register`），`inject` 目前接受三个插槽名：`conversation.session.header.actions`、`conversation.input.dock`、`conversation.hero.options`；与 [Client_Settings_Card_Feature（设置卡片功能）](Client_Settings_Card_Feature.md) 中 `SlotsService` 属同一类外壳注入协议。
+- `registerTargetConsole(ctx, adapter, services)`：在四处注册组件：
   - `conversation.session.header.actions`（order=30）→ `TargetStatusAction`
   - `conversation.input.dock`（order=10）→ `WorktreeReviewStatus`
   - `conversation.input.dock`（order=20）→ `WorktreeHeroChip`（仅空白会话渲染）
+  - `conversation.hero.options`（id=`forge-panel.worktree`，priority=-1）→ `HiddenForgeWorktreeOption`：priority 低于官方默认的 0，于是该 hero options cell 由本插件渲染（内容为空），用于接管/遮蔽官方默认的 forge worktree 选项单元。
 - 同时再导出 `TargetStatusAction`、`WorktreeConsoleView`、`WorktreeHeroChip`、`WorktreeManagerModal`、`WorktreeReviewStatus`，供宿主或其他客户端模块复用。
 
 ### 目标胶囊 — `TargetStatusAction.tsx`
@@ -290,18 +294,18 @@ flowchart TB
 `target-console.styles.ts` 导出 `TARGET_CONSOLE_STYLES`（字符串模板），集中定义 `dsh-wtc-*` 系列类名：胶囊配色（按 `data-target-state` 切换 `--wtc-state`）、管理面板卡片/行布局、提交图 SVG、标签管理器、确认对话框等。样式通过 CSS 变量 `color-mix(in srgb, ...)` 适配明暗主题，无独立样式文件构建步骤。
 
 ??? abstract "Documented components (14)"
-    - [`BranchGraphModalProps`](https://github.com/wloops/dsh-git-worktree/blob/418761d328549f22e4aed5d0dec38a04e134170a/src%5Cclient%5Ctarget-console%5CBranchGraphModal.tsx) — `src\client\target-console\BranchGraphModal.tsx`
-    - [`GraphEdge`](https://github.com/wloops/dsh-git-worktree/blob/418761d328549f22e4aed5d0dec38a04e134170a/src%5Cclient%5Ctarget-console%5CBranchGraphModal.tsx) — `src\client\target-console\BranchGraphModal.tsx`
-    - [`GraphRefBadge`](https://github.com/wloops/dsh-git-worktree/blob/418761d328549f22e4aed5d0dec38a04e134170a/src%5Cclient%5Ctarget-console%5CBranchGraphModal.tsx) — `src\client\target-console\BranchGraphModal.tsx`
-    - [`GraphRowLanes`](https://github.com/wloops/dsh-git-worktree/blob/418761d328549f22e4aed5d0dec38a04e134170a/src%5Cclient%5Ctarget-console%5CBranchGraphModal.tsx) — `src\client\target-console\BranchGraphModal.tsx`
-    - [`TagManagerModalProps`](https://github.com/wloops/dsh-git-worktree/blob/418761d328549f22e4aed5d0dec38a04e134170a/src%5Cclient%5Ctarget-console%5CTagManagerModal.tsx) — `src\client\target-console\TagManagerModal.tsx`
-    - [`TargetStatusActionProps`](https://github.com/wloops/dsh-git-worktree/blob/418761d328549f22e4aed5d0dec38a04e134170a/src%5Cclient%5Ctarget-console%5CTargetStatusAction.tsx) — `src\client\target-console\TargetStatusAction.tsx`
-    - [`WorktreeConsoleViewProps`](https://github.com/wloops/dsh-git-worktree/blob/418761d328549f22e4aed5d0dec38a04e134170a/src%5Cclient%5Ctarget-console%5CWorktreeConsoleView.tsx) — `src\client\target-console\WorktreeConsoleView.tsx`
-    - [`WorktreeHeroChipProps`](https://github.com/wloops/dsh-git-worktree/blob/418761d328549f22e4aed5d0dec38a04e134170a/src%5Cclient%5Ctarget-console%5CWorktreeHeroChip.tsx) — `src\client\target-console\WorktreeHeroChip.tsx`
-    - [`WorktreeManagerModalProps`](https://github.com/wloops/dsh-git-worktree/blob/418761d328549f22e4aed5d0dec38a04e134170a/src%5Cclient%5Ctarget-console%5CWorktreeManagerModal.tsx) — `src\client\target-console\WorktreeManagerModal.tsx`
-    - [`WorktreeReviewStatusProps`](https://github.com/wloops/dsh-git-worktree/blob/418761d328549f22e4aed5d0dec38a04e134170a/src%5Cclient%5Ctarget-console%5CWorktreeReviewStatus.tsx) — `src\client\target-console\WorktreeReviewStatus.tsx`
-    - [`bumpEpoch`](https://github.com/wloops/dsh-git-worktree/blob/418761d328549f22e4aed5d0dec38a04e134170a/src%5Cclient%5Ctarget-console%5Cbranch-overview-cache.ts) — `src\client\target-console\branch-overview-cache.ts`
-    - [`Poll`](https://github.com/wloops/dsh-git-worktree/blob/418761d328549f22e4aed5d0dec38a04e134170a/src%5Cclient%5Ctarget-console%5Ccurrent-polling.ts) — `src\client\target-console\current-polling.ts`
-    - [`TargetConsoleContextLike`](https://github.com/wloops/dsh-git-worktree/blob/418761d328549f22e4aed5d0dec38a04e134170a/src%5Cclient%5Ctarget-console%5Cindex.ts) — `src\client\target-console\index.ts`
-    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/418761d328549f22e4aed5d0dec38a04e134170a/src%5Cclient%5Ctarget-console%5Ctarget-console.styles.ts) — `src\client\target-console\target-console.styles.ts`
+    - [`BranchGraphModalProps`](https://github.com/wloops/dsh-git-worktree/blob/3e52684b7fe9828f1095e076b810db542fa5dfbb/src%5Cclient%5Ctarget-console%5CBranchGraphModal.tsx) — `src\client\target-console\BranchGraphModal.tsx`
+    - [`GraphEdge`](https://github.com/wloops/dsh-git-worktree/blob/3e52684b7fe9828f1095e076b810db542fa5dfbb/src%5Cclient%5Ctarget-console%5CBranchGraphModal.tsx) — `src\client\target-console\BranchGraphModal.tsx`
+    - [`GraphRefBadge`](https://github.com/wloops/dsh-git-worktree/blob/3e52684b7fe9828f1095e076b810db542fa5dfbb/src%5Cclient%5Ctarget-console%5CBranchGraphModal.tsx) — `src\client\target-console\BranchGraphModal.tsx`
+    - [`GraphRowLanes`](https://github.com/wloops/dsh-git-worktree/blob/3e52684b7fe9828f1095e076b810db542fa5dfbb/src%5Cclient%5Ctarget-console%5CBranchGraphModal.tsx) — `src\client\target-console\BranchGraphModal.tsx`
+    - [`TagManagerModalProps`](https://github.com/wloops/dsh-git-worktree/blob/3e52684b7fe9828f1095e076b810db542fa5dfbb/src%5Cclient%5Ctarget-console%5CTagManagerModal.tsx) — `src\client\target-console\TagManagerModal.tsx`
+    - [`TargetStatusActionProps`](https://github.com/wloops/dsh-git-worktree/blob/3e52684b7fe9828f1095e076b810db542fa5dfbb/src%5Cclient%5Ctarget-console%5CTargetStatusAction.tsx) — `src\client\target-console\TargetStatusAction.tsx`
+    - [`WorktreeConsoleViewProps`](https://github.com/wloops/dsh-git-worktree/blob/3e52684b7fe9828f1095e076b810db542fa5dfbb/src%5Cclient%5Ctarget-console%5CWorktreeConsoleView.tsx) — `src\client\target-console\WorktreeConsoleView.tsx`
+    - [`WorktreeHeroChipProps`](https://github.com/wloops/dsh-git-worktree/blob/3e52684b7fe9828f1095e076b810db542fa5dfbb/src%5Cclient%5Ctarget-console%5CWorktreeHeroChip.tsx) — `src\client\target-console\WorktreeHeroChip.tsx`
+    - [`WorktreeManagerModalProps`](https://github.com/wloops/dsh-git-worktree/blob/3e52684b7fe9828f1095e076b810db542fa5dfbb/src%5Cclient%5Ctarget-console%5CWorktreeManagerModal.tsx) — `src\client\target-console\WorktreeManagerModal.tsx`
+    - [`WorktreeReviewStatusProps`](https://github.com/wloops/dsh-git-worktree/blob/3e52684b7fe9828f1095e076b810db542fa5dfbb/src%5Cclient%5Ctarget-console%5CWorktreeReviewStatus.tsx) — `src\client\target-console\WorktreeReviewStatus.tsx`
+    - [`bumpEpoch`](https://github.com/wloops/dsh-git-worktree/blob/3e52684b7fe9828f1095e076b810db542fa5dfbb/src%5Cclient%5Ctarget-console%5Cbranch-overview-cache.ts) — `src\client\target-console\branch-overview-cache.ts`
+    - [`Poll`](https://github.com/wloops/dsh-git-worktree/blob/3e52684b7fe9828f1095e076b810db542fa5dfbb/src%5Cclient%5Ctarget-console%5Ccurrent-polling.ts) — `src\client\target-console\current-polling.ts`
+    - [`TargetConsoleContextLike`](https://github.com/wloops/dsh-git-worktree/blob/3e52684b7fe9828f1095e076b810db542fa5dfbb/src%5Cclient%5Ctarget-console%5Cindex.ts) — `src\client\target-console\index.ts`
+    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/3e52684b7fe9828f1095e076b810db542fa5dfbb/src%5Cclient%5Ctarget-console%5Ctarget-console.styles.ts) — `src\client\target-console\target-console.styles.ts`
 
