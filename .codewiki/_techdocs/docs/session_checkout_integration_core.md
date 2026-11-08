@@ -6,7 +6,7 @@ description: 本页描述 sessioncheckoutengine 的集成核心层：它把纯�
 # Session Checkout 集成核心（session_checkout_integration_core）
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`86439d17`](https://github.com/wloops/dsh-git-worktree/commit/86439d17222ffee9fc0f92ded6f736585d844e62) on 2026-11-08 with `deepseek-v4.1-flash`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`39800d09`](https://github.com/wloops/dsh-git-worktree/commit/39800d09c0b35009577553ccc954b81dc11dfcb6) on 2026-11-08 with `deepseek-v4.1-flash`. Check the code before relying on details.
 
 本页描述 `session_checkout_engine` 的**集成核心层**：它把纯逻辑的 Apply 引擎（`src/session-checkout-apply.ts`）与 DSH 宿主真正接起来，负责「会话 ↔ 项目 ↔ 受管 Worktree」三者的绑定关系、台账（registry）持久化、乐观并发（revision CAS）与全局互斥、崩溃收敛（reconcile）、交付/清理生命周期，以及向模型注入**动态会话目标上下文**、在会话走进官方 Worktree 时自动登记。
 
@@ -241,7 +241,7 @@ flowchart TD
     E -->|finalized/retained 且 cwd 不在树内| E4["Local 边界可正常工作；树冻结仅供回滚/清理"]
     E -->|ready| F["按 delivery.state 追加指引"]
     F --> F1["working → 按 autoDeliver 决定 deliver 或人工交付"]
-    F --> F2["ready_for_review → 只讨论，改动前先 resumeRevision"]
+    F --> F2["ready_for_review → 只讨论，需改动时由用户先从胶囊菜单交付（本版本无就地恢复工具）"]
     F --> F3["preview_active / preview_detached → 模型只读"]
     F --> F4["delivered / retained → 先 merge 再 cleanup"]
 ```
@@ -481,6 +481,6 @@ stateDiagram-v2
 7. **类型严格度**：`tsconfig.json` 启用了 `strict` + `noUncheckedIndexedAccess`，因此代码中大量 `record.checkpoints!` / `[index]!` 断言是有意为之，重构时不要盲目移除。
 
 ??? abstract "Documented components (2)"
-    - [`ResolvedSessionProject`](https://github.com/wloops/dsh-git-worktree/blob/86439d17222ffee9fc0f92ded6f736585d844e62/src%5Csession-checkout-module.ts) — `src\session-checkout-module.ts`
-    - [`ContextAgent`](https://github.com/wloops/dsh-git-worktree/blob/86439d17222ffee9fc0f92ded6f736585d844e62/src%5Csession-target-context.ts) — `src\session-target-context.ts`
+    - [`ResolvedSessionProject`](https://github.com/wloops/dsh-git-worktree/blob/39800d09c0b35009577553ccc954b81dc11dfcb6/src%5Csession-checkout-module.ts) — `src\session-checkout-module.ts`
+    - [`ContextAgent`](https://github.com/wloops/dsh-git-worktree/blob/39800d09c0b35009577553ccc954b81dc11dfcb6/src%5Csession-target-context.ts) — `src\session-target-context.ts`
 

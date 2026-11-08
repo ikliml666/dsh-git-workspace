@@ -233,7 +233,7 @@ flowchart TD
     E -->|finalized/retained 且 cwd 不在树内| E4["Local 边界可正常工作；树冻结仅供回滚/清理"]
     E -->|ready| F["按 delivery.state 追加指引"]
     F --> F1["working → 按 autoDeliver 决定 deliver 或人工交付"]
-    F --> F2["ready_for_review → 只讨论，改动前先 resumeRevision"]
+    F --> F2["ready_for_review → 只讨论，需改动时由用户先从胶囊菜单交付（本版本无就地恢复工具）"]
     F --> F3["preview_active / preview_detached → 模型只读"]
     F --> F4["delivered / retained → 先 merge 再 cleanup"]
 ```

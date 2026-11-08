@@ -57,7 +57,7 @@ flowchart TD
 | --- | --- | --- |
 | `src/client/index.tsx` | `apply`、`inject`、`WORKTREE_CONSOLE_ADAPTER_SERVICE`、`ClientContextLike` | 浏览器入口：服务收集、i18n 插槽包装、样式注入、ToolView 与目标控制台注册 |
 | `src/client/actions.ts` | `WorktreeClientServices`、`ClientSessions`、`ClientWorkspaces`、`ClientSessionBinding`、`ClientSessionSnapshot`、`SnapshotStore`、`IsolatedTargetLocation`、`openIsolatedTarget`、`openAuthorizedWorktreeTarget`、`openExistingSession`、`navigateToSession`、`selectedSessionId`、`prefillSessionDraft`、`finalizeCurrentSession` | Harness 服务抽象与用户动作编排 |
-| `src/client/model.ts` | `ParsedTool`、`ToolCallBlockLike`、`ToolCallViewPropsLike`、`ToolContentBlock`、`WorktreeCreatePayload`、`WorktreeReviewPayload`、`ReviewArgs`、`parseCreateTool`、`parseReviewTool` | 纯函数式 ToolView 模型解析 |
+| `src/client/model.ts` | `ParsedTool`、`ToolCallBlockLike`、`ToolCallViewPropsLike`、`ToolContentBlock`、`WorktreeCreatePayload`、`parseCreateTool` | 纯函数式 ToolView 模型解析 |
 | `src/client/i18n.tsx` | `ClientLocaleSource`、`ClientI18nProvider`、`useClientTranslator`、`useClientLanguage`、`translatorForServices`、`readClientLanguage`、`clientTranslator`、`defaultClientTranslator` | 客户端语言解析与 React 上下文 |
 | `src/client/WorktreeCreateRow.tsx` | `WorktreeCreateRow` | `worktree_create` 工具调用的专用行视图（含「打开隔离会话」按钮） |
 | `src/client/styles.ts` | `WORKTREE_STYLES` | 卡片与侧栏徽标的全局 CSS 字符串 |
@@ -185,8 +185,8 @@ stateDiagram-v2
 ```
 
 - **载荷校验是白名单式**：`parseCreateTool` 要求 `kind === 'worktree_target_created'` 且 `checkoutId / targetSessionId / managedRoot / phase / currentOid / sourceSessionId` 全部为非空字符串，否则把生命周期降级为 `error` 并给出本地化的「结果格式错误」文案。
-- **`parseReviewTool`** 同时解析结果载荷（`worktree_ready_for_review`）与调用参数（`ReviewArgs`），参数需要 `summary`、`validationStatus` 枚举、`tests` 数组与 `suggestedCommitMessage`，任一项缺失即判定 `malformed.ready.for.review.arguments`。结果载荷中 `iteration` 仅在为正整数时采用，否则回落为 `0`。
-- **翻译器可注入**：两个解析函数都接受 `t: ClientTranslator`（默认 `defaultClientTranslator`），因此错误文案跟随当前语言，同时保持函数纯净。
+- **只解析创建载荷**：`model.ts` 现在只保留 `worktree_create` 这一条解析链（`WorktreeCreatePayload`），因此 `ParsedTool.args` 恒为 `null`；此前的验收结果载荷与参数（`WorktreeReviewPayload`、`ReviewArgs`、`parseReviewTool`）已从本模块移除。
+- **翻译器可注入**：解析函数接受 `t: ClientTranslator`（默认 `defaultClientTranslator`），因此错误文案跟随当前语言，同时保持函数纯净。
 
 ### 行视图的数据流
 
