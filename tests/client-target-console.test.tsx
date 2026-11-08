@@ -3,7 +3,7 @@
 import { ClientI18nProvider } from '../src/client/i18n.js'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import type { ComponentType } from 'react'
+import { createElement, type ComponentType } from 'react'
 import type { WorktreeConsoleTargetDetails } from '../src/console-contract.js'
 import type { WorktreeClientServices } from '../src/client/actions.js'
 import { apply as applyClient, WORKTREE_CONSOLE_ADAPTER_SERVICE } from '../src/client/index.js'
@@ -24,7 +24,7 @@ class SlotsDouble implements TargetConsoleContextLike['slots'] {
   readonly entries: SlotEntry[] = []
   private readonly injectedDisposers: Array<() => void> = []
 
-  inject(_name: 'conversation.session.header.actions' | 'conversation.view' | 'conversation.input.dock', callback: () => unknown): void {
+  inject(_name: 'conversation.session.header.actions' | 'conversation.view' | 'conversation.input.dock' | 'conversation.hero.options', callback: () => unknown): void {
     const dispose = callback()
     if (typeof dispose === 'function') this.injectedDisposers.push(dispose as () => void)
   }
@@ -233,6 +233,29 @@ describe('Harness-native Session Target slots', () => {
     expect(await screen.findByText(/建树失败：git worktree add 失败: 磁盘空间不足/)).toBeTruthy()
   })
 
+
+  test('hero 选项里放一个空占位，用更低 priority shadow 掉官方 forge 那对控件', async () => {
+    const fixture = createWorktreeConsoleAdapterFixture()
+    const slots = new SlotsDouble()
+
+    registerTargetConsole({ slots }, fixture.adapter, clientServices())
+
+    // 官方在同一个 cell 里注册 id `forge-panel.worktree`（priority 默认 0）；
+    // 本插件用 -1 覆盖它，渲染 null 就等于把那对控件让出来。功能收进胶囊菜单，
+    // 这样变更请求/diff/review 仍由官方包里那些真正的功能提供。
+    const hidden = slots.entries.find(candidate => candidate.descriptor.name === 'conversation.hero.options')
+    expect(hidden?.descriptor).toMatchObject({ name: 'conversation.hero.options', id: 'forge-panel.worktree' })
+    const priority = hidden!.descriptor.priority
+    expect(typeof priority).toBe('number')
+    expect(priority as number).toBeLessThan(0)
+
+    const Hidden = hidden!.component
+    const { container } = render(createElement(Hidden, {}))
+    expect(container.innerHTML).toBe('')
+
+    slots.dispose()
+    expect(slots.entries.some(candidate => candidate.descriptor.id === 'forge-panel.worktree')).toBe(false)
+  })
 
   test('registers the exact Header action, reads props.sessionId, and disposes it', async () => {    const fixture = createWorktreeConsoleAdapterFixture()
     fixture.adapter.current = vi.fn(async request => ({ ok: true, value: { target: localTarget() } }))

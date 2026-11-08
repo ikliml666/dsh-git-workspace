@@ -50,11 +50,7 @@ import type { IsolatedTargetLaunch, SessionCheckoutModule } from '../index.js'
 import type { SessionTargetView } from '../types.js'
 import { consoleFailure, domainError, failure, outcome } from './errors.js'
 import { projectDetails, projectLocal, projectRecord, sourceBranchFromRef } from './projection.js'
-
-/** `options.createWorktree` 的结果：建好的目标，或失败原因。 */
-export type CreateWorktreeOutcome =
-  | { readonly ok: true; readonly launch: IsolatedTargetLaunch }
-  | { readonly ok: false; readonly message: string }
+import type { WorktreeCreationResult } from '../worktree-creation.js'
 
 export interface WorktreeConsoleControlPlaneOptions {
   /** 本会话最近一次「官方建的树没能接进台账」的原因；没有则 null。 */
@@ -72,7 +68,7 @@ export interface WorktreeConsoleControlPlaneOptions {
    * （`feat/sess-*` 命名、`.worktreeinclude`、本地未提交修改继承），而 control-plane
    * 只拿得到 lookup 的只读导航记录，拿不到官方 `worktrees.create` 需要的 live Agent。
    */
-  createWorktree: (sessionId: string, from: string | null) => Promise<CreateWorktreeOutcome>
+  createWorktree: (sessionId: string, from: string | null) => Promise<WorktreeCreationResult>
 }
 
 export interface WorktreeConsoleControlPlane {

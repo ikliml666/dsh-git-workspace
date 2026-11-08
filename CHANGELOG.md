@@ -43,7 +43,25 @@
   - **删除分支竞态守卫**：`src/concurrent-session-guard.ts` 与 `detectLocalBranchRace` 整体删除，连同 `branchRaceGuard` / `branchRaceWindowMs` 两个配置、`git.branchCreationTimes` 端口、45 秒定时刷新与模型可见的竞态提示。该守卫用「30 分钟内有人建了分支」推断「别的会话在抢 Local HEAD」，可这条证据同样由本会话自己产生（`git checkout -b` 之后自己的分支立刻成为「别人在抢」的物证）；而时间来源用的是 `reflog` 里的 `%ct`（commit 的 committer date），实测与分支真正诞生时刻差 11 分钟到 4 小时，窗口判定看的根本不是「谁刚动了 HEAD」。归因在这一层根本不存在：git 身份全机统一，`reflog` 里没有会话信息，纯函数无法把分支归给某个会话。于是删掉，而不是在错误归因上继续打补丁。
   - 移除的测试：`tests/official-worktree-takeover.test.ts`、`tests/worktrees-service.test.ts`、`tests/concurrent-session-guard.test.ts`、`tests/client-pre-session.test.tsx`、`tests/official-worktree-adoption.test.ts`，以及 `client-target-console.test.tsx` 的 `Worktree Console Create/Open`、`console-host.test.ts` 的 `initial version confirmation on the host`、`console-remote.test.ts` 的 `initial version Remote boundary`、`git-unborn.test.ts` 的 host/module 全流程用例；新增 `tests/official-base-creation.test.ts`（9 项，用真实 `git worktree add` 跑通官方建树路径与两项补回能力）与 `tests/official-worktree-registration.test.ts`（9 项）。全量 58 文件 / 799 项通过、4 项跳过。
 
+- 按审查报告收尾：建树只走官方 worktrees 服务，删掉本插件自建路径（2026-11-08）。
+  - **问题**：两套目录并存。产品路径是 `createOfficialTarget`（官方 `worktrees.create` 建在 `<repo>/.agents/worktrees/<branch>`），但 `createIsolatedTarget` 与 `worktreesRoot` 仍带着一整套自建逻辑（路径候选、容器回收、topic 命名、设置卡片输入项）留在代码里，生产调用点为 0。
+  - **现在**：删 `createIsolatedTarget` 及其接口声明、`worktreesRoot` 配置与设置卡片项、`collectEmptyManagedContainer` 容器回收、`createTopicDateStamp` / `createTopicManagedWorktreeDirectoryName`。建树位置完全由官方决定。
+  - **补回两件官方不做的事**：①项目 Skills 携带——`projectSkills.carry` 原本只在 `createDetachedWorktree` 里调用，官方路径不认识它们；新增 git 端口 `carryProjectSkills`，在官方建树完成后调用。②台账记 `sessionTopic`——不记就会在交付重建分支时退回项目名，产出一条不同的会话分支，看起来像换了归属。
+  - **删掉的测试**：16 项只验证旧创建器容器/路径/符号链接/长路径/中断恢复行为的用例（那些行为随代码一起消失）。其余 30 余项改用真实产品路径组合：官方布局建树 + `adoptOfficialWorktree` 登记。新增共享夹具 `tests/support/official-worktrees.ts`。
+  - 全量 52 文件 / 650 项通过、5 项跳过。
+
+- 删掉评审背板与不可达入口（2026-11-08）。
+  - **删的 RPC**：`reviewDiff`、`preflight`、`previewRecoveryPreflight`、`preparePreviewRecoveryAnalysis`、`createPreviewRecoveryHandoff`、`preview`、`checkpoint`、`resumeRevision`、`prepareReviewRegeneration`、`rollbackPreview`、`finalize`、`finalizePreview`——12 个方法，客户端调用点为 0。`src/console-host/review-diff.ts` 整个文件删除，`control-plane.ts` 1585 → 1186 行。
+  - **删的命令与工具**：`/worktree continue`、`/worktree finalize`、`worktree_resume_revision`（工具表 8 → 7）。
+  - **保留服务端状态机**：`ready_for_review` 仍被 `operateFinish` 的 `expectedReviewId` 分支、`runtimeContext` 提示词、`checkpoint.ts` 引用。只删用户可见入口、不删产生该状态的能力，否则会留下「状态还在、入口没了」的半删状态。
+  - **提示词同步**：未绑定分支的引导改成 `worktree_deliver` / `worktree_cleanup`；`autoDeliver` 关闭时改为引导用户走胶囊菜单，不再指向已删除的工具。
+
 ### Fixed
+
+- 官方建的树没能接进台账时用户毫无感知（2026-11-08）。
+  - **问题**：`registerOfficialWorktreeAdoption` 的 catch 只写 `console.warn`。那棵树于是永远不进台账，`list` / `deliver` / `cleanup` 对它全部失效，而用户看不到任何提示。
+  - **修法**：原因记进会话（`module.recordAdoptionFailure`），`current` 响应携带 `adoptionFailure`，胶囊轮询时显示。客户端只在它非 null 时覆盖 notice——无条件 `setSwitchNotice(null)` 会把「已切换到 xxx」这类短暂提示每 5 秒抹掉一次。
+  - 同时把「官方目录下的树读不出 Git 或不在分支上」从静默跳过改成显式失败：走到那里说明 cwd 确实在 `.agents/worktrees` 下，属接管失败而非「不归我管」。
 
 - 建树失败时用户看不到任何原因（2026-11-07）。
   - **问题**：建树发生在 `agent/pre-step`，客户端不在那条链路上。失败时只写了 `console.warn`，界面上表现为「发了消息却没动静」——请求还挂着，树没建，消息被退回队列，下一次发又会再失败一次。

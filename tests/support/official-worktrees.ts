@@ -21,18 +21,23 @@ export interface OfficialWorktreesFixture {
   port: OfficialWorktreesPort
   /** 这个替身建过的树，按建树顺序。 */
   created: Array<{ path: string; branch: string; baseCommit: string }>
+  /** 每次 `create` 收到的请求，供断言基点与分支名。 */
+  requests: Array<{ branch: string; from: string }>
 }
 
 export function createOfficialWorktreesFixture(repositoryRoot: string): OfficialWorktreesFixture {
   const created: OfficialWorktreesFixture['created'] = []
+  const requests: OfficialWorktreesFixture['requests'] = []
   let counter = 0
   return {
     created,
+    requests,
     port: {
       create: async (_agent, request = {}) => {
         counter += 1
         const branch = request.name ?? `dsh-fixture-${counter}`
         const from = request.from ?? 'HEAD'
+        requests.push({ branch, from })
         const pool = join(repositoryRoot, '.agents', 'worktrees')
         mkdirSync(pool, { recursive: true })
         // 官方 prepareDirectory 会写一个自忽略的 .gitignore；漏掉它，「继承本地
