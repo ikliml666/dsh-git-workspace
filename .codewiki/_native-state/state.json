@@ -3,12 +3,12 @@
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
     "baseCommit": "919c2c085aefbcd63c64ed064ba71391cf32fca5",
-    "headCommit": "bbcd9964f0bcf2a92ba0401e13136561ecbc7ddc"
+    "headCommit": "1379dfcea1bd8affc13c8f6c0a8483e8f8f1078f"
   },
   "pendingChanges": {
     "state": "ok",
     "baseCommit": "919c2c085aefbcd63c64ed064ba71391cf32fca5",
-    "headCommit": "bbcd9964f0bcf2a92ba0401e13136561ecbc7ddc",
+    "headCommit": "1379dfcea1bd8affc13c8f6c0a8483e8f8f1078f",
     "committed": [
       "src/adapters/git.ts",
       "src/adapters/lookup.ts",
@@ -44,7 +44,8 @@
     "staged": [],
     "unstaged": [
       "src/index.ts",
-      "src/session-checkout-module.ts"
+      "src/session-checkout-module.ts",
+      "tests/session-checkout-module.test.ts"
     ],
     "untracked": [
       "__pycache__/cut_helper.cpython-312.pyc",
@@ -60,7 +61,8 @@
     "__pycache__/cut_helper.cpython-312.pyc",
     "cut_helper.py",
     "src/index.ts",
-    "src/session-checkout-module.ts"
+    "src/session-checkout-module.ts",
+    "tests/session-checkout-module.test.ts"
   ],
   "engineVersion": "2.0.0",
   "scope": "auto",
@@ -69,9 +71,9 @@
   "fallbackReason": "",
   "missingRepair": null,
   "notes": [
-    "持久化基线 e01d7c5 与本次 cw 基线 919c2c0 不同（以 cw 基线为准，未消费变化仍会并入）",
-    "工作区未提交改动已合成临时 commit c73dd14ae59f（4 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw7rdl7j-7-native（38 个文件）"
+    "工作区未提交改动已合成临时 commit 8f9cf6994dc4（5 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw7w05pt-0-native（39 个文件）",
+    "本轮把 5 个未提交源码改动一并写进产物（快照 8f9cf6994dc4）：src/index.ts、src/session-checkout-module.ts、tests/session-checkout-module.test.ts、__pycache__/cut_helper.cpython-312.pyc、cut_helper.py"
   ],
-  "updatedAt": "2026-11-08T12:41:41.907Z"
+  "updatedAt": "2026-11-08T13:49:15.042Z"
 }
