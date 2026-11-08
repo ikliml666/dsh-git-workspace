@@ -54,8 +54,8 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
   const language = useClientLanguage()
 
   const [target, setTarget] = useState<WorktreeConsoleTargetDetails | null>(null)
-  /** 「下一次 turn 在新树里开始」的待办；null 表示没有排队。 */
-  const [worktreeRequest, setWorktreeRequest] = useState<{ from: string | null; failure: string | null } | null>(null)
+  /** 正在建树时为 true：建树要跑一次 `git worktree add`，不是瞬时动作。 */
+  const [createWorktreeBusy, setCreateWorktreeBusy] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   /** Why the last `current` probe failed; surfaced in the trigger tooltip. */
@@ -123,7 +123,7 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
     setTagTarget(null)
     setBranchQuery('')
     setSwitchNotice(null)
-    setWorktreeRequest(null)
+    setCreateWorktreeBusy(false)
     setDeliverOpen(false)
     setDeliverMessage('')
     setDeliverBusy(false)
@@ -134,7 +134,6 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
         setError(message)
       } else if (result.outcome.ok) {
         setTarget(result.outcome.value.target)
-        setWorktreeRequest(result.outcome.value.worktreeRequest)
         setFailure(null)
         setError(null)
       } else {
@@ -201,25 +200,38 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
    * 所以勾了不发送不会留下没人用的 checkout。基点取当前分支（胶囊上写着
    * 的那个），没有分支时交给 Host 用 HEAD。
    */
-  const toggleWorktreeRequest = async (): Promise<void> => {
-    if (pendingAction !== null) return
+  // 建树即点即建：不再写待办、不再等 turn 的第 1 步。返回的就是建好的目标，
+  // 失败也当场可见——早先排队版本的全部困惑都来自「点了没反应，还得再发一条」。
+  const createWorktreeNow = async (): Promise<void> => {
+    if (pendingAction !== null || createWorktreeBusy) return
     const scope = actionScope.current
     const active = () => mounted.current && scope === actionScope.current
     setMenuOpen(false)
     setError(null)
-    const from = worktreeRequest === null ? (target?.currentBranch ?? null) : undefined
-    const result = await adapter.setWorktreeRequest({ sessionId, from })
-    if (!active()) return
-    if (!result.ok) {
-      setError(result.error.message)
-      return
+    setCreateWorktreeBusy(true)
+    try {
+      const result = await adapter.createWorktree({ sessionId, from: target?.currentBranch ?? null })
+      if (!active()) return
+      if (!result.ok) {
+        setError(result.error.message)
+        return
+      }
+      if (result.value.failure !== null) {
+        // 菜单此刻已经收起：只写 error 的话用户看不到任何东西，而建树失败正是
+        // 最需要立刻说明原因的时刻。放进胶囊自己的 notice 里。
+        setSwitchNotice(t("worktree.create.failed", { p0: result.value.failure }))
+        return
+      }
+      if (result.value.target !== null) {
+        setTarget(result.value.target)
+        setSwitchNotice(t("worktree.created", { p0: result.value.target.currentBranch ?? '' }))
+      }
+      requestWorktreeReviewRefresh(sessionId)
+    } catch (reason) {
+      if (active()) setError(reason instanceof Error ? reason.message : String(reason))
+    } finally {
+      if (active()) setCreateWorktreeBusy(false)
     }
-    setWorktreeRequest(result.value.request)
-    setSwitchNotice(
-      result.value.request === null
-        ? t("worktree.request.cancel")
-        : t("worktree.request.active", { p0: result.value.request.from ?? 'HEAD' }),
-    )
   }
 
   const switchBranch = async (branch: string): Promise<void> => {    if (pendingAction !== null) return
@@ -620,18 +632,12 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
     { id: 'create_branch', icon: <ReviewIcon name="create" />, label: t("branch.create.title"), disabled: pendingAction !== null },
     ...(state === 'local'
       ? [{
-        id: 'request_worktree',
+        id: 'create_worktree',
         icon: <ReviewIcon name="branch" />,
-        // 唯一的「新建工作树」入口；官方那对控件由本插件压掉。文案随状态改写：
-        // 已排队时写明基点，再点一次即撤回，不必去别处找开关。失败过的请求仍
-        // 排在队列里（用户修好原因后重发即重试），所以文案要把原因说出来，
-        // 否则用户只会看到「发了消息却没动静」。
-        label: worktreeRequest === null
-          ? t("worktree.request.title")
-          : worktreeRequest.failure !== null
-            ? t("worktree.request.failed", { p0: worktreeRequest.failure })
-            : t("worktree.request.active", { p0: worktreeRequest.from ?? 'HEAD' }),
-        disabled: pendingAction !== null,
+        // 唯一的「新建工作树」入口；官方那对控件由本插件压掉。点了就建，
+        // 不再排队等 turn 的第 1 步——想建树的人点完就在等着。
+        label: createWorktreeBusy ? t("worktree.creating") : t("worktree.create.title"),
+        disabled: pendingAction !== null || createWorktreeBusy,
       } satisfies MenuEntry]
       : []),
     { id: 'prune_branches', icon: <ReviewIcon name="refresh" />, label: t("branch.prune.title"), disabled: pendingAction !== null },
@@ -675,7 +681,7 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
           if (id === 'retry_cleanup') void retryCleanup()
           if (id === 'discard') { setMenuOpen(false); setCleanupConfirmOpen(true) }
           if (id === 'create_branch') { setMenuOpen(false); setCreateName(''); setError(null); setCreateOpen(true) }
-          if (id === 'request_worktree') void toggleWorktreeRequest()
+          if (id === 'create_worktree') void createWorktreeNow()
           if (id === 'deliver') { setMenuOpen(false); setError(null); setDeliverMessage(''); setDeliverOpen(true) }
           if (id === 'prune_branches') openPrunePreview()
           if (id === 'manage_tags') { setMenuOpen(false); setTagTarget(null); setTagsOpen(true) }

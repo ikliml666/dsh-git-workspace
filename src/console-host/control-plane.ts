@@ -44,8 +44,8 @@ import type {
   WorktreeConsoleReturnToLocalResponse,
   WorktreeConsoleReviewDiffRequest,
   WorktreeConsoleReviewDiffResponse,
-  WorktreeConsoleWorktreeRequestRequest,
-  WorktreeConsoleWorktreeRequestResponse,
+  WorktreeConsoleCreateWorktreeRequest,
+  WorktreeConsoleCreateWorktreeResponse,
   WorktreeConsoleSetRetentionRequest,
   WorktreeConsoleSetPermanentRequest,
   WorktreeConsoleTargetSummary,
@@ -62,11 +62,16 @@ import type {
   SessionCheckoutLookupPort,
   SessionCheckoutRegistryPort,
 } from '../ports.js'
-import type { SessionCheckoutModule } from '../index.js'
+import type { IsolatedTargetLaunch, SessionCheckoutModule } from '../index.js'
 import type { SessionTargetView } from '../types.js'
 import { consoleFailure, domainError, failure, outcome } from './errors.js'
 import { projectDetails, projectLocal, projectRecord, sourceBranchFromRef } from './projection.js'
 import { ReviewDiffStaleError, type WorktreeReviewDiffReader } from './review-diff.js'
+
+/** `options.createWorktree` 的结果：建好的目标，或失败原因。 */
+export type CreateWorktreeOutcome =
+  | { readonly ok: true; readonly launch: IsolatedTargetLaunch }
+  | { readonly ok: false; readonly message: string }
 
 export interface WorktreeConsoleControlPlaneOptions {
   module: SessionCheckoutModule
@@ -77,19 +82,13 @@ export interface WorktreeConsoleControlPlaneOptions {
   reviewDiff: WorktreeReviewDiffReader
   createTargetSessionId?: () => string
   /**
-   * 记录或撤回「下一次 turn 在新树里开始」。
+   * 立刻为本会话建一棵工作树。
    *
-   * 由 Host 侧注入而不是在这里直接读 session：写 plugin record 需要活的
-   * Session 对象，而 control-plane 只拿得到 lookup 的只读导航记录。
+   * 由 Host 侧注入而不是在这里直接建：建树要走本插件的 `createOfficialTarget`
+   * （`feat/sess-*` 命名、`.worktreeinclude`、本地未提交修改继承），而 control-plane
+   * 只拿得到 lookup 的只读导航记录，拿不到官方 `worktrees.create` 需要的 live Agent。
    */
-  setWorktreeRequest: (sessionId: string, from: string | null | undefined) => { from: string | null; failure: string | null } | null
-  /**
-   * 读「还在排队等下一个 turn」的请求，供 `current` 一并回给胶囊。
-   *
-   * 会话不在活列表里（已归档、或还没在本进程恢复）时返回 null：没有会话就
-   * 不可能有待办，这里不需要为不可达的 Session 造一个空记录。
-   */
-  pendingWorktreeRequest: (sessionId: string) => { from: string | null; failure: string | null } | null
+  createWorktree: (sessionId: string, from: string | null) => Promise<CreateWorktreeOutcome>
 }
 
 export interface WorktreeConsoleControlPlane {
@@ -117,8 +116,8 @@ export interface WorktreeConsoleControlPlane {
   retryCleanup(request: WorktreeConsoleRetryCleanupRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   beginNextIteration(request: WorktreeConsoleBeginNextIterationRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   returnToLocal(request: WorktreeConsoleReturnToLocalRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleReturnToLocalResponse>>
-  /** 记录或撤回「下一次 turn 在新树里开始」的待办请求。 */
-  setWorktreeRequest(request: WorktreeConsoleWorktreeRequestRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleWorktreeRequestResponse>>
+  /** 立刻为本会话建一棵工作树。 */
+  createWorktree(request: WorktreeConsoleCreateWorktreeRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleCreateWorktreeResponse>>
   clearSidebarBadge(request: WorktreeConsoleClearSidebarBadgeRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   gitOverview(sessionId: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitOverviewResponse>>
   gitGraph(sessionId: string, limit?: number): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitGraphResponse>>
@@ -786,12 +785,8 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
 
     current: sessionId => outcome(async () => {
       const target = await callerTarget(sessionId)
-      const worktreeRequest = options.pendingWorktreeRequest(sessionId)
-      if (target.checkout.kind === 'local') return { target: projectLocal(target, sessionId), worktreeRequest }
-      return {
-        target: await details(sessionId, target.checkout.id, deliveryProofFromTarget(target), target),
-        worktreeRequest,
-      }
+      if (target.checkout.kind === 'local') return { target: projectLocal(target, sessionId) }
+      return { target: await details(sessionId, target.checkout.id, deliveryProofFromTarget(target), target) }
     }),
 
     gitOverview: sessionId => outcome(async () => {
@@ -1581,11 +1576,15 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
       return { target: projectLocal(target, request.sessionId) }
     }),
 
-    // 「下一次 turn 在新树里开始」的待办请求。写入只落一条 session record，
-    // 真正的 `git worktree add` 由 mountWorktreeRequest 在 turn 的第 1 步兑现：
-    // 勾选立刻建树会为用户没打算发的消息付一次完整 checkout 的代价。
-    setWorktreeRequest: request => outcome(async () => ({
-      request: options.setWorktreeRequest(request.sessionId, request.from),
-    })),
+    // 立刻建树。返回的是建好的目标（与其它变更方法同形），失败时带上原因——
+    // 客户端在点击那一刻就能看到结果，不需要再发一条消息来「激活」请求。
+    createWorktree: request => outcome(async () => {
+      const created = await options.createWorktree(request.sessionId, request.from)
+      if (!created.ok) return { target: null, failure: created.message }
+      return {
+        target: await details(request.sessionId, created.launch.target.checkout.id),
+        failure: null,
+      }
+    }),
   }
 }

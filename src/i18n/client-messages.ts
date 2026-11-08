@@ -1015,25 +1015,21 @@ export const clientMessages = {
     "zh": "新建分支",
     "en": "Create branch"
   },
-  "worktree.request.title": {
-    "zh": "下条消息在新工作树里开始",
-    "en": "Start the next message in a new worktree"
+  "worktree.create.title": {
+    "zh": "新建工作树",
+    "en": "New worktree"
   },
-  "worktree.request.active": {
-    "zh": "已排队：发送后在新树里开始（基于 {p0}）",
-    "en": "Queued: starts in a new worktree on send (from {p0})"
+  "worktree.creating": {
+    "zh": "正在建树…",
+    "en": "Creating worktree…"
   },
-  "worktree.request.cancel": {
-    "zh": "取消：下条消息仍在当前目录",
-    "en": "Cancel: the next message stays in the current directory"
+  "worktree.created": {
+    "zh": "已建成 {p0}",
+    "en": "Created {p0}"
   },
-  "worktree.request.pending": {
-    "zh": "待建",
-    "en": "Queued"
-  },
-  "worktree.request.failed": {
-    "zh": "上次建树失败：{p0}（再点一次重试，或点一下撤回）",
-    "en": "The last worktree attempt failed: {p0}. Click again to retry, or click once more to withdraw."
+  "worktree.create.failed": {
+    "zh": "建树失败：{p0}",
+    "en": "Could not create the worktree: {p0}"
   },
   "branch.create.description": {
     "zh": "基于当前 HEAD 创建新的本地分支。",

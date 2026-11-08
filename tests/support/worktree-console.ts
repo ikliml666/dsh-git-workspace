@@ -49,8 +49,8 @@ import type {
   WorktreeConsoleSetRetentionRequest,
   WorktreeConsoleSetPermanentRequest,
   WorktreeConsoleTargetDetails,
-  WorktreeConsoleWorktreeRequestRequest,
-  WorktreeConsoleWorktreeRequestResponse,
+  WorktreeConsoleCreateWorktreeRequest,
+  WorktreeConsoleCreateWorktreeResponse,
 } from '../../src/console-contract.js'
 
 export type WorktreeConsoleFixtureMethod = keyof WorktreeConsoleAdapter
@@ -182,7 +182,7 @@ export function createWorktreeConsoleAdapterFixture(stateful = false): WorktreeC
     },
     async current(request: WorktreeConsoleCurrentRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleCurrentResponse>> {
       record('current', request)
-      return outcome({ target, worktreeRequest: null })
+      return outcome({ target })
     },
     async list(request: WorktreeConsoleListRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleListResponse>> {
       record('list', request)
@@ -427,11 +427,10 @@ export function createWorktreeConsoleAdapterFixture(stateful = false): WorktreeC
         capabilities: { ...target.capabilities, preflight: false, preview: false, resumeRevision: false, finalize: false, beginNextIteration: false },
       } })
     },
-    async setWorktreeRequest(request: WorktreeConsoleWorktreeRequestRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleWorktreeRequestResponse>> {
-      record('setWorktreeRequest', request)
-      // `from: undefined` 表示撤回；其余情况回一条待办（失败原因留空，由各个
-      // 用例自己覆盖 adapter.current 来呈现失败态）。
-      return outcome({ request: request.from === undefined ? null : { from: request.from, failure: null } })
+    async createWorktree(request: WorktreeConsoleCreateWorktreeRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleCreateWorktreeResponse>> {
+      record('createWorktree', request)
+      // 点击即建：回一条建好的目标（失败态由各个用例自己覆盖这个方法）。
+      return outcome({ target, failure: null })
     },
     async returnToLocal(request: WorktreeConsoleReturnToLocalRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleReturnToLocalResponse>> {
       record('returnToLocal', request)

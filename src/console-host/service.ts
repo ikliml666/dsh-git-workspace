@@ -24,7 +24,7 @@ import type {
   WorktreeConsoleRestoreAbandonedResponse,
   WorktreeConsoleReturnToLocalResponse,
   WorktreeConsoleReviewDiffResponse,
-  WorktreeConsoleWorktreeRequestResponse,
+  WorktreeConsoleCreateWorktreeResponse,
   WorktreeApplyConflictContinuation,
   WorktreeClientBootReport,
   WorktreeSidebarTopologyResponse,
@@ -331,14 +331,14 @@ export class WorktreeConsoleService extends TypertRemoteService {
   }
 
   /**
-   * 记录或撤回「下一次 turn 在新树里开始」。
+   * 立刻为本会话建一棵工作树。
    *
-   * `from` 省略即撤回；传 `null` 表示基于当前 HEAD。只写一条 session record，
-   * 建树发生在 turn 的第 1 步（见 worktree-request.ts）。
+   * `from` 为基点分支；`null` 表示基于当前 HEAD。返回时 checkout 已在磁盘上、
+   * 台账已登记、会话 cwd 已切过去；失败原因随响应回给调用方（见 worktree-creation.ts）。
    */
   @Remote
-  setWorktreeRequest(agent: Agent, from: string | null | undefined, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleWorktreeRequestResponse>> {
-    return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.setWorktreeRequest({ sessionId: agent.id, ...(from === undefined ? {} : { from }) }))
+  createWorktree(agent: Agent, from: string | null, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleCreateWorktreeResponse>> {
+    return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.createWorktree({ sessionId: agent.id, from }))
   }
 
   @Remote

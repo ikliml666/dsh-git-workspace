@@ -39,7 +39,7 @@ import {
   reviewIdSchema,
   revisionSchema,
   sessionIdSchema,
-  worktreeRequestResponseSchema,
+  createWorktreeResponseSchema,
   sidebarTopologyResponseSchema,
 } from './schemas.js'
 
@@ -216,8 +216,9 @@ export const WORKTREE_CONSOLE_DESCRIPTORS: readonly InvocationDescriptor[] = Obj
   descriptor('returnToLocal', [
     json('checkoutId', checkoutIdSchema, `${PACKAGE}/console-contract#WorktreeConsoleReturnToLocalRequest.checkoutId`),
   ], outcomeSchema(currentResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleReturnToLocalResponse>'),
-  descriptor('setWorktreeRequest', [
-    json('from', z.union([branchNameSchema, z.null()]).optional(), `${PACKAGE}/console-contract#WorktreeConsoleWorktreeRequestRequest.from`, true),  ], outcomeSchema(worktreeRequestResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleWorktreeRequestResponse>'),
+  descriptor('createWorktree', [
+    json('from', z.union([branchNameSchema, z.null()]), `${PACKAGE}/console-contract#WorktreeConsoleCreateWorktreeRequest.from`),
+  ], outcomeSchema(createWorktreeResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleCreateWorktreeResponse>'),
   descriptor('clearSidebarBadge', [
     json('checkoutId', checkoutIdSchema, `${PACKAGE}/console-contract#WorktreeConsoleClearSidebarBadgeRequest.checkoutId`),
     json('expectedRevision', revisionSchema, `${PACKAGE}/console-contract#WorktreeConsoleClearSidebarBadgeRequest.expectedRevision`),

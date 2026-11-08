@@ -206,12 +206,6 @@ export interface WorktreeConsoleCurrentRequest {
 
 export interface WorktreeConsoleCurrentResponse {
   target: WorktreeConsoleTargetDetails
-  /**
-   * 仍在等待的「下一次 turn 在新树里开始」请求；null 表示没有待办。
-   * `failure` 是上一次建树失败的原因——建树发生在 pre-step，客户端看不到那条
-   * 链路，只能靠这里把原因带回界面。
-   */
-  worktreeRequest: { from: string | null; failure: string | null } | null
 }
 
 export interface WorktreeConsoleListRequest {
@@ -455,20 +449,23 @@ export interface WorktreeConsoleReturnToLocalResponse {
 }
 
 /**
- * 「下一次 turn 在新树里开始」的请求。
+ * `from` 是基点分支；`null` 表示当前 HEAD。
  *
- * `from` 是基点分支；`null` 表示当前 HEAD；整个字段省略表示撤回请求。写入
- * 只落一条 session record，真正的 `git worktree add` 发生在 turn 的第 1 步，
- * 所以勾选本身不会为一个没发出的消息付一次完整 checkout。
+ * 这个调用**立即建树**：返回时 checkout 已经在磁盘上、台账已经登记、会话 cwd
+ * 已经切过去。早先的版本只记一条待办、留到 turn 的第 1 步再建，那是照抄官方
+ * forge 面板的做法——想建树的人点完就在等着，再要求他发一条消息才生效只是
+ * 多一道手续。
  */
-export interface WorktreeConsoleWorktreeRequestRequest {
+export interface WorktreeConsoleCreateWorktreeRequest {
   sessionId: string
-  from?: string | null
+  from: string | null
 }
 
-export interface WorktreeConsoleWorktreeRequestResponse {
-  /** 仍在等待的请求；null 表示当前没有待办。 */
-  request: { from: string | null; failure: string | null } | null
+export interface WorktreeConsoleCreateWorktreeResponse {
+  /** 建好（或复用）的目标；失败时为 null。 */
+  target: WorktreeConsoleTargetDetails | null
+  /** 失败说明；成功时为 null。 */
+  failure: string | null
 }
 
 export interface WorktreeConsoleMutationResponse {
@@ -807,8 +804,8 @@ export interface WorktreeConsoleAdapter {
   retryCleanup(request: WorktreeConsoleRetryCleanupRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   beginNextIteration(request: WorktreeConsoleBeginNextIterationRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   returnToLocal(request: WorktreeConsoleReturnToLocalRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleReturnToLocalResponse>>
-  /** 记录或撤回「下一次 turn 在新树里开始」的待办请求。 */
-  setWorktreeRequest(request: WorktreeConsoleWorktreeRequestRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleWorktreeRequestResponse>>
+  /** 立刻为本会话建一棵工作树。 */
+  createWorktree(request: WorktreeConsoleCreateWorktreeRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleCreateWorktreeResponse>>
   clearSidebarBadge(request: WorktreeConsoleClearSidebarBadgeRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   gitOverview(sessionId: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitOverviewResponse>>
   gitGraph(sessionId: string, limit?: number): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitGraphResponse>>

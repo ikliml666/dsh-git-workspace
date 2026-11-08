@@ -6,7 +6,6 @@ import { spawnSync } from 'node:child_process'
 import { Session } from '@deepseek-ai/dsh-session'
 import { createSessionCheckoutModule } from '../src/session-checkout-module.ts'
 import { createNodeSessionCheckoutDependencies } from './support/production-adapters.ts'
-import { pendingWorktreeRequest, requestWorktree, cancelWorktreeRequest } from '../src/worktree-request.ts'
 import type { OfficialWorktreesPort } from '../src/ports.ts'
 
 const temporaryRoots: string[] = []
@@ -118,26 +117,5 @@ describe('creating a Worktree through the official service', () => {
     // 复用路径不碰 Git，也不该再调一次官方建树。
     expect(env.create).toHaveBeenCalledTimes(1)
     expect(elapsed).toBeLessThan(1_000)
-  }, 60_000)
-})
-
-describe('folding the queued request out of the session log', () => {
-  // 每次 `current` 请求都会折叠一次日志（胶囊轮询、菜单重开都会触发），所以这里
-  // 量的是单次调用的成本如何随日志长度增长，而不是把它重复一百次凑一个好看的总数。
-  test('a single fold stays cheap as the log grows', () => {
-    const samples: { size: number; perCallMs: number }[] = []
-    for (const size of [10, 1_000, 10_000]) {
-      const session = Session.create('session-1')
-      for (let index = 0; index < size; index++) requestWorktree(session, index % 2 === 0 ? 'main' : null)
-      cancelWorktreeRequest(session)
-      requestWorktree(session, 'main')
-      const rounds = 100
-      const started = performance.now()
-      for (let round = 0; round < rounds; round++) expect(pendingWorktreeRequest(session)).toEqual({ from: 'main', failure: null })
-      samples.push({ size, perCallMs: (performance.now() - started) / rounds })
-    }
-    report(samples.map(sample => ({ label: `pendingWorktreeRequest over ${sample.size} records (per call)`, ms: sample.perCallMs, commands: 0 })))
-    // 单次折叠是纯内存线性扫描：10k 条记录也必须在 10ms 内，否则每次轮询都会拖慢胶囊。
-    for (const sample of samples) expect(sample.perCallMs).toBeLessThan(10)
   }, 60_000)
 })

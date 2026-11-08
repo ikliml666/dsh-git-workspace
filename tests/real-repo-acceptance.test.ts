@@ -17,7 +17,6 @@ import { Session } from '@deepseek-ai/dsh-session'
 import { createDshGitPort } from '../lib/adapters/git.js'
 import { createSessionCheckoutModule } from '../lib/session-checkout-module.js'
 import { createNodeSessionCheckoutDependencies } from './support/production-adapters.ts'
-import { liveWorktreeRequest, mountWorktreeRequest, pendingWorktreeRequest, setWorktreeRequest } from '../lib/worktree-request.js'
 
 const repo = process.env.REAL_REPO
 
@@ -205,70 +204,4 @@ describe.skipIf(repo === undefined)('真仓库验收', () => {
     expect(git(root, 'rev-parse', 'HEAD')).toBe(head)
     expect(git(root, 'branch', '--show-current')).toBe(branch)
   }, 180_000)
-
-  test('已排队的请求在 turn 的第 1 步真的把树建出来并切进目录', async () => {
-    // 这条链路此前只有假 module 的单元测试。这里用**真实** module、真实 Git 与
-    // 真实仓库跑一遍 pre-step：请求 → 建树 → 工作目录切换。
-    const session = Session.create('session-queued')
-    const store = new Map([[session.id, session]])
-    sessions.set('session-queued', { id: 'session-queued', projectId: 'project-real' })
-
-    const moved: string[] = []
-    const listeners: ((payload: unknown, next: () => unknown) => unknown)[] = []
-    const ctx = {
-      get: (name: string) => {
-        if (name === 'sessions') return { get: (id: string) => store.get(id) }
-        if (name === 'workingDirectory') {
-          return { get: () => root, set: async (_agent: unknown, path: string) => { moved.push(path); return path } }
-        }
-        return undefined
-      },
-      on: (name: string, listener: (payload: unknown, next: () => unknown) => unknown) => {
-        if (name === 'agent/pre-step') listeners.push(listener)
-        return () => {}
-      },
-    }
-
-    // 用真实的 mount 注册监听：这条链路的价值就在于它调用的是真 module。
-    mountWorktreeRequest(ctx as never, module)
-
-    setWorktreeRequest(ctx as never, session.id, 'main')
-    expect(pendingWorktreeRequest(session)).toEqual({ from: 'main' })
-
-    const agent = { session, inbox: { prepend: () => {} } }
-    const next = () => 'continued'
-    const result = await listeners[0]!({
-      agent,
-      step: 1,
-      messages: [{ role: 'user', content: 'hi' }],
-    }, next)
-
-    const created = moved[0]
-    report('pre-step-created', {
-      result,
-      cwd: created?.replace(root, '<repo>'),
-      exists: created !== undefined && existsSync(created),
-      requestCleared: pendingWorktreeRequest(session) === null,
-    })
-    expect(result).toBe('continued')
-    expect(created).toBeDefined()
-    expect(existsSync(created!)).toBe(true)
-    // 建出来的就是官方布局里的会话分支树。
-    expect(created).toContain(join('.agents', 'worktrees'))
-    expect(pendingWorktreeRequest(session)).toBeNull()
-    sessions.delete('session-queued')
-  }, 180_000)
-
-  test('待办请求能跨进程重放，也能撤回', () => {
-    const session = Session.create('session-real')
-    const store = new Map([[session.id, session]])
-    const ctx = { get: (name: string) => (name === 'sessions' ? { get: (id: string) => store.get(id) } : undefined) }
-    expect(pendingWorktreeRequest(session)).toBeNull()
-    expect(setWorktreeRequest(ctx as never, session.id, 'main')).toEqual({ from: 'main' })
-    expect(liveWorktreeRequest(ctx as never, session.id)).toEqual({ from: 'main' })
-    // 重放整份日志（重启 / 刷新页面）必须得到同一个待办。
-    expect(pendingWorktreeRequest(Session.create('session-real', session.snapshotEvents()))).toEqual({ from: 'main' })
-    expect(setWorktreeRequest(ctx as never, session.id, undefined)).toBeNull()
-    report('request-roundtrip', { ok: true })
-  })
 })

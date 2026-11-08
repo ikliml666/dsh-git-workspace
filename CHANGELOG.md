@@ -17,6 +17,13 @@
 
 ### Changed
 
+- 「新建工作树」改为点了就建，不再排队等发消息（2026-11-07）。
+  - **为什么改**：上一版照抄官方 forge 面板的语义——客户端只写一条 plugin record，真正的 `git worktree add` 留到 `agent/pre-step` 兑现，理由是「不要为用户还没打算发的消息付一次 checkout 的代价」。实际用起来是多余的：想建树的人点完就在等着，还要再发一条消息才算数，中间那一步只制造困惑。
+  - **现在**：点了就跑完整的建树流程，返回时 checkout 在磁盘上、台账已登记、会话 cwd 已切过去。`agents.get(sessionId)` 拿得到 live Agent（blank session 阶段也有），所以 Host 侧能直接调 `createOfficialTarget`，不需要等到 turn 边界。
+  - **失败当场可见**：菜单此刻已经收起，只写 `error` 状态用户什么都看不到，所以原因放进胶囊自己的 notice（`建树失败：<原因>`）。成功也给一句 `已建成 <分支>`，与交付一致。
+  - **删掉的东西**：`plugin:dsh-git-worktree/worktree-request` plugin record、`pendingWorktreeRequest` / `requestWorktree` / `cancelWorktreeRequest` / `failWorktreeRequest`、`mountWorktreeRequest` 的 `agent/pre-step` 监听（含「失败时按逆序 `inbox.prepend` 还回消息」那段——不再有 claim 过又失败的消息）、`WorktreeConsoleCurrentResponse.worktreeRequest` 字段、`setWorktreeRequest` RPC。`src/worktree-request.ts` 改名为 `src/worktree-creation.ts`，只留 `createWorktreeNow(ctx, module, sessionId, from)`。
+  - 新增 `createWorktree` RPC（`WorktreeConsoleCreateWorktreeRequest` / `WorktreeConsoleCreateWorktreeResponse`，返回 `{ target, failure }`），经 Host service / control-plane / descriptor / Remote / client adapter 全线接线。
+  - 移除测试：`tests/worktree-request.test.ts`（14 项）、`tests/worktree-request-failure.test.ts`（3 项）、`tests/worktree-creation-perf.test.ts` 的日志折叠用例（1 项）、`tests/real-repo-acceptance.test.ts` 的两个排队用例。`client-target-console.test.tsx` 的两个排队用例改写为「点了就建」与「失败时当场写明原因」。
 - 精简：删掉与官方 forge 重复的整套评审 UI，交付改由胶囊菜单直接触发（2026-11-07）。
   - **删的东西**：`src/client/review-console/` 整个目录（2615 行：`WorktreeReviewPanel`、`ReviewActions`、`ReviewDetailsModal`、`PreflightStatus`、`DeliveryProof`、`preflight-cache`、`preview-recovery-cache`、`recovery-continuation`、`request-cache`、`review-console.styles`）、`src/client/WorktreeReviewRow.tsx`、`src/client/target-console/WorktreeReviewStatus.tsx`（输入框上方的验收状态条），以及 `worktree_ready_for_review` 工具（工具表 9 → 8）。
   - **为什么**：官方 `@deepseek-ai/dsh-experimental-client-ui-forge` 已经自带完整的一套——`ChangesTab`（本地改动或某个变更请求的 diff，一个列表）、`ForgeTab`（会话在哪工作、本地改动、它创建或推送的变更请求）、`LocalChangesCard`、`DiffFile`（统一/并排两种）、`FileTreePane`、`ReviewComposer`、`ReviewThread`、`SubmitReview`、`ChangedFiles`。同一件事做两遍，用户看到两套入口、两套文案、两套状态机。

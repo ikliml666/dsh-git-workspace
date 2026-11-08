@@ -75,7 +75,7 @@ const METHODS = [
   'retryCleanup',
   'beginNextIteration',
   'returnToLocal',
-  'setWorktreeRequest',
+  'createWorktree',
   'clearSidebarBadge',
   'gitCreateBranch',
   'gitSwitchBranch',
@@ -198,7 +198,6 @@ describe('manual strict Worktree Console Remote contribution', () => {
     const response = {
       ok: true as const,
       value: {
-        worktreeRequest: null,
         target: {
           ...fixture.target,
           reviewSlot: 'waiting' as const,
@@ -341,7 +340,6 @@ describe('manual strict Worktree Console Remote contribution', () => {
     const response = {
       ok: true as const,
       value: {
-        worktreeRequest: null,
         target: {
           ...fixture.target,
           state: 'preview_detached' as const,
