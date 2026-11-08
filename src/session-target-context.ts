@@ -46,9 +46,27 @@ export function registerOfficialWorktreeAdoption(ctx: Context, module: SessionCh
     const cwd = (event.data as { cwd?: unknown } | undefined)?.cwd
     if (typeof sessionId !== 'string' || typeof cwd !== 'string') return
     // 事件 feed 不等待监听者：登记要读 Git 与写台账，只能异步做。未捕获的
-    // rejection 会逃出这个 fire-and-forget 调用，所以这里必须接住并记录。
+    // rejection 会逃出这个 fire-and-forget 调用，所以这里必须接住。
     void module.adoptOfficialWorktree(sessionId, cwd).catch(error => {
-      console.warn('[dsh-git-worktree] could not adopt the official Worktree:', error)
+      // 接管失败必须让用户看见：那棵树没进台账，列表、交付、清理就都找不到它。
+      // 胶囊每 5 秒轮询一次，把原因挂到会话上比 console.warn 有用得多。
+      appendAdoptionFailure(module, sessionId, error)
     })
   })
+}
+
+/**
+ * 把一次接管失败写进会话日志，胶囊下一次 current 时读到并显示。
+ *
+ * 只用 module 已有的入口落盘：`adoptOfficialWorktree` 的失败在这里无法复现
+ * 结构化错误码，所以留一句人能读的原文。
+ */
+function appendAdoptionFailure(
+  module: SessionCheckoutModule,
+  sessionId: string,
+  error: unknown,
+): void {
+  const reason = error instanceof Error ? error.message : String(error)
+  console.warn('[dsh-git-worktree] could not adopt the official Worktree:', error)
+  module.recordAdoptionFailure(sessionId, reason)
 }

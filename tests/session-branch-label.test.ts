@@ -101,9 +101,8 @@ it('names the Session branch on the conversation target capsule right after crea
       files: env.dependencies.files,
       registry: env.dependencies.registry,
       git: env.port,
-      reviewDiff: { read: async input => ({ reviewId: input.reviewId, revision: input.revision, files: [], truncated: false }) },
-      setWorktreeRequest: () => null,
-      pendingWorktreeRequest: () => null,
+      createWorktree: async () => ({ ok: false, message: 'unused' }),
+      adoptionFailure: () => null,
     })
 
     const current = await control.current('owner')
@@ -131,16 +130,11 @@ it('keeps naming the Session branch after delivery, when Local is back in charge
     env.sessions.set('owner', { id: 'owner', projectId: 'owner-project' })
 
     writeFileSync(join(launch.managedRoot, 'shared.txt'), 'base\nedit\n')
-    await module.markReadyForReview('owner', {
-      summary: 'one edit', validationStatus: 'passed', tests: [], suggestedCommitMessage: 'fix: labels',
-    })
     const ready = await module.inspect('owner')
-    if (ready.delivery?.state !== 'ready_for_review') throw Error('expected a ready review')
     const delivered = await module.operate({
       action: 'finish',
       sessionId: 'owner',
       expectedRevision: ready.revision,
-      expectedReviewId: ready.delivery.review.reviewId,
       commitMessage: 'fix: labels',
       retention: 'retain_manual',
     })
@@ -152,9 +146,8 @@ it('keeps naming the Session branch after delivery, when Local is back in charge
       files: env.dependencies.files,
       registry: env.dependencies.registry,
       git: env.port,
-      reviewDiff: { read: async input => ({ reviewId: input.reviewId, revision: input.revision, files: [], truncated: false }) },
-      setWorktreeRequest: () => null,
-      pendingWorktreeRequest: () => null,
+      createWorktree: async () => ({ ok: false, message: 'unused' }),
+      adoptionFailure: () => null,
     })
     const current = await control.current('owner')
     if (!current.ok) throw Error(JSON.stringify(current))

@@ -1217,8 +1217,8 @@ export const hostMessages = {
     "en": "Cannot deliver in the current state ({p0}): finish the implementation first, or call worktree_deliver in Working or Ready for Review state."
   },
   "worktreeDeliverDisabledByAutoDeliver": {
-    "zh": "autoDeliver 已关闭：模型不能自行交付（commit/push/清理）。请改为调用 worktree_ready_for_review 提交评审，由用户通过验收栏保存或放弃。",
-    "en": "autoDeliver is disabled: the model cannot deliver on its own (commit/push/cleanup). Call worktree_ready_for_review instead and let the user save or discard through the acceptance bar."
+    "zh": "autoDeliver 已关闭：模型不能自行交付（commit/push/清理）。请把完整报告放在普通回复里交给用户，由用户在胶囊菜单点「交付到会话分支」。",
+    'en': 'autoDeliver is disabled: the model cannot deliver on its own (commit/push/cleanup). Put the complete report in your ordinary reply and let the user click "Deliver to the session branch" in the capsule menu.'
   },
   "worktreeDeliverInvalidRetention": {
     "zh": "worktree_deliver 的 retention 参数无效：{p0}（可选值：cleanup、retain_24h、retain_3d、retain_manual）。",

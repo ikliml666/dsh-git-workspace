@@ -206,6 +206,13 @@ export interface WorktreeConsoleCurrentRequest {
 
 export interface WorktreeConsoleCurrentResponse {
   target: WorktreeConsoleTargetDetails
+  /**
+   * 官方建的树没能接进台账时的原因。
+   *
+   * 那棵树对列表、交付、清理都是隐形的，静默失败会让用户以为插件坏了，所以
+   * 由胶囊直接显示。成功接管后立刻清空。
+   */
+  adoptionFailure?: string | null
 }
 
 export interface WorktreeConsoleListRequest {
@@ -291,84 +298,17 @@ export interface WorktreeConsoleDiscardRequest {
   rollbackPreview?: boolean
 }
 
-export interface WorktreeConsolePreflightRequest {
-  sessionId: string
-  checkoutId: string
-  expectedRevision: number
-  expectedReviewId: string
-}
 
-export interface WorktreeConsolePreflightResponse {
-  preflight: WorktreeApplyPreflightView
-}
 
-export interface WorktreeConsolePreviewRequest {
-  sessionId: string
-  checkoutId: string
-  expectedRevision: number
-  expectedReviewId: string
-}
 
-export interface WorktreeConsoleCheckpointRequest {
-  sessionId: string
-  checkoutId: string
-  expectedRevision: number
-  expectedReviewId: string
-  expectedGeneration: string
-  requestId: string
-  commitMessage: string
-}
 
-export interface WorktreeConsoleResumeRevisionRequest {
-  sessionId: string
-  checkoutId: string
-  expectedRevision: number
-  expectedReviewId: string
-  /** Present only for the explicit conflict-recovery action; Host re-runs conflict preflight under CAS. */
-  conflictContinuation?: WorktreeApplyConflictContinuation
-}
 
-export interface WorktreeConsolePreviewRecoveryPreflightRequest {
-  sessionId: string
-  checkoutId: string
-  expectedRevision: number
-  expectedReviewId: string
-  expectedPreviewId: string
-}
 
-export interface WorktreeConsolePreviewRecoveryPreflightResponse {
-  preflight: WorktreePreviewRecoveryPreflightView
-}
 
-export interface WorktreeConsolePreparePreviewRecoveryAnalysisRequest extends WorktreeConsolePreviewRecoveryPreflightRequest {
-  recoveryProof: WorktreePreviewRecoveryProof
-}
 
-export interface WorktreeConsoleCreatePreviewRecoveryHandoffRequest extends WorktreeConsolePreviewRecoveryPreflightRequest {
-  recoveryProof: WorktreePreviewRecoveryProof
-}
 
-export interface WorktreeConsoleCreatePreviewRecoveryHandoffResponse extends WorktreeConsoleCreateResponse {
-  recoveryContinuation: WorktreePreviewRecoveryHandoffProof
-}
 
-export interface WorktreeConsoleRollbackPreviewRequest {
-  sessionId: string
-  checkoutId: string
-  expectedRevision: number
-  resumeRevision?: boolean
-  recoveryProof?: WorktreePreviewRecoveryProof
-}
 
-export interface WorktreeConsoleFinalizeRequest {
-  sessionId: string
-  checkoutId: string
-  expectedRevision: number
-  expectedReviewId: string
-  /** Explicit user-confirmed message; Host revalidates the bounded value. */
-  commitMessage: string
-  retention: WorktreeRetentionMode
-}
 
 /**
  * 评审面板已删除，会话做完工作就停在 `working`。`finalize` 强制要求
@@ -383,15 +323,6 @@ export interface WorktreeConsoleDeliverRequest {
   retention: WorktreeRetentionMode
 }
 
-export interface WorktreeConsoleFinalizePreviewRequest {
-  sessionId: string
-  checkoutId: string
-  expectedRevision: number
-  expectedReviewId: string
-  commitMessage: string
-  retention: WorktreeRetentionMode
-  recoveryProof?: WorktreePreviewRecoveryProof
-}
 
 export interface WorktreeConsoleSetRetentionRequest {
   sessionId: string
@@ -503,12 +434,6 @@ export interface WorktreeConsoleRestoreAbandonedResponse {
   branch: string
 }
 
-export interface WorktreeConsolePrepareRegenerationRequest {
-  sessionId: string
-  checkoutId: string
-  expectedRevision: number
-  expectedReviewId: string
-}
 
 export type WorktreeConsoleFileStatus = 'added' | 'modified' | 'deleted' | 'renamed' | 'binary'
 
@@ -520,20 +445,7 @@ export interface WorktreeConsoleDiffFile {
   truncated: boolean
 }
 
-/** Review reads are bound to the same immutable identity required by Finalize. */
-export interface WorktreeConsoleReviewDiffRequest {
-  sessionId: string
-  checkoutId: string
-  expectedRevision: number
-  expectedReviewId: string
-}
 
-export interface WorktreeConsoleReviewDiffResponse {
-  reviewId: string
-  revision: number
-  files: WorktreeConsoleDiffFile[]
-  truncated: boolean
-}
 
 /** Read-only branch overview behind the header chip's branch popover. */
 export interface WorktreeConsoleGitBranch {
@@ -785,20 +697,8 @@ export interface WorktreeConsoleAdapter {
   current(request: WorktreeConsoleCurrentRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleCurrentResponse>>
   list(request: WorktreeConsoleListRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleListResponse>>
   inspect(request: WorktreeConsoleInspectRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleInspectResponse>>
-  reviewDiff(request: WorktreeConsoleReviewDiffRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleReviewDiffResponse>>
-  preflight(request: WorktreeConsolePreflightRequest): Promise<WorktreeConsoleOutcome<WorktreeConsolePreflightResponse>>
-  previewRecoveryPreflight(request: WorktreeConsolePreviewRecoveryPreflightRequest): Promise<WorktreeConsoleOutcome<WorktreeConsolePreviewRecoveryPreflightResponse>>
-  preparePreviewRecoveryAnalysis(request: WorktreeConsolePreparePreviewRecoveryAnalysisRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
-  createPreviewRecoveryHandoff(request: WorktreeConsoleCreatePreviewRecoveryHandoffRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleCreatePreviewRecoveryHandoffResponse>>
-  preview(request: WorktreeConsolePreviewRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
-  checkpoint(request: WorktreeConsoleCheckpointRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
-  resumeRevision(request: WorktreeConsoleResumeRevisionRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
-  prepareReviewRegeneration(request: WorktreeConsolePrepareRegenerationRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
-  rollbackPreview(request: WorktreeConsoleRollbackPreviewRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   discard(request: WorktreeConsoleDiscardRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
-  finalize(request: WorktreeConsoleFinalizeRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   deliver(request: WorktreeConsoleDeliverRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
-  finalizePreview(request: WorktreeConsoleFinalizePreviewRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   setRetention(request: WorktreeConsoleSetRetentionRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   setPermanent(request: WorktreeConsoleSetPermanentRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   retryCleanup(request: WorktreeConsoleRetryCleanupRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>

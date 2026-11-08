@@ -556,8 +556,8 @@ describe('SessionCheckoutModule', () => {
     expect(runtime).toContain('Session Target: Local Checkout')
     expect(runtime).toContain('current cwd')
     expect(runtime).toContain('ordinary assistant reply')
-    expect(runtime).toContain('worktree_ready_for_review')
-    expect(runtime).toContain('worktree_resume_revision')
+    expect(runtime).toContain('worktree_deliver')
+    expect(runtime).toContain('worktree_cleanup')
     expect(runtime).toContain('worktree_begin_next_iteration')
     expect(runtime).not.toContain('Session Target is unselected')
     expect(runtime).not.toContain('Do not mutate project files')
@@ -586,7 +586,7 @@ describe('SessionCheckoutModule', () => {
     context.addProject('target-workspace-1', 'Target Workspace', launch.managedRoot)
     context.addSession('target-session-1', 'target-workspace-1')
     expect(context.module.runtimeContext('target-session-1')).toContain(`Authoritative cwd: ${launch.managedRoot}`)
-    expect(context.module.runtimeContext('target-session-1')).toContain('worktree_ready_for_review')
+    expect(context.module.runtimeContext('target-session-1')).toContain('call worktree_deliver as the final model tool')
     expect(context.module.runtimeContext('target-session-1')).toContain('Do not duplicate that report in ordinary assistant prose')
 
     writeFileSync(join(launch.managedRoot, 'tracked.txt'), 'ready\n')
@@ -1588,7 +1588,7 @@ describe('SessionCheckoutModule', () => {
     expect(context.module.runtimeContext('target-session-1')).toContain('call worktree_deliver as the final model tool')
 
     autoDeliver = false
-    expect(context.module.runtimeContext('target-session-1')).toContain('worktree_ready_for_review and call it as the final model tool')
+    expect(context.module.runtimeContext('target-session-1')).toContain('the model must not call worktree_deliver')
   })
 
   test('Given the reserved owner Session is live When Local source tries management Then owner takeover fails closed', async () => {

@@ -414,32 +414,6 @@ export function createDshGitPort(ctx: Context, options: GitPortOptions): Session
     pruneWorktrees: async (localRoot) => {
       await runSessionGitChecked(localRoot, ['worktree', 'prune', '--expire', 'now'])
     },
-    listWorktrees: async (localRoot) => {
-      // `--porcelain` is the documented stable format: one blank-line separated
-      // block per Worktree with `worktree <path>`, `HEAD <oid>`, and `branch
-      // <ref>` or `detached`. Anything unparsable is skipped rather than guessed
-      // at, because adoption writes a durable record.
-      const result = await runSessionGit(localRoot, ['worktree', 'list', '--porcelain'])
-      if (result.code !== 0) {
-        throw new SessionCheckoutError(
-          'git_operation_failed',
-          result.stderr || hostMessage('gitOperationFailedGit', { p0: 'worktree list', p1: '' }),
-        )
-      }
-      return result.stdout.split(/\r?\n\r?\n/u).flatMap((block) => {
-        let path: string | undefined
-        let headOid: string | undefined
-        let branchRef: string | null = null
-        for (const line of block.split(/\r?\n/u)) {
-          if (line.startsWith('worktree ')) path = line.slice('worktree '.length).trim()
-          else if (line.startsWith('HEAD ')) headOid = line.slice('HEAD '.length).trim()
-          else if (line.startsWith('branch ')) branchRef = line.slice('branch '.length).trim()
-        }
-        return path !== undefined && headOid !== undefined && /^[0-9a-f]{40,64}$/iu.test(headOid)
-          ? [{ path: resolve(path), headOid, branchRef }]
-          : []
-      })
-    },
     retainApplyBase: async (localRoot, checkoutId, oid) => {
       await runSessionGitChecked(localRoot, ['update-ref', applyBaseRef(checkoutId), oid])
     },

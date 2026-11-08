@@ -6,14 +6,9 @@ import type {
   WorktreeConsoleAbandonedListResponse,
   WorktreeConsoleBeginNextIterationRequest,
   WorktreeConsoleClearSidebarBadgeRequest,
-  WorktreeConsoleCreatePreviewRecoveryHandoffRequest,
-  WorktreeConsoleCreatePreviewRecoveryHandoffResponse,
-  WorktreeConsoleCheckpointRequest,
   WorktreeConsoleCurrentResponse,
   WorktreeConsoleDiscardRequest,
-  WorktreeConsoleFinalizePreviewRequest,
   WorktreeConsoleDeliverRequest,
-  WorktreeConsoleFinalizeRequest,
   WorktreeConsoleGitCreateTagRequest,
   WorktreeConsoleGitDeleteTagRequest,
   WorktreeConsoleGitGraphResponse,
@@ -28,22 +23,11 @@ import type {
   WorktreeConsoleListResponse,
   WorktreeConsoleMutationResponse,
   WorktreeConsoleOutcome,
-  WorktreeConsolePreflightRequest,
-  WorktreeConsolePreflightResponse,
-  WorktreeConsolePreparePreviewRecoveryAnalysisRequest,
-  WorktreeConsolePreviewRecoveryPreflightRequest,
-  WorktreeConsolePreviewRecoveryPreflightResponse,
-  WorktreeConsolePrepareRegenerationRequest,
-  WorktreeConsolePreviewRequest,
   WorktreeConsoleRestoreAbandonedRequest,
   WorktreeConsoleRestoreAbandonedResponse,
-  WorktreeConsoleResumeRevisionRequest,
-  WorktreeConsoleRollbackPreviewRequest,
   WorktreeConsoleRetryCleanupRequest,
   WorktreeConsoleReturnToLocalRequest,
   WorktreeConsoleReturnToLocalResponse,
-  WorktreeConsoleReviewDiffRequest,
-  WorktreeConsoleReviewDiffResponse,
   WorktreeConsoleCreateWorktreeRequest,
   WorktreeConsoleCreateWorktreeResponse,
   WorktreeConsoleSetRetentionRequest,
@@ -66,7 +50,6 @@ import type { IsolatedTargetLaunch, SessionCheckoutModule } from '../index.js'
 import type { SessionTargetView } from '../types.js'
 import { consoleFailure, domainError, failure, outcome } from './errors.js'
 import { projectDetails, projectLocal, projectRecord, sourceBranchFromRef } from './projection.js'
-import { ReviewDiffStaleError, type WorktreeReviewDiffReader } from './review-diff.js'
 
 /** `options.createWorktree` 的结果：建好的目标，或失败原因。 */
 export type CreateWorktreeOutcome =
@@ -74,12 +57,13 @@ export type CreateWorktreeOutcome =
   | { readonly ok: false; readonly message: string }
 
 export interface WorktreeConsoleControlPlaneOptions {
+  /** 本会话最近一次「官方建的树没能接进台账」的原因；没有则 null。 */
+  adoptionFailure(sessionId: string): string | null
   module: SessionCheckoutModule
   lookup: SessionCheckoutLookupPort
   files: SessionCheckoutFilesPort
   registry: SessionCheckoutRegistryPort
   git: SessionCheckoutGitPort
-  reviewDiff: WorktreeReviewDiffReader
   createTargetSessionId?: () => string
   /**
    * 立刻为本会话建一棵工作树。
@@ -97,20 +81,8 @@ export interface WorktreeConsoleControlPlane {
   list(request: WorktreeConsoleListRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleListResponse>>
   initProject(sourceSessionId: string): Promise<WorktreeConsoleOutcome<boolean>>
   inspect(sessionId: string, checkoutId: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleInspectResponse>>
-  reviewDiff(request: WorktreeConsoleReviewDiffRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleReviewDiffResponse>>
-  preflight(request: WorktreeConsolePreflightRequest): Promise<WorktreeConsoleOutcome<WorktreeConsolePreflightResponse>>
-  previewRecoveryPreflight(request: WorktreeConsolePreviewRecoveryPreflightRequest): Promise<WorktreeConsoleOutcome<WorktreeConsolePreviewRecoveryPreflightResponse>>
-  preparePreviewRecoveryAnalysis(request: WorktreeConsolePreparePreviewRecoveryAnalysisRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
-  createPreviewRecoveryHandoff(request: WorktreeConsoleCreatePreviewRecoveryHandoffRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleCreatePreviewRecoveryHandoffResponse>>
-  preview(request: WorktreeConsolePreviewRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
-  checkpoint(request: WorktreeConsoleCheckpointRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
-  resumeRevision(request: WorktreeConsoleResumeRevisionRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
-  prepareReviewRegeneration(request: WorktreeConsolePrepareRegenerationRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
-  rollbackPreview(request: WorktreeConsoleRollbackPreviewRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   discard(request: WorktreeConsoleDiscardRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
-  finalize(request: WorktreeConsoleFinalizeRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   deliver(request: WorktreeConsoleDeliverRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
-  finalizePreview(request: WorktreeConsoleFinalizePreviewRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   setRetention(request: WorktreeConsoleSetRetentionRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   setPermanent(request: WorktreeConsoleSetPermanentRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   retryCleanup(request: WorktreeConsoleRetryCleanupRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
@@ -201,20 +173,6 @@ function applyConflictContinuation(
     localHeadOid,
     conflictingFiles,
   }
-}
-
-function preflightFailure(view: Awaited<ReturnType<NonNullable<SessionCheckoutModule['preflight']>>> | undefined) {
-  if (view === undefined) return failure<never>('git_error', hostMessage('theCurrentSessionCheckoutModuleDoesNotSupportAcceptancePreflight'))
-  if (view.status !== 'blocked') return undefined
-  const code = view.reason === 'stale_isolated' ? 'stale_isolated'
-    : view.reason === 'stale_local' ? 'stale_local'
-      : view.reason === 'stale_target' ? 'stale_target'
-      : view.reason === 'project_acceptance_busy' ? 'project_acceptance_busy'
-        : view.reason === 'not_owner' ? 'not_owner'
-          : view.reason === 'not_ready_for_review' ? 'operation_not_allowed'
-            : view.reason === 'checkout_unavailable' ? 'checkout_mismatch'
-              : 'git_error'
-  return failure<never>(code, view.message)
 }
 
 export function createWorktreeConsoleControlPlane(options: WorktreeConsoleControlPlaneOptions): WorktreeConsoleControlPlane {
@@ -784,9 +742,10 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
     }),
 
     current: sessionId => outcome(async () => {
+      const adoptionFailure = options.adoptionFailure(sessionId)
       const target = await callerTarget(sessionId)
-      if (target.checkout.kind === 'local') return { target: projectLocal(target, sessionId) }
-      return { target: await details(sessionId, target.checkout.id, deliveryProofFromTarget(target), target) }
+      if (target.checkout.kind === 'local') return { target: projectLocal(target, sessionId), adoptionFailure }
+      return { target: await details(sessionId, target.checkout.id, deliveryProofFromTarget(target), target), adoptionFailure }
     }),
 
     gitOverview: sessionId => outcome(async () => {
@@ -985,316 +944,6 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
 
     inspect: (sessionId, checkoutId) => outcome(async () => ({ target: await details(sessionId, checkoutId) })),
 
-    reviewDiff: async request => {
-      try {
-        const record = await authorize(request.sessionId, request.checkoutId)
-        if (record.ownerSessionId !== request.sessionId) return failure('not_owner', hostMessage('onlyTheOwnerIsolatedSessionCanReadTheReview'))
-        if (record.revision !== request.expectedRevision) return failure('stale_target', hostMessage('theSessionTargetHasChangedRefresh'))
-        const review = readyReview(record)
-        if (review.reviewId !== request.expectedReviewId) return failure('stale_target', hostMessage('theReviewIdentityHasChangedRefresh'))
-        const before = await options.module.preflight?.(request.sessionId, request.expectedRevision)
-        if (before === undefined || before.status === 'blocked') return preflightFailure(before)!
-        if (before.reviewId !== review.reviewId || before.isolatedHeadOid !== review.isolatedHeadOid) {
-          return failure('stale_isolated', hostMessage('isolatedHEADChangedAfterReady'))
-        }
-        const observed = await observe(record)
-        const diff = await options.reviewDiff.read({
-          managedRoot: observed.managedRoot!,
-          baseOid: record.applyBaseOid ?? record.baseOid,
-          reviewId: review.reviewId,
-          revision: record.revision,
-          changedFiles: review.changedFiles,
-        })
-        const after = await options.module.preflight?.(request.sessionId, request.expectedRevision)
-        if (after === undefined || after.status === 'blocked') {
-          return failure('stale_isolated', hostMessage('isolatedContentChangedAfterReadyDiffBytesWereDiscarded'))
-        }
-        const current = recordOf(options.registry, request.checkoutId)
-        if (
-          after.reviewId !== review.reviewId
-          || after.isolatedHeadOid !== review.isolatedHeadOid
-          || current.revision !== request.expectedRevision
-          || current.delivery.state !== 'ready_for_review'
-          || current.delivery.review.reviewId !== review.reviewId
-          || current.delivery.review.isolatedFingerprint !== review.isolatedFingerprint
-        ) return failure('stale_isolated', hostMessage('isolatedContentChangedAfterReadyDiffBytesWereDiscarded'))
-        return { ok: true, value: diff }
-      } catch (error) {
-        if (error instanceof ReviewDiffStaleError) return failure('stale_isolated', error.message)
-        return consoleFailure(error)
-      }
-    },
-
-    preflight: request => outcome(async () => {
-      const record = await authorize(request.sessionId, request.checkoutId)
-      if (record.ownerSessionId !== request.sessionId) throw domainError('not_owner', hostMessage('onlyTheOwnerIsolatedSessionCanRunSyncPreflight436'))
-      if (record.revision !== request.expectedRevision) throw domainError('stale_target', hostMessage('theSessionTargetHasChangedRefresh'))
-      const review = readyReview(record)
-      if (review.reviewId !== request.expectedReviewId) throw domainError('stale_target', hostMessage('theReviewIdentityHasChangedRefresh'))
-      const preflight = await options.module.preflight?.(request.sessionId, request.expectedRevision)
-      if (preflight === undefined) throw domainError('git_error', hostMessage('theCurrentSessionCheckoutModuleDoesNotSupportAcceptancePreflight'))
-      return { preflight }
-    }),
-
-    previewRecoveryPreflight: request => outcome(async () => {
-      const record = await authorize(request.sessionId, request.checkoutId)
-      if (record.ownerSessionId !== request.sessionId) throw domainError('not_owner', hostMessage('onlyTheOwnerIsolatedSessionCanCheckPreviewRecovery440'))
-      if (record.revision !== request.expectedRevision) throw domainError('stale_target', hostMessage('theSessionTargetHasChangedRefresh'))
-      if (
-        record.phase !== 'ready'
-        || record.delivery.state !== 'preview_detached'
-        || record.delivery.review.reviewId !== request.expectedReviewId
-        || record.delivery.preview.previewId !== request.expectedPreviewId
-      ) throw domainError('stale_target', hostMessage('theDetachedPreviewIdentityHasChangedRefresh'))
-      const preflight = await options.module.preflightPreviewRecovery?.(
-        request.sessionId,
-        request.expectedRevision,
-        request.expectedReviewId,
-        request.expectedPreviewId,
-      )
-      if (preflight === undefined) throw domainError('git_error', hostMessage('theCurrentSessionCheckoutModuleDoesNotSupportPreviewRecoveryPreflight'))
-      return { preflight }
-    }),
-
-    preparePreviewRecoveryAnalysis: request => outcome(async () => {
-      const record = await authorize(request.sessionId, request.checkoutId)
-      if (
-        record.ownerSessionId !== request.sessionId
-        || request.recoveryProof.sessionId !== request.sessionId
-        || request.recoveryProof.checkoutId !== request.checkoutId
-        || request.recoveryProof.revision !== request.expectedRevision
-        || request.recoveryProof.reviewId !== request.expectedReviewId
-        || request.recoveryProof.previewId !== request.expectedPreviewId
-      ) throw domainError('stale_target', hostMessage('thePreviewRecoveryAnalysisIdentityDoesNotMatch'))
-      const prepared = await options.module.preparePreviewRecoveryAnalysis(
-        request.sessionId,
-        request.recoveryProof,
-        `preview-recovery-analysis:${randomUUID()}`,
-      )
-      const response = await mutationResponse(request.sessionId, request.checkoutId)
-      return {
-        ...response,
-        recoveryContinuation: {
-          kind: prepared.kind,
-          requestId: prepared.requestId,
-          checkoutId: request.checkoutId,
-          reviewId: prepared.reviewId,
-          previewId: prepared.previewId,
-          revision: prepared.revision,
-          generation: prepared.generation,
-        },
-      }
-    }),
-
-    createPreviewRecoveryHandoff: request => outcome(async () => {
-      const record = await authorize(request.sessionId, request.checkoutId)
-      if (
-        record.ownerSessionId !== request.sessionId
-        || request.recoveryProof.sessionId !== request.sessionId
-        || request.recoveryProof.checkoutId !== request.checkoutId
-        || request.recoveryProof.revision !== request.expectedRevision
-        || request.recoveryProof.reviewId !== request.expectedReviewId
-        || request.recoveryProof.previewId !== request.expectedPreviewId
-      ) throw domainError('stale_target', hostMessage('thePreviewRecoveryHandoffIdentityDoesNotMatch'))
-      const targetSessionId = createTargetSessionId()
-      const launch = await options.module.createPreviewRecoveryHandoff(
-        request.sessionId,
-        request.recoveryProof,
-        targetSessionId,
-        `preview-recovery-handoff:${randomUUID()}`,
-      )
-      const created = recordOf(options.registry, launch.target.checkout.id)
-      const observed = await observe(created)
-      if (
-        created.ownerSessionId !== targetSessionId
-        || created.recoveryContinuation?.kind !== 'worktree_preview_recovery_handoff'
-        || created.recoveryContinuation.requestId !== launch.continuation.requestId
-        || observed.managedRoot !== launch.managedRoot
-      ) throw domainError('checkout_mismatch', hostMessage('hostIdentityVerificationFailedForTheRecoveryHandoffWorktree'))
-      return {
-        target: projectDetails(
-          created,
-          targetSessionId,
-          observed.managedRoot,
-          observed.snapshot,
-          observed.dirty,
-          false,
-        ),
-        targetSessionId,
-        managedRoot: launch.managedRoot,
-        recoveryContinuation: {
-          kind: launch.continuation.kind,
-          requestId: launch.continuation.requestId,
-          checkoutId: created.checkoutId,
-          sourceCheckoutId: launch.continuation.sourceCheckoutId,
-          reviewId: launch.continuation.reviewId,
-          previewId: launch.continuation.previewId,
-          revision: launch.continuation.sourceRevision,
-          generation: launch.continuation.generation,
-        },
-      }
-    }),
-
-    checkpoint: request => outcome(async () => {
-      const record = await authorize(request.sessionId, request.checkoutId)
-      if (record.ownerSessionId !== request.sessionId) throw domainError('not_owner', hostMessage('onlyTheOwnerIsolatedSessionCanSaveACheckpoint447'))
-      const commitMessage = request.commitMessage.trim()
-      if (!isValidCommitMessage(commitMessage) || !safeRecoveryRequestId(request.requestId)) {
-        throw domainError('invalid_input', hostMessage('theCheckpointCommitMessageOrRequestIdIsInvalid'))
-      }
-      const result = await options.module.operate({
-        action: 'checkpoint',
-        sessionId: request.sessionId,
-        expectedRevision: request.expectedRevision,
-        expectedReviewId: request.expectedReviewId,
-        expectedGeneration: request.expectedGeneration,
-        requestId: request.requestId,
-        commitMessage,
-      })
-      if (result.status === 'error') throw domainError(result.code, result.message)
-      if (result.status === 'preview_detached') {
-        return { ...(await mutationResponse(request.sessionId, request.checkoutId)), changedFiles: [...result.changedFiles] }
-      }
-      if (result.status !== 'checkpointed') throw domainError('operation_not_allowed', hostMessage('checkpointReturnedAnUnexpectedState'))
-      const response = await mutationResponse(request.sessionId, request.checkoutId)
-      if (response.target.state !== 'working' || response.target.revision !== result.target.revision) {
-        throw domainError('checkout_mismatch', hostMessage('worktreeDidNotReturnToWorkingAfterCheckpoint'))
-      }
-      return { ...response, checkpoint: result.checkpoint, changedFiles: [...result.changedFiles] }
-    }),
-
-    preview: request => outcome(async () => {
-      const record = await authorize(request.sessionId, request.checkoutId)
-      if (record.ownerSessionId !== request.sessionId) throw domainError('not_owner', hostMessage('onlyTheOwnerIsolatedSessionCanPreviewChanges'))
-      if (record.revision !== request.expectedRevision) throw domainError('stale_target', hostMessage('theSessionTargetHasChangedRefresh'))
-      const review = readyReview(record)
-      if (review.reviewId !== request.expectedReviewId) throw domainError('stale_target', hostMessage('theReviewIdentityHasChangedRefresh'))
-      const result = await options.module.operate({
-        action: 'preview', sessionId: request.sessionId, expectedRevision: request.expectedRevision,
-      })
-      if (result.status === 'error') throw domainError(result.code, result.message)
-      if (result.status === 'conflict') {
-        throw domainError(
-          'apply_conflict',
-          hostMessage('localPreviewPreflightFoundContentConflicts'),
-          applyConflictContinuation(result, review.reviewId),
-        )
-      }
-      if (result.status !== 'previewed') throw domainError('operation_not_allowed', hostMessage('previewReturnedAnUnexpectedState'))
-      return {
-        ...(await mutationResponse(request.sessionId, request.checkoutId)),
-        changedFiles: [...result.changedFiles],
-      }
-    }),
-
-    resumeRevision: request => outcome(async () => {
-      const record = await authorize(request.sessionId, request.checkoutId)
-      if (record.ownerSessionId !== request.sessionId) throw domainError('not_owner', hostMessage('onlyTheOwnerIsolatedSessionCanResumeEditing456'))
-      if (record.revision !== request.expectedRevision) throw domainError('stale_target', hostMessage('theSessionTargetHasChangedRefresh'))
-      const review = readyReview(record)
-      if (review.reviewId !== request.expectedReviewId) throw domainError('stale_target', hostMessage('theReviewIdentityHasChangedRefresh'))
-      const requestedRecovery = request.conflictContinuation
-      if (requestedRecovery && (
-        requestedRecovery.kind !== 'worktree_apply_conflict'
-        || !safeRecoveryRequestId(requestedRecovery.requestId)
-        || requestedRecovery.checkoutId !== request.checkoutId
-        || requestedRecovery.reviewId !== request.expectedReviewId
-        || requestedRecovery.revision !== request.expectedRevision
-        || !/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/iu.test(requestedRecovery.localHeadOid)
-        || requestedRecovery.conflictingFiles.length > 500
-        || !requestedRecovery.conflictingFiles.every(safeConflictFile)
-      )) throw domainError('invalid_input', hostMessage('invalidConflictRecoveryRequestIdentity'))
-      const recovery = requestedRecovery ? {
-        kind: 'worktree_apply_conflict' as const,
-        requestId: `conflict-recovery:${randomUUID()}`,
-        reviewId: request.expectedReviewId,
-        readyRevision: request.expectedRevision,
-        localHeadOid: requestedRecovery.localHeadOid,
-        conflictingFiles: [...requestedRecovery.conflictingFiles],
-      } : undefined
-      const target = recovery
-        ? await options.module.resumeRevision(
-            request.sessionId,
-            request.expectedRevision,
-            request.expectedReviewId,
-            recovery,
-          )
-        : await options.module.resumeRevision(
-            request.sessionId,
-            request.expectedRevision,
-            request.expectedReviewId,
-          )
-      if (target.checkout.id !== request.checkoutId || target.delivery?.state !== 'working') {
-        throw domainError('checkout_mismatch', hostMessage('theWorktreeIdentityOrStateDoesNotMatchAfter'))
-      }
-      const response = await mutationResponse(request.sessionId, request.checkoutId)
-      if (!requestedRecovery) return response
-      const current = recordOf(options.registry, request.checkoutId).recoveryContinuation
-      if (
-        !current
-        || current.kind !== 'worktree_apply_conflict'
-        || current.requestId !== recovery!.requestId
-        || current.workingRevision !== response.target.revision
-      ) throw domainError('checkout_mismatch', hostMessage('theHostCouldNotPersistTheExactConflictRecovery'))
-      return {
-        ...response,
-        recoveryContinuation: {
-          kind: current.kind,
-          requestId: current.requestId,
-          checkoutId: request.checkoutId,
-          reviewId: current.reviewId,
-          revision: current.workingRevision,
-          localHeadOid: current.localHeadOid,
-          conflictingFiles: [...current.conflictingFiles],
-        },
-      }
-    }),
-
-    prepareReviewRegeneration: request => outcome(async () => {
-      const record = await authorize(request.sessionId, request.checkoutId)
-      if (record.ownerSessionId !== request.sessionId) throw domainError('not_owner', hostMessage('onlyTheOwnerIsolatedSessionCanRequestReviewRegeneration462'))
-      if (record.revision !== request.expectedRevision) throw domainError('stale_target', hostMessage('theSessionTargetHasChangedRefresh'))
-      const review = readyReview(record)
-      if (review.reviewId !== request.expectedReviewId) throw domainError('stale_target', hostMessage('theReviewIdentityHasChangedRefresh'))
-      const prepared = await options.module.prepareReviewRegeneration(
-        request.sessionId,
-        request.expectedRevision,
-        request.expectedReviewId,
-        `review-regeneration:${randomUUID()}`,
-      )
-      const response = await mutationResponse(request.sessionId, request.checkoutId)
-      return {
-        ...response,
-        recoveryContinuation: {
-          kind: prepared.kind,
-          requestId: prepared.requestId,
-          checkoutId: request.checkoutId,
-          reviewId: prepared.reviewId,
-          revision: prepared.revision,
-        },
-      }
-    }),
-
-    rollbackPreview: request => outcome(async () => {
-      const record = await authorize(request.sessionId, request.checkoutId)
-      if (record.ownerSessionId !== request.sessionId) throw domainError('not_owner', hostMessage('onlyTheOwnerIsolatedSessionCanRollBackLocal'))
-      const result = await options.module.operate({
-        action: 'rollback_preview',
-        sessionId: request.sessionId,
-        expectedRevision: request.expectedRevision,
-        ...(request.resumeRevision === undefined ? {} : { resumeRevision: request.resumeRevision }),
-        ...(request.recoveryProof === undefined ? {} : { recoveryProof: request.recoveryProof }),
-      })
-      if (result.status === 'error') throw domainError(result.code, result.message)
-      if (result.status !== 'preview_rolled_back' && result.status !== 'preview_detached') {
-        throw domainError('operation_not_allowed', hostMessage('rollbackPreviewReturnedAnUnexpectedState'))
-      }
-      return {
-        ...(await mutationResponse(request.sessionId, request.checkoutId)),
-        changedFiles: [...result.changedFiles],
-      }
-    }),
-
     discard: request => outcome(async () => {
       const record = await authorize(request.sessionId, request.checkoutId)
       if (record.ownerSessionId !== request.sessionId && ownerSessionAvailable(record)) {
@@ -1324,50 +973,6 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
       return mutationResponse(request.sessionId, request.checkoutId)
     }),
 
-    finalize: async request => {
-      try {
-        const record = await authorize(request.sessionId, request.checkoutId)
-        if (record.ownerSessionId !== request.sessionId) return failure('not_owner', hostMessage('onlyTheOwnerIsolatedSessionCanCommitAcceptance'))
-        if (record.revision !== request.expectedRevision) return failure('stale_target', hostMessage('theSessionTargetHasChangedRefresh'))
-        const review = readyReview(record)
-        if (review.reviewId !== request.expectedReviewId) return failure('stale_target', hostMessage('theReviewIdentityHasChangedRefresh'))
-        const commitMessage = request.commitMessage.trim()
-        if (!isValidCommitMessage(commitMessage)) return failure('invalid_input', hostMessage('theCommitMessageMustBeNonemptyAndContainNoNul'))
-        const result = await options.module.operate({
-          sessionId: request.sessionId,
-          expectedRevision: request.expectedRevision,
-          action: 'finish',
-          expectedReviewId: request.expectedReviewId,
-          commitMessage,
-          retention: request.retention,
-        })
-        if (result.status === 'error') return failure(result.code, result.message)
-        if (result.status === 'conflict') {
-          return failure(
-            'apply_conflict',
-            hostMessage('applyingToLocalCausedConflicts'),
-            undefined,
-            applyConflictContinuation(result, review.reviewId),
-          )
-        }
-        if (result.status !== 'finished') return failure('operation_not_allowed', hostMessage('finalizeReturnedAnUnexpectedState'))
-        return {
-          ok: true,
-          value: {
-            ...(await mutationResponse(
-              request.sessionId,
-              request.checkoutId,
-              deliveryProofFromTarget(result.target),
-            )),
-            changedFiles: [...result.changedFiles],
-            commitOid: result.commitOid,
-          },
-        }
-      } catch (error) {
-        return consoleFailure(error)
-      }
-    },
-
     deliver: async request => {
       try {
         const record = await authorize(request.sessionId, request.checkoutId)
@@ -1392,51 +997,6 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
           ok: true,
           value: {
             ...(await mutationResponse(request.sessionId, request.checkoutId, deliveryProofFromTarget(result.target))),
-            changedFiles: [...result.changedFiles],
-            commitOid: result.commitOid,
-          },
-        }
-      } catch (error) {
-        return consoleFailure(error)
-      }
-    },
-
-    finalizePreview: async request => {
-      try {
-        const record = await authorize(request.sessionId, request.checkoutId)
-        if (record.ownerSessionId !== request.sessionId) return failure('not_owner', hostMessage('onlyTheOwnerIsolatedSessionCanFinalizeLocalPreview'))
-        if (record.revision !== request.expectedRevision) return failure('stale_target', hostMessage('theSessionTargetHasChangedRefresh'))
-        const review = previewReview(record)
-        if (review.reviewId !== request.expectedReviewId) return failure('stale_target', hostMessage('theReviewIdentityHasChangedRefresh'))
-        const commitMessage = request.commitMessage.trim()
-        if (!isValidCommitMessage(commitMessage)) return failure('invalid_input', hostMessage('theCommitMessageMustBeNonemptyAndContainNoNul'))
-        const result = await options.module.operate({
-          action: 'finalize_preview',
-          sessionId: request.sessionId,
-          expectedRevision: request.expectedRevision,
-          commitMessage,
-          retention: request.retention,
-          ...(request.recoveryProof === undefined ? {} : { recoveryProof: request.recoveryProof }),
-        })
-        if (result.status === 'error') return failure(result.code, result.message)
-        if (result.status === 'preview_detached') {
-          return {
-            ok: true,
-            value: {
-              ...(await mutationResponse(request.sessionId, request.checkoutId)),
-              changedFiles: [...result.changedFiles],
-            },
-          }
-        }
-        if (result.status !== 'finished') return failure('operation_not_allowed', hostMessage('finalizePreviewReturnedAnUnexpectedState'))
-        return {
-          ok: true,
-          value: {
-            ...(await mutationResponse(
-              request.sessionId,
-              request.checkoutId,
-              deliveryProofFromTarget(result.target),
-            )),
             changedFiles: [...result.changedFiles],
             commitOid: result.commitOid,
           },
@@ -1552,7 +1112,8 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
     // 边界：只放行已交付（delivered/finalized/retained）的记录。未交付时解绑会把
     // 未合并的工作留在冻结目录里，那一律拒绝。记录本身不动，保留期倒计时与已
     // 交付徽章照旧，回滚材料还在。
-    returnToLocal: request => outcome(async () => {      const record = recordOf(options.registry, request.checkoutId)
+    returnToLocal: request => outcome(async () => {
+      const record = recordOf(options.registry, request.checkoutId)
       if (record.ownerSessionId !== request.sessionId) {
         throw domainError('not_owner', hostMessage('onlyTheOwnerSessionCanBeginTheNextIteration'))
       }

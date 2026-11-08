@@ -1,5 +1,6 @@
 import { relative, resolve } from 'node:path'
 import type {
+  GitCheckoutSnapshot,
   ManagedCheckoutRecord,
   SessionCheckoutGitPort,
   SessionCheckoutLookupPort,
@@ -31,6 +32,8 @@ export interface OfficialWorktreeRegistration {
   path: string
   /** 分叉基准提交。 */
   baseCommit: string
+  /** 调用方已读过的这棵树的 Git 身份；不给就由登记函数自己读一次。 */
+  snapshot?: GitCheckoutSnapshot
 }
 
 /** 这个目录是否位于本项目官方的 `.agents/worktrees` 下。 */
@@ -52,7 +55,7 @@ export async function registerOfficialWorktree(
   registration: OfficialWorktreeRegistration,
 ): Promise<ManagedCheckoutRecord> {
   const { git, registry } = dependencies
-  const snapshot = await git.inspect(registration.path)
+  const snapshot = registration.snapshot ?? await git.inspect(registration.path)
   if (snapshot === null) {
     throw new Error(`The new worktree at ${registration.path} is not a readable Git checkout`)
   }
@@ -128,10 +131,16 @@ export async function adoptWorktreeForSession(
   if (registry.sessionBindings[sessionId] !== undefined) return undefined
   if (isTracked(registry.managedCheckouts, cwd)) return undefined
 
+  // 走到这里说明 cwd 确实在官方目录下，所以「读不出 Git」与「不在分支上」不是
+  // 「这棵树不归我管」，而是接管失败：静默跳过会让那棵树永远进不了台账，而
+  // 交付、清理、列表全靠台账定位。让调用方决定怎么把原因说出来。
   const snapshot = await dependencies.git.inspect(cwd)
-  if (snapshot === null) return undefined
-  const branchRef = snapshot.headRef
-  if (!branchRef.startsWith('refs/heads/')) return undefined
+  if (snapshot === null) {
+    throw new Error(`${cwd} is under ${OFFICIAL_WORKTREE_DIRECTORY} but is not a readable Git checkout`)
+  }
+  if (!snapshot.headRef.startsWith('refs/heads/')) {
+    throw new Error(`${cwd} is under ${OFFICIAL_WORKTREE_DIRECTORY} but is not on a branch`)
+  }
   return registerOfficialWorktree(dependencies, {
     ownerSessionId: sessionId,
     projectId,
@@ -139,6 +148,7 @@ export async function adoptWorktreeForSession(
     localRoot: project.root,
     path: snapshot.root,
     baseCommit: snapshot.headOid,
+    snapshot,
   })
 }
 

@@ -54,8 +54,7 @@ test.each([1, 3])('bounds real Git queries for a one-file delivery and a %i-work
       sessions.set(`sibling-${index}`, { id: `sibling-${index}`, projectId: `p-${index}` })
     }
     writeFileSync(join(launch.managedRoot, 'hello.txt'), 'Hello, Worktree\n')
-    await module.markReadyForReview('owner', { summary: 'One line', validationStatus: 'passed', tests: [], suggestedCommitMessage: 'test: line' })
-    const plane = createWorktreeConsoleControlPlane({ module, lookup, files: deps.files, registry: deps.registry, git: deps.git, setWorktreeRequest: () => null, pendingWorktreeRequest: () => null })
+    const plane = createWorktreeConsoleControlPlane({ module, lookup, files: deps.files, registry: deps.registry, git: deps.git, createWorktree: async () => ({ ok: false, message: 'unused' }), adoptionFailure: () => null })
     async function measure(label: string, fn: () => Promise<unknown>, expectOk = true) {
       traces.calls.length = 0
       const start = performance.now(); const result = await fn()
@@ -81,9 +80,6 @@ test.each([1, 3])('bounds real Git queries for a one-file delivery and a %i-work
     sessions.set('outsider', { id: 'outsider', projectId: 'p' })
     expect(await plane.inspect('outsider', launch.target.checkout.id)).toMatchObject({ ok: false, error: { code: 'not_owner' } })
     const record = deps.registry.read().managedCheckouts[launch.target.checkout.id]!
-    if (record.delivery.state !== 'ready_for_review') throw Error('not ready')
-    const identity = { sessionId: 'owner', checkoutId: record.checkoutId, expectedRevision: record.revision, expectedReviewId: record.delivery.review.reviewId }
-    await measure('preflight', () => plane.preflight(identity))
     // 交付已经不再往 Local 写（preview 属于旧的写回路径，会被明确拒绝），
     // 这里度量的是它的替代者：在会话分支上完成一次提交式交付。
     const delivered = await measure('deliver', () => module.operate({

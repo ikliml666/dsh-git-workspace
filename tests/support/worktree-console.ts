@@ -182,7 +182,7 @@ export function createWorktreeConsoleAdapterFixture(stateful = false): WorktreeC
     },
     async current(request: WorktreeConsoleCurrentRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleCurrentResponse>> {
       record('current', request)
-      return outcome({ target })
+      return outcome({ target, adoptionFailure: null })
     },
     async list(request: WorktreeConsoleListRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleListResponse>> {
       record('list', request)

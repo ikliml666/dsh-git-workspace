@@ -11,7 +11,6 @@ import type { Context } from '@deepseek-ai/cordis'
 import { createDshGitPort } from '../src/adapters/git.js'
 import { ProjectSkillStore } from '../src/adapters/project-skills.js'
 import { createSessionCheckoutApplyEngine } from '../src/session-checkout-apply.js'
-import { createGitWorktreeReviewDiffReader } from '../src/console-host/review-diff.js'
 
 const roots: string[] = []
 function testEnvironment(overrides: Record<string, string | undefined> = {}) {
@@ -341,8 +340,6 @@ it('keeps carried Skills out of review, checkpoint, preview and finalize and car
   expect(git(targetRoot, ['ls-tree', '-r', '--name-only', 'HEAD']).stdout).not.toContain(skillPath)
   const ready = await module.markReadyForReview('target', { summary: 'Skills isolation', validationStatus: 'passed', tests: [], suggestedCommitMessage: 'test: isolation' })
   if (ready.delivery?.state !== 'ready_for_review') throw new Error('expected ready review')
-  const diff = await createGitWorktreeReviewDiffReader(projectSkills).read({ managedRoot: targetRoot, baseOid, reviewId: ready.delivery.review.reviewId, revision: ready.revision, changedFiles: ['app.txt'] })
-  expect(diff.files).toHaveLength(1)
   // 交付只在会话分支上提交：没有任何一步会把 Skill 目录写进 Local。
   const saved = await module.operate({ action: 'finish', sessionId: 'target', expectedRevision: ready.revision, commitMessage: 'test: isolation', retention: 'cleanup' })
   if (saved.status !== 'finished') throw new Error(JSON.stringify(saved))

@@ -117,17 +117,12 @@ it('adopts a legacy detached record onto a Session branch at delivery', async ()
     expect(env.tryGit('-C', launch.managedRoot, 'symbolic-ref', '--quiet', 'HEAD')).toBeNull()
 
     writeFileSync(join(launch.managedRoot, 'shared.txt'), 'base\nlegacy adopt\n')
-    await module.markReadyForReview('owner', {
-      summary: 'legacy edit', validationStatus: 'passed', tests: [], suggestedCommitMessage: 'fix: legacy adopt',
-    })
     const ready = await module.inspect('owner')
-    if (ready.delivery?.state !== 'ready_for_review') throw Error('expected a ready review')
 
     const delivered = await module.operate({
       action: 'finish',
       sessionId: 'owner',
       expectedRevision: ready.revision,
-      expectedReviewId: ready.delivery.review.reviewId,
       commitMessage: 'fix: legacy adopt',
       retention: 'retain_manual',
     })

@@ -56,20 +56,8 @@ const METHODS = [
   'gitGraph',
   'initProject',
   'inspect',
-  'reviewDiff',
-  'preflight',
-  'previewRecoveryPreflight',
-  'preparePreviewRecoveryAnalysis',
-  'createPreviewRecoveryHandoff',
-  'preview',
-  'checkpoint',
-  'resumeRevision',
-  'prepareReviewRegeneration',
-  'rollbackPreview',
   'discard',
-  'finalize',
   'deliver',
-  'finalizePreview',
   'setRetention',
   'setPermanent',
   'retryCleanup',
@@ -166,38 +154,13 @@ describe('manual strict Worktree Console Remote contribution', () => {
     })).toThrow()
   })
 
-  it('fails malformed wire input and business output closed at the shared Zod boundary', () => {
-    const inspect = WORKTREE_CONSOLE_DESCRIPTORS.find((descriptor) => descriptor.method === 'inspect')!
-    expect(() => inspect.parameters[0]!.codec.mode === 'strict'
-      && inspect.parameters[0]!.codec.schema.parse('')).toThrow()
-    expect(() => inspect.parameters[1]!.codec.mode === 'strict'
-      && inspect.parameters[1]!.codec.schema.parse('../checkout')).toThrow()
-    expect(() => inspect.result.mode === 'strict'
-      && inspect.result.schema.parse({ ok: true, value: { target: { managedRoot: 42 } } })).toThrow()
-    const finalize = WORKTREE_CONSOLE_DESCRIPTORS.find((descriptor) => descriptor.method === 'finalize')!
-    const commitMessage = finalize.parameters.find(parameter => parameter.name === 'commitMessage')!
-    expect(() => commitMessage.codec.mode === 'strict' && commitMessage.codec.schema.parse('   ')).toThrow()
-    expect(() => commitMessage.codec.mode === 'strict' && commitMessage.codec.schema.parse('feat: invalid\0message')).toThrow()
-  })
-
-  it('accepts complete multiline Commit Messages beyond 500 characters for every commit action', () => {
-    const message = `feat: 完整提交说明\n\n${'保留正文与 emoji 😀\n'.repeat(100)}`.trim()
-    for (const method of ['checkpoint', 'finalize', 'deliver', 'finalizePreview']) {
-      const descriptor = WORKTREE_CONSOLE_DESCRIPTORS.find(item => item.method === method)!
-      const codec = descriptor.parameters.find(parameter => parameter.name === 'commitMessage')!.codec
-      if (codec.mode !== 'strict') throw new Error('expected strict codec')
-      expect(codec.schema.parse(`  ${message}\n`)).toBe(message)
-      expect(() => codec.schema.parse(' \n ')).toThrow()
-      expect(() => codec.schema.parse('feat: bad\0message')).toThrow()
-    }
-  })
-
   it('roundtrips path-free acceptance blocker and delivery proof through strict schemas', () => {
     const current = WORKTREE_CONSOLE_DESCRIPTORS.find((descriptor) => descriptor.method === 'current')!
     const fixture = createWorktreeConsoleAdapterFixture()
     const response = {
       ok: true as const,
       value: {
+        adoptionFailure: null,
         target: {
           ...fixture.target,
           reviewSlot: 'waiting' as const,
@@ -245,101 +208,13 @@ describe('manual strict Worktree Console Remote contribution', () => {
     })).toThrow()
   })
 
-  it('roundtrips a structured apply-conflict continuation and rejects malformed conflict facts', () => {
-    const preview = WORKTREE_CONSOLE_DESCRIPTORS.find((descriptor) => descriptor.method === 'preview')!
-    const response = {
-      ok: false as const,
-      error: {
-        code: 'apply_conflict' as const,
-        message: 'conflict',
-        continuation: {
-          kind: 'worktree_apply_conflict' as const,
-          requestId: `apply-conflict:checkout-1:review-1:9:${'a'.repeat(40)}`,
-          checkoutId: 'checkout-1', reviewId: 'review-1', revision: 9,
-          localHeadOid: 'a'.repeat(40), conflictingFiles: ['src/index.ts'],
-        },
-      },
-    }
-
-    expect(preview.result.mode).toBe('strict')
-    if (preview.result.mode !== 'strict') throw new Error('expected strict preview result')
-    expect(preview.result.schema.parse(response)).toEqual(response)
-    expect(() => preview.result.schema.parse({
-      ...response,
-      error: { ...response.error, continuation: { ...response.error.continuation, conflictingFiles: ['/unsafe'.repeat(1001)] } },
-    })).toThrow()
-  })
-
-  it('keeps checkpoint request and response strict, path-free, and generation-bound', () => {
-    const descriptor = WORKTREE_CONSOLE_DESCRIPTORS.find(item => item.method === 'checkpoint')!
-    const parameter = (name: string) => descriptor.parameters.find(item => item.name === name)!
-    expect(() => parameter('expectedGeneration').codec.mode === 'strict'
-      && parameter('expectedGeneration').codec.schema.parse('bad')).toThrow()
-    expect(() => parameter('requestId').codec.mode === 'strict'
-      && parameter('requestId').codec.schema.parse('checkpoint:\nunsafe')).toThrow()
-    expect(() => parameter('commitMessage').codec.mode === 'strict'
-      && parameter('commitMessage').codec.schema.parse(' '.repeat(20))).toThrow()
-
-    const fixture = createWorktreeConsoleAdapterFixture()
-    const checkpoint = {
-      checkpointId: 'checkpoint-1', sequence: 1, reviewId: 'review-1', createdAt: 2,
-      summary: 'saved stage', validationStatus: 'passed' as const, changedFiles: ['src/index.ts'],
-    }
-    const { managedRoot: _managedRoot, sourceRoot: _sourceRoot, sourceOid: _sourceOid, currentBranch: _currentBranch, ...target } = fixture.target
-    const response = { ok: true as const, value: { target: { ...target, checkpoints: [checkpoint] }, checkpoint } }
-    expect(descriptor.result.mode).toBe('strict')
-    if (descriptor.result.mode !== 'strict') throw new Error('expected strict result')
-    expect(descriptor.result.schema.parse(response)).toEqual(response)
-    expect(() => descriptor.result.schema.parse({
-      ...response,
-      value: { ...response.value, checkpoint: { ...checkpoint, changedFiles: ['../secret'] } },
-    })).toThrow()
-    expect(() => descriptor.result.schema.parse({
-      ...response,
-      value: { ...response.value, checkpoint: { ...checkpoint, internalRef: 'refs/dsh/private' } },
-    })).toThrow()
-  })
-
-  it('roundtrips detached recovery proof and rejects unsafe paths, unknown fields, and malformed generation', () => {
-    const descriptor = WORKTREE_CONSOLE_DESCRIPTORS.find(item => item.method === 'previewRecoveryPreflight')!
-    const proof = {
-      sessionId: 'target-session', checkoutId: 'checkout-1', reviewId: 'review-1', previewId: 'preview-1', revision: 8,
-      generation: '1'.repeat(64), receiptFingerprint: '2'.repeat(64), localFingerprint: '3'.repeat(64),
-      localHeadOid: 'a'.repeat(40), localHeadRef: 'refs/heads/main', localHeadTreeOid: 'b'.repeat(40),
-      localIndexTreeOid: 'c'.repeat(40), localWorkingTreeOid: 'd'.repeat(40),
-      rollback: { status: 'safe' as const, targetTreeOid: 'e'.repeat(40) },
-      finalize: {
-        status: 'blocked' as const, code: 'commit_isolation_conflict' as const,
-        message: 'conflict', conflictingFiles: ['src/index.ts'],
-      },
-    }
-    const response = { ok: true as const, value: { preflight: { status: 'assessed' as const, localModified: false as const, proof } } }
-    expect(descriptor.result.mode).toBe('strict')
-    if (descriptor.result.mode !== 'strict') throw new Error('expected strict result')
-    expect(descriptor.result.schema.parse(response)).toEqual(response)
-    expect(() => descriptor.result.schema.parse({
-      ...response,
-      value: { preflight: { ...response.value.preflight, proof: { ...proof, generation: 'bad' } } },
-    })).toThrow()
-    expect(() => descriptor.result.schema.parse({
-      ...response,
-      value: { preflight: { ...response.value.preflight, proof: {
-        ...proof,
-        finalize: { ...proof.finalize, conflictingFiles: ['../secret'] },
-      } } },
-    })).toThrow()
-    expect(() => descriptor.result.schema.parse({
-      ...response,
-      value: { preflight: { ...response.value.preflight, proof: { ...proof, managedRoot: '/secret' } } },
-    })).toThrow()
-  })
-
   it('roundtrips detached recovery reason through the strict target response schema', () => {
     const current = WORKTREE_CONSOLE_DESCRIPTORS.find((descriptor) => descriptor.method === 'current')!
     const fixture = createWorktreeConsoleAdapterFixture()
     const response = {
       ok: true as const,
       value: {
+        adoptionFailure: null,
         target: {
           ...fixture.target,
           state: 'preview_detached' as const,
@@ -550,72 +425,4 @@ describe('manual strict Worktree Console Remote contribution', () => {
     expect((client.remote as unknown as Record<string, unknown>).gitWorktree).toBeUndefined()
     await expect(retained('agent-1')).resolves.toMatchObject({ ok: false, error: { code: 'gateway/internal' } })
   })
-
-  it('keeps business errors distinct from carrier and malformed response failures', async () => {
-    const business = { ok: false as const, error: { code: 'not_owner' as const, message: 'denied' } }
-    const current = vi.fn()
-      .mockResolvedValueOnce({ ok: true, value: business })
-      .mockResolvedValueOnce({ ok: false, error: { code: 'internal', message: 'carrier offline', details: {} } })
-      .mockResolvedValueOnce({ ok: true, value: { ok: true, value: { target: { managedRoot: 42 } } } })
-    const adapter = createWorktreeConsoleRemoteAdapter({ current } as never)
-
-    await expect(adapter.current({ sessionId: 'agent-1' })).resolves.toEqual(business)
-    await expect(adapter.current({ sessionId: 'agent-1' })).resolves.toEqual({
-      ok: false, error: { code: 'transport_unavailable', message: 'carrier offline' },
-    })
-    await expect(adapter.current({ sessionId: 'agent-1' })).resolves.toEqual({
-      ok: false,
-      error: { code: 'malformed_response', message: 'Remote current 返回了不符合 strict contract 的 payload' },
-    })
-
-    const fixture = createWorktreeConsoleAdapterFixture()
-    const checkpoint = vi.fn().mockResolvedValue({
-      ok: true,
-      value: await fixture.adapter.checkpoint({
-        sessionId: 'agent-1', checkoutId: 'checkout-1', expectedRevision: 7, expectedReviewId: 'review-1',
-        expectedGeneration: '9'.repeat(64), requestId: `checkpoint:${'9'.repeat(64)}`, commitMessage: 'feat: save stage',
-      }),
-    })
-    const checkpointAdapter = createWorktreeConsoleRemoteAdapter({ checkpoint } as never)
-    await expect(checkpointAdapter.checkpoint({
-      sessionId: 'agent-1', checkoutId: 'checkout-1', expectedRevision: 7, expectedReviewId: 'review-1',
-      expectedGeneration: '9'.repeat(64), requestId: `checkpoint:${'9'.repeat(64)}`, commitMessage: 'feat: save stage',
-    })).resolves.toMatchObject({ ok: true, value: { checkpoint: { sequence: 1 }, target: { state: 'working' } } })
-    expect(checkpoint).toHaveBeenCalledWith(
-      'agent-1', 'checkout-1', 7, 'review-1', '9'.repeat(64), `checkpoint:${'9'.repeat(64)}`, 'feat: save stage', 'zh',
-    )
-
-    const resumeRevision = vi.fn().mockResolvedValue({
-      ok: true,
-      value: await fixture.adapter.resumeRevision({
-        sessionId: 'agent-1', checkoutId: 'checkout-1', expectedRevision: 7, expectedReviewId: 'review-1',
-      }),
-    })
-    const resumeAdapter = createWorktreeConsoleRemoteAdapter({ resumeRevision } as never)
-    await expect(resumeAdapter.resumeRevision({
-      sessionId: 'agent-1', checkoutId: 'checkout-1', expectedRevision: 7, expectedReviewId: 'review-1',
-    })).resolves.toMatchObject({ ok: true, value: { target: { state: 'working', iteration: 1 } } })
-    expect(resumeRevision).toHaveBeenCalledWith('agent-1', 'checkout-1', 7, 'review-1', undefined, 'zh')
-
-    const beginNextIteration = vi.fn().mockResolvedValue({
-      ok: true,
-      value: await createWorktreeConsoleAdapterFixture().adapter.beginNextIteration({
-        sessionId: 'agent-1', checkoutId: 'checkout-1', expectedRevision: 9,
-      }),
-    })
-    const iterationAdapter = createWorktreeConsoleRemoteAdapter({ beginNextIteration } as never)
-    await expect(iterationAdapter.beginNextIteration({
-      sessionId: 'agent-1', checkoutId: 'checkout-1', expectedRevision: 9,
-    })).resolves.toMatchObject({ ok: true, value: { target: { state: 'working', iteration: 2 } } })
-    expect(beginNextIteration).toHaveBeenCalledWith('agent-1', 'checkout-1', 9, 'zh')
-
-    const malformedInputAdapter = createWorktreeConsoleRemoteAdapter({
-      inspect: vi.fn().mockRejectedValue(new Error('client api: gitWorktree/inspect rejected "checkoutId"')),
-    } as never)
-    await expect(malformedInputAdapter.inspect({ sessionId: 'agent-1', checkoutId: '../escape' })).resolves.toEqual({
-      ok: false,
-      error: { code: 'malformed_response', message: 'Remote inspect 返回了不符合 strict contract 的 payload' },
-    })
-  })
 })
-

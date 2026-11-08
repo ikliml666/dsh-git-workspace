@@ -64,7 +64,6 @@ export interface SessionCheckoutLookupPort {
    * Worktree created by the official tool may have no binding and no Session
    * whose Workspace derivation covers it.
    */
-  listProjects?(): readonly SessionCheckoutProjectRecord[]
 }
 
 export interface GitCheckoutSnapshot {
@@ -133,7 +132,7 @@ export interface SessionCheckoutGitPort {
   /** Short names of local branches, sorted, for the create-time base picker. */
   listLocalBranches?(root: string): Promise<string[]>
   /** Tip commit of a local branch, or null when the ref does not resolve. */
-  resolveLocalBranchTip?(root: string, branch: string): Promise<string | null>
+  resolveLocalBranchTip(root: string, branch: string): Promise<string | null>
   inspect(root: string): Promise<GitCheckoutSnapshot | null>
   /** Top-level of the Git checkout containing the directory; does not require a HEAD. */
   findContainingWorktreeRoot(root: string): Promise<string | null>
@@ -181,7 +180,6 @@ export interface SessionCheckoutGitPort {
    * Git's authoritative list: the official tool nests worktrees under branch
    * names that contain `/`, so no directory scan reconstructs them safely.
    */
-  listWorktrees?(localRoot: string): Promise<WorktreeListingEntry[]>
   /**
    * Local adaptation: branch overview for the header chip popover — every
    * local branch with its tip, upstream, and the checkout marker, plus the

@@ -6,16 +6,12 @@ import {
   type WorktreeConsoleAbandonedListResponse,
   type WorktreeConsoleAbandonedSnapshot,
   type WorktreeConsoleCreateWorktreeResponse,
-  type WorktreeConsoleCreatePreviewRecoveryHandoffResponse,
   type WorktreeConsoleCurrentResponse,
   type WorktreeConsoleInspectResponse,
   type WorktreeConsoleListResponse,
   type WorktreeConsoleMutationResponse,
   type WorktreeConsoleOutcome,
-  type WorktreeConsolePreflightResponse,
-  type WorktreeConsolePreviewRecoveryPreflightResponse,
   type WorktreeConsoleRestoreAbandonedResponse,
-  type WorktreeConsoleReviewDiffResponse,
   type WorktreeConsoleGitGraphResponse,
   type WorktreeConsoleGitMutationResponse,
   type WorktreeConsoleGitOverviewResponse,
@@ -207,12 +203,6 @@ const targetDetailsSchema = targetSummarySchema.extend({
   currentBranch: z.string().nullable(),
   recoveryContinuation: recoveryProofSchema.optional(),
 }).strict()
-export const previewRecoveryHandoffResponseSchema: z.ZodType<WorktreeConsoleCreatePreviewRecoveryHandoffResponse> = strict({
-  target: targetDetailsSchema,
-  targetSessionId: sessionIdSchema,
-  managedRoot: z.string().min(1),
-  recoveryContinuation: previewRecoveryHandoffProofSchema,
-})
 const consoleErrorSchema = strict({
   code: z.enum(WORKTREE_CONSOLE_ERROR_CODES),
   message: z.string(),
@@ -233,6 +223,8 @@ export function outcomeSchema<T>(value: z.ZodType<T>): z.ZodType<WorktreeConsole
 
 export const currentResponseSchema: z.ZodType<WorktreeConsoleCurrentResponse> = strict({
   target: targetDetailsSchema,
+  // 旧 Host 不返回这个字段；写成必填会让整条 current 校验失败、胶囊塌成不可用。
+  adoptionFailure: z.string().nullable().default(null),
 })
 export const inspectResponseSchema: z.ZodType<WorktreeConsoleInspectResponse> = strict({ target: targetDetailsSchema })
 export const listResponseSchema: z.ZodType<WorktreeConsoleListResponse> = strict({ project: projectSchema, worktrees: z.array(targetSummarySchema) })
@@ -303,20 +295,12 @@ const preflightSchema = z.union([
     blocker: acceptanceBlockerSchema.optional(),
   }),
 ])
-export const preflightResponseSchema: z.ZodType<WorktreeConsolePreflightResponse> = strict({ preflight: preflightSchema })
-
-const previewRecoveryBlockedReasonSchema = z.enum([
-  'stale_local',
-  'preview_modified',
-  'commit_isolation_conflict',
-  'operation_not_allowed',
-  'project_acceptance_busy',
-])
 const previewRecoveryBlockedActionSchema = strict({
   status: z.literal('blocked'),
-  code: previewRecoveryBlockedReasonSchema,
+  revision: revisionSchema,
+  reason: z.enum(['not_owner', 'not_ready_for_review', 'stale_target', 'stale_local', 'stale_isolated', 'project_acceptance_busy', 'checkout_unavailable', 'git_error']),
   message: z.string(),
-  conflictingFiles: z.array(z.string().min(1).max(1000).refine(safeConflictFile, 'unsafe conflict file')).max(500).optional(),
+  blocker: acceptanceBlockerSchema.optional(),
 })
 const previewRecoveryRollbackSchema = z.union([
   strict({ status: z.literal('safe'), targetTreeOid: gitOidSchema }),
@@ -363,16 +347,7 @@ const previewRecoveryPreflightSchema = z.union([
     message: z.string(),
   }),
 ])
-export const previewRecoveryPreflightResponseSchema: z.ZodType<WorktreeConsolePreviewRecoveryPreflightResponse> = strict({
-  preflight: previewRecoveryPreflightSchema,
-})
 
-export const reviewDiffResponseSchema: z.ZodType<WorktreeConsoleReviewDiffResponse> = strict({
-  reviewId: reviewIdSchema,
-  revision: revisionSchema,
-  files: z.array(diffFileSchema).max(200),
-  truncated: z.boolean(),
-})
 
 const gitBranchSchema = strict({
   name: branchNameSchema,

@@ -104,11 +104,7 @@ it('delivers onto the session branch and leaves Local completely untouched', asy
     expect(env.git('rev-parse', 'HEAD')).toBe(env.otherHead)
 
     writeFileSync(join(launch.managedRoot, 'shared.txt'), 'base\nworktree edit\n')
-    await module.markReadyForReview('owner', {
-      summary: 'one edit', validationStatus: 'passed', tests: [], suggestedCommitMessage: 'fix: worktree edit',
-    })
     const ready = await module.inspect('owner')
-    if (ready.delivery?.state !== 'ready_for_review') throw Error('expected a ready review')
     // 宿主运行期产物不能被卷进评审变更集（#2）。
     mkdirSync(join(launch.managedRoot, '.dsh-ops', 'panel'), { recursive: true })
     writeFileSync(join(launch.managedRoot, '.dsh-ops', 'panel', 'session-abc.ndjson'), '{"tick":1}\n')
@@ -116,7 +112,6 @@ it('delivers onto the session branch and leaves Local completely untouched', asy
       action: 'finish',
       sessionId: 'owner',
       expectedRevision: ready.revision,
-      expectedReviewId: ready.delivery.review.reviewId,
       commitMessage: 'fix: worktree edit',
       retention: 'cleanup',
     })

@@ -103,19 +103,6 @@ export function registerWorktreeCommand(ctx: Context, module: SessionCheckoutMod
               )).join('\n'),
             }
           }
-          case 'continue': {
-            const current = await module.inspect(sessionId)
-            if (current.delivery?.state !== 'ready_for_review') {
-              return { kind: 'error', text: hostMessage('theCurrentWorktreeHasNoUnsyncedReadyForReview') }
-            }
-            const target = await module.resumeRevision(
-              sessionId,
-              current.revision,
-              current.delivery.review.reviewId,
-            )
-            const iteration = target.delivery?.state === 'working' ? target.delivery.iteration : 0
-            return { kind: 'success', text: hostMessage('resumedWorktreeIterationLocalWasNotModified', { p0: iteration }) }
-          }
           case 'next': {
             const current = await module.inspect(sessionId)
             const target = await module.beginNextIteration(sessionId, current.revision)
@@ -129,45 +116,6 @@ export function registerWorktreeCommand(ctx: Context, module: SessionCheckoutMod
                 ? `${started}\n${hostMessage('worktreeCwdCouldNotBeEntered', { p0: entered.failure })}`
                 : `${started}${entered.cwd ? `\n${entered.cwd}` : ''}`,
             }
-          }
-          case 'finalize': {
-            const hasReviewIdentity = tokens[1] !== undefined && !RETENTIONS.has(tokens[1] as WorktreeRetentionMode)
-            const expectedReviewId = hasReviewIdentity ? tokens[1] : undefined
-            const parsedRevision = hasReviewIdentity ? Number(tokens[2]) : undefined
-            const retention = (hasReviewIdentity ? tokens[3] : tokens[1] ?? DEFAULT_WORKTREE_RETENTION) as WorktreeRetentionMode
-            if (!RETENTIONS.has(retention) || (hasReviewIdentity && (!expectedReviewId || !Number.isSafeInteger(parsedRevision)))) {
-              return { kind: 'error', text: usage() }
-            }
-            const target = await module.inspect(sessionId)
-            if (target.delivery?.state !== 'ready_for_review') {
-              return { kind: 'error', text: hostMessage('theCurrentWorktreeIsNotReadyForReviewAnd') }
-            }
-            if (expectedReviewId && (
-              target.delivery.review.reviewId !== expectedReviewId
-              || target.revision !== parsedRevision
-            )) {
-              return { kind: 'error', text: hostMessage('thisReviewCardHasExpiredConfirmTheLatestReady') }
-            }
-            const leaveFailure = await leaveCheckout(invocation.agent, target.checkout.id)
-            if (leaveFailure !== undefined) {
-              return { kind: 'error', text: hostMessage('worktreeCwdCouldNotBeRestoredBeforeRemoval', { p0: leaveFailure }) }
-            }
-            const result = await module.operate({
-              action: 'finish',
-              sessionId,
-              expectedRevision: parsedRevision ?? target.revision,
-              commitMessage: target.delivery.review.suggestedCommitMessage,
-              retention,
-              ...(expectedReviewId ? { expectedReviewId } : {}),
-            })
-            if (result.status === 'finished') return { kind: 'success', text: finishedText(result) }
-            // The checkout outlived the failed finish: put the Session back in it.
-            const back = await enterCheckout(invocation.agent, target.checkout.id)
-            if (result.status === 'conflict') {
-              return { kind: 'error', text: `${hostMessage('conflictNLocalHEADSyncAndResolveConflictsInWorktree', { p0: result.conflictingFiles.join('、'), p1: result.localHeadOid.slice(0, 7) })}${enterNote(back.failure)}` }
-            }
-            if (result.status === 'error') return { kind: 'error', text: `${result.code}: ${result.message}${enterNote(back.failure)}` }
-            return { kind: 'error', text: `${hostMessage('finalizeDidNotReturnTheExpectedResult')}${enterNote(back.failure)}` }
           }
           case 'finish': {
             const commitMessage = rawInput.slice(verb.length).trim()

@@ -155,6 +155,10 @@ export interface SessionCheckoutModule {
    * ledger covers every Worktree the host can produce, not only ours.
    */
   adoptOfficialWorktree(sessionId: string, cwd: string): Promise<void>
+  /** 记下一次接管失败的原因，供胶囊下一次轮询显示。 */
+  recordAdoptionFailure(sessionId: string, reason: string): void
+  /** 本会话最近一次接管失败的原因；没有则 null。 */
+  adoptionFailure(sessionId: string): string | null
   /** Recreate a cleaned delivered owner's immutable cwd as the next isolated iteration. */
   beginNextIteration(sessionId: string, expectedRevision: number): Promise<SessionTargetView>
   /** Invalidate an unsynced review and resume the same iteration without touching Local. */
@@ -263,7 +267,6 @@ import { registerWorktreeCommand } from './commands.js'
 import { registerOfficialWorktreeAdoption, registerSessionTargetContext } from './session-target-context.js'
 import { createWorktreeNow } from './worktree-creation.js'
 import { createWorktreeConsoleControlPlane } from './console-host/control-plane.js'
-import { createGitWorktreeReviewDiffReader } from './console-host/review-diff.js'
 import { WorktreeConsoleService } from './console-host/service.js'
 import { liveConfigValue, type LiveValue } from './ports.js'
 
@@ -426,8 +429,8 @@ export async function apply(ctx: Context, config: { stateDir?: string } & GitTim
     files,
     registry,
     git,
-    reviewDiff: createGitWorktreeReviewDiffReader(projectSkills),
     createWorktree: (sessionId, from) => createWorktreeNow(ctx, module, sessionId, from),
+    adoptionFailure: (sessionId) => module.adoptionFailure(sessionId),
   }), join(stateDir, 'sidebar-diag.ndjson'), providerLifecycle.officialWorkspaceActive)
 
   registerTools(ctx, module)

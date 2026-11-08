@@ -2,18 +2,14 @@ import type { Language } from '../i18n/core.js'
 import type { RemoteResult, TypertRemoteNamespace } from '@deepseek-ai/dsh-typert-protocol'
 import type {
   WorktreeConsoleAbandonedListResponse,
-  WorktreeConsoleCreatePreviewRecoveryHandoffResponse,
   WorktreeConsoleCurrentResponse,
   WorktreeConsoleInspectResponse,
   WorktreeConsoleListResponse,
   WorktreeConsoleMutationResponse,
   WorktreeConsoleOutcome,
-  WorktreeConsolePreflightResponse,
-  WorktreeConsolePreviewRecoveryPreflightResponse,
   WorktreeConsoleRestoreAbandonedResponse,
   WorktreeConsoleReturnToLocalResponse,
   WorktreeConsoleCreateWorktreeResponse,
-  WorktreeConsoleReviewDiffResponse,
   WorktreeConsoleGitGraphResponse,
   WorktreeConsoleGitMutationResponse,
   WorktreeConsoleGitOverviewResponse,
@@ -40,20 +36,8 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
     'gitWorktree/list': (agentId: string, needsAttention?: boolean, includeDelivered?: boolean, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleListResponse>>>
     'gitWorktree/initProject': (agentId: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<boolean>>>
     'gitWorktree/inspect': (agentId: string, checkoutId: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleInspectResponse>>>
-    'gitWorktree/reviewDiff': (agentId: string, checkoutId: string, expectedRevision: number, expectedReviewId: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleReviewDiffResponse>>>
-    'gitWorktree/preflight': (agentId: string, checkoutId: string, expectedRevision: number, expectedReviewId: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsolePreflightResponse>>>
-    'gitWorktree/previewRecoveryPreflight': (agentId: string, checkoutId: string, expectedRevision: number, expectedReviewId: string, expectedPreviewId: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsolePreviewRecoveryPreflightResponse>>>
-    'gitWorktree/preparePreviewRecoveryAnalysis': (agentId: string, checkoutId: string, expectedRevision: number, expectedReviewId: string, expectedPreviewId: string, recoveryProof: WorktreePreviewRecoveryProof, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>>
-    'gitWorktree/createPreviewRecoveryHandoff': (agentId: string, checkoutId: string, expectedRevision: number, expectedReviewId: string, expectedPreviewId: string, recoveryProof: WorktreePreviewRecoveryProof, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleCreatePreviewRecoveryHandoffResponse>>>
-    'gitWorktree/preview': (agentId: string, checkoutId: string, expectedRevision: number, expectedReviewId: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>>
-    'gitWorktree/checkpoint': (agentId: string, checkoutId: string, expectedRevision: number, expectedReviewId: string, expectedGeneration: string, requestId: string, commitMessage: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>>
-    'gitWorktree/resumeRevision': (agentId: string, checkoutId: string, expectedRevision: number, expectedReviewId: string, conflictContinuation?: WorktreeApplyConflictContinuation, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>>
-    'gitWorktree/prepareReviewRegeneration': (agentId: string, checkoutId: string, expectedRevision: number, expectedReviewId: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>>
-    'gitWorktree/rollbackPreview': (agentId: string, checkoutId: string, expectedRevision: number, resumeRevision?: boolean, recoveryProof?: WorktreePreviewRecoveryProof, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>>
     'gitWorktree/discard': (agentId: string, checkoutId: string, expectedRevision: number, confirmDirty: boolean, rollbackPreview?: boolean, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>>
-    'gitWorktree/finalize': (agentId: string, checkoutId: string, expectedRevision: number, expectedReviewId: string, commitMessage: string, retention: WorktreeRetentionMode, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>>
     'gitWorktree/deliver': (agentId: string, checkoutId: string, expectedRevision: number, commitMessage: string, retention: WorktreeRetentionMode, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>>
-    'gitWorktree/finalizePreview': (agentId: string, checkoutId: string, expectedRevision: number, expectedReviewId: string, commitMessage: string, retention: WorktreeRetentionMode, recoveryProof?: WorktreePreviewRecoveryProof, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>>
     'gitWorktree/setRetention': (agentId: string, checkoutId: string, expectedRevision: number, retention: Exclude<WorktreeRetentionMode, 'cleanup'>, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>>
     'gitWorktree/setPermanent': (agentId: string, checkoutId: string, expectedRevision: number, permanent: boolean, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>>
     'gitWorktree/retryCleanup': (agentId: string, checkoutId: string, expectedRevision: number, discardPostDeliveryChanges?: boolean, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>>

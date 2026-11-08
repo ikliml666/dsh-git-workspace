@@ -235,53 +235,6 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
   }))
 
   ctx.tools.register(defineTool({
-    name: 'worktree_resume_revision',
-    description: hostRegistrationMessage('whenTheCurrentIsolatedSessionIsReadyForReview'),
-    parameters: {},
-    output: {
-      schema: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          kind: { type: 'string', required: true },
-          checkoutId: { type: 'string', required: true },
-          iteration: { type: 'number', required: true },
-          revision: { type: 'number', required: true },
-          phase: { type: 'string', required: true },
-          sessionId: { type: 'string', required: true },
-        },
-      },
-      render: (_args, value) => renderJson(value),
-    },
-    async execute(_args, exec) {
-      return withHostLanguage(languageForInvocation(exec.agent, ctx), async () => {
-        const sessionId = sessionIdOf(exec.agent)
-        const current = await module.inspect(sessionId)
-        if (current.delivery?.state !== 'ready_for_review') {
-          throw new Error(hostMessage('theCurrentWorktreeHasNoUnsyncedReviewToResume372', { p0: current.delivery?.state ?? 'unknown' }))
-        }
-        const target = await module.resumeRevision(
-          sessionId,
-          current.revision,
-          current.delivery.review.reviewId,
-        )
-        if (target.delivery?.state !== 'working') {
-          throw new Error(hostMessage('worktreeDidNotReturnToWorkingState', { p0: target.delivery?.state ?? 'unknown' }))
-        }
-        return {
-          kind: 'worktree_revision_resumed',
-          checkoutId: target.checkout.id,
-          iteration: target.delivery.iteration,
-          revision: target.revision,
-          phase: target.checkout.phase,
-          sessionId,
-        }
-      })
-    },
-    presentCall: () => ({ card: 'generic', title: hostRegistrationMessage('resumeWorktreeRevision'), kind: 'other', rawInput: {} }),
-  }))
-
-  ctx.tools.register(defineTool({
     name: 'worktree_begin_next_iteration',
     description: hostRegistrationMessage('whenTheCurrentIsolatedSessionHasBeenDeliveredAnd'),
     parameters: {},

@@ -39,7 +39,6 @@ describe('public surfaces', () => {
     expect(tools.map(tool => tool.name)).toEqual([
       'worktree_create',
       'worktree_list',
-      'worktree_resume_revision',
       'worktree_begin_next_iteration',
       'worktree_deliver',
       'worktree_cleanup',
@@ -79,29 +78,6 @@ describe('public surfaces', () => {
     expect(undefinedKeys(result)).toEqual([])
   })
 
-  test('resume-revision model tool automatically invalidates the current review before more file changes', async () => {
-    const tools: Array<{ name: string; execute: (args: unknown, exec: unknown) => Promise<unknown> }> = []
-    const working: SessionTargetView = {
-      ...readyTarget,
-      revision: 8,
-      delivery: { state: 'working', iteration: 1 },
-    }
-    const module = {
-      inspect: vi.fn(async () => readyTarget),
-      resumeRevision: vi.fn(async () => working),
-    } as unknown as SessionCheckoutModule
-    registerTools({ tools: { register: (tool: typeof tools[number]) => { tools.push(tool) } } } as never, module)
-    const tool = tools.find(candidate => candidate.name === 'worktree_resume_revision')
-    if (!tool) throw new Error('resume revision tool was not registered')
-
-    const result = await tool.execute({}, { agent: { session: { id: 'target-session' } } })
-
-    expect(module.resumeRevision).toHaveBeenCalledWith('target-session', 7, 'review-1')
-    expect(result).toMatchObject({
-      kind: 'worktree_revision_resumed', checkoutId: 'checkout-1', iteration: 1, revision: 8, sessionId: 'target-session',
-    })
-  })
-
   test('next-iteration model tool keeps the current Session and uses the latest delivered revision', async () => {
     const tools: Array<{ name: string; execute: (args: unknown, exec: unknown) => Promise<unknown> }> = []
     const delivered: SessionTargetView = {
@@ -134,22 +110,6 @@ describe('public surfaces', () => {
     })
   })
 
-  test('/worktree continue resumes an unsynced review without requiring Local Preview', async () => {
-    let command: { name: string; handler: (invocation: unknown) => Promise<unknown> } | undefined
-    const working: SessionTargetView = { ...readyTarget, revision: 8, delivery: { state: 'working', iteration: 1 } }
-    const module = {
-      inspect: vi.fn(async () => readyTarget),
-      resumeRevision: vi.fn(async () => working),
-    } as unknown as SessionCheckoutModule
-    registerWorktreeCommand({ commands: { register: (value: typeof command) => { command = value } } } as never, module)
-    if (!command) throw new Error('command was not registered')
-
-    const result = await command.handler({ rawInput: 'continue', agent: { session: { id: 'target-session' } } })
-
-    expect(result).toMatchObject({ kind: 'success', text: expect.stringContaining('已恢复 Worktree 第 1 轮') })
-    expect(module.resumeRevision).toHaveBeenCalledWith('target-session', 7, 'review-1')
-  })
-
   test('/worktree next starts the next iteration through the same Session revision', async () => {
     let command: { name: string; handler: (invocation: unknown) => Promise<unknown> } | undefined
     const delivered: SessionTargetView = {
@@ -175,38 +135,6 @@ describe('public surfaces', () => {
 
     expect(result).toMatchObject({ kind: 'success', text: expect.stringContaining('Worktree 第 2 轮') })
     expect(module.beginNextIteration).toHaveBeenCalledWith('target-session', 9)
-  })
-
-  test('finalize uses the persisted reviewed commit message and explicit retention', async () => {
-    let command: { name: string; handler: (invocation: unknown) => Promise<unknown> } | undefined
-    const operate = vi.fn(async () => ({
-      status: 'finished' as const,
-      target: readyTarget,
-      changedFiles: ['src/index.ts'],
-      commitOid: 'c'.repeat(40),
-      cleanup: 'retained' as const,
-    }))
-    const module = {
-      inspect: vi.fn(async () => readyTarget),
-      operate,
-    } as unknown as SessionCheckoutModule
-    registerWorktreeCommand({ commands: { register: (value: typeof command) => { command = value } } } as never, module)
-    if (!command) throw new Error('command was not registered')
-
-    const result = await command.handler({
-      rawInput: 'finalize review-1 7 retain_24h',
-      agent: { session: { id: 'target-session' } },
-    })
-
-    expect(result).toMatchObject({ kind: 'success' })
-    expect(operate).toHaveBeenCalledWith({
-      action: 'finish',
-      sessionId: 'target-session',
-      expectedRevision: 7,
-      commitMessage: 'fix: exact reviewed message',
-      retention: 'retain_24h',
-      expectedReviewId: 'review-1',
-    })
   })
 
   test('deliver model tool finishes the delivery in place with auto-push passthrough', async () => {

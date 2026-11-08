@@ -1075,10 +1075,6 @@ export const clientMessages = {
     "zh": "已交付到 {p0}",
     "en": "Delivered to {p0}"
   },
-  "deliver.no.branch": {
-    "zh": "当前会话没有可交付的工作树。",
-    "en": "This session has no worktree to deliver."
-  },
   "branch.prune.title": {
     "zh": "清理已合并分支",
     "en": "Prune merged branches"

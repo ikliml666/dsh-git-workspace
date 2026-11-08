@@ -198,11 +198,5 @@ export function createDshLookupPort(ctx: Context): SessionCheckoutLookupPort {
         ? { id: workspace.id, name: workspace.title, root: workspace.path }
         : undefined
     },
-    listProjects: (): SessionCheckoutProjectRecord[] =>
-      (registry()?.list() ?? []).map(workspace => ({
-        id: workspace.id,
-        name: workspace.title,
-        root: workspace.path,
-      })),
   }
 }

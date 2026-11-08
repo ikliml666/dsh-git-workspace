@@ -134,6 +134,10 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
         setError(message)
       } else if (result.outcome.ok) {
         setTarget(result.outcome.value.target)
+        // 官方建的树没能接进台账时，那棵树对本插件是隐形的：不说出来，用户
+        // 只会看到「树建了但胶囊说没有」。只在有失败时覆盖——current 每 5 秒
+        // 轮询一次，把 null 也写进去会立刻抹掉切换分支之类的短暂提示。
+        if (result.outcome.value.adoptionFailure != null) setSwitchNotice(result.outcome.value.adoptionFailure)
         setFailure(null)
         setError(null)
       } else {
@@ -234,7 +238,8 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
     }
   }
 
-  const switchBranch = async (branch: string): Promise<void> => {    if (pendingAction !== null) return
+  const switchBranch = async (branch: string): Promise<void> => {
+    if (pendingAction !== null) return
     const scope = actionScope.current
     const active = () => mounted.current && scope === actionScope.current
     setMenuOpen(false)

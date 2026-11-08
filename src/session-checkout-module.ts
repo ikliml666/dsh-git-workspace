@@ -799,11 +799,10 @@ export function createSessionCheckoutModule(
     }
     const headOid = (await dependencies.git.inspect(input.managedRoot))?.headOid
     if (!headOid) return null
-    const resolveTip = dependencies.git.resolveLocalBranchTip
     const isAncestor = dependencies.git.isAncestor
     for (const branch of createSessionBranchCandidates({ sessionId: input.sessionId, topic: input.topic })) {
       const branchRef = `refs/heads/${branch}`
-      const existing = resolveTip ? await resolveTip(input.localRoot, branch) : null
+      const existing = await dependencies.git.resolveLocalBranchTip(input.localRoot, branch)
       if (existing !== null) {
         // 同名分支已存在：只有「它正指着当前 HEAD」或「它是当前 HEAD 的祖先
         // （可以快进）」时才复用。别的情况下它带着别的提交，绝不覆盖——换下一个候选名。
@@ -1051,7 +1050,7 @@ export function createSessionCheckoutModule(
         return [
           'Session Target: Local Checkout. No isolated target is active for this Session.',
           'Complete ordinary Local work in the current cwd and finish with an ordinary assistant reply.',
-          'Do not call Worktree-only tools such as worktree_ready_for_review, worktree_resume_revision, or worktree_begin_next_iteration unless this Session first selects an Isolated Checkout.',
+          'Do not call Worktree-only tools such as worktree_deliver, worktree_cleanup, or worktree_begin_next_iteration unless this Session first selects an Isolated Checkout.',
         ].join('\n')
       }
       if (pending.delivery.state === 'preview_active') {
@@ -1159,7 +1158,7 @@ export function createSessionCheckoutModule(
     } else if (record.delivery.state === 'working') {
       lines.push((liveConfigValue(dependencies.autoDeliver) ?? true)
         ? 'Delivery state: Working. When implementation and validation are complete, call worktree_deliver as the final model tool: put the complete report only in its report parameter (commitMessage carries the commit wording). It commits the Worktree snapshot on this Session own branch; Local working tree, index and HEAD are never touched, so merging into Local is a separate, explicit step (worktree_merge). Do not duplicate that report in ordinary assistant prose. Use worktree_ready_for_review only when the user explicitly asks to review before saving.'
-        : 'Delivery state: Working. When implementation and validation are complete, put the complete report only in worktree_ready_for_review and call it as the final model tool. Do not duplicate that report in ordinary assistant prose; at most one short sentence may point the user to the bottom acceptance bar.')
+        : 'Delivery state: Working. autoDeliver is off, so the model must not call worktree_deliver. When implementation and validation are complete, put the complete report in your ordinary reply and stop; the user delivers through the capsule menu ("Deliver to the session branch"). Do not call any tool to hand the work over.')
     } else if (record.delivery.state === 'delivered') {
       lines.push('Delivery state: Delivered and cleaned. This Session own branch holds the commit; Local was never written, so merge it with worktree_merge. If the user requests new code or file changes in this conversation, call worktree_begin_next_iteration first; it safely recreates this Session immutable cwd for the next iteration. Do not call worktree_create.')
     } else if (record.delivery.state === 'retained') {
@@ -4700,10 +4699,9 @@ export function createSessionCheckoutModule(
     // 新迭代必须以「上一轮会话分支的 tip」为起点，否则迭代链会在交付处断开，
     // 上一轮的工作内容整段丢失。分支解析不到（被删/被改名）才退回 Local HEAD。
     const predecessorBranch = branchNameOf(predecessor.sessionBranch) ?? branchNameOf(predecessor.sourceRef)
-    const resolveTip = dependencies.git.resolveLocalBranchTip
-    const predecessorTip = predecessorBranch && resolveTip
-      ? await resolveTip(canonicalLocalRoot, predecessorBranch)
-      : null
+    const predecessorTip = predecessorBranch === null
+      ? null
+      : await dependencies.git.resolveLocalBranchTip(canonicalLocalRoot, predecessorBranch)
     const iterationBaseOid = predecessorTip ?? snapshot.headOid
     if (!resolvedPathsEqual(resolve(predecessor.managedGitRoot, projectRelativePath), predecessor.managedRoot)) {
       throw new SessionCheckoutError('checkout_mismatch', hostMessage('thePreviousIterationSManagedProjectPathCannotBe'))
@@ -5073,7 +5071,7 @@ export function createSessionCheckoutModule(
       // 仍记录源会话的分支与 HEAD，交付语义不变（交付目标是源会话检出的分支）。
       let baseOid = snapshot.headOid
       if (createOptions?.branch !== undefined) {
-        const tip = (await dependencies.git.resolveLocalBranchTip?.(localGitRoot, createOptions.branch)) ?? null
+        const tip = await dependencies.git.resolveLocalBranchTip(localGitRoot, createOptions.branch)
         if (tip === null) throw new SessionCheckoutError('invalid_input', hostMessage('branchDoesNotExist'))
         baseOid = tip
       }
@@ -5360,6 +5358,7 @@ export function createSessionCheckoutModule(
       // 官方只做 `git worktree add`，这两件是官方没有、本插件补的能力：带上
       // `.worktreeinclude` 列的 gitignored 文件，并在基点就是本地 HEAD 时继承
       // 未提交修改（补丁以本地 HEAD 为基准，基点不同则不适用）。
+      const createdSnapshot = await dependencies.git.inspect(created.path)
       const localSnapshot = await dependencies.git.inspect(project.root)
       if (localSnapshot !== null) {
         await copyWorktreeincludeFiles(localSnapshot.root, created.path)
@@ -5384,6 +5383,7 @@ export function createSessionCheckoutModule(
           localRoot: project.root,
           path: created.path,
           baseCommit: created.baseCommit,
+          ...(createdSnapshot === null ? {} : { snapshot: createdSnapshot }),
         },
       )
       return {
@@ -5395,10 +5395,8 @@ export function createSessionCheckoutModule(
   }
 
   async function firstFreeBranchName(root: string, candidates: readonly string[]): Promise<string> {
-    const resolveTip = dependencies.git.resolveLocalBranchTip
-    if (resolveTip === undefined) return candidates[0]!
     for (const candidate of candidates) {
-      if (await resolveTip(root, candidate) === null) return candidate
+      if (await dependencies.git.resolveLocalBranchTip(root, candidate) === null) return candidate
     }
     throw new SessionCheckoutError(
       'operation_not_allowed',
@@ -5413,6 +5411,24 @@ export function createSessionCheckoutModule(
    * 交付、评审、清理全靠台账定位，所以必须在这一刻补记。已有的 binding 与已
    * 在台账里的树都会被跳过，重复的 cwd 事件不会产生第二条记录。
    */
+  /**
+   * 最近一次「官方建的树没能接进台账」的原因，按会话记。
+   *
+   * 不进台账的树对本插件的列表、交付、清理都是隐形的，用户看到的现象会是
+   * 「树明明建了，胶囊说没有」。这不是可以静默的失败，所以留在内存里等胶囊
+   * 下一次轮询取走——它只在进程内有效，重启后那棵树已经在盘上，重进一次就会
+   * 重新触发登记。
+   */
+  const adoptionFailures = new Map<string, string>()
+
+  function recordAdoptionFailure(sessionId: string, reason: string): void {
+    adoptionFailures.set(sessionId, reason)
+  }
+
+  function adoptionFailure(sessionId: string): string | null {
+    return adoptionFailures.get(sessionId) ?? null
+  }
+
   async function adoptOfficialWorktree(sessionId: string, cwd: string): Promise<void> {
     await withBindingLock(async () => {
       await adoptWorktreeForSession(
@@ -5426,12 +5442,15 @@ export function createSessionCheckoutModule(
         cwd,
       )
     })
+    adoptionFailures.delete(sessionId)
   }
 
   return {
     inspect: inspectAvailable,
     runtimeContext,
     adoptOfficialWorktree,
+    recordAdoptionFailure,
+    adoptionFailure,
     preflight: (sessionId, expectedRevision) => withBindingLock(
       () => preflightTarget(sessionId, expectedRevision),
     ),
