@@ -1,253 +1,231 @@
 ---
-title: console_remote —— Worktree Console 的严格 Remote 契约层
+title: console_remote：控制台远程契约层（Typert Remote）
 type: module
 source_files:
+  - src/client/review-console/ReviewIcon.tsx
+  - src/client/review-console/status-events.ts
   - src/console-remote/descriptors.ts
   - src/console-remote/remote.ts
   - src/console-remote/schemas.ts
   - src/console-remote/typert.ts
 tags: []
 generated_by: fsoft-native
-fsoft_page: console_remote.md
+fsoft_page: Console_API_and_Host_Integration/console_remote.md
 ---
-# console_remote —— Worktree Console 的严格 Remote 契约层
+# console_remote：控制台远程契约层（Typert Remote）
 
-`console_remote`（源码目录 `src/console-remote/`）是 dsh-git-worktree 插件中**唯一的 RPC 契约声明层**。它把 Host 侧的 `WorktreeConsoleService`（`@Remote` 装饰的方法）与 Client 侧的 `remote.gitWorktree` 代理连接起来，并为每一次跨进程调用提供：
+`src/console-remote/` 是本插件 Host 与 Client 之间**唯一的 RPC 契约面**。它不实现任何业务逻辑，只做三件事：
 
-- **调用元数据（descriptor）**：方法名、参数顺序、参数来源（`lookup` / `json`）、编解码器；
-- **运行时严格校验（schema）**：基于 `zod` 的 `strict()` 对象与安全字符白名单，防止越界路径、控制字符、超长字段进入协议；
-- **类型面（remote map）**：通过 TypeScript 模块增强，把 `remote.gitWorktree.*` 变成强类型函数；
-- **Host 贡献（Typert contribution）**：供官方 Typert Loader 通过 `./typert` 入口发现的 host face 贡献。
+1. 用 zod 把 `src/console-contract.ts` 里的 JSON DTO 变成**严格可校验的运行时 schema**（`schemas.ts`）；
+2. 把每个远端方法声明成 Typert 的 `InvocationDescriptor`，并组装成 Host 侧贡献（`descriptors.ts`、`typert.ts`）；
+3. 用 TypeScript 模块增强把同名方法暴露成 Client 侧类型安全的 `remote.gitWorktree` 命名空间（`remote.ts`）。
 
-本模块不含任何 Cordis、React、Git 或文件系统实现，只描述"能调用什么、传什么、回什么"。
+此外该模块还托管两个客户端侧的轻量支撑件：`ReviewIcon`（图标注册表）与 `requestWorktreeReviewRefresh`（跨组件刷新事件）。
+
+> 业务语义（状态机、权限、git 操作）属于 [console_host](console-host.md) 与 [Worktree_and_Session_Checkout_Domain](worktree-and-session-checkout-domain.md)；DTO 定义属于 [console_contract](console-contract.md)；客户端调用封装属于 [client_console_remote](client-console-remote.md)。本页只描述契约层本身。
 
 ---
 
 ## 1. 在整体系统中的位置
 
 ```mermaid
-flowchart LR
-  subgraph ClientSide["Client（渲染进程）"]
-    UI["target-console / workspace-sidebar / tool views"]
-    Adapter["createWorktreeConsoleRemoteAdapter<br/>src/client/console-remote/adapter.ts"]
-    Proxy["remote.gitWorktree<br/>TypertRemoteNamespace"]
-  end
-  subgraph RemoteLayer["console-remote（本模块）"]
-    Desc["descriptors.ts<br/>WORKTREE_CONSOLE_DESCRIPTORS"]
-    Sch["schemas.ts<br/>zod strict schemas"]
-    Map["remote.ts<br/>TypertRemoteMap"]
-    Typ["typert.ts<br/>TYPERT (face: host)"]
-  end
-  subgraph HostSide["Host（Node 进程）"]
-    Svc["WorktreeConsoleService<br/>@Remote 方法"]
+flowchart TB
+  subgraph HOST["Host 进程"]
+    SVC["WorktreeConsoleService<br/>TypertRemoteService gitWorktree"]
     CP["WorktreeConsoleControlPlane"]
-    Mod["SessionCheckoutModule"]
+    MOD["SessionCheckoutModule"]
+    SVC --> CP
+    CP --> MOD
   end
-  UI --> Adapter --> Proxy
-  Proxy -->|"Web RPC 载体"| Svc
-  Sch --> Desc
-  Desc --> Proxy
-  Desc --> Typ
-  Map -.->|"仅类型声明"| Proxy
-  Svc --> CP --> Mod
+
+  subgraph CONTRACT["console-remote 契约层"]
+    SCH["schemas.ts<br/>zod strict 编解码"]
+    DSC["descriptors.ts<br/>WORKTREE_CONSOLE_DESCRIPTORS"]
+    TYP["typert.ts<br/>TYPERT host 贡献"]
+    REM["remote.ts<br/>TypertRemoteMap 类型增强"]
+    SCH --> DSC
+    DSC --> TYP
+    DSC --> REM
+  end
+
+  subgraph CLIENT["浏览器渲染进程"]
+    PROXY["remote.gitWorktree 代理"]
+    ADP["createWorktreeConsoleRemoteAdapter"]
+    UI["TargetStatusAction / WorktreeConsoleView / Workspace 侧栏"]
+    ICON["ReviewIcon"]
+    EVT["requestWorktreeReviewRefresh"]
+    PROXY --> ADP
+    ADP --> UI
+    UI --> ICON
+    UI --> EVT
+  end
+
+  TYP -->|"Typert Loader 发现 ./typert"| SVC
+  REM -->|"声明命名空间签名"| PROXY
+  ADP -->|"按 method 取 result 编解码器"| DSC
 ```
 
 关键点：
 
-- **同一份 descriptor 被三方消费**：Client 适配器用它做响应校验与超时策略选择，Host 侧 Typert 注册用它生成调用元数据，TypeScript 通过 `remote.ts` 得到签名。
-- **契约 DTO 定义在别处**：所有请求/响应/错误类型来自 [console_contract.md](console-contract.md)，本模块只引用其类型符号（`dsh-git-worktree/console-contract#<Type>`）。
-- **Host 实现见** [console_host.md](console-host.md)；**Client 消费方见** [client_ui.md](client-ui.md)。
+- **Host 侧入口是 `TYPERT` 贡献**（`src/console-remote/typert.ts`），由官方 Typert Loader 通过 `package.json` 的 `"./typert"` 导出发现；`WorktreeConsoleService` 上的 `@Remote` 装饰器方法与 `descriptors` 里的 `method` 一一对应。
+- **Client 侧入口是 `WORKTREE_CONSOLE_REMOTE`**（`package.json` 的 `"./remote"` 导出），`src/client/console-remote/index.ts` 在 `apply()` 里执行 `ctx.remote.$mount(contribution)` 挂载，随后 `ctx.get('remote.gitWorktree')` 取得代理。
+- 两侧共享同一份 schema 实例：客户端在拿到 payload 后会用**同一个** `descriptor.result.create()` 再解析一次（见 [client_console_remote](client-console-remote.md)）。
 
 ---
 
-## 2. 文件构成与职责
+## 2. 文件职责
 
 | 文件 | 导出 | 职责 |
 | --- | --- | --- |
-| `src/console-remote/schemas.ts` | `outcomeSchema`、`sessionIdSchema`、`checkoutIdSchema`、`revisionSchema`、`currentResponseSchema`、`mutationResponseSchema`、`previewRecoveryProofSchema` 等 | 全部 zod 严格 schema，含安全校验与向后兼容默认值 |
-| `src/console-remote/descriptors.ts` | `descriptor`（内部工厂）、`WORKTREE_CONSOLE_DESCRIPTORS`、`WORKTREE_CONSOLE_REMOTE` | 38 条 `InvocationDescriptor` 的冻结清单与包级贡献对象 |
-| `src/console-remote/remote.ts` | `GitWorktreeRemote`、`TypertRemoteMap`、`TypertRemoteNamespaceMap` | 模块增强声明，把每个方法映射为 `(agentId, ...args, locale?) => Promise<RemoteResult<...>>` |
-| `src/console-remote/typert.ts` | `TYPERT` | Host face 的 `TypertContribution`：`schemas: []`、空 model、`invocations` 指向 descriptor 清单 |
-
-### 2.1 组件依赖图
-
-```mermaid
-flowchart TD
-  typert["typert.ts TYPERT"]
-  desc["descriptors.ts WORKTREE_CONSOLE_DESCRIPTORS"]
-  remote["remote.ts TypertRemoteMap"]
-  schemas["schemas.ts"]
-  contract["console-contract.ts（DTO 与错误码）"]
-  commitmsg["commit-message.ts isValidCommitMessage"]
-  i18ncore["i18n/core.ts Language"]
-  protocol["@deepseek-ai/dsh-typert-protocol"]
-  zod["zod"]
-  typert --> desc
-  desc --> schemas
-  desc --> protocol
-  remote --> desc
-  remote --> contract
-  remote --> i18ncore
-  remote --> protocol
-  schemas --> contract
-  schemas --> commitmsg
-  schemas --> zod
-```
-
-注意：`typert.ts` **只**依赖 `descriptors.ts`，因此 Host 侧加载器可以在完全不触碰 DTO 运行时逻辑的情况下取得调用元数据；`remote.ts` 则同时依赖契约类型与 descriptor 清单，承担"类型 + 运行时贡献"的双重导出（默认导出即 `WORKTREE_CONSOLE_REMOTE`）。
+| `src/console-remote/schemas.ts` | `outcomeSchema` 及约 30 个 schema | zod 严格对象（`.strict()`），负责输入净化与输出契约校验 |
+| `src/console-remote/descriptors.ts` | `descriptor`、`WORKTREE_CONSOLE_DESCRIPTORS`、`WORKTREE_CONSOLE_REMOTE` | 方法表：id / 参数 / 结果编解码器 |
+| `src/console-remote/typert.ts` | `TYPERT` | Host 面贡献：`package: 'dsh-git-worktree'`、`face: 'host'`、`invocations` |
+| `src/console-remote/remote.ts` | `GitWorktreeRemote`、`TypertRemoteMap`、`TypertRemoteNamespaceMap`（模块增强） | 纯类型层：把 26 个方法写成 `(agentId, ..., locale?) => Promise<RemoteResult<Outcome<T>>>` |
+| `src/client/review-console/ReviewIcon.tsx` | `ReviewIcon`、`ReviewIconName` | lucide 图标的**命名白名单**（`file`/`branch`/`preview`/`rollback`/…），统一 `dsh-wt-icon` 类名与尺寸 |
+| `src/client/review-console/status-events.ts` | `WORKTREE_REVIEW_REFRESH_EVENT`、`requestWorktreeReviewRefresh` | 广播 `dsh-git-worktree:review-refresh` 自定义事件，detail 携带 `sessionId` |
 
 ---
 
-## 3. 常量与命名约定
+## 3. descriptor：方法表是如何拼出来的
+
+`descriptor(method, parameters, resultSchema, resultType, withAgent = true)` 产出一条 `InvocationDescriptor`：
 
 ```ts
-const PACKAGE = 'dsh-git-worktree'
-const SERVICE = 'gitWorktree'
-const AGENT_WIRE_TYPE = '@deepseek-ai/dsh-session/types#SessionId'
-```
-
-- **服务名固定为 `gitWorktree`**：`WorktreeConsoleService` 构造时以 `super(hostContext, 'gitWorktree')` 注册，客户端通过 `ctx.get('remote.gitWorktree')` 解析代理。任何改名都会同时破坏 Host 注册、Client 解析与 `remote.ts` 的 `TypertRemoteNamespaceMap`。
-- **descriptor id 形如** `dsh-git-worktree#gitWorktree/<method>`，用于 Typert 元数据去重与错误定位。
-- **结果类型符号** 统一写成 `dsh-git-worktree/console-contract#WorktreeConsoleOutcome<...>`，把"线上形状"锚定到 [console_contract.md](console-contract.md) 中的 DTO。
-
----
-
-## 4. Descriptor 工厂：`descriptor()`
-
-```ts
-function descriptor(
-  method: string,
-  parameters: readonly InvocationParameterDescriptor[],
-  resultSchema: { parse(value: unknown): unknown },
-  resultType: string,
-  withAgent = true,
-): InvocationDescriptor
-```
-
-### 4.1 参数顺序是协议的一部分
-
-`descriptor()` 生成参数列表的顺序严格为：
-
-```
-[agent?] → [...业务参数] → locale?
-```
-
-```mermaid
-flowchart LR
-  A["agent 参数<br/>source: lookup / lookup: agent<br/>wire: agentId"] --> B["业务参数（按声明顺序）<br/>source: json"]
-  B --> C["locale 参数<br/>source: json, acceptsUndefined: true"]
-```
-
-- **`agentParameter`**：`name: 'agent'`、`wire: 'agentId'`、`source: 'lookup'`、`lookup: 'agent'`，codec 类型符号为 `@deepseek-ai/dsh-session/types#SessionId`。Host 侧 Gateway 在业务代码执行前把 `agentId` 解析为 `Agent` 实例，因此 Host 方法签名首参是 `agent: Agent`，而 Client 侧传的是 `sessionId` 字符串。这是"每条 Host 操作都解析出确切调用会话"这一授权规则的传输层体现（详见 [console_host.md](console-host.md)）。
-- **`locale`** 永远排在最后，且始终 `acceptsUndefined: true`：Remote 代理**按位置**校验实参个数，所以即使不需要本地化，Client 也必须把 `locale` 位占住并显式传 `undefined`（`adapter.ts` 与 `client/console-remote/index.ts` 的 boot report 调用都遵守这一点）。
-- **`withAgent = false`** 仅用于两个无会话方法：`sidebarTopology` 与 `clientBootReport`。前者在 Client boot 阶段就要探测宿主形态，此时会话尚未确定；后者是纯诊断上报。
-
-### 4.2 `json()` 参数构造器
-
-```ts
-function json(name, schema, typeSymbol, acceptsUndefined = false): InvocationParameterDescriptor
-```
-
-`wire` 与 `name` 相同，`source: 'json'`；`acceptsUndefined` 为真时附加 `acceptsUndefined: true`，用于所有可选业务参数（`needsAttention`、`includeDelivered`、`limit`、`commitMessage` 之外的 `message`/`target`/`push`、`conflictContinuation`、`recoveryProof` 等）。
-
-### 4.3 `strictCodec()`：DSH 0.2 的 `create()` 惰性字段
-
-```ts
-function strictCodec(typeSymbol: string, schema: TypertSchema): TypertCodec {
-  return { mode: 'strict', typeSymbol, create: () => schema, schema } as TypertCodec
+{
+  id: `dsh-git-worktree#gitWorktree/${method}`,
+  service: 'gitWorktree',
+  namespace: 'gitWorktree',
+  method,
+  invocation: { kind: 'direct' },
+  parameters: [...(withAgent ? [agentParameter] : []), ...parameters, json('locale', optionalLanguageSchema, 'string | undefined', true)],
+  result: strictCodec(`dsh-git-worktree/console-contract#${resultType}`, resultSchema),
 }
 ```
 
-代码注释说明了两个并存字段的来历：
+三个约定值得单独记住：
 
-- **DSH 0.2 通过 `create()` 物化严格 schema**：这是规范字段，惰性求值使 schema 实例在每个 descriptor 中保持单例——"客户端校验"与"生成的 Typert 元数据"因此一致。
-- **`schema` 作为额外的运行时属性保留**，供较老的 Client 适配器直接读取。
-
-`mode: 'strict'` 是被 `adapter.ts` 检查的：若某 descriptor 的结果 codec 不是 `strict`，适配器直接返回 `malformed_response` 而不做宽松放行。
-
----
-
-## 5. 方法清单（38 条）
-
-`WORKTREE_CONSOLE_DESCRIPTORS` 是一个 `Object.freeze` 的只读数组，按业务域分组如下。所有方法的结果 schema 都是 `outcomeSchema(<responseSchema>)`，即 `{ ok: true, value } | { ok: false, error }`；下表省略该包装。
-
-| 域 | 方法 | 业务参数（除 `agent`/`locale`） |
-| --- | --- | --- |
-| 拓扑 / 诊断 | `sidebarTopology` | 无（`withAgent = false`） |
-| | `clientBootReport` | `report`（`WorktreeClientBootReport`），返回裸 `boolean`（`withAgent = false`） |
-| 目标读取 | `current` | 无 |
-| | `initProject` | 无（返回 `WorktreeConsoleOutcome<boolean>`） |
-| | `list` | `needsAttention?`、`includeDelivered?` |
-| | `inspect` | `checkoutId` |
-| | `reviewDiff` | `checkoutId`、`expectedRevision`、`expectedReviewId` |
-| 评审与交付预检 | `preflight` | `checkoutId`、`expectedRevision`、`expectedReviewId` |
-| | `previewRecoveryPreflight` | 同上 + `expectedPreviewId` |
-| | `preparePreviewRecoveryAnalysis` | 同上 + `recoveryProof` |
-| | `createPreviewRecoveryHandoff` | 同上 + `recoveryProof` |
-| 迭代变更 | `preview` | `checkoutId`、`expectedRevision`、`expectedReviewId` |
-| | `checkpoint` | 同上 + `expectedGeneration`、`requestId`、`commitMessage` |
-| | `resumeRevision` | 同上 + `conflictContinuation?` |
-| | `prepareReviewRegeneration` | 同上 |
-| | `rollbackPreview` | `checkoutId`、`expectedRevision`、`resumeRevision?`、`recoveryProof?` |
-| | `discard` | `checkoutId`、`expectedRevision`、`confirmDirty`、`rollbackPreview?` |
-| 交付 | `finalize` | `checkoutId`、`expectedRevision`、`expectedReviewId`、`commitMessage`、`retention` |
-| | `deliver` | `checkoutId`、`expectedRevision`、`commitMessage`、`retention` |
-| | `finalizePreview` | 同 `finalize` + `recoveryProof?` |
-| 保留策略与清理 | `setRetention` | `checkoutId`、`expectedRevision`、`retention`（排除 `cleanup`） |
-| | `setPermanent` | `checkoutId`、`expectedRevision`、`permanent` |
-| | `retryCleanup` | `checkoutId`、`expectedRevision`、`discardPostDeliveryChanges?` |
-| | `beginNextIteration` | `checkoutId`、`expectedRevision` |
-| | `returnToLocal` | `checkoutId` |
-| | `clearSidebarBadge` | `checkoutId`、`expectedRevision` |
-| 会话请求 | `setWorktreeRequest` | `from?: string \| null` |
-| Git 浏览 | `gitOverview` | 无 |
-| | `gitGraph` | `limit?` |
-| Git 变更 | `gitCreateBranch` | `name` |
-| | `gitSwitchBranch` | `branch` |
-| | `gitPruneMergedBranches` | `dryRun` |
-| | `gitListTags` | 无 |
-| | `gitCreateTag` | `name`、`message?`、`target?`、`push?` |
-| | `gitDeleteTag` | `name`、`remote?` |
-| | `gitPushTag` | `name` |
-| 放弃快照 | `listAbandoned` | 无 |
-| | `restoreAbandoned` | `checkoutId` |
-
-两点易错处：
-
-1. **`initProject` 的方法名与适配器名不同**：descriptor 方法名是 `initProject`，客户端适配器暴露为 `initializeProject`，映射关系在 `src/client/console-remote/adapter.ts` 中维护；`console_contract.ts` 里它也是可选方法（`initializeProject?`），便于旧 Host 兼容。
-2. **`capabilities` 中的 `create` / `open` 没有对应 descriptor**：建树走"下一次 turn 在新树里开始"的 `setWorktreeRequest` 与 `beginNextIteration`，打开目标走 `returnToLocal` / 会话重绑，能力位只是让 Client 决定按钮是否可点。
-
----
-
-## 6. Schema 层：`schemas.ts`
-
-### 6.1 组合关系
+1. **`agent` 参数由 Gateway 解析**。`agentParameter` 的 `source: 'lookup'` + `lookup: 'agent'` 表示 Host 侧不接收裸字符串，而是由框架用 `agentId` 换成 live `Agent` 对象；`wire: 'agentId'` 是线上字段名。`sidebarTopology` 与 `clientBootReport` 用 `withAgent = false`，因为它们与会话无关。
+2. **`locale` 永远是最后一个位置参数**，且 `acceptsUndefined: true`。Client 的 `$mount` 代理按**位置**校验收到的实参，所以即使不想指定语言也必须显式传 `undefined`（`index.ts` 的 `reportBoot` 就是这样调用的）。
+3. **`strictCodec` 同时带 `create()` 与旧版 `schema` 字段**。DSH 0.2 走惰性 `create()`，旧适配器读 `schema`；一个 descriptor 只保留一份 schema 实例，保证客户端校验与 Typert 生成的元数据一致。
 
 ```mermaid
-flowchart TD
-  prim["基础标量<br/>sessionId / checkoutId / reviewId / previewId<br/>revision / generation / requestId / branchName / tagName"]
-  oid["oidSchema<br/>unversioned | unborn | 40/64 位 hex"]
-  proj["projectSchema"]
-  review["reviewSchema / checkpointSchema / validationItemSchema"]
-  cap["capabilitiesSchema<br/>returnToLocal 带 default(false)"]
-  sum["targetSummarySchema"]
-  det["targetDetailsSchema = targetSummary + 路径字段"]
-  resp["响应 schema<br/>current / inspect / list / mutation / preflight ..."]
-  outcome["outcomeSchema(T)"]
-  prim --> sum
-  oid --> sum
-  proj --> sum
-  review --> sum
-  cap --> sum
-  sum --> det
-  det --> resp
-  resp --> outcome
+flowchart LR
+  A["strictCodec(typeSymbol, schema)"] --> B["mode: 'strict'"]
+  A --> C["create: () => schema"]
+  A --> D["schema（旧版兼容字段）"]
+  C --> E["Client 侧 result.create().parse(payload)"]
+  B --> E
 ```
 
-### 6.2 `outcomeSchema()` —— 唯一的结果包装器
+`WORKTREE_CONSOLE_DESCRIPTORS` 是一个 `Object.freeze` 的只读数组，`WORKTREE_CONSOLE_REMOTE` 再把它包成 `TypertRemoteContribution`（`package: 'dsh-git-worktree'`）。
+
+---
+
+## 4. 方法清单
+
+共 26 个远端方法，全部通过 `gitWorktree` 命名空间暴露。`agent` 列表示是否需要 live Agent。
+
+### 4.1 拓扑与自检
+
+| 方法 | agent | 结果 |
+| --- | --- | --- |
+| `sidebarTopology` | 否 | `Outcome<WorktreeSidebarTopologyResponse>` |
+| `clientBootReport` | 否 | `boolean`（非 Outcome） |
+
+`clientBootReport` 是唯一返回裸 `boolean` 的方法：它是纯诊断上报，失败也不该影响 UI，因此不套 `WorktreeConsoleOutcome`。
+
+### 4.2 目标查询
+
+| 方法 | agent | 关键参数 |
+| --- | --- | --- |
+| `current` | 是 | — |
+| `list` | 是 | `needsAttention?`、`includeDelivered?` |
+| `inspect` | 是 | `checkoutId` |
+| `initProject` | 是 | — |
+| `listAbandoned` | 是 | — |
+| `restoreAbandoned` | 是 | `checkoutId` |
+
+### 4.3 目标变更（全部带 `expectedRevision` CAS）
+
+| 方法 | agent | 关键参数 |
+| --- | --- | --- |
+| `discard` | 是 | `checkoutId`、`expectedRevision`、`confirmDirty`、`rollbackPreview?` |
+| `deliver` | 是 | `checkoutId`、`expectedRevision`、`commitMessage`、`retention` |
+| `setRetention` | 是 | `checkoutId`、`expectedRevision`、`retention`（不含 `cleanup`） |
+| `setPermanent` | 是 | `checkoutId`、`expectedRevision`、`permanent` |
+| `retryCleanup` | 是 | `checkoutId`、`expectedRevision`、`discardPostDeliveryChanges?` |
+| `beginNextIteration` | 是 | `checkoutId`、`expectedRevision` |
+| `returnToLocal` | 是 | `checkoutId` |
+| `createWorktree` | 是 | `from: string \| null` |
+| `clearSidebarBadge` | 是 | `checkoutId`、`expectedRevision` |
+
+`setRetention` 的 schema 用 `retainedModeSchema`（`retain_24h | retain_3d | retain_manual`），从类型层面就禁止把「设置保留」误用成「立即清理」。
+
+### 4.4 Git 只读与变更
+
+| 方法 | agent | 关键参数 |
+| --- | --- | --- |
+| `gitOverview` | 是 | — |
+| `gitGraph` | 是 | `limit?`（1–1000） |
+| `gitListTags` | 是 | — |
+| `gitCreateBranch` | 是 | `name` |
+| `gitSwitchBranch` | 是 | `branch` |
+| `gitPruneMergedBranches` | 是 | `dryRun` |
+| `gitCreateTag` | 是 | `name`、`message?`、`target?`、`push?` |
+| `gitDeleteTag` | 是 | `name`、`remote?` |
+| `gitPushTag` | 是 | `name` |
+
+---
+
+## 5. schemas：契约校验的三层结构
+
+```mermaid
+flowchart TB
+  subgraph P["原语层（输入净化）"]
+    S1["sessionIdSchema / checkoutIdSchema / reviewIdSchema"]
+    S2["branchNameSchema / tagNameSchema / tagTargetSchema"]
+    S3["revisionSchema / oidSchema / generationSchema"]
+    S4["commitMessageSchema（isValidCommitMessage）"]
+  end
+  subgraph C["复合层（strict 对象）"]
+    C1["targetSummarySchema → targetDetailsSchema"]
+    C2["mutationResponseSchema / currentResponseSchema / listResponseSchema"]
+    C3["gitOverview / gitGraph / gitPrune / gitTag*"]
+    C4["previewRecoveryProofSchema / recoveryContinuationSchema"]
+  end
+  subgraph O["信封层"]
+    O1["outcomeSchema(value)"]
+    O2["consoleErrorSchema"]
+  end
+  P --> C
+  C --> O
+  O1 --> O2
+```
+
+### 5.1 原语层：输入即净化
+
+所有字符串标识都带长度上限与字符集 `refine`，把路径穿越与换行注入挡在契约边界上：
+
+- `checkoutIdSchema`：禁 `..`、禁 `/` `\`、禁控制字符；
+- `previewIdSchema`：禁分隔符与控制字符；
+- `branchNameSchema`：禁 `\0 \t \r \n \ ~ ^ : ? * [ ]`，禁以 `-` `/` 开头、禁以 `/` `.lock` 结尾、禁含 `..`；
+- `tagNameSchema`：`^[^\s~^:?*[\\]+$`，长度 ≤ 255；
+- `oidSchema`：`unversioned | unborn | 40/64 位 hex`——把「未初始化仓库」显式建模成合法值，而不是用 `null` 掩盖。
+
+`commitMessageSchema` 复用领域层的 `isValidCommitMessage`（见 [core_worktree_domain](core-worktree-domain.md)），保证「提交信息合法性」只有一处定义。
+
+### 5.2 复合层：`.strict()` 是硬约束
+
+模块顶部定义了 `strict = z.object(shape).strict()`。所有对象都拒绝未知字段，因此**任何一侧私自加字段都会让另一端解析失败**。这也是 `capabilities` 与 `currentResponse` 里那两处 `.default(...)` 的由来（见 §7）。
+
+数组普遍带 `max(...)`：`checkpoints` ≤ 100、`conflictingFiles` ≤ 500、`branches` ≤ 2000、`commits` ≤ 1000、`tags` ≤ 2000、`snapshots` ≤ 200——契约层直接给 DoS 面兜底。
+
+`targetDetailsSchema` 在 `targetSummarySchema` 上 `extend` 出 `managedRoot`/`sourceRoot`/`currentBranch`/`recoveryContinuation`，所以「列表行」天然不可能泄漏路径：路径字段只存在于 `inspect`/`current` 的详情响应里。
+
+### 5.3 信封层：`outcomeSchema`
 
 ```ts
-export function outcomeSchema<T>(value: z.ZodType<T>): z.ZodType<WorktreeConsoleOutcome<T>> {
+function outcomeSchema<T>(value: z.ZodType<T>): z.ZodType<WorktreeConsoleOutcome<T>> {
   return z.discriminatedUnion('ok', [
     strict({ ok: z.literal(true), value }),
     strict({ ok: z.literal(false), error: consoleErrorSchema }),
@@ -255,139 +233,144 @@ export function outcomeSchema<T>(value: z.ZodType<T>): z.ZodType<WorktreeConsole
 }
 ```
 
-- 判别键是 `ok`，与 [console_contract.md](console-contract.md) 中的 `WorktreeConsoleOutcome<T>` 完全一致。
-- `consoleErrorSchema` 用 `superRefine` 强制一条不变量：**只有 `apply_conflict` 可以携带 `continuation`**，其余错误码附带续作令牌会被判为畸形。这条规则防止 Client 把冲突恢复凭据当作普通错误的附属品误用。
-- `error.code` 的枚举来自 `WORKTREE_CONSOLE_ERROR_CODES`（会话检出错误码 + `transport_unavailable` / `malformed_response` / `timeout` 三个传输层错误码）。
-
-### 6.3 安全校验（防越界与注入）
-
-| schema | 约束 | 目的 |
-| --- | --- | --- |
-| `sessionIdSchema` | `1..200`，禁 `\0\r\n` | 作为 registry 键与日志字段 |
-| `checkoutIdSchema` | `1..200`，禁 `..`、`\`、`/`、控制字符 | 直接参与目录路径拼接 |
-| `previewIdSchema` | 禁 `\`、`/`、控制字符 | 同上 |
-| `branchNameSchema` | 禁 `\0\t\r\n\\ ~^:?*[]`、首字符非 `-`/`/`、结尾非 `/`、不含 `..`、不以 `.lock` 结尾 | 直接作为 `git` 参数，防止选项注入 |
-| `tagNameSchema` | `1..255`，`^[^\s~^:?*[\\]+$` | 同上 |
-| `generationSchema` | 恰好 64 位小写 hex | 检查点/恢复代际指纹 |
-| `commitMessageSchema` | `trim()` + `isValidCommitMessage` | 复用核心域校验（见 [core_domain.md](core-domain.md)） |
-| `safeConflictFile()` | 拒绝绝对路径、盘符、控制字符、`..`/`.`/空段 | 冲突文件列表与检查点文件列表 |
-
-`changedFiles`、`conflictingFiles`、`checkpoints`、`files`、`tags`、`branches` 等数组都带 `.max(...)` 上限（如 `max(500)`、`max(200)`、`max(2000)`、`max(1000)`），使恶意或损坏的 Host 响应无法撑爆 Client 内存。
-
-### 6.4 向后兼容：`default()` 而非 `optional()`
-
-`capabilitiesSchema.returnToLocal` 使用 `z.boolean().default(false)`，`currentResponseSchema.worktreeRequest` 使用 `.nullable().default(null)`，`worktreeRequestResponseSchema` 中的 `failure` 同样 `default(null)`。源码注释给出了明确理由：
-
-> Client 与 Host 是两份独立部署的产物；宿主重启前跑的是旧 Host，它根本不知道这个键。写成必填会让整条 `current` 的 payload 校验失败，胶囊直接塌成"不可用"。
-
-因此约定是：**纯增量的能力位/字段一律容忍缺失**；输入可缺省，输出仍是确定的类型（`boolean` / `null`），契约类型不必变宽。这条规则对新增字段有强约束意义——任何"必填"的响应字段都会把旧 Host 变成不可用。
-
-### 6.5 恢复证明的判别联合
-
-`recoveryProofSchema` 是按 `kind` 区分的联合，与契约层的 `WorktreeRecoveryProof` 一一对应：
-
-```mermaid
-flowchart LR
-  p["recoveryProofSchema<br/>discriminatedUnion('kind')"]
-  p --> a["worktree_apply_conflict<br/>recoveryContinuationSchema"]
-  p --> b["worktree_review_regeneration<br/>reviewRegenerationProofSchema"]
-  p --> c["worktree_preview_recovery_analysis<br/>previewRecoveryAnalysisProofSchema"]
-  p --> d["worktree_preview_recovery_handoff<br/>previewRecoveryHandoffProofSchema"]
-```
-
-`previewRecoveryProofSchema` 另有一层结构：`rollback` / `finalize` 各自是"safely-allowed 或 blocked"的联合，blocked 分支携带 `code`（`stale_local`、`preview_modified`、`commit_isolation_conflict`、`operation_not_allowed`、`project_acceptance_busy`）与可选 `conflictingFiles`。这样 Host 的判定结果不需要额外往返就能表达"能不能安全回滚/收尾"。
+判别式是字面量 `ok`，与 `WorktreeConsoleOutcome<T>` 的联合类型完全同构。错误分支还带一条 `superRefine`：**只有 `apply_conflict` 允许携带 `continuation`**，其余错误码若带上恢复凭据会被判为非法 payload。
 
 ---
 
-## 7. `remote.ts`：类型面与默认导出
-
-```ts
-export type GitWorktreeRemote = TypertRemoteNamespace<'gitWorktree'>
-export default WORKTREE_CONSOLE_REMOTE
-export { WORKTREE_CONSOLE_DESCRIPTORS, WORKTREE_CONSOLE_REMOTE } from './descriptors.js'
-```
-
-`declare module '@deepseek-ai/dsh-typert-protocol'` 中声明了：
-
-- **`TypertRemoteMap`**：`'gitWorktree/<method>': (agentId, ...业务参数, locale?) => Promise<RemoteResult<...>>`。每个方法的返回类型都精确到 `WorktreeConsoleOutcome<具体响应>`（`clientBootReport` 例外，直接返回 `RemoteResult<boolean>`）。
-- **`TypertRemoteNamespaceMap`**：`gitWorktree: TypertRemoteNamespace<'gitWorktree'>`，让 `ctx.get('remote.gitWorktree')` 得到有键名的命名空间类型。
-
-由于这是**纯类型声明**，它不会产生运行时代码；一旦 `descriptors.ts` 增删方法而这里未同步，`adapter.ts` 里对 `remote.<method>` 的调用会立即出现编译错误——这正是该文件的存在价值。
-
-**默认导出即贡献对象**：`src/client/console-remote/index.ts` 中 `ctx.remote.$mount(contribution)` 挂载的就是它，因此 `./remote` 与 `./typert` 两个包入口必须导出同一份 descriptor 数组（见 `package.json` 的 `exports` 字段）。
-
----
-
-## 8. `typert.ts`：Host face 贡献
-
-```ts
-export const TYPERT: TypertContribution = Object.freeze({
-  package: 'dsh-git-worktree',
-  face: 'host',
-  schemas: [],
-  model: { services: [], events: [], objects: [] },
-  invocations: WORKTREE_CONSOLE_DESCRIPTORS,
-})
-```
-
-- **手工维护的严格 Host 贡献**：注释写明它由官方 Typert Loader 通过 `./typert` 入口发现（`package.json` 中 `"./typert"` 映射到 `lib/console-remote/typert.js`）。
-- **`schemas` / `model` 为空**：本插件不注册任何 Typert service、event 或 object，只注册 invocation。这使元数据体积极小，也避免与官方 model 命名空间冲突。
-- **`invocations` 直接引用冻结数组**，保证 `typert.ts` 与 `descriptors.ts` 之间不可能出现两份不同的元数据。
-
----
-
-## 9. 端到端调用流程
-
-以一次变更类调用（例如 `checkpoint`）为例：
+## 6. 一次调用的完整数据流
 
 ```mermaid
 sequenceDiagram
-  participant UI as Client UI 组件
-  participant Ad as adapter.invoke
-  participant Px as remote.gitWorktree 代理
-  participant Gw as Typert Gateway
-  participant Svc as WorktreeConsoleService
-  participant CP as WorktreeConsoleControlPlane
-  UI->>Ad: checkpoint(request)
-  Ad->>Ad: 选择超时档位（非 FAST 集合 -> 180s）
-  Ad->>Px: checkpoint(sessionId, checkoutId, expectedRevision, expectedReviewId, expectedGeneration, requestId, commitMessage, locale)
-  Px->>Gw: 按 descriptor 校验参数位置与 codec
-  Gw->>Gw: 解析 agentId -> Agent（lookup: agent）
-  Gw->>Svc: checkpoint(agent, ...args, locale)
-  Svc->>CP: withHostLanguage(...) -> controlPlane.checkpoint(...)
-  CP-->>Svc: WorktreeConsoleOutcome
-  Svc-->>Gw: 返回 outcome
-  Gw-->>Ad: RemoteResult（严格 codec 校验）
-  Ad->>Ad: descriptor.result.create().parse(carrier.value)
-  Ad-->>UI: WorktreeConsoleOutcome
+  participant UI as UI组件
+  participant ADP as adapter.invoke
+  participant PX as remote.gitWorktree代理
+  participant GW as Typert/Gateway
+  participant SVC as WorktreeConsoleService
+  participant CP as ControlPlane
+
+  UI->>ADP: discard({ sessionId, checkoutId, expectedRevision, confirmDirty })
+  ADP->>ADP: normalizeLanguage(getLanguage())
+  ADP->>ADP: 选超时档（FAST 30s / SLOW 180s）
+  ADP->>PX: remote.discard(sessionId, checkoutId, expectedRevision, confirmDirty, undefined, locale)
+  PX->>GW: 按 descriptor 位置校验实参
+  GW->>SVC: 解析 agentId 为 live Agent 后调用 @Remote discard
+  SVC->>CP: withHostLanguage(locale, () => controlPlane.discard(...))
+  CP-->>SVC: WorktreeConsoleOutcome
+  SVC-->>GW: 返回值按 descriptor.result 编码
+  GW-->>PX: RemoteResult<Outcome>
+  PX-->>ADP: carrier
+  ADP->>ADP: descriptor.result.create().parse(carrier.value)
+  ADP-->>UI: Outcome<T> 或 malformed_response / transport_unavailable / timeout
 ```
 
-客户端侧三道兜底（实现位于 `src/client/console-remote/adapter.ts`，细节见 [client_ui.md](client-ui.md)）：
+要点：
 
-1. **超时**：FAST 集合（`sidebarTopology`、`current`、`inspect`、`previewRecoveryPreflight`、`gitOverview`、`gitGraph`、`listAbandoned`）30 秒，其余 180 秒；超时返回 `timeout`。Web RPC 载体本身无超时，若不在此处失败，UI 会永久停在 pending。
-2. **载体异常**：抛错或 `carrier.ok === false` 时，先判断是否为 codec 拒绝（消息含 `rejected "` 或 `返回了不符合 strict contract`），是则 `malformed_response`，否则 `transport_unavailable`。
-3. **载荷校验**：`descriptor.result.create().parse(...)` 失败即 `malformed_response`，绝不把未校验数据交给 UI。
+- **编码/解码使用同一个 schema 实例**，两端不会漂移；
+- Host 侧 `consoleFailure`（见 [console_host](console-host.md)）负责把异常收敛成 `WorktreeConsoleError`；本模块只负责「这个错误对象长什么样」以及「它是否合法」；
+- 客户端把任何解析失败折叠成 `malformed_response`，把传输异常折叠成 `transport_unavailable`，把超时折叠成 `timeout`——这三者都在 `WORKTREE_CONSOLE_ERROR_CODES` 里，与领域错误码共享同一套 `worktreeConsoleErrorMeta` 分类。
 
-这些错误码文案来自 `src/i18n/transport-messages.ts`（`malformed`、`invokeTimeout`、`mountFailed`、`workspaceGenerationUnknown`），本地化机制见 [i18n.md](i18n.md)。
-
----
-
-## 10. 与构建 / 发布的关系
-
-- **包入口**（`package.json`）：`./remote`、`./typert`、`./console-contract`、`./client` 四个导出分别对应本模块的 `remote.ts`、`typert.ts`、`console-contract.ts` 与 Client 入口。改动其中任一入口的导出名都会破坏已发布消费者。
-- **依赖**：`zod@4.4.3` 是唯一运行时依赖；`@deepseek-ai/dsh-typert-protocol` 与 `@deepseek-ai/dsh-typert-registry` 为 peer 依赖（见 `package.json`）。Client bundle 由 `tsdown.config.ts` 构建，`noExternal: ['zod', 'lucide-react']` 意味着 **zod 会被打进 Client 产物**——因此 `schemas.ts` 的导入面（含 `commit-message.ts`）也会进入浏览器包，编写时不得引入 Node 内置模块。
-- **验证**：`.github/workflows/ci.yml` 依次执行 `typecheck` → `build` → `check:publish:release` → `test`；`pnpm-workspace.yaml` 与 `screenshots.json` 属于仓库级配置，详见 [build_and_config.md](build-and-config.md)。
+> 传输层的具体封装、超时档位表与 `FAST_METHODS` 白名单见 [client_console_remote](client-console-remote.md)，本页不重复。
 
 ---
 
-## 11. 修改本模块的检查清单
+## 7. 版本兼容：为什么契约层必须「宽进严出」
 
-新增一个 Remote 方法时，以下位置必须**同时**更新，否则会出现"能编译但不能调用"或"调用成功但校验失败"：
+Host 与 Client 是**两份独立部署的产物**：宿主进程重启前跑的是旧 Host，浏览器里可能已经是新 Client（或反之）。契约层因此遵循一条明确规则：
 
-1. `schemas.ts`：为请求参数与响应体各写 `strict()` schema，并保持可选字段用 `.optional()`/`.default()` 以兼容旧对端。
-2. `descriptors.ts`：追加 `descriptor('<method>', [...], outcomeSchema(<response>), '<TypeName>')`，可选参数记得 `acceptsUndefined = true`。
-3. `remote.ts`：在 `TypertRemoteMap` 中补签名（`agentId` 首参、`locale` 末参），无会话方法才省略 `agentId`。
-4. `console_contract.ts`：补齐请求/响应 DTO 与 `WorktreeConsoleAdapter` 方法（见 [console_contract.md](console-contract.md)）。
-5. `console-host/service.ts`：加 `@Remote` 方法并把 `agent.id` 传给 control plane（见 [console_host.md](console-host.md)）。
-6. `client/console-remote/adapter.ts`：在返回对象中映射到 `remote.<method>`，并决定放入 FAST 还是 SLOW 超时档。
-7. 若方法改变了侧栏/胶囊可见状态，同步 [client_ui.md](client-ui.md) 中的刷新逻辑。
+| 场景 | 做法 | 代码位置 |
+| --- | --- | --- |
+| 新增能力位 | `z.boolean().default(false)` | `capabilitiesSchema.returnToLocal` |
+| 新增响应字段 | `z.string().nullable().default(null)` | `currentResponseSchema.adoptionFailure` |
+| 新增可选参数 | `optionalBooleanSchema` + `acceptsUndefined: true` | `descriptors.ts` |
+| 编解码器字段演进 | 同时提供 `create()` 与 `schema` | `strictCodec` |
+
+注释里记录的原因值得保留：如果把纯增量的能力位写成必填，旧 Host 根本不知道这个键，整条 `current` 的 payload 会校验失败，顶部胶囊直接塌成「不可用」——**一个新增能力位没有资格否决整个响应**。用 `.default(false)` 而非 `.optional()`，是为了让输出仍是确定的 `boolean`，契约类型不必跟着变宽。
+
+---
+
+## 8. 客户端侧的两个支撑件
+
+### 8.1 `ReviewIcon`
+
+把 lucide 图标收敛成命名白名单，避免各视图各自 import 造成图标语义漂移：
+
+```ts
+export type ReviewIconName = keyof typeof icons
+```
+
+`file`、`branch`、`check`、`warning`、`preview`、`rollback`、`discard`、`local`、`create`、`manager`、`retain`、`send`、`shield`、`pin`… 全部经 `<ReviewIcon name="..." />` 渲染，统一 `dsh-wt-icon` 类名、`size={18}`、`strokeWidth={1.75}`，并带 `aria-hidden="true"` + `focusable="false"`（装饰性图标不进入无障碍树）。
+
+### 8.2 `requestWorktreeReviewRefresh`
+
+```ts
+export const WORKTREE_REVIEW_REFRESH_EVENT = 'dsh-git-worktree:review-refresh'
+export function requestWorktreeReviewRefresh(sessionId: string): void {
+  window.dispatchEvent(new CustomEvent(WORKTREE_REVIEW_REFRESH_EVENT, { detail: { sessionId } }))
+}
+```
+
+一次变更成功后，所有挂载中的评审界面都要重新读取 Host 权威目标。这里刻意选择 `window` 自定义事件而非模块级订阅表：
+
+- 事件常量是**模块间唯一耦合点**，`current-polling.ts` 也监听它来触发一次立即轮询（见 [client_target_console](client-target-console.md)）；
+- `detail.sessionId` 让监听方只对本会话的事件作出反应，避免多会话同屏时互相刷新。
+
+---
+
+## 9. 扩展指南：新增一个远端方法
+
+```mermaid
+flowchart LR
+  A["1. console-contract.ts<br/>定义 Request/Response DTO"] --> B["2. schemas.ts<br/>加 zod strict schema"]
+  B --> C["3. descriptors.ts<br/>追加 descriptor(...)"]
+  C --> D["4. remote.ts<br/>补 TypertRemoteMap 签名"]
+  D --> E["5. console-host/service.ts<br/>加 @Remote 方法"]
+  E --> F["6. control-plane.ts<br/>加实现（带权限与 revision CAS）"]
+  F --> G["7. client adapter.ts<br/>加 invoke 包装"]
+  G --> H["8. UI 调用"]
+```
+
+每一步的检查点：
+
+- `schemas.ts`：新字符串标识必须有长度上限与字符集 `refine`；新数组必须有 `max`；
+- `descriptors.ts`：确认是否需要 `withAgent`；`locale` 不要手动追加（`descriptor` 已统一加）；
+- `remote.ts`：`TypertRemoteMap` 的键必须是 `` `gitWorktree/${method}` ``，`locale` 放在最后且可选；
+- 兼容性：如果这是**纯增量**字段，按 §7 的规则给 `default`，不要用必填。
+
+---
+
+## 10. 构建、打包与验证
+
+契约层通过 `package.json` 的三个子路径导出（`src/console-remote/` → `lib/console-remote/`）：
+
+```json
+"./typert":  { "types": "./lib/console-remote/typert.d.ts",  "default": "./lib/console-remote/typert.js" },
+"./remote":  { "types": "./lib/console-remote/remote.d.ts",  "default": "./lib/console-remote/remote.js" },
+"./console-contract": { "types": "./lib/console-contract.d.ts", "default": "./lib/console-contract.js" }
+```
+
+- `./typert` 是官方 Typert Loader 的发现点，`./remote` 是 Client `$mount` 用的贡献点，`./console-contract` 供外部消费 DTO 类型；
+- `tsdown.config.ts` 只打包 Client 入口（`src/client/console-remote/index.ts` → `lib/client.js`），把 `zod` 与 `lucide-react` 以 `noExternal` 内联进 bundle；Host 侧 `console-remote/*` 由 `tsc` 输出 ESM；
+- CI（`.github/workflows/ci.yml`）依次执行 `typecheck` → `build` → `check:publish:release` → `test`；`vitest.config.ts` 用 `virtual:dsh-official-workspace-client*` 别名把官方 Workspace 客户端替换为 mock，使契约层与侧栏装配可在 jsdom 下测试。
+
+构建与发布的完整说明见 [build_deployment_configuration](build-deployment-configuration.md)。
+
+---
+
+## 11. 已知注意事项
+
+- `FAST_METHODS`（`src/client/console-remote/adapter.ts`）里保留了 `previewRecoveryPreflight`，但当前 `WORKTREE_CONSOLE_DESCRIPTORS` 并未暴露该方法——历史残留，不影响行为，因为 `invoke` 只是查表决定超时档。
+- 快档（30s）只覆盖 `sidebarTopology`、`current`、`inspect`、`gitOverview`、`gitGraph`、`listAbandoned`；`list`、`deliver`、`discard`、`retryCleanup` 等落在 180s 慢档——全量重算可能触发 20+ 次 git spawn。
+- `clientBootReport` 不返回 `Outcome`，因此调用方不能用统一错误处理；它被设计成「永不阻塞启动」的 best-effort 上报（见 `src/client/console-remote/index.ts` 的 `reportBoot`）。
+- `consoleErrorSchema` 的 `superRefine` 限制了 `continuation` 只能随 `apply_conflict` 出现；新增可恢复错误码时必须同步放开这条约束，否则会被判为非法 payload。
+
+---
+
+## 相关页面
+
+- [Console_API_and_Host_Integration](console-api-and-host-integration.md) — 父模块总览
+- [console_host](console-host.md) — `WorktreeConsoleService`、`ControlPlane`、权限投影与诊断日志
+- [console_contract](console-contract.md) — 全部 DTO 与错误码定义
+- [client_console_remote](client-console-remote.md) — 客户端 `$mount` 与 `invoke` 封装
+- [client_target_console](client-target-console.md) — 胶囊、管理器、分支图与轮询
+- [i18n](i18n.md) — `Language`、`createTranslator` 与 `transportMessages`
+- [Worktree_and_Session_Checkout_Domain](worktree-and-session-checkout-domain.md) — 状态机与交付/清理语义

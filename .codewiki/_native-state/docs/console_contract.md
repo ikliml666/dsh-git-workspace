@@ -1,296 +1,240 @@
-# console_contract：Worktree Console 共享契约层
+# console_contract 模块（Worktree Console 共享契约）
 
-`console_contract` 是 Worktree Console 的 **JSON-only 共享契约层**：它只声明 Host 与 Client 两侧共同遵守的 DTO、能力位、错误分类与适配器接口，并额外提供两个纯函数（`worktreeReachedDelivery`、`consoleStateFromDomain`）与一个错误元数据查表函数（`worktreeConsoleErrorMeta`）。模块文件 `src/console-contract.ts` 刻意不引入 Cordis、React、Remote 或文件系统实现，因此可以同时被浏览器端 bundle 与 Host 侧服务安全导入。
+`src/console-contract.ts` 是本插件的 **唯一跨进程/跨端数据契约**：它用纯 TypeScript 类型、常量与两个纯函数，定义了 Host 侧 Worktree Console 服务与 Client 侧 UI（顶部胶囊、侧栏、管理面板、Git 面板）之间传递的全部 DTO。该文件刻意不引入 Cordis、React、Remote 传输或文件系统实现，因此可以同时被 Host 打包（`lib/index.js`）、Client 打包（`lib/client.js`）以及 Typert 描述符（`lib/console-remote/*`）引用，而不产生循环依赖。
 
-契约的核心权威规则写在模块头注释里：**每一个 Host 操作在执行时都必须重新解析出确切的调用方 Session，并重新校验 project / owner / cwd / revision / review 身份**。契约里出现的 `capabilities` 只是 UI 提示位，任何字段都不构成授权凭据。
+模块的核心职责有三点：
+
+1. **定义"目标"的统一视图**：把台账记录（`ManagedCheckoutRecord`）、生命周期阶段（`SessionCheckoutPhase`）与交付状态（`WorktreeConsoleDeliveryState`）折叠成 11 个稳定的 UI 状态。
+2. **定义一次调用的封装与失败语义**：所有 RPC 都返回 `WorktreeConsoleOutcome<T>`，失败时携带稳定错误码，并可附带"继续凭据"（`WorktreeConsoleContinuation` / `WorktreeRecoveryProof`）。
+3. **定义 Client 侧唯一缝隙**：`WorktreeConsoleAdapter` 把 Remote 传输、超时、payload 校验全部挡在一个接口之后，UI 组件只依赖该接口。
 
 ---
 
-## 1. 模块定位
+## 1. 设计原则
 
-| 维度 | 说明 |
+| 原则 | 体现 |
 | --- | --- |
-| 类型 | 纯类型 + 少量纯函数（无副作用、无 IO） |
-| 打包入口 | `package.json` 的 `exports["./console-contract"]` → `lib/console-contract.js` / `lib/console-contract.d.ts` |
-| 上游依赖 | `src/types.ts` 中的领域视图（`SessionCheckoutPhase`、`WorktreeRetentionMode`、`WorktreeDeliveryProofView`、`WorktreeApplyPreflightView`、`WorktreePreviewRecoveryProof` 等）与 `SESSION_CHECKOUT_ERROR_CODES` |
-| 下游消费者 | [console_host](console_host.md)（生产这些 DTO）、[console_remote](console_remote.md)（为每个 DTO 生成 strict codec）、[client_ui](client_ui.md)（渲染与调用） |
-| 对应实现 | Host：`src/console-host/*`；Client 适配器：`src/client/console-remote/adapter.ts` |
+| **JSON-only** | 契约里只有 interface / type / 字符串字面量联合 / 常量数组；没有任何类、装饰器、`Date`、`Map`、`Symbol`。可以直接被 `JSON.stringify` 穿过 RPC 边界。 |
+| **无框架依赖** | 文件顶部注释明确禁止 Cordis / React / Remote / 文件系统实现。Host 与 Client 两条打包产物共享同一份 `.d.ts`。 |
+| **Host 权威** | 每个 Host 操作在执行时都会重新解析调用方 Session，并重新校验 project / owner / cwd / revision / review 身份；契约里的字段只是"投影结果"，**不是**授权凭据。 |
+| **乐观并发（revision CAS）** | 所有变更请求都带 `expectedRevision: number`；Host 用它做 CAS，不匹配即返回 `stale_target`。 |
+| **路径最小暴露** | `WorktreeConsoleTargetSummary` 是"无路径"行（用于列表与状态胶囊）；只有通过身份校验的 `WorktreeConsoleTargetDetails` 才带 `managedRoot` / `sourceRoot`。 |
+| **增量兼容** | 新增能力位与新增响应字段必须容忍缺失（见第 8 节"版本兼容与演进"），因为 Client 与 Host 是两份独立部署的产物。 |
+
+---
+
+## 2. 架构与在系统中的位置
 
 ```mermaid
 flowchart LR
-  subgraph Contract["console_contract (本模块)"]
-    DTO["DTO / 能力位 / 错误契约"]
-    Pure["worktreeReachedDelivery<br/>consoleStateFromDomain<br/>worktreeConsoleErrorMeta"]
+  subgraph Host["Host 进程（Node）"]
+    SVC["WorktreeConsoleService<br/>@Remote 方法"]
+    CP["WorktreeConsoleControlPlane<br/>鉴权 + CAS + 事务"]
+    PROJ["projection.ts<br/>projectRecord / projectDetails / capabilities"]
+    REG[("ManagedCheckoutsRegistry")]
+    GIT["Git / Files 端口"]
   end
-  Types["core_domain<br/>src/types.ts 领域视图"]
-  Host["console_host<br/>control-plane / projection / service"]
-  Remote["console_remote<br/>descriptors / schemas / remote"]
-  Client["client_ui<br/>adapter / target-console / sidebar"]
 
-  Types --> DTO
-  DTO --> Host
-  DTO --> Remote
-  DTO --> Client
-  Pure --> Host
-  Pure --> Client
-  Host -- "WorktreeConsoleOutcome" --> Remote
-  Remote -- "strict codec 校验" --> Client
+  subgraph Contract["console-contract.ts（本模块）"]
+    DTO["DTO 与常量"]
+    STATE["consoleStateFromDomain<br/>worktreeReachedDelivery"]
+    ERR["worktreeConsoleErrorMeta<br/>ERROR_META"]
+    ADP["WorktreeConsoleAdapter（接口）"]
+  end
+
+  subgraph Client["Client（浏览器）"]
+    RADP["createWorktreeConsoleRemoteAdapter<br/>超时 / 校验 / malformed 归一"]
+    UI["TargetStatusAction / WorktreeHeroChip<br/>WorktreeConsoleView / Sidebar"]
+  end
+
+  UI -->|调用| ADP
+  ADP -.实现.- RADP
+  RADP -->|Typert RPC| SVC
+  SVC --> CP
+  CP --> PROJ
+  CP --> REG
+  CP --> GIT
+  PROJ --> STATE
+  CP --> DTO
+  SVC --> DTO
+  UI --> ERR
+  RADP --> DTO
 ```
+
+要点：
+
+- **契约是唯一的类型交换面**。Host 侧 `WorktreeConsoleService` 与 `WorktreeConsoleControlPlane` 的所有方法签名、Client 侧 `WorktreeConsoleAdapter` 的所有方法签名，均直接引用本模块的类型（详见 [console_host](Console_API_and_Host_Integration/console_host.md) 与 [console_remote](Console_API_and_Host_Integration/console_remote.md)）。
+- **两个纯函数是"状态真理"的唯一来源**。Host 投影（`src/console-host/projection.ts`）与侧栏拓扑（`sidebarTaskState`）都调用 `consoleStateFromDomain` / `worktreeReachedDelivery`，因此 UI 标签、鉴权分支（"已交付后允许读 Local 边界"）不会各自漂移。
+- **传输细节不外泄**。超时、`malformed_response` 归一、strict codec 校验都发生在 `src/client/console-remote/adapter.ts` 内部，`WorktreeConsoleAdapter` 只承诺 `Promise<WorktreeConsoleOutcome<T>>`。
 
 ---
 
-## 2. 分层与传输路径
+## 3. 目标状态投影
 
-契约本身不知道传输方式，但它在链路上的位置是固定的：
+### 3.1 状态集合
 
-```mermaid
-flowchart TB
-  UI["React 组件<br/>TargetStatusAction / WorktreeManagerModal / 侧栏"]
-  Adapter["WorktreeConsoleAdapter<br/>（本模块声明的 Client seam）"]
-  Impl["createWorktreeConsoleRemoteAdapter<br/>超时 / malformed / transport 归一化"]
-  Desc["WORKTREE_CONSOLE_DESCRIPTORS<br/>每个方法的参数与结果 schema"]
-  Svc["WorktreeConsoleService<br/>@Remote 方法，解析 agentId"]
-  CP["WorktreeConsoleControlPlane<br/>授权 + 投影 + CAS"]
-  Mod["SessionCheckoutModule<br/>领域状态机"]
-
-  UI --> Adapter
-  Adapter --> Impl
-  Impl --> Desc
-  Desc --> Svc
-  Svc --> CP
-  CP --> Mod
-```
-
-- `WorktreeConsoleAdapter` 是**唯一的 Client seam**：Remote 传输细节被收敛在一个适配器后面，UI 只面向 `Promise<WorktreeConsoleOutcome<T>>` 编程。
-- Host 侧的 `@Remote` 方法逐个镜像适配器方法，参数顺序一一对应（`agentId` 由 Gateway 从调用上下文解析，业务代码拿到的已经是 `Agent`）。详见 [console_host](console_host.md)。
-- 传输层的 strict schema 与 Typert descriptor 由 [console_remote](console_remote.md) 依据本模块的类型参数化生成。
-
----
-
-## 3. 目标状态模型
-
-### 3.1 状态枚举
-
-`WORKTREE_CONSOLE_TARGET_STATES` 是 UI 面向的 11 个稳定状态：
+`WORKTREE_CONSOLE_TARGET_STATES` 是唯一的 UI 状态枚举（作为 `as const` 数组同时充当运行时白名单，Zod schema 直接用 `z.enum(WORKTREE_CONSOLE_TARGET_STATES)` 复用它）：
 
 ```
-local · creating · working · ready_for_review · preview_active ·
-preview_detached · retained · cleanup_pending · recovery_required ·
-delivered · discarded
+local · creating · working · ready_for_review · preview_active · preview_detached
+retained · cleanup_pending · recovery_required · delivered · discarded
 ```
 
-它与领域层 `SessionCheckoutPhase`（`preparing / ready / applying / mutating / recovery_required / finalized / retained / discarded`）**不是同构**：UI 状态由「phase + deliveryState」两个维度投影得出，`WorktreeConsoleDeliveryState`（`working / ready_for_review / preview_active / preview_detached / finalized / retained / delivered`）是第二个维度。
+`WorktreeConsoleDeliveryState` 是更底层的"交付状态"，来自台账记录 `record.delivery.state`：
+`working · ready_for_review · preview_active · preview_detached · finalized · retained · delivered`。
 
-### 3.2 投影函数 `consoleStateFromDomain`
+### 3.2 折叠规则（`consoleStateFromDomain`）
 
-`consoleStateFromDomain(source)` 的判定顺序即优先级，用于保证「恢复态压过过期的交付标签」这类不变量：
+判定顺序即优先级，**先命中先返回**：
 
 ```mermaid
 flowchart TD
-  A["source"] --> B{"kind === 'local'?"}
-  B -->|是| R1["local"]
+  A["输入: kind / phase / deliveryState"] --> B{"kind === 'local'?"}
+  B -->|是| B1["local"]
   B -->|否| C{"phase === 'recovery_required'?"}
-  C -->|是| R2["recovery_required"]
+  C -->|是| C1["recovery_required"]
   C -->|否| D{"phase === 'preparing'?"}
-  D -->|是| R3["creating"]
+  D -->|是| D1["creating"]
   D -->|否| E{"deliveryState === 'delivered'?"}
-  E -->|是| R4["delivered"]
+  E -->|是| E1["delivered"]
   E -->|否| F{"phase === 'discarded'?"}
-  F -->|是| R5["discarded"]
-  F -->|否| G{"deliveryState 或 phase 为 retained?"}
-  G -->|是| R6["retained"]
-  G -->|否| H{"deliveryState 或 phase 为 finalized?"}
-  H -->|是| R7["cleanup_pending"]
-  H -->|否| I{"deliveryState === 'preview_detached'?"}
-  I -->|是| R8["preview_detached"]
-  I -->|否| J{"deliveryState === 'preview_active'?"}
-  J -->|是| R9["preview_active"]
-  J -->|否| K{"deliveryState === 'ready_for_review'?"}
-  K -->|是| R10["ready_for_review"]
-  K -->|否| R11["working"]
+  F -->|是| F1["discarded"]
+  F -->|否| G{"retained?"}
+  G -->|是| G1["retained"]
+  G -->|否| H{"finalized?"}
+  H -->|是| H1["cleanup_pending"]
+  H -->|否| I{"preview_detached?"}
+  I -->|是| I1["preview_detached"]
+  I -->|否| J{"preview_active?"}
+  J -->|是| J1["preview_active"]
+  J -->|否| K{"ready_for_review?"}
+  K -->|是| K1["ready_for_review"]
+  K -->|否| L["working"]
 ```
 
-两条刻意为之的顺序约束：
+三个关键顺序决策（源码注释与 `tests/console-contract.test.ts` 均有覆盖）：
 
-1. `delivered` 先于 `discarded` 判定：交付成功后清理会把 phase 推到 `discarded`，但任务已经完成，绝不能投影成「已放弃」。
-2. `discarded` 先于 `retained`/`finalized` 判定：被放弃的记录会保留丢弃前的交付标签，只有 `delivered` 才表示改动真的落进了 Local。
+- `recovery_required` 与 `preparing` **优先于**交付标签：处于恢复/变更中的记录不能被旧的 `delivered` 掩盖。
+- `delivered` **优先于** `discarded`：成功清理会把 phase 推到 `discarded`，但任务确实完成过，不能读成"已放弃"。
+- `discarded` **优先于** `retained` / `finalized`：被放弃的记录会保留放弃前的交付标签，只有 `delivered` 能穿过 `discarded`。
 
-### 3.3 交付判定 `worktreeReachedDelivery`
+### 3.3 交付终态判定（`worktreeReachedDelivery`）
 
-`worktreeReachedDelivery(phase, deliveryState)` 在以下任一条件成立时返回 `true`：`deliveryState ∈ {delivered, finalized, retained}` 或 `phase ∈ {finalized, retained}`。
+`deliveryState ∈ {delivered, finalized, retained}` **或** `phase ∈ {finalized, retained}` 即为"任务已抵达用户"。这个谓词被三处共用：
 
-该函数被契约与 Host 两侧共同使用（`src/console-host/projection.ts`、`src/console-host/control-plane.ts` 的 `returnToLocal` 能力位与「已交付 owner 走 Local 边界」授权分支），目的是让 UI 投影与 Host 授权门禁**共享同一份终态谓词，不会各自漂移**。详细授权语义见 [console_host](console_host.md)。
+- 侧栏徽章：`finalized` 而非 `discarded`（`control-plane.ts::sidebarTaskState`）。
+- 能力位：`returnToLocal` 仅在抵达交付后开放（`projection.ts::capabilities`）。
+- Host 鉴权：已交付的 owner Session 允许以 **Local 边界**作为授权基准（`control-plane.ts::verifyCallerRoot`）。
+
+```mermaid
+stateDiagram-v2
+  [*] --> local: 会话未绑定目标
+  local --> creating: phase preparing
+  creating --> working: 建树完成
+  working --> ready_for_review: delivery ready_for_review
+  ready_for_review --> preview_active: 预览到 Local
+  preview_active --> preview_detached: stale_local / preview_modified
+  preview_detached --> preview_active: rollbackPreview
+  ready_for_review --> delivered: deliver / finalize
+  preview_active --> delivered: finalizePreview
+  delivered --> retained: retention != cleanup
+  delivered --> cleanup_pending: finalize 后待清理
+  retained --> cleanup_pending: 保留期到 / 手动清理
+  cleanup_pending --> discarded: 清理成功
+  working --> discarded: 放弃
+  ready_for_review --> discarded: 放弃
+  ready_for_review --> recovery_required: 应用冲突
+  recovery_required --> working: 恢复完成
+  discarded --> [*]: 快照可恢复
+```
 
 ---
 
-## 4. 核心 DTO 分组
+## 4. 能力位（`WorktreeConsoleCapabilities`）
 
-### 4.1 目标摘要与详情
+Host 在投影时按 **调用方身份 × 记录阶段 × 交付状态** 计算 16 个布尔位（实现见 `src/console-host/projection.ts::capabilities`）。Client 只根据这些位决定渲染哪些菜单项，**绝不自行推导**：
 
-| 类型 | 用途 | 关键约束 |
+| 能力位 | 语义 | 典型门槛 |
 | --- | --- | --- |
-| `WorktreeConsoleTargetSummary` | 列表行 / 胶囊状态用的**无路径**摘要 | 不含任何文件系统路径，可安全进入项目列表与侧栏 |
-| `WorktreeConsoleTargetDetails` | 仅当调用方被授权打开该目标时的详情 | 额外携带 `managedRoot`、`sourceRoot`、`sourceOid`、`currentBranch`、`recoveryContinuation` |
-| `WorktreeConsoleProject` | `{ id, name }` | 项目身份，路径不在契约里 |
-| `WorktreeConsoleProjectionSource` | 投影输入 | `{ kind, phase, deliveryState? }` |
+| `create` | 从 Local 建树 | Local 目标且 `currentOid !== 'unversioned'` |
+| `open` / `inspect` | 打开/读取目标 | owner 或 source，或授权链接读（`linkedRead`） |
+| `discard` | 放弃 | owner / source 保留位，且未清理、未 detach |
+| `preflight` / `preview` | 交付前检查 / 预览到 Local | owner 且 `ready_for_review` |
+| `checkpoint` | 保存仅存在于 Worktree 的阶段 | owner 且 `ready_for_review` 或 `preview_active` |
+| `resumeRevision` | 作废未同步的评审、原地继续同一 iteration | owner 且 `ready_for_review` |
+| `rollbackPreview` | 回滚预览 | owner 且 `preview_active` / `preview_detached` / 预览恢复中 |
+| `finalize` / `finalizePreview` | 直接提交 / 从预览提交 | owner 且对应阶段 |
+| `setRetention` | 修改保留期 | owner 且 `retained` |
+| `setPermanent` | 常驻标记（豁免自动清理） | owner 且记录活跃 |
+| `retryCleanup` | 重试清理 | owner 且 `finalized` / `retained` |
+| `beginNextIteration` | 为已清理的已交付 owner 重建 cwd（iteration+1） | owner 且 `phase === 'discarded' && delivery === 'delivered'` |
+| `returnToLocal` | 把已交付会话释放回 Local 边界 | owner 且 `worktreeReachedDelivery(...)` |
 
-摘要里的身份三元组（`sourceSessionId` / `ownerSessionId` / `targetSessionId`）区分了「发起会话」「树的所有者」与「当前占用者」，是后续所有权限判断的依据。
+> 注意：`reviewSlot`（评审位）在 Host 侧还有一层"同 Local 检出只能有一个评审持有者"的仲裁。被他人占位时，投影会把 `preview` / `checkpoint` / `finalize` 强制降为 `false` 并填充 `reviewSlotHolder`（`WorktreeAcceptanceBlockerView`），Client 因此无需理解仲裁规则。
 
-响应侧有两个通用壳：
+---
 
-- `WorktreeConsoleMutationResponse`：`{ target: WorktreeConsoleTargetSummary, changedFiles?, commitOid?, checkpoint?, recoveryContinuation? }`——几乎每个变更方法都回这一个形状，便于 Client 用同一段代码刷新胶囊。
-- `WorktreeConsoleCreateResponse`：`{ target: WorktreeConsoleTargetDetails, targetSessionId, managedRoot }`——建树后必须带上新的 cwd 与目标会话身份，供 Client 完成导航。
+## 5. DTO 分组
 
-分支语义有两层：
-
-- `sourceBranch`：该目标交付到的分支（记录了自己的 session branch 时优先，否则回落到 fork 点 `sourceRef`）；Local 侧 detached 或未版本化时为 `null`。
-- `currentBranch`（仅详情）：Git **此刻**报告的分支；已交付目标的 owner 已回到 Local 边界时，由 Host 解析成用户真正站着的分支（例如 merge 之后的 `master`），`null` 表示 Local 暂时不可观测。
-
-### 4.2 能力位 `WorktreeConsoleCapabilities`
-
-16 个布尔位覆盖全部入口（读取与变更）。它们的**语义**在契约中声明，**取值**由 Host 计算（`src/console-host/projection.ts::capabilities`）：
-
-| 能力位 | 契约语义 | Host 侧典型前置条件 |
-| --- | --- | --- |
-| `create` | 能否创建隔离目标 | 仅 Local 且 HEAD 非 `unversioned` |
-| `open` / `inspect` | 能否打开 / 检查 | 调用方为 owner、source 或 linked read |
-| `discard` | 放弃 | owner（或 owner 缺席时的 source 预留）+ 非清理态 |
-| `preflight` / `preview` / `finalize` / `resumeRevision` | Local 预览与交付链路 | owner + `ready_for_review` |
-| `checkpoint` | 保存受评审快照并继续编辑 | owner + `ready_for_review` 或 `preview_active` |
-| `rollbackPreview` | 回滚预览 | owner + `preview_active` / `preview_detached` / 预览恢复态 |
-| `finalizePreview` | 从预览直接交付 | owner + `preview_active` / `preview_detached` |
-| `setRetention` | 修改保留策略 | owner + 交付状态为 `retained` |
-| `setPermanent` | 常驻标记（豁免自动清理） | owner + 非 `discarded` |
-| `retryCleanup` | 重试清理 | owner + `finalized` / `retained` |
-| `beginNextIteration` | 为 iteration + 1 重建不可变 cwd | owner + `delivered` |
-| `returnToLocal` | 把已交付会话解绑回 Local | owner + `worktreeReachedDelivery` |
-
-> `setRetention` / `setPermanent` / `retryCleanup` 会真正删除磁盘上的冻结目录，因此 Host 只把它们给 owner Session，从不提供给 Local source Session。
-
-### 4.3 评审、检查点与投递证明
-
-- `WorktreeConsoleReviewSummary`：`reviewId`、`revision`、`iteration`、`preparedAt`、`summary`、`validationStatus`、`validationSummary?`、`tests[]`、`changedFiles[]`、`suggestedCommitMessage`。
-- `checkpoints?: WorktreeCheckpointView[]` + `checkpointGeneration?: string`：线性保存的未发布阶段，`checkpointGeneration` 是 CAS 用的 64 位十六进制摘要。
-- `WorktreeConsoleDeliveryProof = WorktreeDeliveryProofView`：`localBranch`、`localHeadBefore/After`、`changedFiles`、`validation*`、`commitInLocalHistory`。
-- `WorktreeConsoleReviewDiffRequest/Response` 与 `WorktreeConsoleDiffFile`：评审读操作被绑定到与 Finalize **相同的不可变身份**（`expectedRevision` + `expectedReviewId`），单文件 `patch` 可为 `null`（二进制），并带 `truncated`。
-
-### 4.4 预览恢复
-
-```mermaid
-flowchart LR
-  D["preview_detached"] --> P["previewRecoveryPreflight<br/>（只读评估）"]
-  P -->|assessed| Proof["WorktreePreviewRecoveryProof"]
-  Proof --> A["preparePreviewRecoveryAnalysis"]
-  Proof --> H["createPreviewRecoveryHandoff"]
-  Proof --> R["rollbackPreview"]
-  Proof --> F["finalizePreview"]
-```
-
-- `WorktreeConsolePreviewRecovery`：`previewId`、`detachedAt`、`reason ∈ {stale_local, preview_modified}`、`attemptedAction ∈ {rollback_preview, finalize_preview, discard}`。
-- `WorktreeConsolePreviewRecoveryPreflightRequest/Response`：只读评估，返回 `WorktreePreviewRecoveryPreflightView`（`assessed` 带 proof，或 `blocked` 带原因）。
-- `recoveryProof` 在契约里被明确注释为「**可重新校验的上下文，绝不是 bearer 权限**」：Host 在锁内重算并比对指纹。
-
-### 4.5 恢复续作证明 `WorktreeRecoveryProof`
-
-四个 discriminated union 成员，全部带稳定的 `requestId`（供 Client 单飞与重试）与 `checkoutId`：
-
-| kind | 携带字段 | 生成时机 |
-| --- | --- | --- |
-| `worktree_apply_conflict` | `reviewId`、`revision`、`localHeadOid`、`conflictingFiles` | 实时写入 Local 冲突、记录退回 Ready 之后 |
-| `worktree_review_regeneration` | `reviewId`、`revision` | 需要作废未同步的评审并续作同一 iteration |
-| `worktree_preview_recovery_analysis` | `reviewId`、`previewId`、`revision`、`generation` | 预览恢复分析完成 |
-| `worktree_preview_recovery_handoff` | `sourceCheckoutId`、`reviewId`、`previewId`、`revision`、`generation` | 从失效预览交接出新的可继续目标 |
-
-`WorktreeConsoleContinuation = WorktreeApplyConflictContinuation` 是错误对象上唯一允许携带的续作载荷（schema 层用 `superRefine` 强制「只有 `apply_conflict` 可以带 `continuation`」）。
-
-### 4.6 侧栏拓扑与客户端自检
-
-- `WorktreeSidebarTask` / `WorktreeSidebarProject` / `WorktreeSidebarTopologyResponse`：**无路径、只读**的任务身份，仅用于聚合 Workspace 侧栏；`memberships` 是 Host 证明的目录归属（含已清理与旧 iteration），不含变更权限。
-- `WorktreeSidebarTaskState` 是 `WORKTREE_CONSOLE_TARGET_STATES` 的**收窄版**（7 个值）：去掉 `local` / `creating` / `retained` / `cleanup_pending` / `delivered`，改用单一 `finalized` 表示「已交付或已收尾」。Host 侧判定顺序同样是「交付优先于 phase」：只要 `worktreeReachedDelivery` 成立就是 `finalized`，只有未交付的 `discarded` 才是 `discarded`。
-- `workspaceClientFlavor` + `officialWorkspaceActive`：Host 钉住的 Workspace Client 代际与官方 provider 选举结果。**未知代际不得挂载猜测的 Client**。
-- `WorktreeClientBootReport`：Client 侧面包屑，上报实际走的分支（`legacy / alpha / next / modern-rc5 / modern-rc1 / unsupported / topology-failed / boot-failed`）、是否注册成功，以及 `elapsedMountMs` / `elapsedTopologyMs` 两个耗时指标。
-
-### 4.7 Git 只读与变更视图
+### 5.1 会话与目标读取
 
 | 类型 | 说明 |
 | --- | --- |
-| `WorktreeConsoleGitOverviewResponse` | `root`、`branch`、`headOid`、`branches[]`、`dirtyCount`。`dirtyCount === -1` 表示 `git status` 读不出来（未知），**不得**渲染成 0 |
-| `WorktreeConsoleGitGraphResponse` / `WorktreeConsoleGitGraphCommit` | 一行一条 `git log`；lane 拓扑由 Client 计算 |
-| `WorktreeConsoleGitBranch` | `name`、`oid`、`isCurrent`、`upstream` |
-| `WorktreeConsoleGitPruneResponse` / `WorktreeConsoleGitPruneEntry` | 完全合并分支的安全 prune（`git branch -d` 语义），分 `pruned` / `skipped` |
-| `WorktreeConsoleGitTag` / `...TagListResponse` | `pushed: boolean \| null`，`null` 表示远端不可查询（离线 / 无 `origin`），不得报告为「未推送」 |
-| `WorktreeConsoleGitCreateTagRequest` / `...DeleteTagRequest` / `...PushTagRequest` / `...TagMutationResponse` | 打标签（可附注、可指定 target、可推送）、删标签（可带 `remote`，从不 force）、单独推送 |
-| `WorktreeConsoleGitMutationResponse` | 新建 / 切换分支后确认的分支名 |
+| `WorktreeConsoleProject` | `{ id, name }`，最小项目身份。 |
+| `WorktreeConsoleTargetSummary` | **无路径**行。含 `checkoutId`、`sourceSessionId` / `ownerSessionId` / `targetSessionId`、`iteration`、`revision`、`state`、`phase`、`dirty`、`currentOid`、`commitOid`、`sourceBranch`，以及可选的保留期、清理信息、交付证明、评审摘要、检查点、评审位、预览恢复信息与 `capabilities`。 |
+| `WorktreeConsoleTargetDetails` | 在 Summary 之上追加 `managedRoot`、`sourceRoot`、`sourceOid`、`currentBranch`、`recoveryContinuation`。**只在调用方有权打开该目标时返回。** |
+| `WorktreeConsoleCurrentRequest/Response` | `current` 请求只需 `sessionId`；响应带 `target` 与可选的 `adoptionFailure`（官方建的树未能接入台账的原因，胶囊直接显示）。 |
+| `WorktreeConsoleListRequest/Response` | 支持 `needsAttention`、`includeDelivered` 过滤。 |
+| `WorktreeConsoleInspectRequest/Response` | 按 `checkoutId` 取详情。 |
 
-### 4.8 废弃快照
+`sourceBranch` 的语义值得注意：优先取会话自己的分支（`record.sessionBranch`），否则退回记录的 fork 点（`sourceRef`）；Local 侧 detached / 无版本时为 `null`。`currentBranch` 在已交付场景会被 Host 替换为 **Local 侧当前分支**（用户实际所在的分支），而不是冻结的任务分支。
 
-`WorktreeConsoleAbandonedSnapshot`（`checkoutId`、`projectName`、`snapshotOid`、`snapshotAt`、`revision`）配合 `listAbandoned` / `restoreAbandoned`：带未提交内容放弃时留下的可恢复快照。`discarded` 记录没有活 target，因此这两个方法是独立入口，且在适配器接口上是**可选的**。
+### 5.2 生命周期变更
+
+所有变更请求都以 `sessionId + checkoutId + expectedRevision` 为公共前缀：
+
+| 请求 | 附加字段 | 说明 |
+| --- | --- | --- |
+| `WorktreeConsoleDeliverRequest` | `commitMessage`、`retention` | 从 `working` 直接交付，不要求评审身份（评审面板已移除；旧的 `/worktree finalize` 命令仍走带 `reviewId` 的路径）。 |
+| `WorktreeConsoleDiscardRequest` | `confirmDirty`、`rollbackPreview?` | 放弃；脏工作区需显式确认。 |
+| `WorktreeConsoleSetRetentionRequest` | `retention: Exclude<WorktreeRetentionMode,'cleanup'>` | 保留期不含 `cleanup`（清理有独立入口）。 |
+| `WorktreeConsoleSetPermanentRequest` | `permanent` | 常驻标记，豁免自动清理。 |
+| `WorktreeConsoleRetryCleanupRequest` | `discardPostDeliveryChanges?` | 清理默认在"交付后又出现改动"时停下，只有显式确认才越过 `modified_after_finalize`。 |
+| `WorktreeConsoleBeginNextIterationRequest` | — | 为已交付并清理的 owner 重建不可变 cwd。 |
+| `WorktreeConsoleClearSidebarBadgeRequest` | — | 清除侧栏终态徽章（已放弃/已完成）。 |
+| `WorktreeConsoleReturnToLocalRequest/Response` | — | 仅对已交付 Worktree 生效；未交付会被拒绝，避免把未合并工作留在冻结目录。记录与保留期不变。 |
+| `WorktreeConsoleCreateWorktreeRequest/Response` | `from: string \| null` | `null` 表示基于当前 HEAD；**立即建树**（返回时 checkout 已在磁盘、台账已登记、会话 cwd 已切换）。失败时 `target: null` 且 `failure` 带说明。 |
+
+变更的统一响应是 `WorktreeConsoleMutationResponse`：`target`（Summary）+ 可选的 `changedFiles`、`commitOid`、`checkpoint`、`recoveryContinuation`。
+
+### 5.3 放弃快照与恢复
+
+`WorktreeConsoleAbandonedSnapshot`（`checkoutId`、`projectName`、`snapshotOid`、`snapshotAt`、`revision`）用于"带未提交内容放弃"留下的安全快照；`listAbandoned` / `restoreAbandoned` 在适配器上是**可选方法**（`?`），因为它们依赖 Host 侧快照能力。
+
+### 5.4 Git 面板（只读 + 受控变更）
+
+| 类型 | 说明 |
+| --- | --- |
+| `WorktreeConsoleGitBranch` / `WorktreeConsoleGitOverviewResponse` | 分支概览；`dirtyCount === -1` 表示 `git status` 读不出来（**不能**当作 0 报"干净"）。 |
+| `WorktreeConsoleGitGraphCommit` / `...GraphResponse` | 一行 `git log`；lane 拓扑由 Client 侧计算。 |
+| `WorktreeConsoleGitMutationResponse` | `{ branch }`，创建/切换分支的结果。 |
+| `WorktreeConsoleGitPruneEntry` / `...PruneResponse` | 安全修剪已完全合并的本地分支（`git branch -d` 语义），区分 `pruned` / `skipped`。 |
+| `WorktreeConsoleGitTag` / `...TagListResponse` | `pushed: boolean \| null` —— `null` 表示远端查不到（离线/无 origin），**不得**读成"未推送"。 |
+| `WorktreeConsoleGitCreateTagRequest` / `DeleteTagRequest` / `PushTagRequest` / `TagMutationResponse` | 创建（可注解、可推送）/ 删除（可同时删远端、永不 force）/ 推送标签。 |
+| `WorktreeConsoleDiffFile` | `status: 'added' \| 'modified' \| 'deleted' \| 'renamed' \| 'binary'`，`patch` 可为 `null`，`truncated` 标记截断。 |
+
+### 5.5 侧栏拓扑与启动报告
+
+- `WorktreeSidebarTask`：**无路径、只读**的任务身份，含 `state: WorktreeSidebarTaskState`（7 个状态，注意与 `WorktreeConsoleTargetState` 不同：侧栏没有 `local` / `creating` / `retained` / `cleanup_pending` / `delivered`）。
+- `WorktreeSidebarProject`：按项目聚合任务，并可选携带 Host 证明的目录成员关系 `memberships`（含已清理与旧 iteration，**不含路径与变更权限**）。
+- `WorktreeSidebarTopologyResponse`：`projects` + `workspaceClientFlavor`（`legacy | alpha | next | modern-rc5 | modern-rc1 | unsupported`）+ `officialWorkspaceActive`。未知 generation **不得**挂载猜测的 Client Browser。
+- `WorktreeClientBootReport`：Client 侧"面包屑"，回报实际走到的侧栏分支、是否注册成功、`elapsedMountMs` / `elapsedTopologyMs`，供 Host 写入诊断日志。
 
 ---
 
-## 5. `WorktreeConsoleAdapter` 接口
+## 6. 结果封装与错误模型
 
-适配器是契约里唯一的「行为」声明，共 37 个方法（其中 3 个可选：`initializeProject`、`listAbandoned`、`restoreAbandoned`）。按用途分组：
-
-### 5.1 读取与投影
-
-| 方法 | 请求 → 响应 |
-| --- | --- |
-| `sidebarTopology()` | → `WorktreeSidebarTopologyResponse` |
-| `current({ sessionId })` | → `WorktreeConsoleCurrentResponse`（`target` + 待办的 `worktreeRequest`） |
-| `list({ sessionId, needsAttention?, includeDelivered? })` | → `WorktreeConsoleListResponse` |
-| `inspect({ sessionId, checkoutId })` | → `WorktreeConsoleInspectResponse` |
-| `reviewDiff({ sessionId, checkoutId, expectedRevision, expectedReviewId })` | → `WorktreeConsoleReviewDiffResponse` |
-| `preflight(...)` | → `WorktreeConsolePreflightResponse`（`WorktreeApplyPreflightView`） |
-
-### 5.2 预览与评审链路
-
-| 方法 | 说明 |
-| --- | --- |
-| `checkpoint(...)` | 需要 `expectedGeneration` + `requestId` + `commitMessage`，保存快照后继续编辑 |
-| `preview(...)` | 把评审落到 Local 预览 |
-| `resumeRevision({ ..., conflictContinuation? })` | 作废未同步评审、续作同一 iteration；`conflictContinuation` 只在显式冲突恢复动作出现 |
-| `prepareReviewRegeneration(...)` | 生成评审重生成证明 |
-| `rollbackPreview({ ..., resumeRevision?, recoveryProof? })` | 回滚预览 |
-| `finalize(...)` | Ready → Commit，跳过 Local 预览；强制 `expectedReviewId` |
-| `finalizePreview(...)` | 从预览交付，可带 `recoveryProof` |
-| `deliver(...)` | 从 `working` 直接交付，**不要求** `expectedReviewId`（胶囊菜单的「交付」走这条） |
-
-### 5.3 清理、保留与生命周期
-
-| 方法 | 说明 |
-| --- | --- |
-| `discard({ ..., confirmDirty, rollbackPreview? })` | 脏树需显式 `confirmDirty` |
-| `setRetention({ ..., retention })` | `Exclude<WorktreeRetentionMode, 'cleanup'>` |
-| `setPermanent({ ..., permanent })` | 常驻标记，豁免自动清理 |
-| `retryCleanup({ ..., discardPostDeliveryChanges? })` | 带确认才越过 `modified_after_finalize` |
-| `beginNextIteration(...)` | 为 iteration + 1 重建不可变 cwd |
-| `returnToLocal({ sessionId, checkoutId })` | 已交付隔离会话解绑回 Local；**不带** `expectedRevision`，Host 保持幂等 |
-| `clearSidebarBadge(...)` | 清除侧栏终态徽章 |
-
-### 5.4 待办请求与 Git
-
-| 方法 | 说明 |
-| --- | --- |
-| `setWorktreeRequest({ sessionId, from? })` | 记录 / 撤回「下一次 turn 在新树里开始」。`from` 省略即撤回，`null` 表示基于当前 HEAD；只写一条 session record，真正的 `git worktree add` 发生在 turn 第 1 步 |
-| `gitOverview(sessionId)` / `gitGraph(sessionId, limit?)` | 只读仓库视图（作用于项目 Local root，与当前所在 worktree 无关） |
-| `gitCreateBranch` / `gitSwitchBranch` | 分支变更 |
-| `gitPruneMergedBranches(sessionId, dryRun)` | 安全 prune，先 dry-run 预览 |
-| `gitListTags` / `gitCreateTag` / `gitDeleteTag` / `gitPushTag` | 标签管理 |
-| `initializeProject?({ sourceSessionId })` | 可选：对非 Git 目录做 `git init` + 首次提交 |
-| `listAbandoned?` / `restoreAbandoned?` | 可选：废弃快照列表与恢复 |
-
-可选方法的存在是为了让**旧 Host 可以缺少新入口**：Client 侧在调用前会检查方法是否存在（例如 `TargetStatusAction` 对 `initializeProject` 做 `typeof adapter.initializeProject !== 'function'` 判断）。
-
-### 5.5 刻意的不对称
-
-Host 的 `@Remote` 服务比适配器多一个 `clientBootReport(report)`：它由 Client 启动流程直接通过 Remote 代理上报（`client/console-remote/index.ts` 的 `reportBoot`），不经过适配器，因为它的唯一用途是写 Host 侧诊断日志，返回 `boolean` 而不是 `WorktreeConsoleOutcome`。诊断文件按 8 MiB 上限滚动，只保留一段 `.1` 备份（`src/console-host/service.ts`）。
-
----
-
-## 6. 结果与错误契约
-
-### 6.1 统一信封
+### 6.1 `WorktreeConsoleOutcome<T>`
 
 ```ts
 type WorktreeConsoleOutcome<T> =
@@ -298,156 +242,174 @@ type WorktreeConsoleOutcome<T> =
   | { ok: false; error: WorktreeConsoleError }
 ```
 
-`WorktreeConsoleError` = `{ code, message, details?, continuation? }`，`details` 只允许 `string | number | boolean | null` 的扁平记录（便于序列化）。
+`WorktreeConsoleError` = `{ code, message, details?, continuation? }`。
 
-**没有异常穿过 seam**：Host 的 `consoleFailure` / `outcome` 把领域错误归一化成 `ok: false`，Client 适配器再把传输异常归一化成 `transport_unavailable` / `malformed_response` / `timeout`。详见 [console_host](console_host.md) 与 [console_remote](console_remote.md)。
+### 6.2 错误码
 
-### 6.2 错误码集合
+`WORKTREE_CONSOLE_ERROR_CODES` = 29 个域错误码（直接复用 `SESSION_CHECKOUT_ERROR_CODES`，来自 `src/types.ts`）+ 3 个传输层错误码：`transport_unavailable`、`malformed_response`、`timeout`。
 
-`WORKTREE_CONSOLE_ERROR_CODES = [...SESSION_CHECKOUT_ERROR_CODES, 'transport_unavailable', 'malformed_response', 'timeout']`，即 29 个领域码 + 3 个传输码。
+### 6.3 元数据驱动的恢复策略
 
-`ERROR_META`（`satisfies Record<WorktreeConsoleErrorCode, WorktreeConsoleErrorMeta>`，编译期保证穷尽）为每个码给出 `category`、`recovery`、`retryable`：
+`worktreeConsoleErrorMeta(code)` 返回 `{ category, recovery, retryable }`，UI 用它生成"错误详情 + 建议动作"文案（见 `WorktreeConsoleView.tsx::errorText`），而不是在组件里写 `switch`：
 
-| category | 错误码 | recovery 倾向 | retryable |
-| --- | --- | --- | --- |
-| `permission` | `project_mismatch`、`checkout_mismatch`、`not_owner` | `none` / `open_recovery` | 否 |
-| `unavailable` | `session_not_found`、`project_not_found`、`project_root_missing`、`target_unselected`、`checkout_missing`、`transport_unavailable`、`timeout` | `refresh` / `retry` / `open_recovery` | 多为是 |
-| `invalid` | `not_git_repository`、`target_already_bound`、`invalid_input`、`invalid_plan`、`checkout_limit_reached`、`operation_not_allowed`、`preview_not_active` | `none` / `refresh` | 部分 |
-| `stale` | `stale_target`、`stale_local`、`stale_isolated`、`preview_modified` | `refresh` / `open_recovery` | 多为是 |
-| `confirmation` | `dirty_confirmation_required` | `confirm_dirty` | 是（补确认后） |
-| `conflict` | `apply_conflict`、`commit_isolation_conflict`、`project_acceptance_busy` | `open_recovery` / `retry` | 部分 |
-| `recovery` | `recovery_required`、`registry_corrupt`、`recovery_unsafe` | `open_recovery` | 否 |
-| `internal` | `git_operation_failed`、`apply_failed`、`git_error`、`malformed_response` | `retry` / `none` | 部分 |
+| category | 含义 | 典型码 |
+| --- | --- | --- |
+| `permission` | 身份不允许 | `not_owner`、`project_mismatch`、`checkout_mismatch` |
+| `stale` | 数据过期 | `stale_target`、`stale_local`、`stale_isolated`、`preview_modified` |
+| `confirmation` | 需用户确认 | `dirty_confirmation_required` |
+| `recovery` | 需进入恢复流程 | `recovery_required`、`registry_corrupt`、`recovery_unsafe` |
+| `conflict` | 冲突/占用 | `apply_conflict`、`commit_isolation_conflict`、`project_acceptance_busy` |
+| `unavailable` | 暂时不可用 | `session_not_found`、`checkout_missing`、`transport_unavailable`、`timeout` |
+| `invalid` | 输入/状态非法 | `invalid_input`、`invalid_plan`、`operation_not_allowed`、`preview_not_active` |
+| `internal` | 内部失败 | `git_error`、`git_operation_failed`、`apply_failed`、`malformed_response` |
 
-这套元数据让 UI 可以**通用地**决定提示方式（刷新 / 二次确认 / 打开恢复面板 / 直接重试），而不需要为每个码写分支。
+`recovery` 取值：`none | refresh | confirm_dirty | open_recovery | retry`。
 
-### 6.3 CAS 身份字段一览
+`ERROR_META` 用 `satisfies Record<WorktreeConsoleErrorCode, WorktreeConsoleErrorMeta>` 声明，因此**新增错误码时忘记登记会编译失败**（`pnpm run typecheck`）。
 
-| 请求类别 | 必须携带的身份 |
-| --- | --- |
-| 纯读取（`current`/`list`/`inspect`/`git*`/`sidebarTopology`） | `sessionId` |
-| 评审读（`reviewDiff`/`preflight`） | `expectedRevision` + `expectedReviewId` |
-| 预览恢复评估 | 上述 + `expectedPreviewId` |
-| 检查点 | 上述 + `expectedGeneration` + `requestId` |
-| 绝大多数变更（`preview`/`discard`/`finalize`/`deliver`/`retryCleanup` 等） | `expectedRevision` |
-| 例外：`returnToLocal` | 无 `expectedRevision`，Host 保持幂等 |
-| 例外：`setWorktreeRequest` | 只写一条 session record，无 checkout 身份 |
+### 6.4 继续凭据（continuation / recovery proof）
 
----
+冲突类失败不能只报错——调用方需要一个**可重放的、带身份的**续做凭据：
 
-## 7. 典型流程
-
-### 7.1 胶囊轮询 `current`
-
-`TargetStatusAction` 通过 `subscribeCurrent` 每 5 秒（页面隐藏时降为 60 秒）调用一次 `current`：
+- `WorktreeApplyConflictContinuation`（`kind: 'worktree_apply_conflict'`）：只允许挂在 `apply_conflict` 错误上（Host 与 Client schema 双向校验：`consoleErrorSchema.superRefine` 明确禁止其它错误码携带 continuation）。字段含 `requestId`（Client 单飞与重试的稳定标识）、`checkoutId`、`reviewId`、`revision`、`localHeadOid`、`conflictingFiles`。
+- `WorktreeRecoveryProof` 是四类"owner 专属证明"的联合：`worktree_apply_conflict`、`worktree_review_regeneration`、`worktree_preview_recovery_analysis`、`worktree_preview_recovery_handoff`。它们由 Host 在 `WorktreeConsoleTargetDetails.recoveryContinuation` 上发放，且**仅当调用方就是 owner 且非链接读时**才出现。
 
 ```mermaid
 sequenceDiagram
-  participant UI as "TargetStatusAction"
-  participant Poll as "subscribeCurrent 轮询器"
-  participant Ad as "WorktreeConsoleAdapter"
-  participant Svc as "WorktreeConsoleService"
-  participant CP as "ControlPlane"
-  participant Git as "Git 端口"
-
-  Poll->>Ad: current({ sessionId })
-  Ad->>Svc: gitWorktree/current(agentId, locale)
-  Svc->>CP: current(agent.id)
-  CP->>CP: inspect(sessionId) 校验归属
-  CP->>Git: status + inspect（复用已付的观测）
-  CP-->>Svc: ok({ target, worktreeRequest })
-  Svc-->>Ad: RemoteResult
-  Ad->>Ad: 按 descriptor strict codec 解析
-  Ad-->>Poll: WorktreeConsoleOutcome
-  Poll-->>UI: 状态 / 失败码 / 待办请求
+  participant UI as Client UI
+  participant ADP as WorktreeConsoleAdapter
+  participant HOST as WorktreeConsoleService
+  participant CP as ControlPlane
+  UI->>ADP: discard({sessionId, checkoutId, expectedRevision, confirmDirty})
+  ADP->>HOST: gitWorktree/discard(...)
+  HOST->>CP: discard(request)
+  CP->>CP: authorize() + revision CAS
+  alt 冲突
+    CP-->>HOST: throw domainError('apply_conflict', msg, continuation)
+    HOST-->>ADP: { ok: false, error: { code, message, continuation } }
+    ADP-->>UI: outcome（error.continuation 可用于重试）
+  else 成功
+    CP-->>HOST: WorktreeConsoleMutationResponse
+    HOST-->>ADP: { ok: true, value }
+    ADP-->>UI: outcome
+  end
 ```
 
-失败时 UI 只显示「unavailable」，但会把 `code: message` 放进 tooltip，避免让人对着一个空状态猜原因。
+---
 
-### 7.2 冲突恢复续作
+## 7. 适配器缝隙（`WorktreeConsoleAdapter`）
+
+这是 Client 侧唯一依赖的接口。它把 25 个方法分成四组：
+
+- **读取**：`sidebarTopology()`、`current()`、`list()`、`inspect()`、`gitOverview()`、`gitGraph()`、`gitListTags()`、`listAbandoned?()`。
+- **生命周期变更**：`discard()`、`deliver()`、`setRetention()`、`setPermanent()`、`retryCleanup()`、`beginNextIteration()`、`returnToLocal()`、`createWorktree()`、`clearSidebarBadge()`、`restoreAbandoned?()`。
+- **Git 变更**：`gitCreateBranch()`、`gitSwitchBranch()`、`gitPruneMergedBranches()`、`gitCreateTag()`、`gitDeleteTag()`、`gitPushTag()`。
+- **初始化**：`initializeProject?()`（可选，用于确保项目台账存在）。
+
+三个方法带 `?`（`initializeProject`、`listAbandoned`、`restoreAbandoned`），因为它们依赖较新的 Host 能力；Client 必须容忍缺失。
+
+### 一次 `current` 轮询的完整链路
+
+顶部胶囊每 5 秒（隐藏窗口降到 60 秒）触发一次 `current`（`src/client/target-console/current-polling.ts`）：
 
 ```mermaid
 sequenceDiagram
-  participant UI as "Client"
-  participant H as "Host"
-  participant D as "领域状态机"
-
-  UI->>H: finalize({ expectedRevision, expectedReviewId, ... })
-  H->>D: operate(finish)
-  D-->>H: status: conflict（回退到 Ready）
-  H-->>UI: ok:false, code: apply_conflict, continuation
-  Note over UI: 展示冲突文件与建议动作
-  UI->>H: resumeRevision({ conflictContinuation })
-  H->>D: 在 CAS 下重跑冲突预检
-  D-->>H: 新的 Working revision
-  H-->>UI: ok:true, recoveryContinuation
+  participant Poll as Poll（5s 定时器）
+  participant ADP as WorktreeConsoleAdapter
+  participant RADP as Remote Adapter（超时 30s）
+  participant RPC as Typert Remote
+  participant HOST as WorktreeConsoleService
+  participant CP as ControlPlane
+  Poll->>ADP: current({sessionId})
+  ADP->>RADP: invoke('current')
+  RADP->>RPC: remote.current(sessionId, locale)
+  RPC->>HOST: @Remote current(agent, locale)
+  HOST->>CP: current(agent.id)
+  CP->>CP: authorize + observe + projectDetails
+  CP-->>HOST: WorktreeConsoleCurrentResponse
+  HOST-->>RPC: WorktreeConsoleOutcome
+  RPC-->>RADP: RemoteResult
+  RADP->>RADP: strict schema parse（失败 → malformed_response）
+  RADP-->>ADP: outcome
+  ADP-->>Poll: outcome
+  Poll->>Poll: 广播给订阅者 / 安排下一次
 ```
 
-关键点：`continuation` 是**上下文而非凭据**，Host 在锁内重新校验 `requestId` / `checkoutId` / `reviewId` / `revision` / `localHeadOid` / 冲突文件路径安全后才执行。
+该链路上的契约约束：
 
-### 7.3 「下一次 turn 在新树里开始」
+- Host 侧 `current` 会记录耗时与失败码到诊断文件（`DIAG_MAX_BYTES = 8MB` 轮转为 `.1`），用于回答"胶囊为什么一直不可用"。
+- Remote Adapter 对 `current` 使用 **30 秒快速档**（`list` / `preflight` 等全量重算走 180 秒慢档），超时归为 `timeout`，服务端工作可能仍在继续，变更类调用因此必须可安全重试。
+- 结果会再次用 `descriptors.ts` 中登记的 strict schema 解析；解析失败统一映射为 `malformed_response`。
 
-`setWorktreeRequest` 与 `current().worktreeRequest` 是一对：前者写请求，后者回读待办。契约里 `from` 的三种取值各有含义（省略 = 撤回，`null` = 基于当前 HEAD，字符串 = 指定基点分支），语义完整地落在 `WorktreeConsoleWorktreeRequestRequest` 的字段注释上。
+---
+
+## 8. 版本兼容与演进
+
+Client 与 Host 是**两份独立部署的产物**（Client 通过 `package.json` 的 `dsh.client` 注入，Host 走 `cordis.patch.yml`），因此契约必须能承受"新 Client + 旧 Host"与"旧 Client + 新 Host"：
+
+| 场景 | 契约策略 | 代码位置 |
+| --- | --- | --- |
+| 新增能力位 | 声明为 `z.boolean().default(false)` —— 输入可缺省，输出仍是确定 boolean，契约类型不必变宽。若写成必填，旧 Host 的 `current` 会让整条 payload 校验失败、胶囊塌成"不可用"。 | `src/console-remote/schemas.ts::capabilitiesSchema.returnToLocal` |
+| 新增响应字段 | 同理用 `.default(null)`（如 `adoptionFailure`）。 | `src/console-remote/schemas.ts::currentResponseSchema` |
+| 新增错误码 | 追加进 `WORKTREE_CONSOLE_ERROR_CODES` 并**同时**补 `ERROR_META`；`satisfies` 保证漏登记即类型错误。 | `src/console-contract.ts` |
+| 新增状态 | 追加进 `WORKTREE_CONSOLE_TARGET_STATES`；Zod 直接复用该数组，无需第二处修改。 | 同上 |
+| 未知 Workspace generation | `workspaceClientFlavor: 'unsupported'` 时 Client 不得挂载猜测的 Browser。 | `WorktreeSidebarTopologyResponse` |
+
+**契约不承载的东西**（保持可演进性）：不承载授权结论、不承载文件系统路径（除 `TargetDetails`）、不承载 Cordis 服务引用、不承载 UI 文案（文案在 [i18n](Cross-Cutting_Foundation_and_Public_Surface/i18n.md) 的 `src/i18n/*` 中按语言分离）。
+
+---
+
+## 9. 构建与发布
+
+契约文件是**发布面的一部分**，通过 `package.json` 的独立子路径导出：
+
+```json
+"./console-contract": {
+  "types": "./lib/console-contract.d.ts",
+  "default": "./lib/console-contract.js"
+}
+```
+
+- `pnpm run build` = `node scripts/clean-lib.mjs && tsc && tsdown`：`tsc`（`tsconfig.json`，`strict` + `noUncheckedIndexedAccess`）产出 `lib/**/*.d.ts` 与 ESM 产物，`tsdown` 另行把 `src/client/console-remote/index.ts` 打成 `lib/client.js`（CJS + `__ModuleLoader__` banner）。
+- `./typert` 子路径导出 `src/console-remote/typert.ts` 的 `TYPERT` 贡献（`invocations: WORKTREE_CONSOLE_DESCRIPTORS`），供官方 Typert Loader 发现 Host 侧严格契约。
+- CI（`.github/workflows/ci.yml`）依次执行 `typecheck` → `build` → `check:publish:release` → `test`，因此契约的类型漂移（例如漏登记的 `ERROR_META`、schema 与 DTO 不一致）会在 PR 阶段被拦截。
+- 契约的单元测试位于 `tests/console-contract.test.ts`，覆盖状态投影优先级、`worktreeReachedDelivery` 语义与错误元数据映射；适配器 fixture 在 `tests/support/worktree-console.ts`。
+
+更多打包/发布细节见 [build_deployment_configuration](Cross-Cutting_Foundation_and_Public_Surface/build_deployment_configuration.md)。
+
+---
+
+## 10. 依赖关系
+
+| 方向 | 对象 | 说明 |
+| --- | --- | --- |
+| 上游（被引用） | `src/types.ts` | `SESSION_CHECKOUT_ERROR_CODES`、`SessionCheckoutPhase`、`WorktreeRetentionMode`、`WorktreeCleanupReason`、`WorktreeValidationItem/Status`、`WorktreeCheckpointView`、`WorktreeDeliveryProofView`、`WorktreeAcceptanceBlockerView`。详见 [core_ports_and_types](Ports,_Adapters,_and_Infrastructure/core_ports_and_types.md)。 |
+| 下游（引用本模块） | `src/console-host/*` | 服务方法签名、控制面接口、投影与错误归一。见 [console_host](Console_API_and_Host_Integration/console_host.md)。 |
+| 下游 | `src/console-remote/*` | Zod schema（`schemas.ts`）、Typert 描述符（`descriptors.ts`）、`TypertRemoteMap` 声明（`remote.ts`）。见 [console_remote](Console_API_and_Host_Integration/console_remote.md)。 |
+| 下游 | `src/client/console-remote/adapter.ts` | 实现 `WorktreeConsoleAdapter`。见 [client_console_remote](Client_Presentation_and_Interaction/client_console_remote.md)。 |
+| 下游 | `src/client/target-console/*`、`src/client/workspace-sidebar/*`、`src/client/index.tsx` | UI 组件与侧栏投影消费 DTO 与错误元数据。见 [client_target_console](Client_Presentation_and_Interaction/client_target_console.md)、[client_workspace_sidebar](Client_Presentation_and_Interaction/client_workspace_sidebar.md)。 |
+| 语义来源 | `src/console-host/projection.ts` | `capabilities()` 与 `projectRecord/projectDetails/projectLocal` 是 Summary/Details 字段的权威填充者。 |
 
 ```mermaid
-sequenceDiagram
-  participant UI as "胶囊菜单"
-  participant Ad as "WorktreeConsoleAdapter"
-  participant CP as "ControlPlane"
-  participant Log as "session log (plugin record)"
-  participant Step as "agent/pre-step"
-
-  UI->>Ad: setWorktreeRequest({ sessionId, from })
-  Ad->>CP: setWorktreeRequest(...)
-  CP->>Log: 追加 worktree-request 记录
-  CP-->>Ad: { request: { from, failure } }
-  Note over UI: 勾选本身不建树，未发送的消息不付 checkout 成本
-  Step->>Log: 折叠出 pendingWorktreeRequest
-  Step->>Step: 第 1 步执行真正的 git worktree add
-  Step->>Log: 失败时追加 failed 记录（不撤销请求）
-  UI->>Ad: current({ sessionId })
-  Ad-->>UI: worktreeRequest.failure 带回失败原因
+flowchart TD
+  T["src/types.ts<br/>域类型与错误码"] --> CC["src/console-contract.ts"]
+  CC --> HOST["src/console-host/*"]
+  CC --> REMOTE["src/console-remote/*<br/>schemas / descriptors / typert"]
+  CC --> CADP["src/client/console-remote/adapter.ts"]
+  CADP --> UI["src/client/target-console/*<br/>workspace-sidebar/*"]
+  REMOTE --> CADP
+  HOST --> RPC["Typert RPC 边界"]
+  RPC --> REMOTE
 ```
 
-这条链路刻意不经过 Client：建树发生在 Host 的 pre-step，Client 看不到那条链路，因此 `failure` 必须经由 `current` 回传，否则用户只会看到「发了消息却没动静」。记录落在 session log 而非内存，刷新页面或重启 Host 后仍然有效。相关实现见 [core_domain_ports](core_domain/core_domain_ports.md)（`WorktreeRequest` / `RequestRecord`）。
-
 ---
 
-## 8. 兼容性规则（Host 与 Client 独立部署）
+## 11. 使用约定与常见陷阱
 
-契约的字段演进遵守三条硬规则，均由 [console_remote](console_remote.md) 的 strict schema 落地验证：
-
-1. **新增字段必须可选或带默认值。** 例如 `capabilities.returnToLocal` 用 `z.boolean().default(false)`：旧 Host 根本不知道这个键，若写成必填会让整条 `current` payload 校验失败、胶囊塌成「不可用」。
-2. **新增响应字段同理可选。** `current` 的 `worktreeRequest` 用 `nullable().default(null)`，`failure` 用 `nullable().default(null)`：新 Client 配旧 Host 时读作「没有待办 / 没失败过」。
-3. **纯增量能力位没有资格否决整个响应。** 用 `default(false)` 而非 `optional()`，这样输入可缺省、输出仍是确定的 `boolean`，契约类型不必跟着变宽。
-
-其他安全边界（同样在 schema 层强制）：
-
-- `checkoutId` 拒绝 `..` 与路径分隔符；`branchNameSchema` 拒绝空白、`~^:?*[]`、前导 `-`/`/`、`..`、`.lock`；
-- `conflict` / 检查点文件路径必须是不含 `..`、盘符、绝对路径的项目相对路径；
-- `generation` / `fingerprint` 必须是 64 位小写十六进制；
-- `commitMessage` 通过 `isValidCommitMessage` 有界校验；
-- `oidSchema` 允许 `unversioned` / `unborn` 哨兵值，避免把「未版本化」伪装成哈希。
-
----
-
-## 9. 与其他模块的关系
-
-| 模块 | 关系 |
-| --- | --- |
-| [core_domain](core_domain.md) | 契约复用了它的领域视图类型（`WorktreeApplyPreflightView`、`WorktreePreviewRecoveryProof`、`WorktreeCheckpointView`、`WorktreeDeliveryProofView`、`SESSION_CHECKOUT_ERROR_CODES`）。详见 [core_domain_public_api](core_domain/core_domain_public_api.md) 与 [core_domain_ports](core_domain/core_domain_ports.md) |
-| [console_host](console_host.md) | 生产全部 DTO：`projection.ts` 计算状态与能力位，`control-plane.ts` 做授权与 CAS，`service.ts` 暴露 `@Remote` 方法 |
-| [console_remote](console_remote.md) | 为每个方法生成 Typert descriptor 与 strict zod schema，是契约的运行时守门人 |
-| [client_ui](client_ui.md) | 实现 `WorktreeConsoleAdapter`（`client/console-remote/adapter.ts`）并消费全部 DTO；超时策略与 `malformed_response` 归一化在那里 |
-| [i18n](i18n.md) | `transport_unavailable` / `malformed_response` / `timeout` 的文案来自 `transport-messages.ts`，Host 侧文案来自 `host-messages.ts` |
-| [adapters](adapters.md) | 提供 Git / 文件 / 注册表等端口实现，契约本身不感知 |
-| [build_and_config](build_and_config.md) | `package.json` 的 `exports["./console-contract"]` 与 `tsconfig.json` 的 `rootDir: "src"` / `declaration: true` 决定该契约如何被外部消费 |
-
----
-
-## 10. 构建、类型与测试约束
-
-- 打包：`package.json` 的 `exports["./console-contract"]` 指向 `lib/console-contract.js` 与 `lib/console-contract.d.ts`，因此任何跨包使用都必须经由 `import type { ... } from 'dsh-git-worktree/console-contract'` 这一公开路径，而不能深引用 `src/`。
-- 类型：`tsconfig.json` 开启 `strict`、`noImplicitAny`、`noUncheckedIndexedAccess`，`ERROR_META` 的 `satisfies Record<WorktreeConsoleErrorCode, WorktreeConsoleErrorMeta>` 依赖这套严格模式才能保证错误码穷尽。
-- 校验：`vitest.config.ts` 的 `include: ['tests/**/*.test.{ts,tsx}']` 覆盖契约相关测试；CI（`.github/workflows/ci.yml`）依次执行 `typecheck` → `build` → `check:publish:release` → `test`，即契约类型与 descriptor 的一致性在流水线上被强制。
-- 无运行时依赖：本模块只做 `import type`，编译后仅剩 `WORKTREE_CONSOLE_TARGET_STATES`、`WORKTREE_CONSOLE_ERROR_CODES` 两个常量数组与三个函数，可在浏览器与 Node 两侧无差别加载。
+1. **不要在 Client 里推导状态**。要展示"是否可交付"，读 `target.capabilities`，不要自己比较 `phase` 与 `deliveryState`。
+2. **不要把 `revision` 当成普通字段**。它是 CAS 令牌：`inspect`/`current`/`list` 拿到的 `revision` 必须原样回传；Host 的 `observeFromCaller` 只在 revision 一致时才复用已付出的观测成本，否则会重新走 `git` 校验。
+3. **`dirtyCount === -1`、`pushed === null`、`sourceBranch === null` 都是"未知"**，不是 `0` / `false` / 空字符串。把它们渲染成确定值会给出错误的结论。
+4. **`TargetSummary` 不得用于变更**。只有 `TargetDetails` 才带路径；变更请求只需 `checkoutId + expectedRevision`，路径由 Host 重新解析。
+5. **`continuation` 只属于 `apply_conflict`**。其它错误携带 continuation 会被 schema 拒绝（`only apply_conflict may carry a continuation`）。
+6. **新增可选能力位必须带默认值**，否则旧 Host 会让整条响应校验失败。
+7. **`returnToLocal` 不是"放弃"**：它只解绑已交付会话，记录、保留期与已交付徽章都不变；未交付的 Worktree 会被 Host 拒绝。

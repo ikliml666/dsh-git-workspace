@@ -1,508 +1,432 @@
 ---
-title: session_checkout_apply_engine：Git 级应用引擎
+title: session_checkout_apply_engine
 type: module
 source_files:
   - src/session-checkout-apply.ts
 tags: []
 generated_by: fsoft-native
-fsoft_page: core_domain/core_domain_session_checkout/session_checkout_apply_engine.md
+fsoft_page: Worktree_and_Session_Checkout_Domain/session_checkout_engine/session_checkout_apply_engine.md
 ---
-# session_checkout_apply_engine：Git 级应用引擎
+# session_checkout_apply_engine
 
-`session_checkout_apply_engine` 是 session-checkout 领域里唯一直接改写 Git 仓库的模块，实现文件为 `src/session-checkout-apply.ts`。它把「受管 Worktree 与 Local 检出之间的评审、预览、回滚、提交、检查点」这一整套危险操作封装成一组**可校验、可回滚、可恢复**的引擎方法：调用方（状态机）只负责状态迁移与账本持久化，真正的 `git` 调用、指纹计算、三方合并与索引原子替换全部发生在这里。
+`session_checkout_apply_engine` 是 `Worktree_and_Session_Checkout_Domain` 中唯一直接操作 Git 对象库与工作区的一层：它把「隔离 Worktree 的改动」翻译成可复核、可回滚、可恢复的 Git 事务，向上只暴露一个与宿主无关的 `SessionCheckoutApplyEngine` 接口。
 
-该模块是一个叶子模块，没有子页面；其上层编排逻辑见 [session_checkout_orchestration](session-checkout-orchestration.md)，端口契约见 [core_domain_ports](core-domain-ports.md)，父模块概览见 [core_domain_session_checkout](core-domain-session-checkout.md)。
+实现集中在 `src/session-checkout-apply.ts`，入口工厂为 `createSessionCheckoutApplyEngine(options)`，默认实现是 `DefaultSessionCheckoutApplyEngine`。它不依赖 Cordis、不依赖 registry、不读写持久化台账——台账、锁、审阅记录、清理都由上层 [session_checkout_engine](session-checkout-engine.md) 的集成层负责。
 
 ## 1. 模块定位
 
-| 维度 | 说明 |
+职责边界非常明确：
+
+- **做**：采集 checkout 快照与指纹、计算三方合并、生成/校验 Apply 计划、把补丁写进 Local、生成并校验 Preview receipt、回滚 Preview、把任务增量从 Local 未提交改动中剥离后提交、给 Worktree 打 checkpoint、在崩溃后恢复 checkpoint。
+- **不做**：不做授权判断（`not_owner`）、不持久化 journal/receipt、不管理 retention 与清理目录、不决定「当前处于哪个交付状态」。这些属于状态机层。
+
+这种切分让引擎可以用临时目录 + 临时 index 完整复现一次合并，而把「是否允许」留给上层。
+
+## 2. 在系统中的位置
+
+```mermaid
+flowchart TD
+  Tools["tools.ts 模型工具"] --> Module["session-checkout-module.ts 状态机"]
+  Console["console-host 控制面"] --> Module
+  Module --> Engine["session-checkout-apply.ts 本模块"]
+  Module --> Ports["ports.ts 端口定义"]
+  Engine --> Git["git 子进程 直连 spawn"]
+  Engine --> FS["node:fs/promises 临时目录"]
+  Engine --> Skills["adapters/project-skills.ts"]
+  Engine --> Excludes["delivery-excludes.ts"]
+  Engine --> I18N["i18n/host.ts 宿主消息"]
+  Ports --> Adapters["adapters/* 宿主适配"]
+  Module --> Registry["adapters/registry.ts 台账"]
+```
+
+关键点：引擎虽然被声明在 `SessionCheckoutDependencies.applyEngine` 端口位置（见 [core_ports_and_types](core-ports-and-types.md)），但它**不使用** `SessionCheckoutGitPort`，而是自己 `spawn('git', ...)`。这样 apply 路径的 Git 行为（ambient env 清洗、hooks 禁用、超时）可以独立于宿主 git 适配器演进。
+
+## 3. 核心抽象与不变量
+
+### 3.1 快照（CheckoutSnapshot）与指纹（fingerprint）
+
+`captureSnapshot` 用一个**临时 index**（`GIT_INDEX_FILE`）重建 checkout 的完整状态，不触碰真实 index：
+
+| 字段 | 含义 |
 | --- | --- |
-| 所属层次 | `core_domain` / `core_domain_session_checkout`（领域核心，宿主无关） |
-| 导出入口 | `createSessionCheckoutApplyEngine(options)` → `SessionCheckoutApplyEngine` |
-| 默认实现 | `DefaultSessionCheckoutApplyEngine`（`class`，未导出，仅通过工厂创建） |
-| 消费方 | `src/session-checkout-module.ts` 通过 `SessionCheckoutDependencies.applyEngine` 调用（见 `src/ports.ts` 中对 `SessionCheckoutApplyEngine` 的类型导入） |
-| 关键不变量 | 每个方法要么返回带 `status` 的成功结果，要么返回 `{ status: 'error', error: ApplyError }`；**不抛异常**，错误码即契约 |
-| 状态持有 | 仅持有内存中的 `plans: Map<revision, StoredPlan>`，不写注册表、不写宿主账本 |
+| `headOid` | `HEAD` 指向的提交 |
+| `headRef` | `symbolic-ref HEAD`，`null` 表示 detached |
+| `headTreeOid` | `HEAD^{tree}` |
+| `indexTreeOid` | 真实 index 的 staged 语义对应的 tree |
+| `treeOid` | index + 工作区叠加后的最终 tree |
+| `indexEntries` | `ls-files --stage -z` 原始字节 |
+| `fingerprint` | `sha256(headOid, headRef, indexEntries, treeOid)`，若携带 Project Skills 再叠加其指纹 |
 
-设计上它刻意「无持久化」：所有 journal / receipt / 指纹的落盘由编排层完成，引擎只在约定时机回调 `beforeWrite`、`beforeCommit` 这类 seam，从而把「持久化」与「改 Git」两件事拆成可分别审计的步骤。
+采集步骤（`captureSnapshot`）：
 
-## 2. 架构与依赖
+1. `read-tree HEAD` 重置临时 index，再把 `diff --cached --binary` 的 staged 补丁 `apply --cached` 回去，得到 `indexTreeOid`。
+2. `add -A -- . <excludes>` 把工作区叠加进来，得到 `treeOid`。
+3. 若 `projectSkills.paths()` 命中，把随会话携带的 Skill 文件从临时 index 中 `update-index --force-remove` 剔除，并把 `CarriedSkillState.fingerprint` 混入最终指纹。
 
-```mermaid
-flowchart TB
-  subgraph consumers["调用方"]
-    ORCH["session-checkout-module.ts<br/>状态机与账本 CAS"]
-    SEAMS["测试 / 宿主 seam<br/>SessionCheckoutApplyEngineOptions"]
-  end
+指纹是全部 CAS 的基础：`ApplyPlan`、`PreviewReceipt`、`CheckpointInput`、清理阶段的复核都靠它判断「期间有没有人动过」。
 
-  subgraph engine["src/session-checkout-apply.ts"]
-    FACTORY["createSessionCheckoutApplyEngine()"]
-    IFACE["SessionCheckoutApplyEngine（接口）"]
-    IMPL["DefaultSessionCheckoutApplyEngine"]
-    GIT["runGit 子进程封装"]
-    SNAP["captureSnapshot / snapshotFingerprint"]
-    MERGE["computeMerge / computeTreeMerge"]
-    ASSESS["prepareRollbackAssessment / prepareFinalizeAssessment"]
-    PLANS["plans 内存计划表"]
-  end
+### 3.2 有效基点（Effective Apply Base）
 
-  subgraph deps["依赖"]
-    CM["commit-message.ts::isValidCommitMessage"]
-    EX["delivery-excludes.ts::deliveryExcludePathspecs"]
-    SK["adapters/project-skills.ts::ProjectSkillStore"]
-    I18N["i18n/host.ts::hostMessage"]
-    CLI["git 可执行文件"]
-    NODE["node:fs / node:crypto / node:path"]
-  end
-
-  ORCH --> IFACE
-  IFACE -. 实现 .-> IMPL
-  FACTORY --> IMPL
-  SEAMS -. 注入 .-> IMPL
-  IMPL --> GIT
-  IMPL --> SNAP
-  IMPL --> MERGE
-  IMPL --> ASSESS
-  IMPL --> PLANS
-  SNAP --> SK
-  SNAP --> EX
-  IMPL --> CM
-  IMPL --> I18N
-  GIT --> CLI
-  SNAP --> NODE
-```
-
-依赖方向单一：引擎不导入任何 adapter 实现，只导入纯函数原语（`commit-message.ts`、`delivery-excludes.ts`）、一个宿主私有的 Skills 存储类（`ProjectSkillStore`，以可选依赖注入）与 i18n 文案函数。`git` 通过 `node:child_process.spawn` 直接调用，而不是走宿主 subprocess 端口——这是与 `src/adapters/git.ts` 的有意分工：adapter 负责宿主侧长任务与超时策略，引擎只跑短命令。
-
-### 2.1 接口与实现
+`selectEffectiveApplyBase` 在三个策略间选择（`ApplyBaseStrategy`）：
 
 ```mermaid
-classDiagram
-  class SessionCheckoutApplyEngine {
-    +inspectReview(input) InspectReviewResult
-    +checkpoint(input) CheckpointResult
-    +recoverCheckpoint(input) CheckpointRecoveryResult
-    +preflight(input) ApplyPlanResult
-    +plan(input) ApplyPlanResult
-    +apply(plan) ApplyResult
-    +finish(plan, options) FinishResult
-    +commitIsolated(input) CommitIsolatedResult
-    +reviewIsolated(input) ReviewIsolatedResult
-    +preview(plan, options) PreviewResult
-    +assessPreviewRecovery(input) PreviewRecoveryAssessment 或 ApplyErrorResult
-    +rollback(input) RollbackResult
-    +finalize(input) FinishResult
-  }
-
-  class DefaultSessionCheckoutApplyEngine {
-    -plans Map
-    -options SessionCheckoutApplyEngineOptions
-    +errorMessage(error) string
-    +cleanup(path) void
-  }
-
-  class SessionCheckoutApplyEngineOptions {
-    +projectSkills ProjectSkillStore
-    +beforeFinalLocalValidation() void
-    +afterLocalWriteBeforeVerification() void
-    +beforeFinalIsolatedValidation() void
-    +afterIsolatedWriteBeforeVerification() void
-  }
-
-  SessionCheckoutApplyEngine <|.. DefaultSessionCheckoutApplyEngine
-  DefaultSessionCheckoutApplyEngine --> SessionCheckoutApplyEngineOptions
+flowchart TD
+  Start["记录基点 recordedBaseOid"] --> A{"recordedBase 是否同时是 Local HEAD 与 Isolated HEAD 的祖先"}
+  A -->|否| RB["strategy = recorded_base"]
+  A -->|是| B{"Local HEAD 是否为 Isolated HEAD 的祖先"}
+  B -->|是| IC["strategy = isolated_contains_local_head 基点 = localHeadOid"]
+  B -->|否| C{"Isolated HEAD 是否为 Local HEAD 的祖先"}
+  C -->|是| LC["strategy = local_contains_isolated_head 基点 = isolatedHeadOid"]
+  C -->|否| RB
 ```
 
-`commitIsolated` 与 `reviewIsolated` 在接口上是**可选方法**（`commitIsolated?` / `reviewIsolated?`），因为它们是「会话分支交付」这一较新语义；编排层在 `operateFinish` 中显式检测缺失并返回 `operation_not_allowed`（错误文案 `thisVersionCannotDeliverToASessionBranch`），因此第三方引擎实现可以只实现 Local 写入路径。
+注释里写明了取舍：上一次 Apply 生成的内部 snapshot 提交通常不在任何分支历史里，因此第二次 Apply 会保守地退回 `recorded_base`。`effectiveBaseOid` 与 `baseStrategy` 都会写进 `ApplyPlan` 和 `PreviewReceipt`，供上层展示与审计。
 
-## 3. 方法分组与职责
+### 3.3 计划（ApplyPlan）与内存计划表
 
-引擎方法可归为四条能力线：
+`plan()` 与 `preflight()` 共享 `calculatePlan`，差别只有一个布尔值 `persistPlan`：
 
-```mermaid
-flowchart LR
-  subgraph read["只读评估"]
-    IR["inspectReview"]
-    RI["reviewIsolated"]
-    PF["preflight"]
-    APR["assessPreviewRecovery"]
-  end
-  subgraph plan["计划与应用"]
-    PL["plan"]
-    AP["apply"]
-  end
-  subgraph local["Local 写入与撤回"]
-    PV["preview"]
-    RB["rollback"]
-    FN["finalize"]
-    FI["finish"]
-  end
-  subgraph wt["Worktree 内提交"]
-    CP["checkpoint"]
-    RC["recoverCheckpoint"]
-    CI["commitIsolated"]
-  end
-  PL --> AP
-  PV --> RB
-  PV --> FN
-  CP --> RC
-```
+- `preflight` 只算不存，供「只读预检」使用，绝不产生可执行句柄。
+- `plan` 会把 `{ input, patch, plan, scope }` 存进私有 `Map<string, StoredPlan>`，键为 `revision`（`randomUUID()`）。
 
-| 方法 | 作用 | 是否改动仓库 | 备注 |
+同一 `isolatedPath` 只会保留一份计划：新计划写入前会删除同路径旧计划，因此 `plans` 不会随重复计算无限增长。
+
+`apply/finish/preview` 用 `planMatches` 逐字段比对调用方回传的 plan 与内存中的 plan（revision、两个指纹、effectiveBaseOid、baseStrategy、localHeadOid、localHeadRef、isolatedHeadOid、changedFiles 全序列），任一不符即 `invalid_plan`。这让 plan 成为一种「一次性能力令牌」：不可伪造、不可复用、不可篡改。
+
+### 3.4 排除项与 Project Skills
+
+`captureSnapshot` 默认使用 `deliveryExcludePathspecs()`（见 [core_worktree_domain](core-worktree-domain.md)）排除宿主运行期产物：`.dsh-ops`、`desktop-runtime.json`、`.dsh-runtime.json`，并为每个路径生成四条 pathspec（自身、子树、任意层级的 `**/path`、其子树）。含义是「评审看到的」严格等于「交付出去的」：面板多写几行日志不会把一次合法交付判成 `stale_isolated`。
+
+`reviewIsolated` 与 `commitIsolated` 允许调用方传入 `excludePaths` 覆盖默认值。
+
+## 4. 公共接口
+
+`SessionCheckoutApplyEngine` 的方法分四组。
+
+| 方法 | 作用 | 是否写 Local | 是否写 Worktree |
 | --- | --- | --- | --- |
-| `inspectReview` | 采集 Worktree 相对 `baseOid` 的变更集与指纹 | 否 | 会校验 Local 与 Worktree 同属一个对象库、项目子目录一致 |
-| `reviewIsolated` | 只看 Worktree 的评审快照 | 否 | **完全不解析 Local 根**，用于会话分支交付前复核 |
-| `preflight` | 复用真实 merge 计算但不持久化计划 | 否 | `calculatePlan(input, false)` |
-| `plan` | 计算并**持久化**可执行计划 | 否 | `calculatePlan(input, true)`，写入 `plans` |
-| `apply` | 把计划补丁写入 Local 工作区 | 是（仅工作区） | 使用计划时的指纹做 CAS，成功后删除计划 |
-| `preview` | 写入 Local 并产出 `PreviewReceipt` | 是 | 写前回调 `beforeWrite(receipt)` 持久化 receipt |
-| `rollback` | 按 receipt 撤回预览 | 是 | 只读评估 → 写前回调 → CAS → 打补丁 → 写后独立校验 |
-| `finalize` | 把预览中的任务增量提炼为 Local 提交 | 是（ref + index + 工作区） | `index.lock` 协议 + 双备份补偿 |
-| `finish` | 把 Worktree 变更合并进 Local 并提交（Local 写入式交付） | 是 | 与 `finalize` 同构，额外做任务增量剥离；当前状态机默认改用 `commitIsolated` |
-| `checkpoint` | 在 Worktree 内创建检查点提交 | 是（Worktree ref + index） | `beforeCommit` 先落 journal，再改 HEAD |
-| `recoverCheckpoint` | 中断后的检查点收口/回退 | 是 | 用 marker 文件证明锁归属 |
-| `commitIsolated` | 把 Worktree 工作区提交到其会话分支 | 是（Worktree ref + index） | 不读写 Local |
+| `inspectReview(input)` | 只读评审快照：校验 Local/Isolated 同仓库同项目前缀，返回 Isolated 指纹与变更文件 | 否 | 否（临时 index） |
+| `reviewIsolated(input)` | 只读 Worktree 快照，**完全不解析 Local** | 否 | 否 |
+| `preflight(input)` | 复用真实合并计算，但不持久化 plan | 否 | 否 |
+| `plan(input)` | 计算并持久化可执行 plan | 否 | 否 |
+| `apply(plan)` | 把已审核补丁写进 Local 工作区，并生成内部 snapshot 作为下一次基线 | 是 | 仅创建无 ref 的 commit |
+| `finish(plan, {commitMessage})` | 把任务增量从 Local 快照剥离成提交并推进分支，同时保留用户原有 staged 状态 | 是 | 仅创建 snapshot commit |
+| `preview(plan, opts)` | 先落 receipt artifacts，再把补丁写进 Local，产出 `PreviewReceipt` | 是 | 仅创建 snapshot commit |
+| `assessPreviewRecovery({localPath, receipt})` | 严格只读地评估 rollback 与 finalize 是否安全 | 否 | 否 |
+| `rollback({localPath, receipt, beforeWrite})` | 按 receipt 把 Local 恢复到 preview 之前 | 是 | 否 |
+| `finalize({localPath, receipt, commitMessage, beforeCommit})` | 把 preview 中的任务改动分离成提交 | 是 | 否 |
+| `checkpoint(input)` | 在 Worktree 上把当前工作区保存成一个提交（推进分支或 HEAD） | 否 | 是 |
+| `recoverCheckpoint(input)` | checkpoint 中断后修复 index 与锁 | 否 | 是 |
+| `commitIsolated(input)` | 会话分支交付：把 Worktree 工作区提交到它检出的分支，完全不读写 Local | 否 | 是 |
 
-### 3.1 核心数据契约
+`commitIsolated` 与 `reviewIsolated` 在接口上是可选的（`?`），因为端口允许第三方实现；上层 `operateFinish` 会显式检查两者是否存在，缺失时返回 `operation_not_allowed`（"this version cannot deliver to a session branch"）。
 
-| 类型 | 关键字段 | 语义 |
-| --- | --- | --- |
-| `ApplyPlanInput` | `baseOid`、`isolatedPath`、`localPath` | 所有只读评估与计划的统一入参；`baseOid` 必须是 40/64 位十六进制（`OID_PATTERN`） |
-| `ApplyPlan` | `revision`、`localFingerprint`、`isolatedFingerprint`、`effectiveBaseOid`、`baseStrategy`、`localHeadOid`、`localHeadRef`、`isolatedHeadOid`、`changedFiles` | 可执行计划的公开形态；`localHeadRef` 为 `null` 表示 Local detached（Apply 允许，Finish 拒绝） |
-| `StoredPlan`（内部） | `input`、`patch`、`plan`、`scope` | 仅存于内存 `plans`，`scope` 缓存两侧 git 根、项目前缀与源对象库路径 |
-| `CheckoutSnapshot`（内部） | `fingerprint`、`headOid`、`headRef`、`headTreeOid`、`indexTreeOid`、`treeOid`、`indexEntries` | 一次采样的完整事实，用于 CAS 与写后独立校验 |
-| `PreviewReceipt` | `previewId`、`reviewId`、`iteration`、`previewedAt`、三个基线与策略字段、Local 前后指纹、`localWorkingTreeOid`、`localIndexTreeOid`、`previewWorkingTreeOid`、`isolatedHeadOid`、`isolatedFingerprint`、`isolatedSnapshotOid`、`changedFiles` | 预览的可恢复凭据；回滚与定稿只认它 |
-| `PreviewRecoveryAssessment` | `localFingerprint`、`localHeadOid`、`localHeadRef`、`localHeadTreeOid`、`localIndexTreeOid`、`localWorkingTreeOid`、`rollback`、`finalize` | 严格只读的恢复评估结果 |
-| `CommitIsolatedSuccess` | `commitOid`、`changedFiles`、`isolatedFingerprint`、`branch`、`created` | `created=false` 表示工作区与 HEAD 一致，未产生空提交 |
+### 构造选项
 
-## 4. 快照与指纹：所有 CAS 的基础
+`SessionCheckoutApplyEngineOptions` 只有 `projectSkills` 与四个测试/宿主 seam：
 
-引擎中几乎所有安全判断都建立在 `CheckoutSnapshot` 之上。`captureSnapshot()` 用**临时索引文件**重建三种视图，因此永不污染真实索引：
+| seam | 触发位置 |
+| --- | --- |
+| `beforeFinalLocalValidation` | 权威 Local 指纹校验之前（apply / preview / rollback / finalize / finish） |
+| `afterLocalWriteBeforeVerification` | Local 写入完成、独立写后校验之前（rollback / finalize） |
+| `beforeFinalIsolatedValidation` | 权威 Worktree checkpoint CAS 之前 |
+| `afterIsolatedWriteBeforeVerification` | checkpoint 的 HEAD/index 写入之后、独立校验之前 |
 
-```mermaid
-flowchart TB
-  START["captureSnapshot(checkoutPath, indexPath)"] --> HEAD["git rev-parse HEAD"]
-  HEAD --> TREE["git rev-parse HEAD^{tree}"]
-  TREE --> SYM["git symbolic-ref --quiet HEAD<br/>（失败即 detached，headRef = null）"]
-  SYM --> LS["git ls-files --stage -z<br/>→ indexEntries"]
-  LS --> STAGED["git diff --cached --binary<br/>→ stagedPatch"]
-  STAGED --> IDX["临时 index：read-tree HEAD + apply --cached<br/>→ write-tree = indexTreeOid"]
-  IDX --> ADD["同一临时 index：add -A -- . 与 exclude pathspec<br/>→ write-tree = treeOid"]
-  ADD --> SKILL{"注入 ProjectSkillStore？"}
-  SKILL -->|是| CARRY["state() 得到携带的 Skills<br/>update-index --force-remove 后重写树<br/>并把 skills 指纹混入最终指纹"]
-  SKILL -->|否| FP
-  CARRY --> FP["fingerprint = sha256(headOid, headRef|DETACHED, indexEntries, treeOid)"]
-  FP --> OUT["CheckoutSnapshot：fingerprint / headOid / headRef<br/>headTreeOid / indexTreeOid / treeOid / indexEntries"]
+这些 seam 是并发测试与故障注入的唯一入口，生产路径不传。
+
+## 5. 关键数据契约
+
+### ApplyPlan
+
+```ts
+interface ApplyPlan {
+  revision: string
+  localFingerprint: string
+  isolatedFingerprint: string
+  effectiveBaseOid: string
+  baseStrategy: ApplyBaseStrategy
+  localHeadOid: string
+  localHeadRef: string | null   // null = detached，Apply 允许，Finish 拒绝自动提交
+  isolatedHeadOid: string
+  changedFiles: string[]
+}
 ```
 
-要点：
+### 结果联合
 
-- **宿主运行期产物被排除**。`deliveryExcludePathspecs()`（`src/delivery-excludes.ts`）默认排除 `.dsh-ops`、`desktop-runtime.json`、`.dsh-runtime.json`，并为每项生成 `:(exclude)path`、`:(exclude)path/**`、`:(exclude,glob)**/path`、`:(exclude,glob)**/path/**` 四条 pathspec。这样面板日志增长不会把一次合法交付判成 `stale_isolated`。
-- **随会话携带的 Project Skills 不进入指纹的“脏”判定**。当注入 `projectSkills` 时，引擎会把已携带的 Skills 路径从快照树中移除，并把 Skills 自身指纹混入最终 fingerprint，从而既让「评审看到的 == 交付出去的」，又能在 Skills 被修改时让指纹变化。
-- `indexEntries` 原样保留原始字节参与哈希，使「同样的文件、不同的 staged 状态」得到不同指纹。
-- 索引树与工作区树分开计算（`indexTreeOid` vs `treeOid`），`finalize` 依赖这个区分来保留用户原有 staged 状态。
+- `ApplyPlanResult = ApplyReadyPlanResult | ApplyConflictPlanResult | ApplyPlanErrorResult`
+- `ApplyResult = ApplySuccessResult | ApplyErrorResult`
+- `FinishResult = FinishSuccessResult | ApplyErrorResult`
+- `PreviewResult = PreviewSuccessResult | ApplyErrorResult`
+- `RollbackResult = RollbackSuccessResult | ApplyErrorResult`
+- `CheckpointResult = CheckpointSuccessResult | ApplyErrorResult`
+- `CheckpointRecoveryResult = CheckpointRecoverySuccessResult | ApplyErrorResult`
 
-## 5. 有效基线与三方合并
+成功结果里有两个字段值得注意：
 
-### 5.1 有效基线选择
+- `nextBaseOid`：本次整合的 Isolated 快照 commit。它不创建任何 ref，只作为后续 Apply 的内部基线，避免同一份改动被重复应用。
+- `ApplyErrorResult.committedOid`：交付提交**已经写进分支 ref 之后**才失败的证据。带它时上层不能把记录当成「什么都没发生」。
 
-配置的 `baseOid` 未必是合并的最佳基点：Local 可能已经前进，或 Worktree 已经包含 Local HEAD。`selectEffectiveApplyBase()` 只在前置条件可证时才前移基线：
+### 冲突明细
 
-```mermaid
-flowchart TB
-  A["recordedBaseOid / localHeadOid / isolatedHeadOid"] --> B{"recordedBase 同时是<br/>Local 与 Isolated HEAD 的祖先？"}
-  B -->|否| R1["strategy = recorded_base<br/>oid = recordedBaseOid"]
-  B -->|是| C{"localHead 是 isolatedHead 的祖先？"}
-  C -->|是| R2["strategy = isolated_contains_local_head<br/>oid = localHeadOid"]
-  C -->|否| D{"isolatedHead 是 localHead 的祖先？"}
-  D -->|是| R3["strategy = local_contains_isolated_head<br/>oid = isolatedHeadOid"]
-  D -->|否| R1
+`ApplyConflictPlanResult.conflictDetails` 是逐文件的 combined 冲突 diff，受 `CONFLICT_DETAIL_FILE_LIMIT = 6` 与 `CONFLICT_DETAIL_DIFF_LIMIT = 4096`（见 [core_ports_and_types](core-ports-and-types.md)）约束，超出部分用 i18n 文案标注截断与剩余文件数，防止 payload 撑爆模型上下文。
+
+### PreviewReceipt
+
+`PreviewReceipt` 是 preview 的持久化凭证，也是 rollback/finalize 的唯一输入。除身份字段（`previewId`、`reviewId`、`iteration`）与基点字段外，它记录了**六个 tree/oid 证据**：`localWorkingTreeOid`、`localIndexTreeOid`、`previewWorkingTreeOid`、`isolatedHeadOid`、`isolatedSnapshotOid`，以及写入前后的两个 Local 指纹（`localFingerprintBefore`、`localFingerprintPreview`）。
+
+### PreviewRecoveryAssessment
+
+`assessPreviewRecovery` 返回只读结论：
+
+```ts
+interface PreviewRecoveryAssessment {
+  localFingerprint, localHeadOid, localHeadRef, localHeadTreeOid, localIndexTreeOid, localWorkingTreeOid
+  rollback: PreviewRecoverySafeRollback | PreviewRecoveryBlockedAction
+  finalize: PreviewRecoverySafeFinalize | PreviewRecoveryBlockedAction
+}
 ```
 
-注释中明确指出保守取舍：上次 Apply 写出的内部快照提交通常不在任一分支历史上，因此第二次 Apply 会退回 `recorded_base`，宁可多算一次合并也不误用前移基线。策略值最终写入 `ApplyPlan.baseStrategy` 并出现在用户可见的预检视图（`WorktreeApplyPreflightFacts`）中。
+两个动作各自独立评估，都可能是 `{ status: 'blocked', code, message, conflictingFiles? }`，阻塞码为 `stale_local`、`preview_modified`、`commit_isolation_conflict`、`operation_not_allowed`。上层把它包成 `WorktreePreviewRecoveryProof`（含 generation 哈希）再交给用户确认。
 
-### 5.2 两种合并原语
+## 6. 内部流程
 
-- `computeMerge()`：把 Local 快照树与 Isolated 快照树各自 `commit-tree` 成以 `baseOid` 为父的临时提交，在一个 `git init --template=` 的临时仓库里 `merge --no-commit --no-ff`。冲突时返回 `conflictingFiles`（过滤到项目子目录、转成项目相对路径、排序）并用 `collectConflictDetails()` 逐文件采集 `git diff` 文本；就绪时产出 `changedFiles`、二进制 `patch` 与 `mergedTreeOid`（在 Local 的对象库上用临时索引重放补丁后再 `write-tree`，保证 OID 落在 Local 仓库）。
-- `computeTreeMerge()`：纯树级三方合并（`base`/`ours`/`theirs` 三棵树），用于 `finish`/`finalize`/`rollback` 的「增量剥离」与「索引保留」计算，返回合并后的树 OID。
+### 6.1 Git 子进程执行（`runGit`）
 
-冲突详情有硬上限：`CONFLICT_DETAIL_FILE_LIMIT = 6` 个文件、`CONFLICT_DETAIL_DIFF_LIMIT = 4096` 字符（来自 `src/types.ts`），超出时追加一条 `worktreeConflictMoreFiles` 提示，避免 payload 撑爆模型上下文。
+所有 Git 调用都走同一个封装，集中处理四类风险：
 
-### 5.3 任务增量剥离公式
+1. **ambient env 清洗**：`AMBIENT_GIT_ENV_PATTERN` 抹掉 `GIT_DIR`、`GIT_WORK_TREE`、`GIT_INDEX_FILE`、`GIT_OBJECT_DIRECTORY`、`GIT_ALTERNATE_OBJECT_DIRECTORIES`、`GIT_CONFIG_*` 等，保证仓库路由只来自被授权的 `cwd`。`options.env` 是唯一的显式注入通道（临时 index、alternate objects），且优先级最高。
+2. **hooks 禁用**：`-c core.hooksPath=<惰性创建的临时空目录>`，避免用户 hook 在 apply 路径上执行任意副作用。
+3. **路径与输出稳定**：Windows 追加 `-c core.longpaths=true`，统一 `-c core.quotePath=false`、`-c core.fsmonitor=false`、`--no-optional-locks`、`GIT_OPTIONAL_LOCKS=0`、`GIT_TERMINAL_PROMPT=0`、`LC_ALL=C`。
+4. **超时**：默认 `GIT_TIMEOUT_MS = 30_000`（apply 路径命令都短，宿主 git 端口默认 120s），超时 `SIGTERM` 并以 `gitCommandTimedOut` 报错。
 
-`finish` 与 `finalize` 都必须在「用户未提交的 Local 改动」中只提交属于任务的那一部分，引擎用两次树合并实现：
+非 `allowedExitCodes` 的退出码统一抛 `GitCommandFailure(args, result)`，`errorMessage()` 再翻译成 `gitOperationFailed` 宿主消息。
+
+### 6.2 合并计算（`computeMerge` / `computeTreeMerge`）
+
+两个函数都遵循「临时仓库做合并，正式仓库只写 tree」的模式：
 
 ```mermaid
-flowchart LR
-  H["H = Local HEAD 树"] --> C["C = H + (M − L)<br/>任务提交树"]
-  L["L = Local 完整快照树"] --> C
-  M["M = merge 后的合并树"] --> C
-  C --> S["S' = C + (S − H)<br/>恢复用户原有 staged 状态"]
-  S0["S = Local index 树"] --> S
-  H --> S
+sequenceDiagram
+  participant E as 引擎
+  participant T as 临时合并仓库
+  participant O as 对象目录
+  participant L as 正式 checkout
+  E->>O: 创建 objectDirectory
+  E->>L: commit-tree Local snapshot / Isolated snapshot 挂到 baseOid
+  E->>T: init 临时仓库并配置 hooksPath autocrlf user
+  E->>T: checkout --detach localCommit
+  E->>T: merge --no-commit --no-ff isolatedCommit
+  alt 退出码 1
+    T-->>E: diff --diff-filter=U 冲突文件
+    E->>T: 逐文件 diff 采集 combined 冲突详情
+    E-->>E: 返回 conflict 结果
+  else 合并成功
+    E->>T: write-tree 得到 mergedTree
+    E->>T: diff --binary localTree mergedTree 得到 patch
+    E->>L: read-tree localTree 到临时 index
+    E->>L: apply --cached patch
+    E->>L: write-tree 得到 centralMergedTree
+    E-->>E: 返回 ready changedFiles patch mergedTreeOid
+  end
 ```
 
-任一步骤冲突都返回 `commit_isolation_conflict`，并附上冲突文件列表——此时引擎选择「拒绝」而不是猜测，因为把用户未提交内容错误地写进提交是不可逆的。
+`computeTreeMerge` 是同一思路的纯 tree 版本，用于 rollback/finalize/finish 里的「差分再合并」：`C = H + (M - L)` 剥离任务增量、`S' = C + (S - H)` 恢复用户 staged 状态。
 
-## 6. 主要流程
+冲突文件会按 `projectPrefix` 过滤并转成项目相对路径再排序，保证 Worktree 项目是仓库子目录时也只报告项目内路径。
 
-### 6.1 计划与应用（plan → apply）
+### 6.3 plan / apply 时序
 
 ```mermaid
 sequenceDiagram
   participant M as 状态机
-  participant E as ApplyEngine
-  participant T as 临时目录
-  participant G as git
-  participant L as Local 仓库
-  participant W as Worktree
-
-  M->>E: plan({ baseOid, isolatedPath, localPath })
-  E->>G: rev-parse --show-toplevel 两侧
-  E->>G: rev-parse --git-path objects 两侧
-  E->>E: 校验同一对象库与同一项目子目录
-  E->>G: cat-file -e baseOid^{commit}
-  E->>L: captureSnapshot(Local)
-  E->>W: captureSnapshot(Worktree)
-  E->>G: selectEffectiveApplyBase()
-  E->>G: changedTreePaths(base..isolated.tree)
-  E->>T: computeMerge()（临时仓库 merge）
-  alt 冲突
-    E-->>M: { status: 'conflict', conflictingFiles, conflictDetails }
-  else 就绪
-    E->>E: 生成 revision 并存入 plans（同一 isolatedPath 只留一份）
-    E-->>M: { status: 'ready', plan }
-  end
-
+  participant E as 引擎
+  participant L as Local checkout
+  participant W as Isolated Worktree
+  M->>E: plan(baseOid, isolatedPath, localPath)
+  E->>L: 解析 git root 与 objects 目录
+  E->>W: 解析 git root 与 objects 目录
+  E->>E: 校验同仓库且项目前缀一致
+  E->>L: captureSnapshot local.index
+  E->>W: captureSnapshot isolated.index
+  E->>E: selectEffectiveApplyBase
+  E->>W: diff 检查变更是否都在项目内
+  E->>E: computeMerge
+  E-->>M: ready plan 或 conflict 或 error
   M->>E: apply(plan)
-  E->>E: plans.get(revision) + planMatches() 校验
-  E->>G: 重新校验对象库身份
-  E->>L: captureSnapshot 并比对 localFingerprint/localHeadOid
-  E->>W: captureSnapshot 并比对 isolatedFingerprint/isolatedHeadOid
-  E->>G: 写出无 ref 的 "Applied Isolated snapshot" 提交（nextBaseOid）
-  E->>L: 最终 CAS 快照
-  E->>G: git apply --binary --whitespace=nowarn
-  E-->>M: { status: 'applied', changedFiles, nextBaseOid }
+  E->>E: plans.get 并 planMatches 校验
+  E->>L: 复核 localFingerprint 与 localHeadOid
+  E->>W: 复核 isolatedFingerprint 与 isolatedHeadOid
+  E->>W: 写无 ref 的 Applied Isolated snapshot 得到 nextBaseOid
+  E->>L: beforeFinalLocalValidation 后再次复核指纹
+  E->>L: git apply --binary stored.patch
+  E-->>M: applied changedFiles nextBaseOid
 ```
 
-`nextBaseOid` 是本次整合的 Isolated 快照提交，不创建任何 ref，只作为后续 Apply 的内部基线（写入 `record.applyBaseOid`）。计划表在成功后立即删除，`planMatches()` 会逐字段比对 revision、三个指纹、基线策略、两侧 HEAD、`localHeadRef` 与 `changedFiles`，因此被篡改或复用的计划一定被拒绝（`invalid_plan`）。
+`apply` 成功后从 `plans` 中删除该 revision，因此同一 plan 无法被应用两次。
 
-### 6.2 预览 → 回滚 / 定稿
+### 6.4 preview / rollback / finalize 生命周期
 
 ```mermaid
-sequenceDiagram
-  participant M as 状态机
-  participant E as ApplyEngine
-  participant L as Local
-  participant W as Worktree
-
-  M->>E: preview(plan, { previewId, reviewId, iteration, beforeWrite })
-  E->>L: captureSnapshot（含 headRef 比对）
-  E->>W: captureSnapshot（指纹比对）
-  E->>L: prepareIndexFromPatch 预演预览后的工作区树
-  E->>W: 写出 "Previewed Isolated snapshot" 提交
-  E->>M: beforeWrite(preparedReceipt)（持久化 receipt + 保留 artifact）
-  E->>L: 最终 CAS + git apply
-  E->>L: 写后校验 treeOid == 预演树
-  E-->>M: { status: 'previewed', receipt }
-
-  alt 用户回滚
-    M->>E: rollback({ localPath, receipt, beforeWrite })
-    E->>E: prepareRollbackAssessment()（Local 未漂移 / 未冲突）
-    E->>M: beforeWrite()（journal 落盘）
-    E->>L: 最终 CAS + git apply 回滚补丁
-    E->>L: 写后校验 fingerprint == 期望指纹
-    E-->>M: { status: 'preview_rolled_back' }
-  else 用户定稿
-    M->>E: finalize({ localPath, receipt, commitMessage, beforeCommit })
-    E->>E: prepareFinalizeAssessment()（任务树 / 最终索引树）
-    E->>E: commit-tree 生成任务提交
-    E->>M: beforeCommit(commitOid)
-    E->>L: 备份 index + 获取 index.lock + 最终 CAS
-    E->>L: update-ref 分支 + rename(lock → index)
-    E->>L: 写后独立校验
-    E-->>M: { status: 'finished', commitOid, nextBaseOid }
-  end
+stateDiagram-v2
+  [*] --> ReadyForReview
+  ReadyForReview --> PreviewActive: preview 成功写入 Local
+  ReadyForReview --> ReadyForReview: preview 返回 stale_local 或 stale_isolated 或 invalid_plan
+  PreviewActive --> ReadyForReview: rollback 成功
+  PreviewActive --> Finalized: finalize 成功
+  PreviewActive --> PreviewDetached: rollback 或 finalize 返回 stale_local 或 preview_modified
+  PreviewDetached --> ReadyForReview: 用户重试 rollback 且 assessPreviewRecovery 判定 safe
+  PreviewDetached --> Finalized: 用户重试 finalize 且 assess 判定 safe
 ```
 
-`PreviewReceipt` 是这条链路的核心凭据，记录了预览前后的 Local 指纹、Local 工作区树/索引树、预览工作区树、Isolated 的 HEAD/指纹/快照提交以及 `changedFiles`。`assessPreviewRecovery()` 严格只读地基于该 receipt 判断「回滚是否安全」「定稿是否安全」，返回 `PreviewRecoveryAssessment`，其中：
+`preview` 的关键顺序（receipt-first）：
 
-- `rollback`：`{ status: 'safe', targetTreeOid }` 或 `PreviewRecoveryBlockedAction`；
-- `finalize`：`{ status: 'safe', taskTreeOid, finalIndexTreeOid, expectedWorkingTreeOid, commitRequired }` 或阻塞动作。
+1. 校验 plan 身份与 preview 身份（`previewId`、`reviewId`、`iteration >= 1` 且为安全整数）。
+2. 复核 Local（含 `headRef`）与 Isolated 指纹；再做一次「持久快照」复核，确保用于生成 receipt 的 tree 与已审核的完全一致。
+3. 用 `prepareIndexFromPatch` 算出 `previewWorkingTreeOid`，用 `createSnapshotCommit` 算出 `isolatedSnapshotOid`。
+4. `beforeFinalLocalValidation` 后第三次复核 Local 指纹。
+5. `options.beforeWrite(preparedReceipt)` —— 上层在这里持久化 artifacts 与 journal，**在此之前不得触碰 Local**。
+6. `git apply --binary` 写入 Local。
+7. 写后快照必须等于 `previewWorkingTreeOid`，否则 `git_error`。
 
-Local 前进后，评估会在临时仓库里做多次树合并（`preview-rollback-advanced-baseline`、`preview-rollback-preview-absence`、`preview-rollback-advanced-preview`），把「新提交是否已包含预览内容」「新提交是否与预览改动冲突」区分开，从而给出 `preview_modified` 而不是笼统的失败。
+`rollback` 先用 `prepareRollbackAssessment` 求目标 tree，再 `beforeWrite()`（持久化 journal）→ 最后一次指纹 CAS → `git apply` → 写后独立校验（含期望指纹 `snapshotFingerprint(headOid, headRef, indexEntries, targetTreeOid)`）。注意 `beforeWrite` 必须发生在最终 CAS 之前，因为 registry I/O 可能 await。
 
-### 6.3 检查点与恢复
+`prepareRollbackAssessment` 覆盖了「Local 在 preview 之后又前进」的复杂情形：先判断 `headRef` 未变、`receipt.localHeadOid` 是当前 HEAD 的祖先；再用两次 `computeTreeMerge` 推导「新提交上的基线」与「preview 是否已被新提交吸收」，任一冲突或吸收即 `preview_modified` 阻塞。
+
+`prepareFinalizeAssessment` 做同样强度的分离证明：要求 Local 在正常分支上（`refs/heads/`），要求 `previewWorkingTreeOid` 能干净地剥离出任务 tree，要求任务 tree 与 index 能合并成最终 index tree，并在「任务改动已经在 HEAD 里」时判定 `preview_modified`。
+
+`finalize` 的写入段是整模块最谨慎的部分：
 
 ```mermaid
-sequenceDiagram
-  participant M as 状态机
-  participant E as ApplyEngine
-  participant W as Worktree
-
-  M->>E: checkpoint({ isolatedPath, expectedFingerprint, expectedHeadOid, commitMessage, beforeCommit })
-  E->>W: captureSnapshot 并比对指纹与 HEAD
-  E->>W: changedTreePaths 校验变更全在项目根内
-  E->>W: commit-tree（tree = 快照树，parent = HEAD）
-  E->>M: beforeCommit({ commitOid, parentOid, indexTreeOid, changedFiles })
-  Note over M: 写 journal + 保留 checkpoints 内部 artifact
-  E->>W: 准备 clean index，占位 index.lock 与 marker 文件
-  E->>E: beforeFinalIsolatedValidation 后再次快照 CAS
-  E->>W: update-ref（detached 用 --no-deref HEAD，分支则推进 ref）
-  E->>W: rename(index.lock → index) 并删除 marker
-  E->>W: 写后独立校验（HEAD/ref/树三者一致）
-  E-->>M: { status: 'checkpointed', commitOid, parentOid, changedFiles, isolatedFingerprint }
-
-  M->>E: recoverCheckpoint({ commitOid, parentOid, expectedIndexTreeOid })
-  E->>W: 检查 index.lock 与 marker 归属
-  alt HEAD 仍在 parent
-    E-->>M: checkpoint_aborted（清理本引擎持有的锁）
-  else HEAD 已到 commit
-    E->>W: 重建 clean index 并原子替换
-    E-->>M: checkpoint_recovered
-  end
+flowchart TD
+  A["校验 commitMessage 与 assessment"] --> B{"commitRequired"}
+  B -->|false| C["最终 Local 指纹 CAS 后返回 finished commitOid=null"]
+  B -->|true| D["treePatch 生成 taskPatch 与 finalIndexPatch"]
+  D --> E["prepareIndexFromPatch 复算并比对 taskTreeOid"]
+  E --> F["createUserCommit 生成 commitOid"]
+  F --> G["复算 finalIndexTreeOid 并比对"]
+  G --> H["beforeCommit(commitOid) 持久化恢复信息"]
+  H --> I["copyFile 备份真实 index"]
+  I --> J["beforeFinalLocalValidation"]
+  J --> K["writeIndexLock 取得 index.lock"]
+  K --> L["最终指纹 CAS 且 index 字节未变"]
+  L --> M["update-ref 推进分支"]
+  M --> N["rename index.lock 覆盖真实 index"]
+  N --> O["写后独立校验"]
+  O -->|通过| P["finished"]
+  O -->|失败| Q["按持有锁状态执行补偿回滚"]
+  Q --> R{"能否证明完全恢复"}
+  R -->|能| S["git_error recoveryState=unchanged"]
+  R -->|不能| T["git_error recoveryState=uncertain 并保留 backup index"]
 ```
 
-两个细节值得强调：
+`writeIndexLock` 使用 Git 官方 `index.lock` 协议（`open(lockPath, 'wx')` + `writeFile` + `sync`），持锁期间并发 `git add/reset` 无法改写真实 index，因此「校验 → 打补丁 → update-ref → 换 index」在同一把锁内完成。`isIndexLockContention` 把 `EEXIST` 翻译成 `stale_local`（"another git operation is updating the local index, retry"）。
 
-1. `advanceHead()` 区分符号 HEAD 与 detached HEAD。对分支附加的 Worktree 必须推进 `refs/heads/...` 而不是 `HEAD`，否则 `--no-deref` 会把 HEAD 打成游离，令会话分支失去落点。
-2. 锁归属靠 marker 文件 `«index».lock.dsh-«commitOid»` 证明：`recoverCheckpoint` 只有在 marker 内容与提交号一致、且锁内索引树与目标树一致时才敢删除别人的锁；否则报 `stale_isolated`。
+补偿回滚分三种情形，且都是 CAS：
 
-### 6.4 会话分支交付（commitIsolated / reviewIsolated）
+- ref 已动、index 未替换：仍持有 lock，直接 `update-ref` 回退并删除 lock。
+- ref 已动、index 已替换：重新取 lock，先确认真实 index 仍等于本次写入的字节，再回退 ref 并恢复 backup；若 index 已被第三方改动则拒绝覆盖（保留用户 index 与 backup 两份证据）。
+- ref 已动但缺少可验证的 index 补偿证据：直接报告 partial rollback。
+
+### 6.5 checkpoint 与 recoverCheckpoint
+
+`checkpoint` 把 Worktree 当前工作区保存成一个提交，同时保证分支不被 detach：
 
 ```mermaid
-sequenceDiagram
-  participant M as 状态机
-  participant E as ApplyEngine
-  participant W as Worktree
-
-  M->>E: reviewIsolated({ isolatedPath, baseOid, excludePaths })
-  E->>W: captureSnapshot（排除宿主产物）
-  E-->>M: { status: 'ready', isolatedFingerprint, isolatedHeadOid, changedFiles }
-
-  M->>E: commitIsolated({ isolatedPath, baseOid, commitMessage, branchRef })
-  E->>W: rev-parse HEAD / symbolic-ref HEAD
-  alt branchRef 与当前分支不一致
-    E-->>M: operation_not_allowed（拒绝提交到 detached HEAD）
-  end
-  E->>W: 用临时索引构造提交树（不含宿主产物与携带 Skills）
-  E->>E: 先校验变更集范围（动 ref 之前）
-  E->>W: commit-tree + update-ref HEAD（deref）+ reset --quiet
-  E->>W: 提交后干净快照（作为清理阶段 CAS 指纹）
-  E-->>M: { status: 'committed', commitOid, changedFiles, isolatedFingerprint, branch, created }
+flowchart TD
+  A["校验 commitMessage 与 expectedHeadOid 与 expectedFingerprint"] --> B["captureSnapshot 比对 head 与指纹"]
+  B -->|不符| S["stale_isolated"]
+  B --> C["changedTreePaths 检查是否全在项目内"]
+  C --> D{"changedFiles 为空"}
+  D -->|是| NA["operation_not_allowed 无新改动"]
+  D -->|否| E["createUserCommit 生成 commitOid"]
+  E --> F["beforeCommit 持久化 prepared 证据与内部 ref"]
+  F --> G["prepareIndexFromPatch 生成 clean index"]
+  G --> H["写 indexLockMarker 并 open index.lock"]
+  H --> I["copyFile 把 clean index 写入 lock"]
+  I --> J["beforeFinalIsolatedValidation 后再次比对指纹"]
+  J --> K["advanceHead 更新 HEAD 或分支 ref"]
+  K --> L["rename lock 覆盖真实 index"]
+  L --> M["删除 marker"]
+  M --> N["afterIsolatedWriteBeforeVerification 后写后校验"]
+  N --> O["checkpointed"]
 ```
 
-与 `finish` 的根本差别：`commitIsolated` **完全不碰 Local**——不读 Local 的 HEAD/工作区/索引，不与它的未提交改动求三方合并，也不向它写补丁。一旦 ref 已前进而后续步骤失败，结果会带上 `committedOid`，让调用方知道「磁盘上已经多了一个提交」，不能把记录当成什么都没发生退回。
+`advanceHead` 的注释点出了关键约束：分支上的 Worktree 必须推进分支 ref，**不能**用 `--no-deref` 覆盖符号 HEAD，否则会把会话分支 detach 掉，交付提交就无处可落。只有 `headRef === null`（detached）时才 `update-ref --no-deref HEAD`。
 
-## 7. 错误契约
+失败路径同样有序：HEAD 已推进但 index 替换失败时先尝试回退 HEAD；回退成功报 `recoveryState: 'unchanged'`，回退失败则 `preserveRecoveryEvidence = true`，保留 marker 与相邻 index 作为恢复证据并报 `uncertain`。
 
-`ApplyError` 是判别联合，错误码即调用方可依赖的契约：
+`recoverCheckpoint` 是对应的恢复入口，通过 `index.lock` 内容是否等于 `commitOid` 的 marker 文件证明锁的归属：
 
-```mermaid
-flowchart TB
-  E["ApplyError"] --> A["invalid_input<br/>参数/OID/提交信息非法"]
-  E --> B["invalid_plan<br/>计划缺失、被复用、或被篡改"]
-  E --> C["stale_local<br/>Local 指纹或 HEAD 已变化"]
-  E --> D["stale_isolated<br/>Worktree 指纹或 HEAD 已变化"]
-  E --> F["git_error<br/>git 失败，recoveryState 为 unchanged 或 uncertain"]
-  E --> G["commit_isolation_conflict<br/>任务增量无法与用户改动分离"]
-  E --> H["operation_not_allowed<br/>状态或分支类型不允许"]
-  E --> I["preview_modified<br/>Local 已有与预览冲突/重叠的新改动"]
-```
+- `HEAD === parentOid`：只清理属于自己的 lock/marker，返回 `checkpoint_aborted`。
+- `HEAD === commitOid` 且工作区干净、index 树符合预期：重建 clean index，用同样的 lock 协议原子替换，返回 `checkpoint_recovered`。
+- 其他情形一律 `stale_isolated`，绝不在无法证明归属时删除别人的锁。
 
-| 错误码 | 触发场景 | 调用方典型处理 |
+### 6.6 commitIsolated / reviewIsolated / inspectReview
+
+`commitIsolated` 是「会话分支交付」的核心，与 `finish` 的根本差别是**完全不碰 Local**：
+
+1. 校验 `baseOid` 与 commitMessage，解析 Worktree git root 与项目前缀。
+2. 读取 HEAD、HEAD tree、`symbolic-ref`；若调用方给了 `branchRef` 而 HEAD 不在该分支上，返回 `operation_not_allowed`（防止提交落到 detached HEAD 而丢线）。
+3. 用与评审快照同一条构造路径（临时 index + excludes）算出 `pending.treeOid`，因此宿主运行期产物与携带的 Project Skills 不会被带进交付提交。
+4. **先**校验变更集全在项目内，再动 ref——提交一旦写进分支就不可撤回，任何能提前判死的检查都不该排在它后面。
+5. 有变化时 `createUserCommit` + `update-ref HEAD`（默认 deref，分支一起前进），随后立即把 `committedOid` 记下；之后任何失败都会带上它。再 `reset --quiet` 让 index 归位。
+6. 提交后采集干净快照作为清理阶段的 CAS 指纹，并报告 `changedFiles`、`branch`、`created`。
+
+若 Git 报 `empty ident` 一类身份缺失错误，会被翻译成 `invalid_input` + `initialIdentityMissing`，而不是让模型猜。
+
+`reviewIsolated` 连 Local 的 git root 都不解析，只读 Worktree，用于「评审之后 Worktree 是否又改了」的判据。`inspectReview` 则必须两侧同仓库、同项目前缀，并在 Local 侧 `cat-file -e` 验证 base commit 存在。
+
+### 6.7 清理辅助函数
+
+`cleanup(path)` 用 `rm -rf` 清理临时目录，失败只 `console.warn`——清理失败不能掩盖主结果。`removeBestEffort` 用于 lock/marker 的尽力清理。`inspectIndexFileTree` 判断 `index.lock` 是否存在以及其中的 tree，`checkpointLockMarkerOwned` 校验 marker 内容。
+
+## 7. 错误模型与恢复语义
+
+`ApplyError` 是 8 个具名错误的联合：
+
+| code | 触发场景 | 是否证明未触碰 Local/Worktree |
 | --- | --- | --- |
-| `invalid_input` | OID 格式、提交信息为空/含 `\0`、项目子目录不匹配、对象库不同、预览身份非法、变更越出项目根 | 直接报错，通常映射到 `invalid_input` |
-| `invalid_plan` | `plans` 中没有该 revision、`planMatches` 失败、对象库身份变化、持久快照与评审不一致 | 重新 `plan` |
-| `stale_local` | Local 快照指纹/HEAD/headRef 变化，或 `index.lock` 被其他 git 进程占用 | 刷新目标后重试 |
-| `stale_isolated` | Worktree 快照变化、检查点输入过期、锁归属无法证明 | 重新准备评审 |
-| `git_error` | 任意 git 命令失败、写后校验不通过、超时 | `recoveryState: 'unchanged'` 可安全退回就绪；`'uncertain'` 必须进入 `recovery_required` |
-| `commit_isolation_conflict` | 任务树/最终索引树三方合并冲突 | 让用户在 Local 侧处理 |
-| `operation_not_allowed` | Local 为 detached HEAD、无新变更可检查点、分支不匹配 | 提示用户切换分支或换动作 |
-| `preview_modified` | 新 Local 提交已包含或冲突于预览改动 | 转入 `preview_detached` |
+| `invalid_input` | OID 格式、commit message、preview 身份、项目前缀不匹配、仓库不同源 | 是 |
+| `invalid_plan` | plan 缺失/被使用/被篡改、仓库身份变化、持久快照与已审核不一致 | 是 |
+| `stale_local` | Local 指纹或 HEAD 在任一 CAS 点变化、index lock 竞争 | 是 |
+| `stale_isolated` | Isolated 指纹或 HEAD 变化、checkpoint 期间工作区变动、lock 归属不可证 | 是 |
+| `git_error` | Git 命令失败、写后校验不通过 | 取决于 `recoveryState` |
+| `commit_isolation_conflict` | 任务增量无法从 Local 未提交改动中可靠剥离 | 是 |
+| `operation_not_allowed` | detached Local、无新改动可保存、非正常分支 | 是 |
+| `preview_modified` | preview 区域出现了额外改动，安全回滚/分离不成立 | 是 |
 
-`git_error.recoveryState` 是编排层决定「退回 ready 还是标记 recovery_required」的唯一依据，因此引擎在每条写路径上都尽量给出可证结论：能证明未触碰磁盘就报 `unchanged`，不能证明就报 `uncertain`。
+`GitApplyError.recoveryState` 是上层的分流依据：
 
-## 8. Git 执行硬化
+- `'unchanged'`：引擎已证明 Local（或 Worktree）被完整还原，上层可以清掉 planning journal 并回到 `ready`。
+- `'uncertain'`：无法证明成功或完整回滚，上层必须进入 `recovery_required` 并保留证据（`finalize` 会保留 `index.domi-backup-<uuid>`）。
 
-`runGit()` 是所有命令的唯一出口，固定携带：
+上层 `operatePreview` / `operateRollbackPreview` / `operateFinalizePreview` / `operateCheckpoint` 正是按「错误码 + journal step + recoveryState」三要素决定回退到 `ready` 还是升级到 `recovery_required`（见 [session_checkout_engine](session-checkout-engine.md)）。
 
-- `--no-optional-locks`、`core.quotePath=false`、`core.fsmonitor=false`、`core.hooksPath=<空目录>`（惰性创建于系统临时目录），Windows 上额外 `core.longpaths=true`；
-- 环境变量：`GIT_OPTIONAL_LOCKS=0`、`GIT_TERMINAL_PROMPT=0`、`LC_ALL=C`、`LANG=C`；
-- **清除环境中的路由类变量**：`AMBIENT_GIT_ENV_PATTERN` 匹配 `GIT_DIR`、`GIT_WORK_TREE`、`GIT_INDEX_FILE`、`GIT_OBJECT_DIRECTORY`、`GIT_ALTERNATE_OBJECT_DIRECTORIES`、`GIT_NAMESPACE`、`GIT_CEILING_DIRECTORIES` 等，避免外部环境把 git 导向非授权仓库；`options.env` 是唯一的显式注入通道且优先级最高；
-- 默认超时 30 秒（`GIT_TIMEOUT_MS`），超时 `SIGTERM` 并以 `gitCommandTimedOut` 文案报错；`allowedExitCodes` 让 `merge`（0/1）、`symbolic-ref`、`merge-base --is-ancestor` 等把非零当正常结果。
+## 8. 一致性与并发控制
 
-对象读写通过 `gitObjectEnvironment()` 组合 `GIT_OBJECT_DIRECTORY` 与 `GIT_ALTERNATE_OBJECT_DIRECTORIES`（保留既有 alternates），使临时目录里的合并产物与 Local 的对象库互见，从而让 `write-tree` 产生的 OID 直接可用。
+引擎不持有跨进程锁，它靠三层机制保证一致性：
 
-## 9. 索引原子替换与补偿
+1. **指纹 CAS**：每个写入前都有一次权威快照复核；写入后有一次独立写后校验。
+2. **Git 原生锁**：`index.lock`（checkpoint、finalize、finish）与 `update-ref` 的 expected-old-value 参数（`update-ref <ref> <new> <old>`）共同构成原子事务。
+3. **一次性 plan**：`plans` Map 是进程内状态，`planMatches` 保证只有原始 plan 才能被执行，执行后立即删除。
 
-`finalize`、`finish`、`checkpoint` 都会改真实索引，三者统一使用 Git 的 `index.lock` 协议：
+需要注意的边界：`plans` 是实例状态，跨进程不共享；因此 plan 只在同一引擎实例生命周期内有效，宿主重启后必须重新 `plan`。这也是 `apply` 会重新校验指纹而不仅依赖 plan 的原因。
 
-```mermaid
-flowchart TB
-  A["准备目标索引内容"] --> B["writeIndexLock：open(index.lock, 'wx')<br/>write + fsync"]
-  B -->|EEXIST| C["stale_local<br/>anotherGitOperationIsUpdatingTheLocalIndexRetry"]
-  B --> D["持锁期间做权威 CAS 快照"]
-  D -->|快照不一致| E["stale_local，锁在 finally 中清理"]
-  D --> F["update-ref（带 old OID 的 CAS）"]
-  F --> G["rename(index.lock → index)"]
-  G --> H["写后独立校验"]
-  H -->|通过| OK["成功"]
-  H -->|失败| I["补偿：ref CAS 回退 / 用备份索引原子恢复"]
-  I -->|补偿成功| J["git_error + recoveryState = unchanged"]
-  I -->|补偿失败| K["git_error + recoveryState = uncertain<br/>保留 backup 索引作为证据"]
-```
+## 9. 构建、测试与配置
 
-`finalize` 的补偿逻辑尤其保守：只有在「当前索引仍等于 Domi 写入的字节」时才用备份覆盖，否则宁可保留双方的索引与备份文件并报 `uncertain`，也绝不覆盖用户在这期间做的索引改动。
+- 构建：`package.json` 的 `build` 脚本为 `node scripts/clean-lib.mjs && tsc && tsdown`；`typecheck` 为 `tsc --noEmit`。`tsconfig.json` 启用 `strict`、`noUncheckedIndexedAccess`、`noImplicitAny`，模块解析为 `NodeNext`——这也是源码里所有相对导入都带 `.js` 后缀的原因。
+- 测试：`pnpm test` 走 `vitest run`。`vitest.config.ts` 在 Windows 上关闭 `fileParallelism`，因为重型 Git fixture 会争抢进程与文件句柄；`testTimeout`/`hookTimeout` 均为 60s。四个 seam（`beforeFinalLocalValidation` 等）就是为这类并发/故障注入测试准备的。
+- CI：`.github/workflows/ci.yml` 的 `check` job 依次执行 `pnpm run typecheck`、`pnpm run build`、`pnpm run check:publish:release`、`pnpm run test`（Node 22、pnpm 10）。注意 `package.json` 的 `engines` 要求 Node `>=24.9.0`，CI 用 22 跑构建与测试，属于已知偏差。
+- 运行时配置：引擎本身无配置项，只有构造选项。宿主 `stateDir`、`gitTimeoutMs` 等由 `src/index.ts` 的 `Config` 管理，但 apply 路径固定使用自己的 30s 超时与惰性临时 hooks 目录。
 
-## 10. 测试 seam
+## 10. 相关模块
 
-`SessionCheckoutApplyEngineOptions` 提供四个仅用于测试/宿主的注入点，它们都插在「权威校验」与「写后校验」之间，用来构造竞态：
-
-| seam | 位置 | 用途 |
-| --- | --- | --- |
-| `beforeFinalLocalValidation` | Local 最终 CAS 之前 | 模拟 Local 在计划与写入之间被改动 |
-| `afterLocalWriteBeforeVerification` | Local 写入完成、独立校验之前 | 模拟写后漂移 |
-| `beforeFinalIsolatedValidation` | 检查点权威 CAS 之前 | 模拟 Worktree 在检查点前被改动 |
-| `afterIsolatedWriteBeforeVerification` | 检查点 HEAD/index 写后、校验之前 | 模拟检查点写后异常 |
-| `projectSkills` | 注入 `ProjectSkillStore` | 让快照排除并携带 Project Skills |
-
-这些 seam 是 `await` 的，因此测试可以在其中真正触发并发写；同时它们不会削弱生产路径，因为默认实现为空。
-
-## 11. 与相邻模块的边界
-
-```mermaid
-flowchart LR
-  subgraph domain["core_domain"]
-    PORTS["core_domain_ports<br/>SessionCheckoutDependencies.applyEngine"]
-    ORCH["session_checkout_orchestration<br/>状态机 / journal / CAS / 清理"]
-    ENGINE["session_checkout_apply_engine<br/>本页"]
-    PRIM["core_domain_primitives<br/>commit-message / delivery-excludes"]
-  end
-  ADAPTERS["adapters<br/>git / files / registry"]
-  I18N["i18n<br/>hostMessage 文案"]
-  CONSOLE["console_host<br/>预检视图投影"]
-
-  ORCH -->|"调用 13 个引擎方法"| ENGINE
-  PORTS -->|"声明 applyEngine 依赖"| ENGINE
-  ENGINE -->|"isValidCommitMessage / deliveryExcludePathspecs"| PRIM
-  ENGINE -->|"hostMessage"| I18N
-  ORCH --> ADAPTERS
-  ADAPTERS -->|"ProjectSkillStore 注入"| ENGINE
-  CONSOLE --> ORCH
-```
-
-- **不持久化任何状态**：journal、receipt、checkpoint 记录、`applyBaseOid`、清理配额都在 [session_checkout_orchestration](session-checkout-orchestration.md) 中维护。引擎只在 `beforeWrite`/`beforeCommit` 回调里交出「即将发生什么」，由编排层决定写账本。
-- **不做身份授权**：`ownerSessionId`、`revision`、`expectedGeneration` 的校验全在状态机；引擎只做 Git 事实校验（同一对象库、同一项目子目录、指纹一致）。
-- **不管理 Worktree 生命周期**：创建、删除、隔离区、目录身份由 [adapters](adapters.md) 的 `git.ts` / `files.ts` 承担。
-- **宿主产物清单**由 [core_domain_primitives](core-domain-primitives.md) 的 `delivery-excludes.ts` 定义；引擎只消费。
-
-## 12. 构建与验证
-
-该模块是纯 TypeScript 源文件，随包一起编译：
-
-- `package.json` 的 `build` 脚本（`node scripts/clean-lib.mjs && tsc && tsdown`）产出 `lib/`，`typecheck` 为 `tsc --noEmit`，`test` 为 `vitest run`。
-- `vitest.config.ts` 把测试范围限定在 `tests/**/*.test.{ts,tsx}`，Windows 上关闭文件级并行（Git fixture 会争用进程与文件句柄），单测超时 60 秒——这与引擎中大量真实 `git` 子进程调用相匹配。
-- `.github/workflows/ci.yml` 的 `check` job 依次执行 `pnpm run typecheck`、`pnpm run build`、`pnpm run check:publish:release`、`pnpm run test`，任何指纹/合并逻辑的回归都会在此暴露。
-
-更多构建与发布约束见 [build_and_config](build-and-config.md)。
+- [session_checkout_engine](session-checkout-engine.md)：上层状态机，负责 journal、receipt 持久化、retention、清理与授权。
+- [session_checkout_engine_integration](session-checkout-engine-integration.md)：`session-checkout-module.ts` 与工具注册的集成细节。
+- [session_checkout_integration_core](session-checkout-integration-core.md)：状态机对引擎方法的调用点。
+- [session_checkout_tools](session-checkout-tools.md)：模型侧 `worktree_*` 工具如何触发这些调用。
+- [core_worktree_domain](core-worktree-domain.md)：`deliveryExcludePathspecs`、`isValidCommitMessage` 等共享纯函数。
+- [core_ports_and_types](core-ports-and-types.md)：`ApplyBaseStrategy`、`ApplyConflictDetail`、`ManagedPreviewReceipt`、`SessionCheckoutDependencies.applyEngine` 的类型来源。
+- [adapters_infrastructure_project_skills](adapters-infrastructure-project-skills.md)：`ProjectSkillStore.state/paths` 与 `trackedSkillPaths` 的语义。
+- [i18n](i18n.md)：`hostMessage` 的宿主语言解析与所有错误文案来源。

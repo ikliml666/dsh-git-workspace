@@ -2,48 +2,66 @@
   "stateVersion": 1,
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
-    "baseCommit": "e01d7c5f2f3a0d2f734a5a3415598ae6d7d6f387",
-    "headCommit": "919c2c085aefbcd63c64ed064ba71391cf32fca5"
+    "baseCommit": "919c2c085aefbcd63c64ed064ba71391cf32fca5",
+    "headCommit": "bbcd9964f0bcf2a92ba0401e13136561ecbc7ddc"
   },
   "pendingChanges": {
     "state": "ok",
-    "baseCommit": "e01d7c5f2f3a0d2f734a5a3415598ae6d7d6f387",
-    "headCommit": "919c2c085aefbcd63c64ed064ba71391cf32fca5",
+    "baseCommit": "919c2c085aefbcd63c64ed064ba71391cf32fca5",
+    "headCommit": "bbcd9964f0bcf2a92ba0401e13136561ecbc7ddc",
     "committed": [
-      "CHANGELOG.md",
-      "README-LOCAL-ADAPTATIONS.md",
+      "src/adapters/git.ts",
+      "src/adapters/lookup.ts",
       "src/client/console-remote/adapter.ts",
       "src/client/target-console/TargetStatusAction.tsx",
+      "src/commands.ts",
       "src/console-contract.ts",
       "src/console-host/control-plane.ts",
+      "src/console-host/review-diff.ts",
       "src/console-host/service.ts",
       "src/console-remote/descriptors.ts",
       "src/console-remote/remote.ts",
       "src/console-remote/schemas.ts",
       "src/i18n/client-messages.ts",
+      "src/i18n/host-messages.ts",
       "src/index.ts",
-      "src/worktree-creation.ts",
-      "src/worktree-request.ts",
-      "tests/client-target-console.test.tsx",
+      "src/official-worktree-registration.ts",
+      "src/ports.ts",
+      "src/session-checkout-module.ts",
+      "src/session-target-context.ts",
+      "src/tools.ts",
+      "tests/console-host.test.ts",
       "tests/console-remote.test.ts",
-      "tests/real-repo-acceptance.test.ts",
+      "tests/git-unborn.test.ts",
+      "tests/host-query-budget.test.ts",
+      "tests/session-branch-adopt.test.ts",
+      "tests/session-branch-delivery.test.ts",
+      "tests/session-branch-label.test.ts",
+      "tests/session-checkout-module.test.ts",
       "tests/support/worktree-console.ts",
-      "tests/worktree-creation-perf.test.ts",
-      "tests/worktree-request-failure.test.ts",
-      "tests/worktree-request.test.ts"
+      "tests/surface.test.ts"
     ],
     "staged": [],
-    "unstaged": [],
-    "untracked": [],
+    "unstaged": [
+      "src/index.ts",
+      "src/session-checkout-module.ts"
+    ],
+    "untracked": [
+      "__pycache__/cut_helper.cpython-312.pyc",
+      "cut_helper.py"
+    ],
     "deleted": [
-      "src/worktree-request.ts",
-      "tests/worktree-request-failure.test.ts",
-      "tests/worktree-request.test.ts"
+      "src/console-host/review-diff.ts"
     ],
     "renamed": [],
     "reason": ""
   },
-  "unconsumed": [],
+  "unconsumed": [
+    "__pycache__/cut_helper.cpython-312.pyc",
+    "cut_helper.py",
+    "src/index.ts",
+    "src/session-checkout-module.ts"
+  ],
   "engineVersion": "2.0.0",
   "scope": "auto",
   "effectiveScope": "stale",
@@ -51,7 +69,9 @@
   "fallbackReason": "",
   "missingRepair": null,
   "notes": [
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw7a7q1e-1-native（36 个文件）"
+    "持久化基线 e01d7c5 与本次 cw 基线 919c2c0 不同（以 cw 基线为准，未消费变化仍会并入）",
+    "工作区未提交改动已合成临时 commit c73dd14ae59f（4 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw7rdl7j-7-native（38 个文件）"
   ],
-  "updatedAt": "2026-11-08T04:05:32.768Z"
+  "updatedAt": "2026-11-08T12:41:41.907Z"
 }
