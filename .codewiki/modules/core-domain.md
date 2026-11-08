@@ -18,7 +18,6 @@ source_files:
   - src/tools.ts
   - src/types.ts
   - src/workspace-provider-lifecycle.ts
-  - src/worktree-request.ts
 tags: []
 generated_by: fsoft-native
 fsoft_page: core_domain.md

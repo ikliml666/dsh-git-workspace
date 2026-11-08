@@ -3,7 +3,6 @@ title: core_domain_ports 端口契约与持久化数据模型
 type: module
 source_files:
   - src/ports.ts
-  - src/worktree-request.ts
 tags: []
 generated_by: fsoft-native
 fsoft_page: core_domain/core_domain_ports.md
