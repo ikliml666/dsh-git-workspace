@@ -542,7 +542,8 @@ describe('SessionCheckoutModule', () => {
     expect(git(context.projectRoot, 'rev-parse', 'HEAD')).toBe(localHead)
     expect(readFileSync(join(context.projectRoot, 'tracked.txt'), 'utf8')).toBe(localBytes)
     expect(readFileSync(join(managedRoot, 'tracked.txt'), 'utf8')).toBe('reviewed draft\n')
-    expect(context.module.runtimeContext('session-1')).toContain('worktree_ready_for_review')
+    // resume 之后状态回到 working：引导应指向 worktree_deliver，而不是已删除的评审工具。
+    expect(context.module.runtimeContext('session-1')).toContain('worktree_deliver')
   })
 
   test('Given invalid commit bodies When any commit action is requested Then it rejects before persisting a mutation', async () => {

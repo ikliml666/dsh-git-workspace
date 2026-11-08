@@ -42,23 +42,7 @@ export interface WorktreeCreatePayload {
   cwdSelected?: boolean
 }
 
-export interface WorktreeReviewPayload {
-  kind: 'worktree_ready_for_review'
-  state: 'ready_for_review'
-  reviewId: string
-  revision: number
-  iteration: number
-  changedFiles: string[]
-}
 
-export interface ReviewArgs {
-  summary: string
-  details?: string
-  validationStatus: 'passed' | 'failed' | 'partial' | 'not_run'
-  validationSummary?: string
-  tests: Array<{ command: string; status: 'passed' | 'failed' | 'not_run'; summary?: string }>
-  suggestedCommitMessage: string
-}
 
 export type ToolLifecycle = 'running' | 'ok' | 'error' | 'stopped'
 
@@ -116,70 +100,4 @@ export function parseCreateTool(block: ToolCallBlockLike, t: ClientTranslator = 
   return { lifecycle: state, payload: parsed as unknown as WorktreeCreatePayload, args: null, error: null }
 }
 
-function reviewArgs(value: unknown): ReviewArgs | null {
-  if (!isRecord(value)) return null
-  const summary = stringField(value, 'summary')
-  const validationStatus = value.validationStatus
-  const suggestedCommitMessage = stringField(value, 'suggestedCommitMessage')
-  if (!summary
-    || (validationStatus !== 'passed' && validationStatus !== 'failed' && validationStatus !== 'partial' && validationStatus !== 'not_run')
-    || !suggestedCommitMessage
-    || !Array.isArray(value.tests)) return null
-  const tests: ReviewArgs['tests'] = []
-  for (const item of value.tests) {
-    if (!isRecord(item)
-      || !stringField(item, 'command')
-      || (item.status !== 'passed' && item.status !== 'failed' && item.status !== 'not_run')
-      || (item.summary !== undefined && typeof item.summary !== 'string')) return null
-    tests.push({
-      command: item.command as string,
-      status: item.status,
-      ...(typeof item.summary === 'string' && item.summary !== '' ? { summary: item.summary } : {}),
-    })
-  }
-  if ((value.details !== undefined && typeof value.details !== 'string')
-    || (value.validationSummary !== undefined && typeof value.validationSummary !== 'string')) return null
-  return {
-    summary,
-    validationStatus,
-    tests,
-    suggestedCommitMessage,
-    ...(typeof value.details === 'string' && value.details !== '' ? { details: value.details } : {}),
-    ...(typeof value.validationSummary === 'string' && value.validationSummary !== '' ? { validationSummary: value.validationSummary } : {}),
-  }
-}
 
-export function parseReviewTool(block: ToolCallBlockLike, t: ClientTranslator = defaultClientTranslator): ParsedTool<WorktreeReviewPayload, ReviewArgs> {
-  const state = lifecycle(block)
-  const raw = textContent(block)
-  const parsed = parseJson(raw ?? undefined)
-  const argsRaw = block.kind ? block.call?.argsRaw : block.argsRaw
-  const parsedArgs = reviewArgs(parseJson(argsRaw))
-  if (state === 'running') return { lifecycle: state, payload: null, args: parsedArgs, error: null }
-  if (state !== 'ok') return { lifecycle: state, payload: null, args: parsedArgs, error: raw ?? t("ready.for.review.failed") }
-  if (!isRecord(parsed)
-    || parsed.kind !== 'worktree_ready_for_review'
-    || parsed.state !== 'ready_for_review'
-    || !stringField(parsed, 'reviewId')
-    || typeof parsed.revision !== 'number'
-    || !Array.isArray(parsed.changedFiles)
-    || parsed.changedFiles.some((item) => typeof item !== 'string')) {
-    return { lifecycle: 'error', payload: null, args: null, error: t("malformed.ready.for.review.result") }
-  }
-  if (!parsedArgs) {
-    return { lifecycle: 'error', payload: null, args: null, error: t("malformed.ready.for.review.arguments") }
-  }
-  return {
-    lifecycle: state,
-    payload: {
-      kind: 'worktree_ready_for_review',
-      state: 'ready_for_review',
-      reviewId: parsed.reviewId as string,
-      revision: parsed.revision,
-      iteration: typeof parsed.iteration === 'number' && Number.isInteger(parsed.iteration) && parsed.iteration >= 0 ? parsed.iteration : 0,
-      changedFiles: [...parsed.changedFiles] as string[],
-    },
-    args: parsedArgs,
-    error: null,
-  }
-}
