@@ -1,7 +1,7 @@
 {
-  "started_at": "2026-11-08T11:34:22+0800",
-  "finished_at": "2026-11-08T11:34:22+0800",
-  "outcome": "incremental",
+  "started_at": "2026-11-08T12:05:31+0800",
+  "finished_at": "2026-11-08T12:05:31+0800",
+  "outcome": "no_change",
   "options": {
     "rung": "3",
     "tau_ren": 0.95,
@@ -25,508 +25,32 @@
   },
   "revision": {
     "old_commit": "e01d7c5f2f3a0d2f734a5a3415598ae6d7d6f387",
-    "new_commit": "f0e140570c17d563b66f135c64440b751d59bdc1",
+    "new_commit": "919c2c085aefbcd63c64ed064ba71391cf32fca5",
     "repo_path": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree"
   },
   "diff": {
     "counts": {
-      "added": 6,
-      "deleted": 14,
+      "added": 0,
+      "deleted": 0,
       "interface": 0,
-      "body": 10,
+      "body": 0,
       "edge": 0,
       "renamed": 0
     },
-    "added": [
-      "src\\console-contract.ts::WorktreeConsoleCreateWorktreeRequest",
-      "src\\console-contract.ts::WorktreeConsoleCreateWorktreeResponse",
-      "src\\console-host\\control-plane.ts::CreateWorktreeOutcome",
-      "src\\console-host\\service.ts::WorktreeConsoleService.createWorktree",
-      "src\\worktree-creation.ts::WorktreeCreationResult",
-      "src\\worktree-creation.ts::createWorktreeNow"
-    ],
-    "deleted": [
-      "src\\console-contract.ts::WorktreeConsoleWorktreeRequestRequest",
-      "src\\console-contract.ts::WorktreeConsoleWorktreeRequestResponse",
-      "src\\console-host\\service.ts::WorktreeConsoleService.setWorktreeRequest",
-      "src\\worktree-request.ts::PluginRecordMap",
-      "src\\worktree-request.ts::RequestRecord",
-      "src\\worktree-request.ts::WorktreeRequest",
-      "src\\worktree-request.ts::cancelWorktreeRequest",
-      "src\\worktree-request.ts::failWorktreeRequest",
-      "src\\worktree-request.ts::isRequestRecord",
-      "src\\worktree-request.ts::liveWorktreeRequest",
-      "src\\worktree-request.ts::mountWorktreeRequest",
-      "src\\worktree-request.ts::pendingWorktreeRequest",
-      "src\\worktree-request.ts::requestWorktree",
-      "src\\worktree-request.ts::setWorktreeRequest"
-    ],
+    "added": [],
+    "deleted": [],
     "interface": [],
-    "body": [
-      "src\\client\\console-remote\\adapter.ts::createWorktreeConsoleRemoteAdapter",
-      "src\\console-contract.ts::WorktreeConsoleAdapter",
-      "src\\console-contract.ts::WorktreeConsoleCurrentResponse",
-      "src\\console-host\\control-plane.ts::WorktreeConsoleControlPlane",
-      "src\\console-host\\control-plane.ts::WorktreeConsoleControlPlaneOptions",
-      "src\\console-host\\control-plane.ts::createWorktreeConsoleControlPlane",
-      "src\\console-host\\service.ts::WorktreeConsoleService",
-      "src\\console-remote\\remote.ts::TypertRemoteMap",
-      "src\\i18n\\client-messages.ts::__file__",
-      "src\\index.ts::apply"
-    ],
+    "body": [],
     "edge": [],
     "renamed": {}
   },
-  "repair": {
-    "renamed": {},
-    "removed": [
-      {
-        "component_id": "src\\console-contract.ts::WorktreeConsoleWorktreeRequestRequest",
-        "leaf_path": [
-          "console_contract"
-        ]
-      },
-      {
-        "component_id": "src\\console-contract.ts::WorktreeConsoleWorktreeRequestResponse",
-        "leaf_path": [
-          "console_contract"
-        ]
-      },
-      {
-        "component_id": "src\\worktree-request.ts::PluginRecordMap",
-        "leaf_path": [
-          "core_domain",
-          "core_domain_ports"
-        ]
-      },
-      {
-        "component_id": "src\\worktree-request.ts::RequestRecord",
-        "leaf_path": [
-          "core_domain",
-          "core_domain_ports"
-        ]
-      },
-      {
-        "component_id": "src\\worktree-request.ts::WorktreeRequest",
-        "leaf_path": [
-          "core_domain",
-          "core_domain_ports"
-        ]
-      }
-    ],
-    "routing": [
-      {
-        "component_id": "src\\console-contract.ts::WorktreeConsoleCreateWorktreeRequest",
-        "rule": "1:same_file",
-        "leaf_path": [
-          "console_contract"
-        ],
-        "new_leaf": false,
-        "detail": "71 tracked components in file"
-      },
-      {
-        "component_id": "src\\console-contract.ts::WorktreeConsoleCreateWorktreeResponse",
-        "rule": "1:same_file",
-        "leaf_path": [
-          "console_contract"
-        ],
-        "new_leaf": false,
-        "detail": "72 tracked components in file"
-      },
-      {
-        "component_id": "src\\console-host\\control-plane.ts::CreateWorktreeOutcome",
-        "rule": "untracked",
-        "leaf_path": null,
-        "new_leaf": false,
-        "detail": "not a selected leaf node"
-      },
-      {
-        "component_id": "src\\console-host\\service.ts::WorktreeConsoleService.createWorktree",
-        "rule": "untracked",
-        "leaf_path": null,
-        "new_leaf": false,
-        "detail": "not a selected leaf node"
-      },
-      {
-        "component_id": "src\\worktree-creation.ts::WorktreeCreationResult",
-        "rule": "untracked",
-        "leaf_path": null,
-        "new_leaf": false,
-        "detail": "not a selected leaf node"
-      },
-      {
-        "component_id": "src\\worktree-creation.ts::createWorktreeNow",
-        "rule": "untracked",
-        "leaf_path": null,
-        "new_leaf": false,
-        "detail": "not a selected leaf node"
-      }
-    ],
-    "orphans": [],
-    "deleted_nodes": [],
-    "created_leaves": [],
-    "growth": {
-      "console_contract": 0.0274
-    },
-    "growth_flagged": []
-  },
+  "repair": {},
   "reclustered": [],
-  "reports": {
-    "core_domain/core_domain_public_api": {
-      "leaf_path": [
-        "core_domain",
-        "core_domain_public_api"
-      ],
-      "mode": "edit",
-      "own": [
-        "src\\index.ts::apply"
-      ],
-      "adopted": {
-        "src\\index.ts::apply": "1:same_file"
-      },
-      "up": [],
-      "context": [
-        "src\\console-host\\control-plane.ts::CreateWorktreeOutcome",
-        "src\\worktree-creation.ts::createWorktreeNow",
-        "src\\worktree-creation.ts::WorktreeCreationResult"
-      ],
-      "refch": [
-        "mountWorktreeRequest"
-      ],
-      "entered": [],
-      "left": [],
-      "children_added": [],
-      "children_removed": [],
-      "reclustered": false,
-      "page": "core_domain_public_api"
-    },
-    "core_domain/core_domain_ports": {
-      "leaf_path": [
-        "core_domain",
-        "core_domain_ports"
-      ],
-      "mode": "edit",
-      "own": [
-        "src\\worktree-request.ts::failWorktreeRequest",
-        "src\\worktree-request.ts::liveWorktreeRequest",
-        "src\\worktree-request.ts::cancelWorktreeRequest",
-        "src\\worktree-request.ts::mountWorktreeRequest",
-        "src\\worktree-request.ts::WorktreeRequest",
-        "src\\worktree-request.ts::pendingWorktreeRequest",
-        "src\\worktree-request.ts::PluginRecordMap",
-        "src\\worktree-request.ts::RequestRecord",
-        "src\\worktree-request.ts::setWorktreeRequest",
-        "src\\worktree-request.ts::requestWorktree",
-        "src\\worktree-request.ts::isRequestRecord"
-      ],
-      "adopted": {
-        "src\\worktree-request.ts::failWorktreeRequest": "1:same_file",
-        "src\\worktree-request.ts::liveWorktreeRequest": "1:same_file",
-        "src\\worktree-request.ts::cancelWorktreeRequest": "1:same_file",
-        "src\\worktree-request.ts::mountWorktreeRequest": "1:same_file",
-        "src\\worktree-request.ts::pendingWorktreeRequest": "1:same_file",
-        "src\\worktree-request.ts::setWorktreeRequest": "1:same_file",
-        "src\\worktree-request.ts::requestWorktree": "1:same_file",
-        "src\\worktree-request.ts::isRequestRecord": "1:same_file"
-      },
-      "up": [],
-      "context": [],
-      "refch": [
-        "PluginRecordMap",
-        "RequestRecord",
-        "cancelWorktreeRequest",
-        "failWorktreeRequest",
-        "liveWorktreeRequest",
-        "mountWorktreeRequest",
-        "pendingWorktreeRequest",
-        "requestWorktree",
-        "setWorktreeRequest"
-      ],
-      "entered": [],
-      "left": [
-        "src\\worktree-request.ts::PluginRecordMap",
-        "src\\worktree-request.ts::RequestRecord",
-        "src\\worktree-request.ts::WorktreeRequest"
-      ],
-      "children_added": [],
-      "children_removed": [],
-      "reclustered": false,
-      "page": "core_domain_ports"
-    },
-    "client_ui/client_ui_bootstrap": {
-      "leaf_path": [
-        "client_ui",
-        "client_ui_bootstrap"
-      ],
-      "mode": "edit",
-      "own": [
-        "src\\client\\console-remote\\adapter.ts::createWorktreeConsoleRemoteAdapter"
-      ],
-      "adopted": {},
-      "up": [],
-      "context": [
-        "src\\worktree-creation.ts::createWorktreeNow"
-      ],
-      "refch": [],
-      "entered": [],
-      "left": [],
-      "children_added": [],
-      "children_removed": [],
-      "reclustered": false,
-      "page": "client_ui_bootstrap"
-    },
-    "console_contract": {
-      "leaf_path": [
-        "console_contract"
-      ],
-      "mode": "edit",
-      "own": [
-        "src\\console-contract.ts::WorktreeConsoleWorktreeRequestResponse",
-        "src\\console-contract.ts::WorktreeConsoleCurrentResponse",
-        "src\\console-contract.ts::WorktreeConsoleAdapter",
-        "src\\console-contract.ts::WorktreeConsoleCreateWorktreeResponse",
-        "src\\console-contract.ts::WorktreeConsoleWorktreeRequestRequest",
-        "src\\console-contract.ts::WorktreeConsoleCreateWorktreeRequest"
-      ],
-      "adopted": {},
-      "up": [],
-      "context": [],
-      "refch": [
-        "RequestRecord",
-        "WorktreeConsoleWorktreeRequestRequest",
-        "WorktreeRequest",
-        "setWorktreeRequest"
-      ],
-      "entered": [
-        "src\\console-contract.ts::WorktreeConsoleCreateWorktreeRequest",
-        "src\\console-contract.ts::WorktreeConsoleCreateWorktreeResponse"
-      ],
-      "left": [
-        "src\\console-contract.ts::WorktreeConsoleWorktreeRequestRequest",
-        "src\\console-contract.ts::WorktreeConsoleWorktreeRequestResponse"
-      ],
-      "children_added": [],
-      "children_removed": [],
-      "reclustered": false,
-      "page": "console_contract"
-    },
-    "console_host/console_host_control_plane": {
-      "leaf_path": [
-        "console_host",
-        "console_host_control_plane"
-      ],
-      "mode": "edit",
-      "own": [
-        "src\\console-host\\control-plane.ts::createWorktreeConsoleControlPlane",
-        "src\\console-host\\control-plane.ts::WorktreeConsoleControlPlaneOptions",
-        "src\\console-host\\control-plane.ts::WorktreeConsoleControlPlane"
-      ],
-      "adopted": {
-        "src\\console-host\\control-plane.ts::createWorktreeConsoleControlPlane": "1:same_file"
-      },
-      "up": [
-        "src\\console-contract.ts::WorktreeConsoleWorktreeRequestResponse",
-        "src\\console-contract.ts::WorktreeConsoleWorktreeRequestRequest"
-      ],
-      "context": [
-        "src\\console-host\\control-plane.ts::CreateWorktreeOutcome"
-      ],
-      "refch": [
-        "WorktreeRequest",
-        "pendingWorktreeRequest",
-        "setWorktreeRequest"
-      ],
-      "entered": [],
-      "left": [],
-      "children_added": [],
-      "children_removed": [],
-      "reclustered": false,
-      "page": "console_host_control_plane"
-    },
-    "console_host/console_host_remote_face": {
-      "leaf_path": [
-        "console_host",
-        "console_host_remote_face"
-      ],
-      "mode": "edit",
-      "own": [
-        "src\\console-host\\service.ts::WorktreeConsoleService",
-        "src\\console-host\\service.ts::WorktreeConsoleService.createWorktree",
-        "src\\console-host\\service.ts::WorktreeConsoleService.setWorktreeRequest"
-      ],
-      "adopted": {},
-      "up": [
-        "src\\console-contract.ts::WorktreeConsoleWorktreeRequestResponse",
-        "src\\worktree-request.ts::setWorktreeRequest"
-      ],
-      "context": [],
-      "refch": [
-        "setWorktreeRequest"
-      ],
-      "entered": [],
-      "left": [],
-      "children_added": [],
-      "children_removed": [],
-      "reclustered": false,
-      "page": "console_host_remote_face"
-    },
-    "console_remote": {
-      "leaf_path": [
-        "console_remote"
-      ],
-      "mode": "edit",
-      "own": [
-        "src\\console-remote\\remote.ts::TypertRemoteMap"
-      ],
-      "adopted": {},
-      "up": [
-        "src\\console-contract.ts::WorktreeConsoleWorktreeRequestResponse"
-      ],
-      "context": [],
-      "refch": [
-        "setWorktreeRequest"
-      ],
-      "entered": [],
-      "left": [],
-      "children_added": [],
-      "children_removed": [],
-      "reclustered": false,
-      "page": "console_remote"
-    },
-    "i18n": {
-      "leaf_path": [
-        "i18n"
-      ],
-      "mode": "edit",
-      "own": [
-        "src\\i18n\\client-messages.ts::__file__"
-      ],
-      "adopted": {},
-      "up": [],
-      "context": [],
-      "refch": [],
-      "entered": [],
-      "left": [],
-      "children_added": [],
-      "children_removed": [],
-      "reclustered": false,
-      "page": "i18n"
-    }
-  },
-  "ownership": [
-    {
-      "component_id": "src\\console-host\\control-plane.ts::createWorktreeConsoleControlPlane",
-      "rule": "1:same_file",
-      "leaf_path": [
-        "console_host",
-        "console_host_control_plane"
-      ],
-      "detail": "2 tracked components in file",
-      "deleted": false
-    },
-    {
-      "component_id": "src\\index.ts::apply",
-      "rule": "1:same_file",
-      "leaf_path": [
-        "core_domain",
-        "core_domain_public_api"
-      ],
-      "detail": "10 tracked components in file",
-      "deleted": false
-    },
-    {
-      "component_id": "src\\worktree-request.ts::cancelWorktreeRequest",
-      "rule": "1:same_file",
-      "leaf_path": [
-        "core_domain",
-        "core_domain_ports"
-      ],
-      "detail": "3 tracked components in file",
-      "deleted": true
-    },
-    {
-      "component_id": "src\\worktree-request.ts::failWorktreeRequest",
-      "rule": "1:same_file",
-      "leaf_path": [
-        "core_domain",
-        "core_domain_ports"
-      ],
-      "detail": "3 tracked components in file",
-      "deleted": true
-    },
-    {
-      "component_id": "src\\worktree-request.ts::isRequestRecord",
-      "rule": "1:same_file",
-      "leaf_path": [
-        "core_domain",
-        "core_domain_ports"
-      ],
-      "detail": "3 tracked components in file",
-      "deleted": true
-    },
-    {
-      "component_id": "src\\worktree-request.ts::liveWorktreeRequest",
-      "rule": "1:same_file",
-      "leaf_path": [
-        "core_domain",
-        "core_domain_ports"
-      ],
-      "detail": "3 tracked components in file",
-      "deleted": true
-    },
-    {
-      "component_id": "src\\worktree-request.ts::mountWorktreeRequest",
-      "rule": "1:same_file",
-      "leaf_path": [
-        "core_domain",
-        "core_domain_ports"
-      ],
-      "detail": "3 tracked components in file",
-      "deleted": true
-    },
-    {
-      "component_id": "src\\worktree-request.ts::pendingWorktreeRequest",
-      "rule": "1:same_file",
-      "leaf_path": [
-        "core_domain",
-        "core_domain_ports"
-      ],
-      "detail": "3 tracked components in file",
-      "deleted": true
-    },
-    {
-      "component_id": "src\\worktree-request.ts::requestWorktree",
-      "rule": "1:same_file",
-      "leaf_path": [
-        "core_domain",
-        "core_domain_ports"
-      ],
-      "detail": "3 tracked components in file",
-      "deleted": true
-    },
-    {
-      "component_id": "src\\worktree-request.ts::setWorktreeRequest",
-      "rule": "1:same_file",
-      "leaf_path": [
-        "core_domain",
-        "core_domain_ports"
-      ],
-      "detail": "3 tracked components in file",
-      "deleted": true
-    }
-  ],
+  "reports": {},
+  "ownership": [],
   "active": [],
   "write_sets": {},
-  "fallback": {
-    "r_leaf": 0.34782608695652173,
-    "r_tree": 0.0,
-    "n_active": 8,
-    "n_leaves": 23,
-    "n_structural": 0,
-    "tau_full": 0.5,
-    "tau_tree": 0.3,
-    "fired": false
-  },
+  "fallback": {},
   "verdicts": [],
   "pages_written": [],
   "pages_removed": [],
@@ -543,7 +67,7 @@
     "scope": "this run only (modules resumed from disk cost nothing)",
     "currency": "USD",
     "cost_status": "complete",
-    "incomplete": true,
+    "incomplete": false,
     "unknown_usage_calls": 0,
     "n_calls": 0,
     "totals": {
@@ -554,5 +78,5 @@
     "unpriced_models": [],
     "calls": []
   },
-  "run_id": "2484f56b-f9cd-494d-ac8d-3e89bd98fc17"
+  "run_id": "f18fc6c5-7d19-42c4-bc11-77b0c20c3716"
 }

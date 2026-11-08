@@ -1,17 +1,17 @@
 {
   "generation_info": {
-    "timestamp": "2026-11-07T21:46:28.477829+00:00",
+    "timestamp": "2026-11-08T04:05:31.812430+00:00",
     "provider": "openai-compatible",
     "main_model": "deepseek-v4.1-flash",
     "generator_version": "2.0.0",
     "repo_path": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
-    "commit_id": "e01d7c5f2f3a0d2f734a5a3415598ae6d7d6f387",
+    "commit_id": "919c2c085aefbcd63c64ed064ba71391cf32fca5",
     "language": "中文",
     "layout": "hierarchical"
   },
   "statistics": {
-    "total_components": 822,
-    "leaf_nodes": 319,
+    "total_components": 814,
+    "leaf_nodes": 316,
     "max_depth": 2
   },
   "files_generated": [
@@ -52,7 +52,7 @@
     "scope": "this run only (modules resumed from disk cost nothing)",
     "currency": "USD",
     "cost_status": "complete",
-    "incomplete": true,
+    "incomplete": false,
     "unknown_usage_calls": 0,
     "n_calls": 0,
     "totals": {
@@ -64,37 +64,28 @@
     "calls": []
   },
   "last_update": {
-    "run_id": "2484f56b-f9cd-494d-ac8d-3e89bd98fc17",
-    "started_at": "2026-11-08T11:34:22+0800",
-    "outcome": "incremental",
-    "finished_at": "2026-11-08T11:34:22+0800",
+    "run_id": "f18fc6c5-7d19-42c4-bc11-77b0c20c3716",
+    "started_at": "2026-11-08T12:05:31+0800",
+    "outcome": "no_change",
+    "finished_at": "2026-11-08T12:05:31+0800",
     "rung": "3",
     "revision": {
       "old_commit": "e01d7c5f2f3a0d2f734a5a3415598ae6d7d6f387",
-      "new_commit": "f0e140570c17d563b66f135c64440b751d59bdc1",
+      "new_commit": "919c2c085aefbcd63c64ed064ba71391cf32fca5",
       "repo_path": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree"
     },
     "diff_counts": {
-      "added": 6,
-      "deleted": 14,
+      "added": 0,
+      "deleted": 0,
       "interface": 0,
-      "body": 10,
+      "body": 0,
       "edge": 0,
       "renamed": 0
     },
     "n_active": 0,
-    "n_adopted": 10,
+    "n_adopted": 0,
     "n_adopted_by_agent": 0,
-    "fallback": {
-      "r_leaf": 0.34782608695652173,
-      "r_tree": 0.0,
-      "n_active": 8,
-      "n_leaves": 23,
-      "n_structural": 0,
-      "tau_full": 0.5,
-      "tau_tree": 0.3,
-      "fired": false
-    },
+    "fallback": {},
     "n_calls": 0,
     "usage_total": {
       "cost_usd": 0.0
@@ -104,7 +95,7 @@
       "scope": "this run only (modules resumed from disk cost nothing)",
       "currency": "USD",
       "cost_status": "complete",
-      "incomplete": true,
+      "incomplete": false,
       "unknown_usage_calls": 0,
       "n_calls": 0,
       "totals": {
@@ -55082,6 +55073,53 @@
         "currency": "USD",
         "cost_status": "complete",
         "incomplete": true,
+        "unknown_usage_calls": 0,
+        "n_calls": 0,
+        "totals": {
+          "cost_usd": 0.0
+        },
+        "by_phase": {},
+        "by_model": {},
+        "unpriced_models": [],
+        "calls": []
+      },
+      "pages_written": [],
+      "pages_removed": [],
+      "wall_seconds": 0.15
+    },
+    {
+      "run_id": "f18fc6c5-7d19-42c4-bc11-77b0c20c3716",
+      "started_at": "2026-11-08T12:05:31+0800",
+      "outcome": "no_change",
+      "finished_at": "2026-11-08T12:05:31+0800",
+      "rung": "3",
+      "revision": {
+        "old_commit": "e01d7c5f2f3a0d2f734a5a3415598ae6d7d6f387",
+        "new_commit": "919c2c085aefbcd63c64ed064ba71391cf32fca5",
+        "repo_path": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree"
+      },
+      "diff_counts": {
+        "added": 0,
+        "deleted": 0,
+        "interface": 0,
+        "body": 0,
+        "edge": 0,
+        "renamed": 0
+      },
+      "n_active": 0,
+      "n_adopted": 0,
+      "n_adopted_by_agent": 0,
+      "fallback": {},
+      "n_calls": 0,
+      "usage_total": {
+        "cost_usd": 0.0
+      },
+      "usage": {
+        "schema_version": 2,
+        "scope": "this run only (modules resumed from disk cost nothing)",
+        "currency": "USD",
+        "cost_status": "complete",
+        "incomplete": false,
         "unknown_usage_calls": 0,
         "n_calls": 0,
         "totals": {
