@@ -2,8 +2,8 @@
 
 本模块是 `dsh-git-worktree` 插件的**六边形架构边界层**：它把「会话检出（session-checkout）」状态机所需的一切外部能力抽象为端口，再把这些端口实现为运行在 DeepSeek Harness 宿主与 Node.js 之上的具体适配器。它由两个子模块构成：
 
-- **契约层**——[核心端口与类型](Ports,_Adapters,_and_Infrastructure/core_ports_and_types.md)：`src/ports.ts` 与 `src/types.ts`，只含接口、持久化记录、只读视图、操作联合与稳定错误码，不含 Cordis、React、子进程或文件系统代码。
-- **实现层**——[适配器与基础设施](Ports,_Adapters,_and_Infrastructure/adapters_infrastructure.md)：`src/adapters/`，把 Git、文件系统、注册表、宿主服务与 Project Skills 落地为可执行实现。
+- **契约层**——[核心端口与类型](core_ports_and_types.md)：`src/ports.ts` 与 `src/types.ts`，只含接口、持久化记录、只读视图、操作联合与稳定错误码，不含 Cordis、React、子进程或文件系统代码。
+- **实现层**——[适配器与基础设施](adapters_infrastructure.md)：`src/adapters/`，把 Git、文件系统、注册表、宿主服务与 Project Skills 落地为可执行实现。
 
 这样分层的目的很直接：状态机、apply 引擎与工具层只依赖端口，因此可以在 vitest 中用 fake 端口完整覆盖；而所有「危险动作」（spawn `git`、删除目录、跨进程写 JSON、读取宿主 Session）都收敛在适配器层，并在那里统一做身份校验、原子性与失败分级。
 
@@ -80,28 +80,28 @@ flowchart TB
 
 | 文档 | 内容 |
 | --- | --- |
-| [核心端口与类型](Ports,_Adapters,_and_Infrastructure/core_ports_and_types.md) | `SessionCheckoutGitPort` / `FilesPort` / `RegistryPort` / `LookupPort` / `OfficialWorktreesPort` 的契约；`ManagedCheckoutRecord`、`ManagedCheckoutDelivery` 状态机、journal 与恢复续跑、`SessionTargetView` 等路径无关视图、`SESSION_CHECKOUT_ERROR_CODES` 与 `LiveValue` 活配置 |
-| [适配器与基础设施](Ports,_Adapters,_and_Infrastructure/adapters_infrastructure.md) | 端口到宿主能力的落地方式，以及只在该层成立的三块能力：受管 Worktree 创建协议、首次提交协议、Project Skills 携带机制 |
+| [核心端口与类型](core_ports_and_types.md) | `SessionCheckoutGitPort` / `FilesPort` / `RegistryPort` / `LookupPort` / `OfficialWorktreesPort` 的契约；`ManagedCheckoutRecord`、`ManagedCheckoutDelivery` 状态机、journal 与恢复续跑、`SessionTargetView` 等路径无关视图、`SESSION_CHECKOUT_ERROR_CODES` 与 `LiveValue` 活配置 |
+| [适配器与基础设施](adapters_infrastructure.md) | 端口到宿主能力的落地方式，以及只在该层成立的三块能力：受管 Worktree 创建协议、首次提交协议、Project Skills 携带机制 |
 
 **适配器子模块**
 
 | 文档 | 覆盖文件 | 核心组件 |
 | --- | --- | --- |
-| [adapters_infrastructure_git_process](Ports,_Adapters,_and_Infrastructure/adapters_infrastructure/adapters_infrastructure_git_process.md) | `git.ts`、`git-options.ts`、`initial-commit.ts`、`worktree-creation.ts` | `createDshGitPort`、`GitPortOptions`、`GitTimeoutOptions`、`GitCommitProtocol`、`createWorktree` |
-| [adapters_infrastructure_filesystem_and_persistence](Ports,_Adapters,_and_Infrastructure/adapters_infrastructure/adapters_infrastructure_filesystem_and_persistence.md) | `files.ts`、`safe-file.ts`、`registry.ts` | `createNodeFilesPort`、`withFileLock`、`AtomicJsonCheckoutRegistry` |
-| [adapters_infrastructure_project_skills](Ports,_Adapters,_and_Infrastructure/adapters_infrastructure/adapters_infrastructure_project_skills.md) | `project-skills.ts`、`project-skill-io.ts`、`project-skill-provider.ts` | `ProjectSkillStore`、`SkillSnapshot`、`Manifest`、`ClaudeProjectSkillProvider` |
-| [adapters_infrastructure_host_services](Ports,_Adapters,_and_Infrastructure/adapters_infrastructure/adapters_infrastructure_host_services.md) | `lookup.ts`、`working-directory.ts` | `createDshLookupPort`、`createSessionWorkingDirectoryPort`、`WorkspaceRegistryLike` |
+| [adapters_infrastructure_git_process](adapters_infrastructure_git_process.md) | `git.ts`、`git-options.ts`、`initial-commit.ts`、`worktree-creation.ts` | `createDshGitPort`、`GitPortOptions`、`GitTimeoutOptions`、`GitCommitProtocol`、`createWorktree` |
+| [adapters_infrastructure_filesystem_and_persistence](adapters_infrastructure_filesystem_and_persistence.md) | `files.ts`、`safe-file.ts`、`registry.ts` | `createNodeFilesPort`、`withFileLock`、`AtomicJsonCheckoutRegistry` |
+| [adapters_infrastructure_project_skills](adapters_infrastructure_project_skills.md) | `project-skills.ts`、`project-skill-io.ts`、`project-skill-provider.ts` | `ProjectSkillStore`、`SkillSnapshot`、`Manifest`、`ClaudeProjectSkillProvider` |
+| [adapters_infrastructure_host_services](adapters_infrastructure_host_services.md) | `lookup.ts`、`working-directory.ts` | `createDshLookupPort`、`createSessionWorkingDirectoryPort`、`WorkspaceRegistryLike` |
 
 ## 与相邻模块的关系
 
 | 关系 | 页面 |
 | --- | --- |
-| 消费端口的检出事务引擎 | [session_checkout_apply_engine](Worktree_and_Session_Checkout_Domain/session_checkout_engine/session_checkout_apply_engine.md) |
-| 创建协议的上层调用方 | [核心 Worktree 领域](Worktree_and_Session_Checkout_Domain/core_worktree_domain.md) |
+| 消费端口的检出事务引擎 | [session_checkout_apply_engine](session_checkout_apply_engine.md) |
+| 创建协议的上层调用方 | [核心 Worktree 领域](core_worktree_domain.md) |
 | 模块入口与错误类型装配 | [public_api](public_api.md) |
-| 记录写入与投影 | [console_host](Console_API_and_Host_Integration/console_host.md) |
-| 视图 DTO 与远程传输 | [console_contract](console_contract.md)、[console_remote](Console_API_and_Host_Integration/console_remote.md) |
-| 本地化消息来源（`hostMessage`） | [i18n](Cross-Cutting_Foundation_and_Public_Surface/i18n.md) |
+| 记录写入与投影 | [console_host](console_host.md) |
+| 视图 DTO 与远程传输 | [console_contract](console_contract.md)、[console_remote](console_remote.md) |
+| 本地化消息来源（`hostMessage`） | [i18n](i18n.md) |
 
 ## 横切设计约束
 

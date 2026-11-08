@@ -11,7 +11,7 @@ source_files:
   - src/client/styles.ts
 tags: []
 generated_by: fsoft-native
-fsoft_page: Client_Presentation_and_Interaction/client_core.md
+fsoft_page: client_core.md
 ---
 # client_core 模块
 

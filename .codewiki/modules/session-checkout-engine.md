@@ -8,7 +8,7 @@ source_files:
   - src/tools.ts
 tags: []
 generated_by: fsoft-native
-fsoft_page: Worktree_and_Session_Checkout_Domain/session_checkout_engine.md
+fsoft_page: session_checkout_engine.md
 ---
 # session_checkout_engine 模块概览
 

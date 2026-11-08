@@ -8,7 +8,7 @@ source_files:
   - src/console-host/service.ts
 tags: []
 generated_by: fsoft-native
-fsoft_page: Console_API_and_Host_Integration/console_host.md
+fsoft_page: console_host.md
 ---
 # console_host：Worktree 控制平面与 Host RPC 服务
 

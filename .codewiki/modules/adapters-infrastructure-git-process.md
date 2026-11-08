@@ -8,7 +8,7 @@ source_files:
   - src/adapters/worktree-creation.ts
 tags: []
 generated_by: fsoft-native
-fsoft_page: Ports,_Adapters,_and_Infrastructure/adapters_infrastructure/adapters_infrastructure_git_process.md
+fsoft_page: adapters_infrastructure_git_process.md
 ---
 # Git 进程适配器与工作树创建编排
 
@@ -209,7 +209,7 @@ flowchart TB
   ROOT --> ANC["祖先证明<br/>isAncestor"]
   ROOT --> BR["分支操作<br/>listLocalBranches / resolveLocalBranchTip<br/>branchOverview / defaultBranch / branchTipTimes<br/>createLocalBranch / switchLocalBranch / deleteLocalBranch<br/>mergeLocalBranch / graphLog"]
   ROOT --> TAG["标签操作<br/>listTags / createTag / deleteLocalTag<br/>pushTag / deleteRemoteTag"]
-  ROOT --> DEL["交付与携带<br/>pushBranch / captureLocalWip / applyWorktreePatch<br/>listUntrackedFiles / listWorktreeincludeFiles"]
+  ROOT --> DEL["交付与携带<br/>pushBranch / captureLocalWip / applyWorktreePatch<br/>listUntrackedFiles / listWorktreeincludeFiles<br/>carryProjectSkills"]
   ROOT --> AB["放弃快照<br/>snapshotAbandonedWorktree / restoreAbandonedSnapshot"]
   ROOT --> INIT["首提交扩展<br/>preflightInitialCommit / initializeEmptyRepository<br/>initializeProject"]
 ```
@@ -229,6 +229,13 @@ flowchart TB
 1. 先对本地根做 `projectSkills.snapshot()`；再用 `diff --name-only` 与 `diff --cached --name-only`（限定 `PROJECT_SKILL_ROOTS`）检查本地是否存在未提交的 tracked Skill 改动，有则直接拒绝创建。
 2. 计算 `deadline = now + gitTimeoutMs(['worktree','add'])`，把整个 `createWorktree()` 编排当作一次有预算的创建。
 3. 完成后 `projectSkills.carry()` 把 Skill 文件复制进新工作树。
+
+### Skill 携带入口 `carryProjectSkills`
+
+`carryProjectSkills(localRoot, managedRoot)` 只做「快照 + 携带」两步：先 `projectSkills.snapshot(localRoot)`，再 `projectSkills.carry(skills, managedRoot)`；它不建树，也不做上面的 tracked 改动门禁。
+
+它存在的原因是建树路径已经分叉：建树改由官方 `worktrees` 服务负责后，`createDetachedWorktree` 不再参与官方路径，而 Skill 只存在于项目工作区、不在 Git 里——不单独携过去，新树里就看不见它们。因此它是可选端口方法（`?`），由官方建树路径在建完之后调用；端口未实现时不携带，其余流程不受影响。
+
 
 ### 删除入口 `removeWorktree`
 

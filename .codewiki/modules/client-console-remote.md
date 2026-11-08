@@ -6,7 +6,7 @@ source_files:
   - src/client/console-remote/index.ts
 tags: []
 generated_by: fsoft-native
-fsoft_page: Client_Presentation_and_Interaction/client_console_remote.md
+fsoft_page: client_console_remote.md
 ---
 # client_console_remote 模块
 

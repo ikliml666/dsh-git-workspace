@@ -82,8 +82,8 @@ flowchart LR
 
 | 组件 | 定位 | 文档 |
 | --- | --- | --- |
-| 核心工作树领域 | 领域基础层：路径与命名候选、即时建树、官方树登记与接管、检查点 CAS 世代、交付排除、提交信息校验、宿主兼容与 `uiWorkspace` 选举、`/worktree` 命令外壳 | [core_worktree_domain](Worktree_and_Session_Checkout_Domain/core_worktree_domain.md) |
-| 会话检出引擎 | 交付引擎总览：纯 Git 事务引擎与宿主集成状态机的职责切分、关键设计约束与文档索引 | [session_checkout_engine](Worktree_and_Session_Checkout_Domain/session_checkout_engine.md) |
+| 核心工作树领域 | 领域基础层：路径与命名候选、即时建树、官方树登记与接管、检查点 CAS 世代、交付排除、提交信息校验、宿主兼容与 `uiWorkspace` 选举、`/worktree` 命令外壳 | [core_worktree_domain](core_worktree_domain.md) |
+| 会话检出引擎 | 交付引擎总览：纯 Git 事务引擎与宿主集成状态机的职责切分、关键设计约束与文档索引 | [session_checkout_engine](session_checkout_engine.md) |
 
 `sessions_checkout_engine` 内部进一步分为两层，详见其子文档：
 

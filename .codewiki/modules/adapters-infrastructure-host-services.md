@@ -6,7 +6,7 @@ source_files:
   - src/adapters/working-directory.ts
 tags: []
 generated_by: fsoft-native
-fsoft_page: Ports,_Adapters,_and_Infrastructure/adapters_infrastructure/adapters_infrastructure_host_services.md
+fsoft_page: adapters_infrastructure_host_services.md
 ---
 # 主机服务适配器（Host Services Adapters）
 

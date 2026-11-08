@@ -63,7 +63,7 @@ flowchart LR
 
 要点：
 
-- **契约是唯一的类型交换面**。Host 侧 `WorktreeConsoleService` 与 `WorktreeConsoleControlPlane` 的所有方法签名、Client 侧 `WorktreeConsoleAdapter` 的所有方法签名，均直接引用本模块的类型（详见 [console_host](Console_API_and_Host_Integration/console_host.md) 与 [console_remote](Console_API_and_Host_Integration/console_remote.md)）。
+- **契约是唯一的类型交换面**。Host 侧 `WorktreeConsoleService` 与 `WorktreeConsoleControlPlane` 的所有方法签名、Client 侧 `WorktreeConsoleAdapter` 的所有方法签名，均直接引用本模块的类型（详见 [console_host](console_host.md) 与 [console_remote](console_remote.md)）。
 - **两个纯函数是"状态真理"的唯一来源**。Host 投影（`src/console-host/projection.ts`）与侧栏拓扑（`sidebarTaskState`）都调用 `consoleStateFromDomain` / `worktreeReachedDelivery`，因此 UI 标签、鉴权分支（"已交付后允许读 Local 边界"）不会各自漂移。
 - **传输细节不外泄**。超时、`malformed_response` 归一、strict codec 校验都发生在 `src/client/console-remote/adapter.ts` 内部，`WorktreeConsoleAdapter` 只承诺 `Promise<WorktreeConsoleOutcome<T>>`。
 
@@ -355,7 +355,7 @@ Client 与 Host 是**两份独立部署的产物**（Client 通过 `package.json
 | 新增状态 | 追加进 `WORKTREE_CONSOLE_TARGET_STATES`；Zod 直接复用该数组，无需第二处修改。 | 同上 |
 | 未知 Workspace generation | `workspaceClientFlavor: 'unsupported'` 时 Client 不得挂载猜测的 Browser。 | `WorktreeSidebarTopologyResponse` |
 
-**契约不承载的东西**（保持可演进性）：不承载授权结论、不承载文件系统路径（除 `TargetDetails`）、不承载 Cordis 服务引用、不承载 UI 文案（文案在 [i18n](Cross-Cutting_Foundation_and_Public_Surface/i18n.md) 的 `src/i18n/*` 中按语言分离）。
+**契约不承载的东西**（保持可演进性）：不承载授权结论、不承载文件系统路径（除 `TargetDetails`）、不承载 Cordis 服务引用、不承载 UI 文案（文案在 [i18n](i18n.md) 的 `src/i18n/*` 中按语言分离）。
 
 ---
 
@@ -375,7 +375,7 @@ Client 与 Host 是**两份独立部署的产物**（Client 通过 `package.json
 - CI（`.github/workflows/ci.yml`）依次执行 `typecheck` → `build` → `check:publish:release` → `test`，因此契约的类型漂移（例如漏登记的 `ERROR_META`、schema 与 DTO 不一致）会在 PR 阶段被拦截。
 - 契约的单元测试位于 `tests/console-contract.test.ts`，覆盖状态投影优先级、`worktreeReachedDelivery` 语义与错误元数据映射；适配器 fixture 在 `tests/support/worktree-console.ts`。
 
-更多打包/发布细节见 [build_deployment_configuration](Cross-Cutting_Foundation_and_Public_Surface/build_deployment_configuration.md)。
+更多打包/发布细节见 [build_deployment_configuration](build_deployment_configuration.md)。
 
 ---
 
@@ -383,11 +383,11 @@ Client 与 Host 是**两份独立部署的产物**（Client 通过 `package.json
 
 | 方向 | 对象 | 说明 |
 | --- | --- | --- |
-| 上游（被引用） | `src/types.ts` | `SESSION_CHECKOUT_ERROR_CODES`、`SessionCheckoutPhase`、`WorktreeRetentionMode`、`WorktreeCleanupReason`、`WorktreeValidationItem/Status`、`WorktreeCheckpointView`、`WorktreeDeliveryProofView`、`WorktreeAcceptanceBlockerView`。详见 [core_ports_and_types](Ports,_Adapters,_and_Infrastructure/core_ports_and_types.md)。 |
-| 下游（引用本模块） | `src/console-host/*` | 服务方法签名、控制面接口、投影与错误归一。见 [console_host](Console_API_and_Host_Integration/console_host.md)。 |
-| 下游 | `src/console-remote/*` | Zod schema（`schemas.ts`）、Typert 描述符（`descriptors.ts`）、`TypertRemoteMap` 声明（`remote.ts`）。见 [console_remote](Console_API_and_Host_Integration/console_remote.md)。 |
-| 下游 | `src/client/console-remote/adapter.ts` | 实现 `WorktreeConsoleAdapter`。见 [client_console_remote](Client_Presentation_and_Interaction/client_console_remote.md)。 |
-| 下游 | `src/client/target-console/*`、`src/client/workspace-sidebar/*`、`src/client/index.tsx` | UI 组件与侧栏投影消费 DTO 与错误元数据。见 [client_target_console](Client_Presentation_and_Interaction/client_target_console.md)、[client_workspace_sidebar](Client_Presentation_and_Interaction/client_workspace_sidebar.md)。 |
+| 上游（被引用） | `src/types.ts` | `SESSION_CHECKOUT_ERROR_CODES`、`SessionCheckoutPhase`、`WorktreeRetentionMode`、`WorktreeCleanupReason`、`WorktreeValidationItem/Status`、`WorktreeCheckpointView`、`WorktreeDeliveryProofView`、`WorktreeAcceptanceBlockerView`。详见 [core_ports_and_types](core_ports_and_types.md)。 |
+| 下游（引用本模块） | `src/console-host/*` | 服务方法签名、控制面接口、投影与错误归一。见 [console_host](console_host.md)。 |
+| 下游 | `src/console-remote/*` | Zod schema（`schemas.ts`）、Typert 描述符（`descriptors.ts`）、`TypertRemoteMap` 声明（`remote.ts`）。见 [console_remote](console_remote.md)。 |
+| 下游 | `src/client/console-remote/adapter.ts` | 实现 `WorktreeConsoleAdapter`。见 [client_console_remote](client_console_remote.md)。 |
+| 下游 | `src/client/target-console/*`、`src/client/workspace-sidebar/*`、`src/client/index.tsx` | UI 组件与侧栏投影消费 DTO 与错误元数据。见 [client_target_console](client_target_console.md)、[client_workspace_sidebar](client_workspace_sidebar.md)。 |
 | 语义来源 | `src/console-host/projection.ts` | `capabilities()` 与 `projectRecord/projectDetails/projectLocal` 是 Summary/Details 字段的权威填充者。 |
 
 ```mermaid

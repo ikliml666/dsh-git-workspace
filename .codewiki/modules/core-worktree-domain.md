@@ -14,7 +14,7 @@ source_files:
   - src/worktree-creation.ts
 tags: []
 generated_by: fsoft-native
-fsoft_page: Worktree_and_Session_Checkout_Domain/core_worktree_domain.md
+fsoft_page: core_worktree_domain.md
 ---
 # 核心工作树领域（core_worktree_domain）
 

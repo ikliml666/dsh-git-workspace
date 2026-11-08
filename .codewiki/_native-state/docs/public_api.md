@@ -119,7 +119,7 @@ flowchart LR
 
 `dsh.bundle.patch` 指向 `./cordis.patch.yml`，其中只有一条 `insert`，把插件自身以 `id: dsh-git-worktree` 插进 profile；`dsh.client.inject` 声明客户端 bundle 需要的 8 个官方客户端包（session-controller、workspace-controller、connection、locale、conversation、tool、gateway、remote-access），`platform` 为 `web`。
 
-构建与校验链路（CI 与本地一致）：`pnpm run typecheck` → `pnpm run build`（`scripts/clean-lib.mjs` + `tsc` + `tsdown`）→ `pnpm run check:publish:release` → `pnpm run test`。`tsconfig.json` 以 `src` 为 `rootDir`、输出 `lib`、`module: NodeNext`，因此 `index.ts` 里所有相对导入都带 `.js` 后缀。详见 [build_deployment_configuration](Cross-Cutting_Foundation_and_Public_Surface/build_deployment_configuration.md)。
+构建与校验链路（CI 与本地一致）：`pnpm run typecheck` → `pnpm run build`（`scripts/clean-lib.mjs` + `tsc` + `tsdown`）→ `pnpm run check:publish:release` → `pnpm run test`。`tsconfig.json` 以 `src` 为 `rootDir`、输出 `lib`、`module: NodeNext`，因此 `index.ts` 里所有相对导入都带 `.js` 后缀。详见 [build_deployment_configuration](build_deployment_configuration.md)。
 
 ---
 
@@ -144,7 +144,7 @@ class SessionCheckoutError extends Error {
 ```
 
 - `name` 固定为 `'SessionCheckoutError'`，`code` 取自 `SESSION_CHECKOUT_ERROR_CODES`（定义在 `src/types.ts`）。
-- `message` 是**面向用户**的文案，工具层会原样上抛；文案由 Host 侧 i18n 生成（见 [i18n](Cross-Cutting_Foundation_and_Public_Surface/i18n.md)）。
+- `message` 是**面向用户**的文案，工具层会原样上抛；文案由 Host 侧 i18n 生成（见 [i18n](i18n.md)）。
 - 约定：**会抛异常的方法**（`inspect`、`bind`、`createOfficialTarget`、`listManagedWorktrees*`、`mergeBranchForSession`、`manageManagedWorktree*` 等）用 `SessionCheckoutError` 表达失败；**`operate`** 则把域错误收敛进返回值 `{ status: 'error', code, message, target? }`，只有非域异常才继续抛。
 
 错误码按语义分组（完整常量见 `src/types.ts` 的 `SESSION_CHECKOUT_ERROR_CODES`）：
@@ -290,7 +290,7 @@ flowchart LR
 | `SessionCheckoutReconcileSummary` | `recoveryRequiredCheckoutIds`、`orphanedCheckoutIds`、`dirtyOrphanedCheckoutIds`、`staleRootCheckoutIds`、`retainedCheckoutCount` | `reconcile()` 的返回结构。 |
 | `LocalAdaptationConfig` | `autoDeliver?`、`autoPush?`、`worktreesRoot?`、`inheritLocalChanges?`、`worktreeKeepCount?`、`autoPruneMergedBranches?`、`enableWorkspaceProvider?` | 注意：该 interface **没有 `export` 关键字**，它只作为 `apply()` 形参的类型成分出现在生成的 `.d.ts` 中；外部调用方应通过 `Config` schema 的键名理解这些配置。 |
 
-视图类型（`SessionTargetView`、`ManagedWorktreeSummaryView`、`PruneMergedBranchesView`、`MergeBranchForSessionView`、`WorktreePreviewRecoveryProof` 等）定义在 `src/types.ts`，属于 [core_ports_and_types](Ports,_Adapters,_and_Infrastructure/core_ports_and_types.md) 的契约面，本模块只是转发引用。
+视图类型（`SessionTargetView`、`ManagedWorktreeSummaryView`、`PruneMergedBranchesView`、`MergeBranchForSessionView`、`WorktreePreviewRecoveryProof` 等）定义在 `src/types.ts`，属于 [core_ports_and_types](core_ports_and_types.md) 的契约面，本模块只是转发引用。
 
 ---
 
@@ -522,7 +522,7 @@ sequenceDiagram
 | `autoPruneMergedBranches` | `boolean`，默认 `false` | 是 | 每日对每个受管项目执行一次真实 `git branch -d`（仅已合并、且 tip 早于 7 天）。 |
 | `enableWorkspaceProvider` | `boolean`，默认 `false` | 否 | 仅显式 `true` 才接管官方 Workspace UI；接管会禁用官方条目，使依赖它的客户端包失去 bundle，因此绝不自动开启。 |
 
-`enableWorkspaceProvider` 的取值会传给 `mountWorkspaceProviderLifecycle`，其选举结果 `officialWorkspaceActive` 再传给 `WorktreeConsoleService`，影响 Sidebar topology 的呈现。接管机制与历史崩溃根因见 `cordis.patch.yml` 注释与 [core_worktree_domain](Worktree_and_Session_Checkout_Domain/core_worktree_domain.md)。
+`enableWorkspaceProvider` 的取值会传给 `mountWorkspaceProviderLifecycle`，其选举结果 `officialWorkspaceActive` 再传给 `WorktreeConsoleService`，影响 Sidebar topology 的呈现。接管机制与历史崩溃根因见 `cordis.patch.yml` 注释与 [core_worktree_domain](core_worktree_domain.md)。
 
 ---
 
@@ -598,7 +598,7 @@ if (result.status === 'error') {
 | `workingDirectory` 服务 | 建树后不移动 cwd，改为注入「绝对路径 + write-guard」指导；`enter` / `leave` 全部 no-op。 |
 | `commands` / `systemPrompt` 服务 | 对应 `inject` 未满足，`/worktree` 命令或上下文注入不挂载。 |
 | Git 端口可选方法（`attachWorktreeBranch`、`mergeLocalBranch`、`deleteLocalBranch`、`branchTipTimes`、`snapshotAbandonedWorktree` 等） | 相关操作返回 `operation_not_allowed` 并说明该安装的 Git 端口不支持；会话分支挂载失败会退回 detached HEAD 行为并 `console.warn`。 |
-| 官方 `ui-workspace` 客户端包版本 | 由 `host-compat.ts` 的 flavor 探测与 `tsdown` 的 4 个虚拟模块（official / next / rc5 / alpha）覆盖，见 [build_deployment_configuration](Cross-Cutting_Foundation_and_Public_Surface/build_deployment_configuration.md)。 |
+| 官方 `ui-workspace` 客户端包版本 | 由 `host-compat.ts` 的 flavor 探测与 `tsdown` 的 4 个虚拟模块（official / next / rc5 / alpha）覆盖，见 [build_deployment_configuration](build_deployment_configuration.md)。 |
 
 `peerDependencies` 里对 `@deepseek-ai/dsh-*` 全部使用多区间（`^0.1.2-rc.1 || ^0.1.6-alpha.2 || ^0.1.7-rc.2 || ^0.2.0-rc.1`），`engines.node >= 24.9.0`，这是「一套代码跑多个宿主代际」的声明方式。
 
@@ -606,7 +606,7 @@ if (result.status === 'error') {
 
 `registerWorktreeCommand` 注册 `/worktree`，是**唯一**允许人类发起破坏性动作的入口（模型工具做不到这一点）。命令同样先 `resolveRoots` + `leave` 再执行删除类动作，`leave` 失败即中止；执行后需要重新进入时用 `enter`，并把失败以 `enterNote` 形式明确写进输出，而不是假装会话仍在树里。
 
-验证方式与 CI 一致（`.github/workflows/ci.yml`，Node 22 + pnpm 10）：`pnpm run typecheck` → `pnpm run build` → `pnpm run check:publish:release` → `pnpm run test`。`vitest.config.ts` 把 `@deepseek-ai/dsh-client-ui-primitives` 与 4 个 `virtual:dsh-official-workspace-client*` 模块映射到 `tests/` 下的桩件，因此在没有真实宿主的环境里也能跑通客户端与 flavor 相关用例；Windows 上默认关闭 `fileParallelism`，因为重型 Git fixture 会争抢进程与文件句柄。`pnpm run check:sidebar-version` 与 `prepublishOnly` 链路在发布前额外校验 workspace-sidebar 版本对齐，见 [build_deployment_configuration](Cross-Cutting_Foundation_and_Public_Surface/build_deployment_configuration.md)。
+验证方式与 CI 一致（`.github/workflows/ci.yml`，Node 22 + pnpm 10）：`pnpm run typecheck` → `pnpm run build` → `pnpm run check:publish:release` → `pnpm run test`。`vitest.config.ts` 把 `@deepseek-ai/dsh-client-ui-primitives` 与 4 个 `virtual:dsh-official-workspace-client*` 模块映射到 `tests/` 下的桩件，因此在没有真实宿主的环境里也能跑通客户端与 flavor 相关用例；Windows 上默认关闭 `fileParallelism`，因为重型 Git fixture 会争抢进程与文件句柄。`pnpm run check:sidebar-version` 与 `prepublishOnly` 链路在发布前额外校验 workspace-sidebar 版本对齐，见 [build_deployment_configuration](build_deployment_configuration.md)。
 
 ### 7.7 常见失败与正确的反应
 
@@ -629,9 +629,9 @@ if (result.status === 'error') {
 
 - [console_contract](console_contract.md) —— 本模块 `export *` 转出的双端 JSON 契约。
 - [Console_API_and_Host_Integration](Console_API_and_Host_Integration.md) —— `WorktreeConsoleService` / 控制面如何消费本接口。
-  - [console_host](Console_API_and_Host_Integration/console_host.md)、[console_remote](Console_API_and_Host_Integration/console_remote.md)
+  - [console_host](console_host.md)、[console_remote](console_remote.md)
 - [Worktree_and_Session_Checkout_Domain](Worktree_and_Session_Checkout_Domain.md) —— 状态机、apply 引擎、交付与恢复语义。
-  - [core_worktree_domain](Worktree_and_Session_Checkout_Domain/core_worktree_domain.md)、[session_checkout_engine](Worktree_and_Session_Checkout_Domain/session_checkout_engine.md)
+  - [core_worktree_domain](core_worktree_domain.md)、[session_checkout_engine](session_checkout_engine.md)
 - [Ports,_Adapters,_and_Infrastructure](Ports,_Adapters,_and_Infrastructure.md) —— 端口定义、`ManagedCheckoutRecord`、Git/文件适配器。
 - [Client_Presentation_and_Interaction](Client_Presentation_and_Interaction.md) —— 客户端如何展示胶囊、控制台与侧栏。
 - [Cross-Cutting_Foundation_and_Public_Surface](Cross-Cutting_Foundation_and_Public_Surface.md) —— 构建、CI、发布校验与 i18n。

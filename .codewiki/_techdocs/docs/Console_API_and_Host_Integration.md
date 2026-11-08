@@ -6,7 +6,7 @@ description: ConsoleAPIandHostIntegration 是插件在 Host 侧控制平面 与 
 # Console_API_and_Host_Integration：控制台 API 与 Host 集成
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`8f9cf699`](https://github.com/wloops/dsh-git-worktree/commit/8f9cf6994dc49650288c98a7865f70f20bc9ea24) on 2026-11-08 with `deepseek-v4.1-flash`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`86439d17`](https://github.com/wloops/dsh-git-worktree/commit/86439d17222ffee9fc0f92ded6f736585d844e62) on 2026-11-08 with `deepseek-v4.1-flash`. Check the code before relying on details.
 
 `Console_API_and_Host_Integration` 是插件在 **Host 侧控制平面** 与 **Host/Client 远程契约层** 之间的集成模块。它把 `SessionCheckoutModule` 的领域状态机、端口实现与 `console_contract` 中定义的 JSON DTO 连接起来，向浏览器客户端暴露一组以 `gitWorktree` 为命名空间的 Typert Remote 调用。
 
@@ -20,14 +20,14 @@ description: ConsoleAPIandHostIntegration 是插件在 Host 侧控制平面 与 
 
 | 子模块 | 代码位置 | 职责 |
 | --- | --- | --- |
-| [console_host：Worktree 控制平面与 Host RPC 服务](Console_API_and_Host_Integration/console_host.md) | `src/console-host/` | Host 侧控制平面、DTO 投影、Typert Remote 服务与诊断日志 |
-| [console_remote：控制台远程契约层（Typert Remote）](Console_API_and_Host_Integration/console_remote.md) | `src/console-remote/` | zod 严格 schema、方法 descriptor、Host Typert 贡献与 Client 类型声明 |
+| [console_host：Worktree 控制平面与 Host RPC 服务](console_host.md) | `src/console-host/` | Host 侧控制平面、DTO 投影、Typert Remote 服务与诊断日志 |
+| [console_remote：控制台远程契约层（Typert Remote）](console_remote.md) | `src/console-remote/` | zod 严格 schema、方法 descriptor、Host Typert 贡献与 Client 类型声明 |
 
 `console_host` 内部又分为三个协作面：
 
-- [Worktree Console 控制面（Host 业务编排层）](Console_API_and_Host_Integration/console_host/console_host_control_plane.md)：25 个控制平面方法，负责授权门、观测复用、评审位仲裁、变更编排与 Git 面代理。
-- [console_host_projection — Host 侧投影与能力门控](Console_API_and_Host_Integration/console_host/console_host_projection.md)：记录到契约 DTO 的投影、`capabilities` 能力位计算与 `WorktreeConsoleOutcome` 归一化。
-- [console_host_rpc_service 模块](Console_API_and_Host_Integration/console_host/console_host_rpc_service.md)：`WorktreeConsoleService` 的 `@Remote` 方法、locale 包装与诊断日志轮转。
+- [Worktree Console 控制面（Host 业务编排层）](console_host_control_plane.md)：25 个控制平面方法，负责授权门、观测复用、评审位仲裁、变更编排与 Git 面代理。
+- [console_host_projection — Host 侧投影与能力门控](console_host_projection.md)：记录到契约 DTO 的投影、`capabilities` 能力位计算与 `WorktreeConsoleOutcome` 归一化。
+- [console_host_rpc_service 模块](console_host_rpc_service.md)：`WorktreeConsoleService` 的 `@Remote` 方法、locale 包装与诊断日志轮转。
 
 `console_remote` 则提供 26 个远端方法的 descriptor、zod schema、Host 侧 `TYPERT` 贡献以及 Client 侧 `remote.gitWorktree` 类型增强。两侧共享同一份 schema 实例，避免编码/解码契约漂移。
 
@@ -119,27 +119,27 @@ sequenceDiagram
 
 | 文档 | 内容 |
 | --- | --- |
-| [console_host：Worktree 控制平面与 Host RPC 服务](Console_API_and_Host_Integration/console_host.md) | Host 控制平面总览、RPC 调用生命周期、授权模型、观测与性能取舍、错误信封、诊断与构建面 |
-| [Worktree Console 控制面（Host 业务编排层）](Console_API_and_Host_Integration/console_host/console_host_control_plane.md) | 25 个控制平面方法的签名、权限判据、CAS 与变更编排细节 |
-| [console_host_projection — Host 侧投影与能力门控](Console_API_and_Host_Integration/console_host/console_host_projection.md) | 记录到 DTO 的投影规则、能力位计算、`WorktreeConsoleOutcome` 归一化 |
-| [console_host_rpc_service 模块](Console_API_and_Host_Integration/console_host/console_host_rpc_service.md) | `WorktreeConsoleService` 的 `@Remote` 方法、locale 包装、诊断日志轮转 |
-| [console_remote：控制台远程契约层（Typert Remote）](Console_API_and_Host_Integration/console_remote.md) | zod schema、descriptor 方法表、Typert Host/Client 贡献、版本兼容与扩展指南 |
+| [console_host：Worktree 控制平面与 Host RPC 服务](console_host.md) | Host 控制平面总览、RPC 调用生命周期、授权模型、观测与性能取舍、错误信封、诊断与构建面 |
+| [Worktree Console 控制面（Host 业务编排层）](console_host_control_plane.md) | 25 个控制平面方法的签名、权限判据、CAS 与变更编排细节 |
+| [console_host_projection — Host 侧投影与能力门控](console_host_projection.md) | 记录到 DTO 的投影规则、能力位计算、`WorktreeConsoleOutcome` 归一化 |
+| [console_host_rpc_service 模块](console_host_rpc_service.md) | `WorktreeConsoleService` 的 `@Remote` 方法、locale 包装、诊断日志轮转 |
+| [console_remote：控制台远程契约层（Typert Remote）](console_remote.md) | zod schema、descriptor 方法表、Typert Host/Client 贡献、版本兼容与扩展指南 |
 | [console_contract 模块（Worktree Console 共享契约）](console_contract.md) | 全部请求/响应 DTO、`consoleStateFromDomain`、`worktreeReachedDelivery` 与错误码集合 |
 | [Worktree 与会话检出领域（Worktree_and_Session_Checkout_Domain）](Worktree_and_Session_Checkout_Domain.md) | `SessionCheckoutModule` 的 `inspect`、`operate`、`bind`、`manageManagedWorktreeForSession` 等领域能力 |
 | [端口、适配器与基础设施（Ports, Adapters, and Infrastructure）](Ports,_Adapters,_and_Infrastructure.md) | `lookup`、`files`、`registry`、`git` 四个端口的真实实现与 `ManagedCheckoutRecord` 类型来源 |
 | [Client_Presentation_and_Interaction 模块概览](Client_Presentation_and_Interaction.md) | 客户端轮询、`TargetConsoleContextLike`、侧栏拓扑消费方与 `$mount` 封装 |
 
 ??? abstract "Documented components (12)"
-    - [`WorktreeConsoleControlPlane`](https://github.com/wloops/dsh-git-worktree/blob/8f9cf6994dc49650288c98a7865f70f20bc9ea24/src%5Cconsole-host%5Ccontrol-plane.ts) — `src\console-host\control-plane.ts`
-    - [`WorktreeConsoleControlPlaneOptions`](https://github.com/wloops/dsh-git-worktree/blob/8f9cf6994dc49650288c98a7865f70f20bc9ea24/src%5Cconsole-host%5Ccontrol-plane.ts) — `src\console-host\control-plane.ts`
-    - [`consoleFailure`](https://github.com/wloops/dsh-git-worktree/blob/8f9cf6994dc49650288c98a7865f70f20bc9ea24/src%5Cconsole-host%5Cerrors.ts) — `src\console-host\errors.ts`
-    - [`capabilities`](https://github.com/wloops/dsh-git-worktree/blob/8f9cf6994dc49650288c98a7865f70f20bc9ea24/src%5Cconsole-host%5Cprojection.ts) — `src\console-host\projection.ts`
-    - [`WorktreeConsoleService`](https://github.com/wloops/dsh-git-worktree/blob/8f9cf6994dc49650288c98a7865f70f20bc9ea24/src%5Cconsole-host%5Cservice.ts) — `src\console-host\service.ts`
-    - [`ReviewIcon`](https://github.com/wloops/dsh-git-worktree/blob/8f9cf6994dc49650288c98a7865f70f20bc9ea24/src%5Cclient%5Creview-console%5CReviewIcon.tsx) — `src\client\review-console\ReviewIcon.tsx`
-    - [`requestWorktreeReviewRefresh`](https://github.com/wloops/dsh-git-worktree/blob/8f9cf6994dc49650288c98a7865f70f20bc9ea24/src%5Cclient%5Creview-console%5Cstatus-events.ts) — `src\client\review-console\status-events.ts`
-    - [`descriptor`](https://github.com/wloops/dsh-git-worktree/blob/8f9cf6994dc49650288c98a7865f70f20bc9ea24/src%5Cconsole-remote%5Cdescriptors.ts) — `src\console-remote\descriptors.ts`
-    - [`TypertRemoteMap`](https://github.com/wloops/dsh-git-worktree/blob/8f9cf6994dc49650288c98a7865f70f20bc9ea24/src%5Cconsole-remote%5Cremote.ts) — `src\console-remote\remote.ts`
-    - [`TypertRemoteNamespaceMap`](https://github.com/wloops/dsh-git-worktree/blob/8f9cf6994dc49650288c98a7865f70f20bc9ea24/src%5Cconsole-remote%5Cremote.ts) — `src\console-remote\remote.ts`
-    - [`outcomeSchema`](https://github.com/wloops/dsh-git-worktree/blob/8f9cf6994dc49650288c98a7865f70f20bc9ea24/src%5Cconsole-remote%5Cschemas.ts) — `src\console-remote\schemas.ts`
-    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/8f9cf6994dc49650288c98a7865f70f20bc9ea24/src%5Cconsole-remote%5Ctypert.ts) — `src\console-remote\typert.ts`
+    - [`WorktreeConsoleControlPlane`](https://github.com/wloops/dsh-git-worktree/blob/86439d17222ffee9fc0f92ded6f736585d844e62/src%5Cconsole-host%5Ccontrol-plane.ts) — `src\console-host\control-plane.ts`
+    - [`WorktreeConsoleControlPlaneOptions`](https://github.com/wloops/dsh-git-worktree/blob/86439d17222ffee9fc0f92ded6f736585d844e62/src%5Cconsole-host%5Ccontrol-plane.ts) — `src\console-host\control-plane.ts`
+    - [`consoleFailure`](https://github.com/wloops/dsh-git-worktree/blob/86439d17222ffee9fc0f92ded6f736585d844e62/src%5Cconsole-host%5Cerrors.ts) — `src\console-host\errors.ts`
+    - [`capabilities`](https://github.com/wloops/dsh-git-worktree/blob/86439d17222ffee9fc0f92ded6f736585d844e62/src%5Cconsole-host%5Cprojection.ts) — `src\console-host\projection.ts`
+    - [`WorktreeConsoleService`](https://github.com/wloops/dsh-git-worktree/blob/86439d17222ffee9fc0f92ded6f736585d844e62/src%5Cconsole-host%5Cservice.ts) — `src\console-host\service.ts`
+    - [`ReviewIcon`](https://github.com/wloops/dsh-git-worktree/blob/86439d17222ffee9fc0f92ded6f736585d844e62/src%5Cclient%5Creview-console%5CReviewIcon.tsx) — `src\client\review-console\ReviewIcon.tsx`
+    - [`requestWorktreeReviewRefresh`](https://github.com/wloops/dsh-git-worktree/blob/86439d17222ffee9fc0f92ded6f736585d844e62/src%5Cclient%5Creview-console%5Cstatus-events.ts) — `src\client\review-console\status-events.ts`
+    - [`descriptor`](https://github.com/wloops/dsh-git-worktree/blob/86439d17222ffee9fc0f92ded6f736585d844e62/src%5Cconsole-remote%5Cdescriptors.ts) — `src\console-remote\descriptors.ts`
+    - [`TypertRemoteMap`](https://github.com/wloops/dsh-git-worktree/blob/86439d17222ffee9fc0f92ded6f736585d844e62/src%5Cconsole-remote%5Cremote.ts) — `src\console-remote\remote.ts`
+    - [`TypertRemoteNamespaceMap`](https://github.com/wloops/dsh-git-worktree/blob/86439d17222ffee9fc0f92ded6f736585d844e62/src%5Cconsole-remote%5Cremote.ts) — `src\console-remote\remote.ts`
+    - [`outcomeSchema`](https://github.com/wloops/dsh-git-worktree/blob/86439d17222ffee9fc0f92ded6f736585d844e62/src%5Cconsole-remote%5Cschemas.ts) — `src\console-remote\schemas.ts`
+    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/86439d17222ffee9fc0f92ded6f736585d844e62/src%5Cconsole-remote%5Ctypert.ts) — `src\console-remote\typert.ts`
 

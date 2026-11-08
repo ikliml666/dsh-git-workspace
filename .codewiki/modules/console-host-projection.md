@@ -6,7 +6,7 @@ source_files:
   - src/console-host/projection.ts
 tags: []
 generated_by: fsoft-native
-fsoft_page: Console_API_and_Host_Integration/console_host/console_host_projection.md
+fsoft_page: console_host_projection.md
 ---
 # console_host_projection — Host 侧投影与能力门控
 

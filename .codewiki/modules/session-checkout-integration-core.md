@@ -6,7 +6,7 @@ source_files:
   - src/session-target-context.ts
 tags: []
 generated_by: fsoft-native
-fsoft_page: Worktree_and_Session_Checkout_Domain/session_checkout_engine/session_checkout_engine_integration/session_checkout_integration_core.md
+fsoft_page: session_checkout_integration_core.md
 ---
 # Session Checkout 集成核心（session_checkout_integration_core）
 
@@ -97,7 +97,7 @@ flowchart LR
         D6["managedCheckoutsRoot"]
         D7["createCheckoutId()"]
         D8["officialWorktrees()<br/>惰性解析"]
-        D9["autoDeliver / autoPush /<br/>worktreesRoot / inheritLocalChanges /<br/>worktreeKeepCount（LiveValue）"]
+        D9["autoDeliver / autoPush /<br/>inheritLocalChanges / worktreeKeepCount（LiveValue）"]
     end
 
     Deps --> MOD["createSessionCheckoutModule"]

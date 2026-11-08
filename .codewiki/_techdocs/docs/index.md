@@ -6,7 +6,7 @@ description: dsh-git-worktree 是运行在 DeepSeek Harness（DSH）之上的 Gi
 # dsh-git-worktree 仓库概览
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`8f9cf699`](https://github.com/wloops/dsh-git-worktree/commit/8f9cf6994dc49650288c98a7865f70f20bc9ea24) on 2026-11-08 with `deepseek-v4.1-flash`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`86439d17`](https://github.com/wloops/dsh-git-worktree/commit/86439d17222ffee9fc0f92ded6f736585d844e62) on 2026-11-08 with `deepseek-v4.1-flash`. Check the code before relying on details.
 
 `dsh-git-worktree` 是运行在 DeepSeek Harness（DSH）之上的 Git Worktree 插件。它的目标是把「会话、项目与受管 Worktree」之间的绑定关系，实现为一套可持久化、可并发、可崩溃恢复的**隔离交付机制**：模型在受管 Worktree 中写代码，结果以可复核、可回滚、可恢复的 Git 事务形式整合回目标分支，而不直接污染用户的本地仓库（Local）。
 
@@ -107,4 +107,4 @@ flowchart LR
 
 质量门禁与 CI 一致，依次执行 `typecheck` → `build` → `check:publish:release` → `test`（vitest）。发布检查是 fail-closed 的：它会实际执行 `lib/client.js`、校验导出目标存在性、Host 单例依赖分层与挂载补丁形态。本地部署可通过 `dev:dsh` 系列脚本完成安装、冒烟与卸载。
 
-上述流程的完整细节（脚本清单、包形态、挂载契约、CI 作业与依赖解析策略）见 [build_deployment_configuration：构建、打包与发布部署配置](Cross-Cutting_Foundation_and_Public_Surface/build_deployment_configuration.md)；插件自有文案的双语目录、语言解析与 Host 调用级语言快照见 [i18n：中英双语文案与语言解析基础设施](Cross-Cutting_Foundation_and_Public_Surface/i18n.md)。
+上述流程的完整细节（脚本清单、包形态、挂载契约、CI 作业与依赖解析策略）见 [build_deployment_configuration：构建、打包与发布部署配置](build_deployment_configuration.md)；插件自有文案的双语目录、语言解析与 Host 调用级语言快照见 [i18n：中英双语文案与语言解析基础设施](i18n.md)。

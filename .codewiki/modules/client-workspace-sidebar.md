@@ -6,7 +6,7 @@ source_files:
   - src/client/workspace-sidebar/model.ts
 tags: []
 generated_by: fsoft-native
-fsoft_page: Client_Presentation_and_Interaction/client_workspace_sidebar.md
+fsoft_page: client_workspace_sidebar.md
 ---
 # client_workspace_sidebar 模块
 

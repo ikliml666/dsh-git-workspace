@@ -12,14 +12,14 @@
 
 | 子模块 | 代码位置 | 职责 |
 | --- | --- | --- |
-| [console_host](Console_API_and_Host_Integration/console_host.md) | `src/console-host/` | Host 侧控制平面、DTO 投影、Typert Remote 服务与诊断日志 |
-| [console_remote](Console_API_and_Host_Integration/console_remote.md) | `src/console-remote/` | zod 严格 schema、方法 descriptor、Host Typert 贡献与 Client 类型声明 |
+| [console_host](console_host.md) | `src/console-host/` | Host 侧控制平面、DTO 投影、Typert Remote 服务与诊断日志 |
+| [console_remote](console_remote.md) | `src/console-remote/` | zod 严格 schema、方法 descriptor、Host Typert 贡献与 Client 类型声明 |
 
 `console_host` 内部又分为三个协作面：
 
-- [console_host_control_plane](Console_API_and_Host_Integration/console_host/console_host_control_plane.md)：25 个控制平面方法，负责授权门、观测复用、评审位仲裁、变更编排与 Git 面代理。
-- [console_host_projection](Console_API_and_Host_Integration/console_host/console_host_projection.md)：记录到契约 DTO 的投影、`capabilities` 能力位计算与 `WorktreeConsoleOutcome` 归一化。
-- [console_host_rpc_service](Console_API_and_Host_Integration/console_host/console_host_rpc_service.md)：`WorktreeConsoleService` 的 `@Remote` 方法、locale 包装与诊断日志轮转。
+- [console_host_control_plane](console_host_control_plane.md)：25 个控制平面方法，负责授权门、观测复用、评审位仲裁、变更编排与 Git 面代理。
+- [console_host_projection](console_host_projection.md)：记录到契约 DTO 的投影、`capabilities` 能力位计算与 `WorktreeConsoleOutcome` 归一化。
+- [console_host_rpc_service](console_host_rpc_service.md)：`WorktreeConsoleService` 的 `@Remote` 方法、locale 包装与诊断日志轮转。
 
 `console_remote` 则提供 26 个远端方法的 descriptor、zod schema、Host 侧 `TYPERT` 贡献以及 Client 侧 `remote.gitWorktree` 类型增强。两侧共享同一份 schema 实例，避免编码/解码契约漂移。
 
@@ -111,11 +111,11 @@ sequenceDiagram
 
 | 文档 | 内容 |
 | --- | --- |
-| [console_host](Console_API_and_Host_Integration/console_host.md) | Host 控制平面总览、RPC 调用生命周期、授权模型、观测与性能取舍、错误信封、诊断与构建面 |
-| [console_host_control_plane](Console_API_and_Host_Integration/console_host/console_host_control_plane.md) | 25 个控制平面方法的签名、权限判据、CAS 与变更编排细节 |
-| [console_host_projection](Console_API_and_Host_Integration/console_host/console_host_projection.md) | 记录到 DTO 的投影规则、能力位计算、`WorktreeConsoleOutcome` 归一化 |
-| [console_host_rpc_service](Console_API_and_Host_Integration/console_host/console_host_rpc_service.md) | `WorktreeConsoleService` 的 `@Remote` 方法、locale 包装、诊断日志轮转 |
-| [console_remote](Console_API_and_Host_Integration/console_remote.md) | zod schema、descriptor 方法表、Typert Host/Client 贡献、版本兼容与扩展指南 |
+| [console_host](console_host.md) | Host 控制平面总览、RPC 调用生命周期、授权模型、观测与性能取舍、错误信封、诊断与构建面 |
+| [console_host_control_plane](console_host_control_plane.md) | 25 个控制平面方法的签名、权限判据、CAS 与变更编排细节 |
+| [console_host_projection](console_host_projection.md) | 记录到 DTO 的投影规则、能力位计算、`WorktreeConsoleOutcome` 归一化 |
+| [console_host_rpc_service](console_host_rpc_service.md) | `WorktreeConsoleService` 的 `@Remote` 方法、locale 包装、诊断日志轮转 |
+| [console_remote](console_remote.md) | zod schema、descriptor 方法表、Typert Host/Client 贡献、版本兼容与扩展指南 |
 | [console_contract](console_contract.md) | 全部请求/响应 DTO、`consoleStateFromDomain`、`worktreeReachedDelivery` 与错误码集合 |
 | [Worktree_and_Session_Checkout_Domain](Worktree_and_Session_Checkout_Domain.md) | `SessionCheckoutModule` 的 `inspect`、`operate`、`bind`、`manageManagedWorktreeForSession` 等领域能力 |
 | [Ports,_Adapters,_and_Infrastructure](Ports,_Adapters,_and_Infrastructure.md) | `lookup`、`files`、`registry`、`git` 四个端口的真实实现与 `ManagedCheckoutRecord` 类型来源 |

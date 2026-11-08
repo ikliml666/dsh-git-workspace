@@ -6,7 +6,7 @@ source_files:
   - src/types.ts
 tags: []
 generated_by: fsoft-native
-fsoft_page: Ports,_Adapters,_and_Infrastructure/core_ports_and_types.md
+fsoft_page: core_ports_and_types.md
 ---
 # 核心端口与类型契约（core_ports_and_types）
 
@@ -68,13 +68,13 @@ flowchart TD
 | 端口 | 职责 | 实现方 |
 | --- | --- | --- |
 | `SessionCheckoutLookupPort` | 会话/项目的**只读导航证据**：`getSession`、`getProject`、可选 `getSessionCwd`、`listLiveSessions`、`getSidebarMemberships` | `createDshLookupPort`（`src/adapters/lookup.ts`） |
-| `SessionCheckoutGitPort` | 全部 Git 操作：快照、状态、worktree 增删、内部 ref 保留、分支/标签/图日志、WIP 捕获、放弃快照 | `createDshGitPort`（`src/adapters/git.ts`） |
+| `SessionCheckoutGitPort` | 全部 Git 操作：快照、状态、worktree 增删、内部 ref 保留、分支/标签/图日志、WIP 捕获、放弃快照、项目 Skill 携带 | `createDshGitPort`（`src/adapters/git.ts`） |
 | `SessionCheckoutFilesPort` | 目录身份（device/inode/birthtime）用于隔离区 CAS、空树残余收集、符号链接防护删除、字节统计 | `createNodeFilesPort`（`src/adapters/files.ts`） |
 | `SessionCheckoutRegistryPort` | 版本 2 台账的读、写与**锁内读-改-写** `update` | `AtomicJsonCheckoutRegistry`（`src/adapters/registry.ts`） |
 | `OfficialWorktreesPort` | 宿主自身 `worktrees` 服务的窄化视图，只取 `create` | 宿主通过 `ctx.get('worktrees')` 动态解析 |
 | `SessionCheckoutApplyEngine` | 由 apply 引擎实现（`src/session-checkout-apply.ts`），通过 `SessionCheckoutDependencies.applyEngine` 注入 | 见 [session_checkout_apply_engine](session-checkout-apply-engine.md) |
 
-`SessionCheckoutDependencies` 是端口的总装点：`lookup`、`git`、`files`、`registry`、`applyEngine` 五个必需端口，加 `managedCheckoutsRoot`、`createCheckoutId()`，再加一组**可选宿主能力与本地适配开关**（`officialWorktrees`、`autoPush`、`autoDeliver`、`worktreesRoot`、`inheritLocalChanges`、`worktreeKeepCount`）。`src/index.ts` 的 `apply()` 负责把具体适配器装配进去。
+`SessionCheckoutDependencies` 是端口的总装点：`lookup`、`git`、`files`、`registry`、`applyEngine` 五个必需端口，加 `managedCheckoutsRoot`、`createCheckoutId()`，再加一组**可选宿主能力与本地适配开关**（`officialWorktrees`、`autoPush`、`autoDeliver`、`inheritLocalChanges`、`worktreeKeepCount`）。`src/index.ts` 的 `apply()` 负责把具体适配器装配进去。
 
 ```mermaid
 classDiagram
@@ -89,7 +89,7 @@ classDiagram
         +officialWorktrees: 可选惰性提供者
         +autoPush: 可选活配置
         +autoDeliver: 可选活配置
-        +worktreesRoot: 可选活配置
+
         +inheritLocalChanges: 可选活配置
         +worktreeKeepCount: 可选活配置
     }
@@ -114,6 +114,7 @@ classDiagram
 
 - `preflightInitialCommit` / `initializeEmptyRepository` / `initializeProject`：不支持初始化的第三方端口不得初始化仓库。
 - `attachWorktreeBranch`：缺失时保留旧的 detached-HEAD 行为。
+- `carryProjectSkills`：把项目 Skills 携进一棵**已建好**的 Worktree。建树改由官方 `worktrees` 服务负责后，`createDetachedWorktree` 不再参与官方路径，而 Skill 只存在于项目工作区、不在 Git 里，因此携带必须单独成步；缺失时不携带。
 - `pushBranch`、`pushTag`、`deleteRemoteTag`：返回 `{ ok, message }` 而不是抛异常，让自动推送"软失败"。
 - `repairWorktreeLinks`、`pruneWorktrees`：返回布尔值，缺失时调用方原样保留记录。
 - `branchTipTimes`：缺失即关闭"陈旧分支年龄过滤"，绝不猜。
@@ -133,7 +134,7 @@ flowchart LR
     end
     subgraph Optional["可选：能力缺失即降级"]
         B1["preflightInitialCommit / initializeEmptyRepository / initializeProject"]
-        B2["attachWorktreeBranch"]
+        B2["attachWorktreeBranch / carryProjectSkills"]
         B3["pushBranch / pushTag / deleteRemoteTag"]
         B4["repairWorktreeLinks / pruneWorktrees"]
         B5["branchOverview / defaultBranch / branchTipTimes / deleteLocalBranch"]
@@ -159,7 +160,7 @@ flowchart LR
 - **身份**：`checkoutId`、`projectId`、`ownerSessionId`、`sourceSessionId`、`predecessorCheckoutId`。
 - **双边界路径**：`localRoot`（Local 检出规范根）、`managedRoot`（受管 Worktree 中项目根，同时是租约 cwd）、`managedGitRoot`（仓库顶层）、`gitCommonDir`、`gitDir`。项目根可以是仓库子目录，因此两个 root 必须分开存。
 - **基线**：`baseOid`（创建基点）与 `applyBaseOid`（最近一次成功 apply 的隔离快照，**不**改变用户可见的 Session Base）。
-- **分支归属**：`sourceRef`（分叉来源）、`sessionBranch`（本 Worktree 提交到的会话分支，历史记录可能缺失）、`sessionTopic`（决定目录名与会话分支名 `feat/sess-<session>--<topic>`，必须持久化以免改名）。
+- **分支归属**：`sourceRef`（分叉来源）、`sessionBranch`（本 Worktree 提交到的会话分支，历史记录可能缺失）、`sessionTopic`（决定会话分支名 `feat/sess-<session>--<topic>`，必须持久化以免改名）。
 - **状态机**：`phase`（`SessionCheckoutPhase`）、`delivery`（`ManagedCheckoutDelivery`）、`journal`（崩溃恢复日志，`null` 表示无在飞操作）、`revision`（乐观并发版本）。
 - **附属证据**：`checkpoints[]`、`previousReview`、`recoveryContinuation`、`abandonedSnapshotOid`/`abandonedSnapshotAt`、`permanent`、`sidebarBadgeClearedRevision`。
 
@@ -207,7 +208,7 @@ stateDiagram-v2
 
 ### `LiveValue`：易变配置的活引用
 
-`LiveValue<T>` 与 `liveConfigValue()` 是本文件唯一的运行时代码。设置页编辑的易变（volatile）字段以活引用形式抵达，每次使用都重新 `get()`，因此改配置无需重挂插件。`autoPush`、`autoDeliver`、`worktreesRoot`、`inheritLocalChanges`、`worktreeKeepCount` 全部声明为 `T | LiveValue<T>`。`src/adapters/git-options.ts` 的 `gitTimeoutMs()` 也复用了同一机制。
+`LiveValue<T>` 与 `liveConfigValue()` 是本文件唯一的运行时代码。设置页编辑的易变（volatile）字段以活引用形式抵达，每次使用都重新 `get()`，因此改配置无需重挂插件。`autoPush`、`autoDeliver`、`inheritLocalChanges`、`worktreeKeepCount` 全部声明为 `T | LiveValue<T>`。`src/adapters/git-options.ts` 的 `gitTimeoutMs()` 也复用了同一机制。
 
 `src/index.ts` 中的 `Config`（schemastery）用 `volatile()` 标注这些字段，因此它们被投影到设置页、写入 `cordis.patch.yml` 而无需重挂；本模块的 `LiveValue` 就是这条链路在领域层的表示。相关宿主适配见 [client_settings_card](client-settings-card.md) 与 [build_deployment_configuration](build-deployment-configuration.md)。
 

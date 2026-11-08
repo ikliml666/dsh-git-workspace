@@ -5,7 +5,7 @@ source_files:
   - src/console-host/control-plane.ts
 tags: []
 generated_by: fsoft-native
-fsoft_page: Console_API_and_Host_Integration/console_host/console_host_control_plane.md
+fsoft_page: console_host_control_plane.md
 ---
 # Worktree Console 控制面（Host 业务编排层）
 

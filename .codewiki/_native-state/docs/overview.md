@@ -99,4 +99,4 @@ flowchart LR
 
 质量门禁与 CI 一致，依次执行 `typecheck` → `build` → `check:publish:release` → `test`（vitest）。发布检查是 fail-closed 的：它会实际执行 `lib/client.js`、校验导出目标存在性、Host 单例依赖分层与挂载补丁形态。本地部署可通过 `dev:dsh` 系列脚本完成安装、冒烟与卸载。
 
-上述流程的完整细节（脚本清单、包形态、挂载契约、CI 作业与依赖解析策略）见 [build_deployment_configuration](Cross-Cutting_Foundation_and_Public_Surface/build_deployment_configuration.md)；插件自有文案的双语目录、语言解析与 Host 调用级语言快照见 [i18n](Cross-Cutting_Foundation_and_Public_Surface/i18n.md)。
+上述流程的完整细节（脚本清单、包形态、挂载契约、CI 作业与依赖解析策略）见 [build_deployment_configuration](build_deployment_configuration.md)；插件自有文案的双语目录、语言解析与 Host 调用级语言快照见 [i18n](i18n.md)。

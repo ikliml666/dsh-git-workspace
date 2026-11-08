@@ -7,42 +7,42 @@ nav:
 - dsh-git-worktree 仓库概览: index.md
 - Client_Presentation_and_Interaction 模块概览:
   - Client_Presentation_and_Interaction 模块概览: Client_Presentation_and_Interaction.md
-  - client_core 模块: Client_Presentation_and_Interaction/client_core.md
-  - client_console_remote 模块: Client_Presentation_and_Interaction/client_console_remote.md
-  - Worktree 设置卡片（client_settings_card）: Client_Presentation_and_Interaction/client_settings_card.md
-  - 会话目标胶囊与工作树控制台（client_target_console）: Client_Presentation_and_Interaction/client_target_console.md
-  - client_workspace_sidebar 模块: Client_Presentation_and_Interaction/client_workspace_sidebar.md
+  - client_core 模块: client_core.md
+  - client_console_remote 模块: client_console_remote.md
+  - Worktree 设置卡片（client_settings_card）: client_settings_card.md
+  - 会话目标胶囊与工作树控制台（client_target_console）: client_target_console.md
+  - client_workspace_sidebar 模块: client_workspace_sidebar.md
 - Console_API_and_Host_Integration：控制台 API 与 Host 集成:
   - Console_API_and_Host_Integration：控制台 API 与 Host 集成: Console_API_and_Host_Integration.md
   - console_host：Worktree 控制平面与 Host RPC 服务:
-    - console_host：Worktree 控制平面与 Host RPC 服务: Console_API_and_Host_Integration/console_host.md
-    - Worktree Console 控制面（Host 业务编排层）: Console_API_and_Host_Integration/console_host/console_host_control_plane.md
-    - console_host_projection — Host 侧投影与能力门控: Console_API_and_Host_Integration/console_host/console_host_projection.md
-    - console_host_rpc_service 模块: Console_API_and_Host_Integration/console_host/console_host_rpc_service.md
-  - console_remote：控制台远程契约层（Typert Remote）: Console_API_and_Host_Integration/console_remote.md
+    - console_host：Worktree 控制平面与 Host RPC 服务: console_host.md
+    - Worktree Console 控制面（Host 业务编排层）: console_host_control_plane.md
+    - console_host_projection — Host 侧投影与能力门控: console_host_projection.md
+    - console_host_rpc_service 模块: console_host_rpc_service.md
+  - console_remote：控制台远程契约层（Typert Remote）: console_remote.md
 - Worktree 与会话检出领域（Worktree_and_Session_Checkout_Domain）:
   - Worktree 与会话检出领域（Worktree_and_Session_Checkout_Domain）: Worktree_and_Session_Checkout_Domain.md
-  - 核心工作树领域（core_worktree_domain）: Worktree_and_Session_Checkout_Domain/core_worktree_domain.md
+  - 核心工作树领域（core_worktree_domain）: core_worktree_domain.md
   - session_checkout_engine 模块概览:
-    - session_checkout_engine 模块概览: Worktree_and_Session_Checkout_Domain/session_checkout_engine.md
-    - session_checkout_apply_engine: Worktree_and_Session_Checkout_Domain/session_checkout_engine/session_checkout_apply_engine.md
+    - session_checkout_engine 模块概览: session_checkout_engine.md
+    - session_checkout_apply_engine: session_checkout_apply_engine.md
     - session_checkout_engine_integration 模块概览:
-      - session_checkout_engine_integration 模块概览: Worktree_and_Session_Checkout_Domain/session_checkout_engine/session_checkout_engine_integration.md
-      - Session Checkout 集成核心（session_checkout_integration_core）: Worktree_and_Session_Checkout_Domain/session_checkout_engine/session_checkout_engine_integration/session_checkout_integration_core.md
-      - session_checkout_tools 模型工具层: Worktree_and_Session_Checkout_Domain/session_checkout_engine/session_checkout_engine_integration/session_checkout_tools.md
+      - session_checkout_engine_integration 模块概览: session_checkout_engine_integration.md
+      - Session Checkout 集成核心（session_checkout_integration_core）: session_checkout_integration_core.md
+      - session_checkout_tools 模型工具层: session_checkout_tools.md
 - 端口、适配器与基础设施（Ports, Adapters, and Infrastructure）:
   - 端口、适配器与基础设施（Ports, Adapters, and Infrastructure）: Ports,_Adapters,_and_Infrastructure.md
   - 适配器与基础设施（adapters_infrastructure）:
-    - 适配器与基础设施（adapters_infrastructure）: Ports,_Adapters,_and_Infrastructure/adapters_infrastructure.md
-    - 文件系统与持久化适配器（adapters_infrastructure_filesystem_and_persistence）: Ports,_Adapters,_and_Infrastructure/adapters_infrastructure/adapters_infrastructure_filesystem_and_persistence.md
-    - Git 进程适配器与工作树创建编排: Ports,_Adapters,_and_Infrastructure/adapters_infrastructure/adapters_infrastructure_git_process.md
-    - 主机服务适配器（Host Services Adapters）: Ports,_Adapters,_and_Infrastructure/adapters_infrastructure/adapters_infrastructure_host_services.md
-    - Project Skills 适配器：跨 Worktree 携带与 Claude Skill 提供者: Ports,_Adapters,_and_Infrastructure/adapters_infrastructure/adapters_infrastructure_project_skills.md
-  - 核心端口与类型契约（core_ports_and_types）: Ports,_Adapters,_and_Infrastructure/core_ports_and_types.md
+    - 适配器与基础设施（adapters_infrastructure）: adapters_infrastructure.md
+    - 文件系统与持久化适配器（adapters_infrastructure_filesystem_and_persistence）: adapters_infrastructure_filesystem_and_persistence.md
+    - Git 进程适配器与工作树创建编排: adapters_infrastructure_git_process.md
+    - 主机服务适配器（Host Services Adapters）: adapters_infrastructure_host_services.md
+    - Project Skills 适配器：跨 Worktree 携带与 Claude Skill 提供者: adapters_infrastructure_project_skills.md
+  - 核心端口与类型契约（core_ports_and_types）: core_ports_and_types.md
 - 横切基础与公共交付面模块总览:
   - 横切基础与公共交付面模块总览: Cross-Cutting_Foundation_and_Public_Surface.md
-  - build_deployment_configuration：构建、打包与发布部署配置: Cross-Cutting_Foundation_and_Public_Surface/build_deployment_configuration.md
-  - i18n：中英双语文案与语言解析基础设施: Cross-Cutting_Foundation_and_Public_Surface/i18n.md
+  - build_deployment_configuration：构建、打包与发布部署配置: build_deployment_configuration.md
+  - i18n：中英双语文案与语言解析基础设施: i18n.md
 - console_contract 模块（Worktree Console 共享契约）: console_contract.md
 - public_api 模块：插件公共入口与契约面: public_api.md
 plugins:

@@ -7,7 +7,7 @@ source_files:
   - src/adapters/project-skills.ts
 tags: []
 generated_by: fsoft-native
-fsoft_page: Ports,_Adapters,_and_Infrastructure/adapters_infrastructure/adapters_infrastructure_project_skills.md
+fsoft_page: adapters_infrastructure_project_skills.md
 ---
 # Project Skills 适配器：跨 Worktree 携带与 Claude Skill 提供者
 

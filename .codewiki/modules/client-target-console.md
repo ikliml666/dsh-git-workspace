@@ -14,7 +14,7 @@ source_files:
   - src/client/target-console/target-console.styles.ts
 tags: []
 generated_by: fsoft-native
-fsoft_page: Client_Presentation_and_Interaction/client_target_console.md
+fsoft_page: client_target_console.md
 ---
 # 会话目标胶囊与工作树控制台（client_target_console）
 

@@ -16,7 +16,7 @@ source_files:
   - src/adapters/worktree-creation.ts
 tags: []
 generated_by: fsoft-native
-fsoft_page: Ports,_Adapters,_and_Infrastructure/adapters_infrastructure.md
+fsoft_page: adapters_infrastructure.md
 ---
 # 适配器与基础设施（adapters_infrastructure）
 

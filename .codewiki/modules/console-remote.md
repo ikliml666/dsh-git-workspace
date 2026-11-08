@@ -10,7 +10,7 @@ source_files:
   - src/console-remote/typert.ts
 tags: []
 generated_by: fsoft-native
-fsoft_page: Console_API_and_Host_Integration/console_remote.md
+fsoft_page: console_remote.md
 ---
 # console_remote：控制台远程契约层（Typert Remote）
 

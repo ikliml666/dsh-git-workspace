@@ -7,7 +7,7 @@ source_files:
   - src/adapters/safe-file.ts
 tags: []
 generated_by: fsoft-native
-fsoft_page: Ports,_Adapters,_and_Infrastructure/adapters_infrastructure/adapters_infrastructure_filesystem_and_persistence.md
+fsoft_page: adapters_infrastructure_filesystem_and_persistence.md
 ---
 # 文件系统与持久化适配器（adapters_infrastructure_filesystem_and_persistence）
 

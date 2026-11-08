@@ -13,7 +13,7 @@ source_files:
   - vitest.config.ts
 tags: []
 generated_by: fsoft-native
-fsoft_page: Cross-Cutting_Foundation_and_Public_Surface/build_deployment_configuration.md
+fsoft_page: build_deployment_configuration.md
 ---
 # build_deployment_configuration：构建、打包与发布部署配置
 

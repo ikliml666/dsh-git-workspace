@@ -8,11 +8,11 @@ source_files:
   - src/client/settings-card/worktree-settings-card.ts
 tags: []
 generated_by: fsoft-native
-fsoft_page: Client_Presentation_and_Interaction/client_settings_card.md
+fsoft_page: client_settings_card.md
 ---
 # Worktree 设置卡片（client_settings_card）
 
-`client_settings_card` 是 `dsh-git-worktree` 客户端中唯一写入配置的界面模块：它把 `dsh-git-worktree` 命名空间下的可编辑字段（自动交付、自动推送、Worktree 根目录、Git 超时）渲染成一张「暂存—保存」式的设置卡片，并挂载到 Host 的 Plugins 页 `plugins.bundle.config` 插槽上。
+`client_settings_card` 是 `dsh-git-worktree` 客户端中唯一写入配置的界面模块：它把 `dsh-git-worktree` 命名空间下的可编辑字段（自动交付、自动推送、两个 Git 超时）渲染成一张「暂存—保存」式的设置卡片，并挂载到 Host 的 Plugins 页 `plugins.bundle.config` 插槽上。
 
 该模块刻意保持**自包含**：卡片不使用宿主 `@deepseek-ai/dsh-client-ui-primitives` 中的共享 `SettingsForm`（随插件安装的版本早于该模块），行与控件全部用内联样式绘制，因此不依赖任何外部样式表，也不参与客户端样式表的装配流程（对比 [client_core](client-core.md) 中 `WORKTREE_STYLES` / `TARGET_CONSOLE_STYLES` 的注入方式）。
 
@@ -64,7 +64,7 @@ flowchart LR
   end
   subgraph Controller["worktree-settings-card.ts"]
     NS["WORKTREE_SETTINGS_NS<br/>= dsh-git-worktree"]
-    WT["WorktreeSettings<br/>（5 个可选字段）"]
+    WT["WorktreeSettings<br/>（4 个可选字段）"]
     CTRL["WorktreeSettingsCardController"]
     STATE["WorktreeSettingsCardState"]
     FACE["WorktreeSettingsCardFace"]
@@ -123,10 +123,10 @@ flowchart LR
 export const WORKTREE_SETTINGS_NS = 'dsh-git-worktree'
 ```
 
-- `WorktreeSettings`：卡片编辑的 Config 片段，5 个字段全部可选（`autoDeliver`、`autoPush`、`worktreesRoot`、`gitTimeoutMs`、`worktreeAddTimeoutMs`）。
+- `WorktreeSettings`：卡片编辑的 Config 片段，4 个字段全部可选（`autoDeliver`、`autoPush`、`gitTimeoutMs`、`worktreeAddTimeoutMs`）。
 - `WorktreeSettingsCardState`：`SettingsFormShell` 的扩展，逐字段附带一个 `SettingsFieldState`。
 - `WorktreeSettingsCardFace`：槽位条目注入给组件的对象，形状为 `SettingsFormActions & { hooks: { worktreeCard: SnapshotStore<WorktreeSettingsCardState> } }`。
-- `WorktreeSettingsCardController`：在构造时把 5 个字段规格交给 `SettingsFormModel`，用 `form.bind(() => this.projection())` 建立快照 store，并通过 `inject()` 同时暴露 store 与动作；`dispose()` 释放订阅。
+- `WorktreeSettingsCardController`：在构造时把 4 个字段规格交给 `SettingsFormModel`，用 `form.bind(() => this.projection())` 建立快照 store，并通过 `inject()` 同时暴露 store 与动作；`dispose()` 释放订阅。
 
 字段规格与 Host 侧 schema 的对应关系（`src/index.ts` 的 `Config`，字段均以 `volatile(...)` 标记）：
 
@@ -134,7 +134,6 @@ export const WORKTREE_SETTINGS_NS = 'dsh-git-worktree'
 | --- | --- | --- | --- |
 | `autoDeliver` | `settingsBooleanField` | `z.boolean().default(true)` | `unset`，回落到组合层/默认值 |
 | `autoPush` | `settingsBooleanField` | `z.boolean().default(true)` | 同上 |
-| `worktreesRoot` | `settingsTextField` | `z.string()`（可选） | `unset`，使用默认位置 |
 | `gitTimeoutMs` | `settingsNumberField` | `min(1_000).max(MAX_GIT_TIMEOUT_MS).default(120_000)` | `unset` |
 | `worktreeAddTimeoutMs` | `settingsNumberField` | `min(1_000).max(MAX_GIT_TIMEOUT_MS).default(300_000)` | `unset` |
 
@@ -211,6 +210,8 @@ flowchart TD
 | `settingsBooleanField` | `boolean → 'true' / 'false'`，其余为空串 | 空 → `clear`；`'true'` / `'false'` → `set`；其它 → `undefined`（阻止保存） |
 | `settingsNumberField` | `number → String(value)`，其余为空串 | 空 → `clear`；`Number.isSafeInteger` → `set`；其它 → `undefined` |
 | `settingsTextField` | `string → 原值`，其余为空串 | trim 后空 → `clear`；否则 `set(trimmed)` |
+
+`settingsTextField` 仍由 `form-model.ts` 导出，但本卡片已不再声明任何文本字段（`worktreesRoot` 已从 `WorktreeSettings` 与规格数组中移除），因此当前只有布尔与数字两种规格在用。
 
 注意 `parse` 返回 `undefined` 的语义：**不是丢弃这次编辑，而是把保存整体阻塞**——表单保持 `dirty`，`invalid` 为真，保存按钮禁用，行内显示 `settings.invalid.value`。
 
@@ -304,7 +305,7 @@ sequenceDiagram
 - **不经过 Remote 适配器**：本模块完全不触碰 `worktreeConsole` / `WorktreeConsoleAdapter`（对比 [client_console_remote](client-console-remote.md) 与 [console_contract](console-contract.md)），它读写的是 Host 的配置文档通道。
 - **不共享 Host 的 settings-form 组件**：`form-model.ts` 是本地裁剪版；`tsdown.config.ts` 虽把 `@deepseek-ai/dsh-client-ui-primitives` 列为 external，但本模块的代码路径并不引用它（构建产物仍是自包含的）。
 - **只读消费 i18n**：通过 [client_core](client-core.md) 的 `useClientTranslator()` 取当前语言的翻译器，文案键定义在 `src/i18n/client-messages.ts` 的 `settings.*` 段（`settings.title`、`settings.description`、各字段标签与 hint、`settings.save` / `discard` / `saving` / `failed` / `overridden` / `reset` / `invalid.value` / `readonly`）。
-- **字段语义归属 Host 域**：`gitTimeoutMs` / `worktreeAddTimeoutMs` 的取值语义由 `src/adapters/git-options.ts`（`DEFAULT_GIT_TIMEOUT_MS = 120_000`、`DEFAULT_WORKTREE_ADD_TIMEOUT_MS = 5min`、`MAX_GIT_TIMEOUT_MS = 60min`、`validateGitTimeouts`）定义；`worktreesRoot` 由 `src/index.ts` 的 `resolveWorktreesRootValue` 解析为绝对路径。卡片只负责把文本变成 `set` / `unset`。
+- **字段语义归属 Host 域**：`gitTimeoutMs` / `worktreeAddTimeoutMs` 的取值语义由 `src/adapters/git-options.ts`（`DEFAULT_GIT_TIMEOUT_MS = 120_000`、`DEFAULT_WORKTREE_ADD_TIMEOUT_MS = 5min`、`MAX_GIT_TIMEOUT_MS = 60min`、`validateGitTimeouts`）定义。卡片只负责把文本变成 `set` / `unset`。
 
 ---
 

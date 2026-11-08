@@ -48,11 +48,11 @@ flowchart TD
 
 | 文档 | 职责 |
 | --- | --- |
-| [client_console_remote](Client_Presentation_and_Interaction/client_console_remote.md) | 浏览器端入口与传输层：挂载 Remote contribution，创建 `WorktreeConsoleAdapter`，按 `sidebarTopology` 结果选择侧栏装配分支，并挂载设置卡片与工具视图。 |
-| [client_core](Client_Presentation_and_Interaction/client_core.md) | 客户端基座：`apply` / `inject`、本地化插槽、样式注入、Harness 动作编排、ToolView 纯模型与 `WorktreeCreateRow`。 |
-| [client_target_console](Client_Presentation_and_Interaction/client_target_console.md) | 面向用户的主界面：会话目标胶囊、托管工作树面板、提交图与标签管理模态框，以及 `current` 轮询与分支概览缓存。 |
-| [client_workspace_sidebar](Client_Presentation_and_Interaction/client_workspace_sidebar.md) | 把受管 Worktree 投影到官方 Workspace 侧栏：纯函数投影、接管 / 装饰两种装配模式、变更门禁与终态徽章清除。 |
-| [client_settings_card](Client_Presentation_and_Interaction/client_settings_card.md) | 插件设置卡片：通过 `configForms` 编辑 `dsh-git-worktree` 命名空间配置，支持暂存、校验、保存与丢弃。 |
+| [client_console_remote](client_console_remote.md) | 浏览器端入口与传输层：挂载 Remote contribution，创建 `WorktreeConsoleAdapter`，按 `sidebarTopology` 结果选择侧栏装配分支，并挂载设置卡片与工具视图。 |
+| [client_core](client_core.md) | 客户端基座：`apply` / `inject`、本地化插槽、样式注入、Harness 动作编排、ToolView 纯模型与 `WorktreeCreateRow`。 |
+| [client_target_console](client_target_console.md) | 面向用户的主界面：会话目标胶囊、托管工作树面板、提交图与标签管理模态框，以及 `current` 轮询与分支概览缓存。 |
+| [client_workspace_sidebar](client_workspace_sidebar.md) | 把受管 Worktree 投影到官方 Workspace 侧栏：纯函数投影、接管 / 装饰两种装配模式、变更门禁与终态徽章清除。 |
+| [client_settings_card](client_settings_card.md) | 插件设置卡片：通过 `configForms` 编辑 `dsh-git-worktree` 命名空间配置，支持暂存、校验、保存与丢弃。 |
 
 ## 关键设计约束
 
@@ -66,8 +66,8 @@ flowchart TD
 
 建议按以下顺序阅读核心组件文档：
 
-1. [client_console_remote](Client_Presentation_and_Interaction/client_console_remote.md)：先了解客户端入口、Remote 适配器与启动分支。
-2. [client_core](Client_Presentation_and_Interaction/client_core.md)：理解基座能力、动作编排与 ToolView 模型。
-3. [client_target_console](Client_Presentation_and_Interaction/client_target_console.md)：查看用户主界面与控制台交互。
-4. [client_workspace_sidebar](Client_Presentation_and_Interaction/client_workspace_sidebar.md)：理解官方侧栏投影与两种装配模式。
-5. [client_settings_card](Client_Presentation_and_Interaction/client_settings_card.md)：了解设置卡片的暂存式表单与配置写入。
+1. [client_console_remote](client_console_remote.md)：先了解客户端入口、Remote 适配器与启动分支。
+2. [client_core](client_core.md)：理解基座能力、动作编排与 ToolView 模型。
+3. [client_target_console](client_target_console.md)：查看用户主界面与控制台交互。
+4. [client_workspace_sidebar](client_workspace_sidebar.md)：理解官方侧栏投影与两种装配模式。
+5. [client_settings_card](client_settings_card.md)：了解设置卡片的暂存式表单与配置写入。

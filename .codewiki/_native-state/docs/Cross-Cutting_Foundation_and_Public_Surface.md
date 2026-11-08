@@ -68,8 +68,8 @@ flowchart TB
 
 | 文档 | 覆盖范围 |
 | --- | --- |
-| [build_deployment_configuration](Cross-Cutting_Foundation_and_Public_Surface/build_deployment_configuration.md) | 构建流水线、`package.json` 包形态、`cordis.patch.yml` 挂载契约、CI 与发布门禁、`dev:dsh` 本地部署、依赖解析策略 |
-| [i18n](Cross-Cutting_Foundation_and_Public_Surface/i18n.md) | 翻译核心、双语目录、Host 语言快照、Client 语言桥接、持久化清理文案白名单、错误码与文案分离 |
+| [build_deployment_configuration](build_deployment_configuration.md) | 构建流水线、`package.json` 包形态、`cordis.patch.yml` 挂载契约、CI 与发布门禁、`dev:dsh` 本地部署、依赖解析策略 |
+| [i18n](i18n.md) | 翻译核心、双语目录、Host 语言快照、Client 语言桥接、持久化清理文案白名单、错误码与文案分离 |
 
 ## 关键设计约束
 
