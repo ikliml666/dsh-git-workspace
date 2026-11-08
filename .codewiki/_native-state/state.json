@@ -2,39 +2,14 @@
   "stateVersion": 1,
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
-    "baseCommit": "1379dfcea1bd8affc13c8f6c0a8483e8f8f1078f",
-    "headCommit": "4729c86a5e329195aee236849fe355fbb8b6c92f"
+    "baseCommit": "4729c86a5e329195aee236849fe355fbb8b6c92f",
+    "headCommit": "d68cc603e1e7378d7dadbb8835512064f506f532"
   },
   "pendingChanges": {
     "state": "ok",
-    "baseCommit": "1379dfcea1bd8affc13c8f6c0a8483e8f8f1078f",
-    "headCommit": "4729c86a5e329195aee236849fe355fbb8b6c92f",
-    "committed": [
-      "CHANGELOG.md",
-      "src/adapters/git.ts",
-      "src/client/model.ts",
-      "src/client/settings-card/WorktreeSettingsCard.tsx",
-      "src/client/settings-card/worktree-settings-card.ts",
-      "src/client/styles.ts",
-      "src/console-host/control-plane.ts",
-      "src/i18n/client-messages.ts",
-      "src/index.ts",
-      "src/managed-worktree-path.ts",
-      "src/official-worktree-registration.ts",
-      "src/ports.ts",
-      "src/session-checkout-module.ts",
-      "tests/client-settings-card.test.tsx",
-      "tests/client-target-console.test.tsx",
-      "tests/git-timeouts.test.ts",
-      "tests/git-unborn.test.ts",
-      "tests/host-query-budget.test.ts",
-      "tests/managed-worktree-path.test.ts",
-      "tests/session-branch-adopt.test.ts",
-      "tests/session-branch-delivery.test.ts",
-      "tests/session-branch-label.test.ts",
-      "tests/session-checkout-module.test.ts",
-      "tests/support/official-worktrees.ts"
-    ],
+    "baseCommit": "4729c86a5e329195aee236849fe355fbb8b6c92f",
+    "headCommit": "d68cc603e1e7378d7dadbb8835512064f506f532",
+    "committed": [],
     "staged": [],
     "unstaged": [],
     "untracked": [
@@ -52,13 +27,14 @@
   "engineVersion": "2.0.0",
   "scope": "auto",
   "effectiveScope": "stale",
-  "updateOutcome": "incremental",
+  "updateOutcome": "no_change",
   "fallbackReason": "",
   "missingRepair": null,
   "notes": [
-    "工作区未提交改动已合成临时 commit 39800d09c0b3（2 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw81xjun-0-native（40 个文件）",
-    "本轮把 2 个未提交源码改动一并写进产物（快照 39800d09c0b3）：__pycache__/cut_helper.cpython-312.pyc、cut_helper.py"
+    "持久化基线 1379dfc 与本次 cw 基线 4729c86 不同（以 cw 基线为准，未消费变化仍会并入）",
+    "工作区未提交改动已合成临时 commit 931fe7e4223e（2 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw82lr00-2-native（40 个文件）",
+    "本轮把 2 个未提交源码改动一并写进产物（快照 931fe7e4223e）：__pycache__/cut_helper.cpython-312.pyc、cut_helper.py"
   ],
-  "updatedAt": "2026-11-08T16:40:52.721Z"
+  "updatedAt": "2026-11-08T16:53:55.886Z"
 }

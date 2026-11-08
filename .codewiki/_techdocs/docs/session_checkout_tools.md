@@ -6,7 +6,7 @@ description: sessioncheckouttools 是 session-checkout 领域向模型暴露的�
 # session_checkout_tools 模型工具层
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`39800d09`](https://github.com/wloops/dsh-git-worktree/commit/39800d09c0b35009577553ccc954b81dc11dfcb6) on 2026-11-08 with `deepseek-v4.1-flash`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`931fe7e4`](https://github.com/wloops/dsh-git-worktree/commit/931fe7e4223e354fdb2812968f878882b541e96f) on 2026-11-08 with `deepseek-v4.1-flash`. Check the code before relying on details.
 
 `session_checkout_tools` 是 session-checkout 领域向**模型**暴露的唯一入口，实现在 `src/tools.ts` 的 `registerTools(ctx, module)` 中。它把 `SessionCheckoutModule`（领域状态机）与 `SessionWorkingDirectoryPort`（会话 cwd 适配器）组合成 7 个受控的 `worktree_*` 工具，并保证三件事：
 
@@ -348,5 +348,5 @@ withHostLanguage(languageForInvocation(exec.agent, ctx), async () => { /* ... */
 - 工具注册依赖宿主注入 `tools`（`export const inject = { tools: {}, commands: {}, subprocess: {}, loader: { await: false } }`）。修改 `inject` 会直接影响 `ctx.tools.register` 是否可用。
 
 ??? abstract "Documented components (1)"
-    - [`enterCheckout`](https://github.com/wloops/dsh-git-worktree/blob/39800d09c0b35009577553ccc954b81dc11dfcb6/src%5Ctools.ts) — `src\tools.ts`
+    - [`enterCheckout`](https://github.com/wloops/dsh-git-worktree/blob/931fe7e4223e354fdb2812968f878882b541e96f/src%5Ctools.ts) — `src\tools.ts`
 
