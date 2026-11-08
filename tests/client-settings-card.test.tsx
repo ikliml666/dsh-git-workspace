@@ -64,7 +64,6 @@ test('renders the five settings rows and keeps save disabled until edited', () =
   expect(screen.getByRole('switch', { name: 'Auto deliver' }).getAttribute('aria-checked')).toBe('true')
   expect(screen.getByRole('switch', { name: 'Auto push Local branch' }).getAttribute('aria-checked')).toBe('true')
 
-  expect(screen.getByLabelText('Worktree root')).toBeTruthy()
   expect(screen.getByLabelText('Git command timeout (ms)')).toBeTruthy()
   expect(screen.getByLabelText('worktree add timeout (ms)')).toBeTruthy()
 
@@ -98,6 +97,6 @@ test('blocks the save while a numeric draft is invalid', () => {
 test('summary view renders the one-liner only', () => {
   renderCard(makeScope(), 'summary')
 
-  expect(screen.getByText('Delivery and push switches, the Worktree root, and Git timeouts.')).toBeTruthy()
+  expect(screen.getByText('Delivery and push switches and Git timeouts.')).toBeTruthy()
   expect(screen.queryByRole('switch')).toBeNull()
 })

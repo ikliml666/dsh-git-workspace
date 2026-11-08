@@ -5,6 +5,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { expect, it } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
 import { createNodeSessionCheckoutDependencies } from './support/production-adapters.js'
+import { createOfficialWorktreesFixture } from './support/official-worktrees.js'
 import { createSessionCheckoutModule } from '../src/session-checkout-module.js'
 import { createDshGitPort } from '../src/adapters/git.js'
 import { createWorktreeConsoleControlPlane } from '../src/console-host/control-plane.js'
@@ -79,6 +80,8 @@ function fixture() {
     getUnboundTargetPolicy: () => 'unselected' as const,
   }
   const dependencies = createNodeSessionCheckoutDependencies({ configDir: join(root, 'config'), lookup })
+  const official = createOfficialWorktreesFixture(repo)
+  dependencies.officialWorktrees = () => official.port
   dependencies.git = port
   dependencies.inheritLocalChanges = false
   return {
@@ -91,7 +94,8 @@ it('names the Session branch on the conversation target capsule right after crea
   const env = fixture()
   try {
     const module = createSessionCheckoutModule(env.dependencies)
-    const launch = await module.createIsolatedTarget('source', 'owner', { topic: 'labels' })
+    env.sessions.set('owner', { id: 'owner', projectId: 'project' })
+    const launch = await module.createOfficialTarget({ session: { id: 'owner' } }, { topic: 'labels' })
     env.projects.set('owner-project', { id: 'owner-project', name: 'Owner', root: launch.managedRoot })
     env.sessions.set('owner', { id: 'owner', projectId: 'owner-project' })
 
@@ -125,7 +129,8 @@ it('keeps naming the Session branch after delivery, when Local is back in charge
   const env = fixture()
   try {
     const module = createSessionCheckoutModule(env.dependencies)
-    const launch = await module.createIsolatedTarget('source', 'owner', { topic: 'labels' })
+    env.sessions.set('owner', { id: 'owner', projectId: 'project' })
+    const launch = await module.createOfficialTarget({ session: { id: 'owner' } }, { topic: 'labels' })
     env.projects.set('owner-project', { id: 'owner-project', name: 'Owner', root: launch.managedRoot })
     env.sessions.set('owner', { id: 'owner', projectId: 'owner-project' })
 

@@ -39,7 +39,6 @@ interface DirectoryMeasurePause {
 interface TestContext {
   root: string
   configDir: string
-  worktreesRoot: string | undefined
   projectRoot: string
   repositoryRoot: string
   module: SessionCheckoutModule
@@ -108,8 +107,6 @@ function createContext(options: {
   ensureDirectoryFailures?: number
   outerRepository?: boolean
   checkoutIds?: string[]
-  worktreesRoot?: boolean
-  worktreesRootLive?: boolean
   autoDeliverRef?: () => boolean | undefined
   worktreeKeepCount?: number
 } = {}): TestContext {
@@ -124,7 +121,6 @@ function createContext(options: {
     ? realpathSync(mkdtempSync(join(tmpdir(), 'domi-checkout-config-')))
     : join(root, 'config')
   if (options.outerRepository) temporaryRoots.push(configDir)
-  const worktreesRoot = options.worktreesRoot ? join(root, 'worktrees') : undefined
   const sessions = new Map<string, TestSession>([
     ['session-1', { id: 'session-1', projectId: 'project-1', title: '测试思路' }],
     ['child-session', { id: 'child-session', projectId: 'project-1', title: '测试思路 (worktree)' }],
@@ -153,9 +149,6 @@ function createContext(options: {
 
   const dependencies = createNodeSessionCheckoutDependencies({
     configDir,
-    ...(worktreesRoot
-      ? { worktreesRoot: options.worktreesRootLive ? { get: () => worktreesRoot } : worktreesRoot }
-      : {}),
     ...(options.autoDeliverRef ? { autoDeliver: { get: options.autoDeliverRef } } : {}),
     lookup: {
       getSession: (sessionId) => sessions.get(sessionId),
@@ -167,6 +160,29 @@ function createContext(options: {
       },
       getUnboundTargetPolicy: () => 'unselected',
     },
+  })
+  // 官方 `worktrees` 服务的替身：真的跑 `git worktree add`，落在官方布局
+  // `<repo>/.agents/worktrees/<branch>` 下。建树路径统一走官方之后，测试要
+  // 复现的是「Host 负责 Git、本插件负责台账」，而不是本插件自己建树。
+  dependencies.officialWorktrees = () => ({
+    create: async (_agent, request = {}) => {
+      const branch = request.name ?? `dsh-test-${dependencies.createCheckoutId().slice(0, 8)}`
+      const from = request.from ?? 'HEAD'
+      const pool = join(repositoryRoot, '.agents', 'worktrees')
+      mkdirSync(pool, { recursive: true })
+      // 官方 prepareDirectory 会写一个自忽略的 .gitignore；漏掉它会让
+      // 「继承本地未提交修改」把新树自己拷进自己。
+      writeFileSync(join(pool, '.gitignore'), '*\n')
+      const path = join(pool, branch)
+      git(repositoryRoot, 'worktree', 'add', '-b', branch, path, from)
+      return {
+        path: realpathSync(path),
+        branch,
+        baseCommit: git(path, 'rev-parse', 'HEAD').trim(),
+        repositoryRoot: realpathSync(repositoryRoot),
+      }
+    },
+    restore: async () => { throw new Error('official restore is not used by these tests') },
   })
   if (options.checkoutIds !== undefined) {
     const generatedIds = [...options.checkoutIds]
@@ -243,7 +259,6 @@ function createContext(options: {
   }
   if (options.applyEngine) dependencies.applyEngine = options.applyEngine
   // 容器回收是「未知内容不删」的判定点：记录它被调了几次，才能断言
-  // worktreesRoot 模式下同一容器的第二次尝试根本没有发生。
   const removeEmptyDirectoryTree = dependencies.files.removeEmptyDirectoryTree
   let containerReclaimAttempts = 0
   dependencies.files.removeEmptyDirectoryTree = (path) => {
@@ -286,13 +301,44 @@ function createContext(options: {
     }
   }
 
+  /**
+   * 给某个会话造一棵「官方建的树」并接进台账。
+   *
+   * 旧创建器（本插件自建、worktreesRoot 布局）已随产品路径删除，测试改用真实
+   * 产品 API 组合：先用 git 在官方布局下建树，再让 `adoptOfficialWorktree`
+   * 把这棵树登记成该会话的 isolated target。这样用例验证的仍是台账、交付、
+   * 迭代那一套服务端行为，而不是一条已不存在的创建代码。
+   */
+  async function createOwnerTarget(
+    ownerSessionId: string,
+    branch: string,
+    from?: string,
+  ): Promise<IsolatedTargetLaunch> {
+    // 调用方常常只写会话 id 就建树；这里补齐会话与项目，避免每个用例重复登记。
+    if (!sessions.has(ownerSessionId)) {
+      sessions.set(ownerSessionId, { id: ownerSessionId, projectId: 'project-1', title: ownerSessionId })
+    }
+    const pool = join(repositoryRoot, '.agents', 'worktrees')
+    mkdirSync(pool, { recursive: true })
+    writeFileSync(join(pool, '.gitignore'), '*\n')
+    const path = join(pool, branch)
+    git(repositoryRoot, 'worktree', 'add', '-b', branch, path, from ?? 'HEAD')
+    await module.adoptOfficialWorktree(ownerSessionId, realpathSync(path))
+    const target = await module.inspect(ownerSessionId)
+    if (target.checkout.kind !== 'isolated') throw new Error(`未登记成 isolated：${ownerSessionId}`)
+    // 形状与旧创建器一致，用例不必改写读取方式。
+    return { targetSessionId: ownerSessionId, managedRoot: realpathSync(path), target }
+  }
+
+  const module = createSessionCheckoutModule(dependencies)
+
   return {
     root,
     configDir,
-    worktreesRoot,
     projectRoot,
     repositoryRoot,
-    module: createSessionCheckoutModule(dependencies),
+    module,
+    createOwnerTarget,
     restart: () => createSessionCheckoutModule(createNodeSessionCheckoutDependencies({
       configDir,
       lookup: dependencies.lookup,
@@ -419,33 +465,11 @@ describe('SessionCheckoutModule', () => {
     expect(target).toMatchObject({ ownership: 'owner', dirty: true })
   })
 
-  test('Given a Local session creates two isolated targets When their sessions open at the managed roots Then targets are unique and Local stays clean', async () => {
-    const context = createContext()
-
-    const first = await context.module.createIsolatedTarget('session-1', 'target-session-1')
-    const second = await context.module.createIsolatedTarget('session-1', 'target-session-2')
-
-    expect(first.managedRoot).not.toBe(second.managedRoot)
-    expect(first.target.checkout.id).not.toBe(second.target.checkout.id)
-    expect(basename(dirname(first.managedRoot))).toBe('本地-project--worktrees')
-    expect(basename(first.managedRoot)).toMatch(/^本地-project--[a-f0-9]{8}--worktree$/)
-    expect(await context.module.inspect('session-1')).toMatchObject({ checkout: { kind: 'local' } })
-    expect(git(context.repositoryRoot, 'status', '--porcelain=v1', '--untracked-files=all')).toBe('')
-
-    context.addProject('target-workspace-1', 'Target Workspace', first.managedRoot)
-    context.addSession('target-session-1', 'target-workspace-1', '测试思路 (worktree)')
-    const activated = await context.module.inspect('target-session-1')
-    expect(activated).toMatchObject({
-      checkout: { id: first.target.checkout.id, kind: 'isolated', phase: 'ready' },
-      ownership: 'owner',
-    })
-  })
-
   test('Given batch observation When observing owned checkouts Then results align with the requested ids', async () => {
     const context = createContext()
 
-    const first = await context.module.createIsolatedTarget('session-1', 'target-session-1')
-    const second = await context.module.createIsolatedTarget('session-1', 'target-session-2')
+    const first = await context.createOwnerTarget('target-session-1', 'feat/sess-target-session-1')
+    const second = await context.createOwnerTarget('target-session-2', 'feat/sess-target-session-2')
     const observed = await context.module.observeManagedCheckouts([first.target.checkout.id, second.target.checkout.id])
 
     expect(observed.map(entry => entry.managedRoot)).toEqual([first.managedRoot, second.managedRoot])
@@ -453,94 +477,9 @@ describe('SessionCheckoutModule', () => {
     await expect(context.module.observeManagedCheckouts(['missing-checkout'])).rejects.toMatchObject({ code: 'checkout_missing' })
   })
 
-  test('Given 指定基准分支 When 创建 Isolated Then 以该分支 tip 为起点且源分支语义不变', async () => {
-    const context = createContext()
-    git(context.repositoryRoot, 'branch', 'feat/base-pick')
-    const featTip = git(context.repositoryRoot, 'rev-parse', 'refs/heads/feat/base-pick').trim()
-    writeFileSync(join(context.projectRoot, 'tracked.txt'), 'ahead on main\n')
-    git(context.projectRoot, 'add', '-A')
-    git(context.projectRoot, 'commit', '-m', 'ahead on main')
-    const mainTip = git(context.repositoryRoot, 'rev-parse', 'refs/heads/main').trim()
-    expect(featTip).not.toBe(mainTip)
-
-    const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1', { branch: 'feat/base-pick' })
-
-    expect(git(launch.managedRoot, 'rev-parse', 'HEAD').trim()).toBe(featTip)
-    const local = await context.module.inspect('session-1')
-    expect(local.source).toMatchObject({ ref: 'refs/heads/main', oid: mainTip })
-
-    await expect(context.module.createIsolatedTarget('session-1', 'target-session-2', { branch: 'nope' }))
-      .rejects.toMatchObject({ code: 'invalid_input' })
-  })
-
-  test('Given the Local repository is nested inside another repository When creating a target Then fallback storage avoids polluting the outer repository', async () => {
-    const context = createContext({ outerRepository: true })
-    const statusBefore = git(context.root, 'status', '--porcelain=v1', '--untracked-files=all')
-
-    const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')
-
-    expect(launch.managedRoot.startsWith(join(context.configDir, 'worktrees'))).toBe(true)
-    expect(git(context.root, 'status', '--porcelain=v1', '--untracked-files=all')).toBe(statusBefore)
-  })
-
-  test('Given an eight-character checkout path already exists in the managed container When creating another target Then the Host extends the identity', async () => {
-    const context = createContext({
-      checkoutIds: [
-        'aaaaaaaa-0000-4000-8000-000000000000', 'operation-1',
-        'aaaaaaaa-1111-4111-8111-111111111111', 'operation-2',
-      ],
-    })
-    const first = await context.module.createIsolatedTarget('session-1', 'target-session-1')
-    const second = await context.module.createIsolatedTarget('session-1', 'target-session-2')
-
-    expect(basename(first.managedRoot)).toBe('本地-project--aaaaaaaa--worktree')
-    expect(basename(second.managedRoot)).toBe('本地-project--aaaaaaaa1111--worktree')
-    expect(existsSync(first.managedRoot)).toBe(true)
-  })
-
-  test('Given the sibling container has unknown content When creating a target Then the Host falls back without modifying it', async () => {
-    const context = createContext()
-    const siblingContainer = join(dirname(context.repositoryRoot), '本地-project--worktrees')
-    mkdirSync(siblingContainer)
-    writeFileSync(join(siblingContainer, 'unknown.txt'), 'foreign owner\n')
-
-    const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')
-
-    expect(launch.managedRoot.startsWith(join(context.configDir, 'worktrees'))).toBe(true)
-    expect(readFileSync(join(siblingContainer, 'unknown.txt'), 'utf8')).toBe('foreign owner\n')
-  })
-
-  test('Given the sibling container is a symlink When creating a target Then the Host uses plugin fallback without touching the link target', async () => {
-    const context = createContext()
-    const siblingContainer = join(dirname(context.repositoryRoot), '本地-project--worktrees')
-    const foreign = join(context.root, 'foreign-worktrees')
-    mkdirSync(foreign)
-    writeFileSync(join(foreign, 'keep.txt'), 'foreign\n')
-    symlinkSync(foreign, siblingContainer, process.platform === 'win32' ? 'junction' : 'dir')
-
-    const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')
-
-    expect(launch.managedRoot.startsWith(join(context.configDir, 'worktrees'))).toBe(true)
-    expect(readFileSync(join(foreign, 'keep.txt'), 'utf8')).toBe('foreign\n')
-  })
-
-  test('Given the container cannot be created because permissions deny it When creating a target Then the error names the container and the OS error instead of claiming untrusted content', async () => {
-    const context = createContext({ ensureDirectoryFailures: 2 })
-
-    // Windows 的 recursive mkdir 失败前可能已创建部分父级目录，第二次调用会
-    // 看到已存在的 sibling 容器而走成功路径；单次调用同时断言两类错误特征。
-    const creationError: unknown = await context.module.createIsolatedTarget('session-1', 'target-session-1').then(
-      () => undefined,
-      (error: unknown) => error,
-    )
-    expect(creationError).toBeDefined()
-    expect(String((creationError as Error).message)).toMatch(/EPERM: operation not permitted/)
-    expect(String((creationError as Error).message)).not.toMatch(/不可信目录|trusted directory/)
-  })
-
   test('Given a reserved target session opens on another cwd When inspected Then identity validation fails closed', async () => {
     const context = createContext()
-    await context.module.createIsolatedTarget('session-1', 'target-session-1')
+    await context.createOwnerTarget('target-session-1', 'feat/sess-target-session-1')
     context.addProject('wrong-workspace', 'Wrong Workspace', context.projectRoot)
     context.addSession('target-session-1', 'wrong-workspace')
 
@@ -567,7 +506,7 @@ describe('SessionCheckoutModule', () => {
     const context = createContext()
     // In-place creation keeps the owner's own cwd, so this is the ordinary case:
     // the Session is inside the checkout but not exactly at its root.
-    const launch = await context.module.createIsolatedTarget('session-1', 'session-1')
+    const launch = await context.createOwnerTarget('session-1', 'feat/sess-session-1')
     const nested = join(launch.managedRoot, 'src', 'nested')
 
     expect(context.module.runtimeContext('session-1', nested)).not.toContain('In-place binding')
@@ -575,31 +514,6 @@ describe('SessionCheckoutModule', () => {
     // Outside the Worktree (or no cwd knowledge) the rule still applies.
     expect(context.module.runtimeContext('session-1', context.projectRoot)).toContain('In-place binding')
     expect(context.module.runtimeContext('session-1')).toContain('In-place binding')
-  })
-
-  test('Given a target is reserved and later becomes ready When runtime context is assembled Then Local and Isolated instructions remain distinct', async () => {
-    const context = createContext()
-    const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')
-    expect(context.module.runtimeContext('session-1')).toContain('handoff pending')
-    expect(context.module.runtimeContext('session-1')).toContain('target-session-1')
-
-    context.addProject('target-workspace-1', 'Target Workspace', launch.managedRoot)
-    context.addSession('target-session-1', 'target-workspace-1')
-    expect(context.module.runtimeContext('target-session-1')).toContain(`Authoritative cwd: ${launch.managedRoot}`)
-    expect(context.module.runtimeContext('target-session-1')).toContain('call worktree_deliver as the final model tool')
-    expect(context.module.runtimeContext('target-session-1')).toContain('Do not duplicate that report in ordinary assistant prose')
-
-    writeFileSync(join(launch.managedRoot, 'tracked.txt'), 'ready\n')
-    await context.module.markReadyForReview('target-session-1', {
-      summary: 'ready context',
-      validationStatus: 'passed',
-      tests: [],
-      suggestedCommitMessage: 'test: ready context',
-    })
-    expect(context.module.runtimeContext('target-session-1')).toContain('Ready for Review')
-    expect(context.module.runtimeContext('target-session-1')).toContain('Continue ordinary discussion')
-    expect(context.module.runtimeContext('target-session-1')).toContain('call worktree_resume_revision first')
-    expect(context.module.runtimeContext('target-session-1')).toContain('do not ask the user to click a recovery control')
   })
 
   test('Given an unsynced Ready review When the owner requests more file changes Then editing resumes without touching Local', async () => {
@@ -1004,12 +918,13 @@ describe('SessionCheckoutModule', () => {
     expect(context.getCreateWorktreeCallCount()).toBe(2)
   })
 
-  test('Given a cleaned delivered owner Session When it begins the next iteration Then the same Session and cwd receive a new checkout from latest Local HEAD', async () => {
+  test('Given a cleaned delivered owner Session When it begins the next iteration Then the same Session and cwd receive a new checkout from the previous session branch', async () => {
     const context = createContext({
       checkoutIds: ['checkout-first', 'operation-first', 'checkout-failed', 'operation-failed', 'checkout-second', 'operation-second'],
-      rolledBackCreationCall: 2,
+      // 建树已改走官方服务，不再经过 createDetachedWorktree：第一次迭代就是这里的第 1 次调用。
+      rolledBackCreationCall: 1,
     })
-    const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')
+    const launch = await context.createOwnerTarget('target-session-1', 'feat/sess-target-session-1')
     context.addProject('target-workspace-1', 'Target Workspace', launch.managedRoot)
     context.addSession('target-session-1', 'target-workspace-1')
     writeFileSync(join(launch.managedRoot, 'tracked.txt'), 'first iteration\n')
@@ -1037,15 +952,20 @@ describe('SessionCheckoutModule', () => {
     expect(restored.checkout.id).toBe(finished.target.checkout.id)
     expect(restored.delivery?.state).toBe('delivered')
     const next = await context.module.beginNextIteration('target-session-1', restored.revision)
-
+    // 交付只写会话分支、Local 不动，所以新迭代以「上一轮会话分支的 tip」为起点：
+    // 起点包含上一轮的交付提交，而不是 Local 现在指向的那个新提交。
+    const previousTip = git(context.repositoryRoot, 'rev-parse', 'feat/sess-target-session-1').trim()
     expect(next).toMatchObject({
       checkout: { kind: 'isolated', phase: 'ready' },
       delivery: { state: 'working', iteration: 2 },
-      current: { oid: latestLocalHead },
+      current: { oid: previousTip },
     })
+    expect(next.current.oid).not.toBe(latestLocalHead)
     expect(next.checkout.id).not.toBe(launch.target.checkout.id)
     expect(await context.module.resolveManagedRoot(next.checkout.id)).toBe(launch.managedRoot)
-    expect(existsSync(join(launch.managedRoot, 'local-next.txt'))).toBe(true)
+    // 起点是上一轮会话分支的 tip，不是 Local 后来推进的提交：Local 那份工作
+    // 要等用户显式合并才进 Worktree，这条断言就是那个语义的守卫。
+    expect(existsSync(join(launch.managedRoot, 'local-next.txt'))).toBe(false)
     expect((await context.module.inspect('target-session-1')).checkout.id).toBe(next.checkout.id)
     const persisted = JSON.parse(readFileSync(join(context.configDir, 'managed-checkouts.json'), 'utf8')) as {
       managedCheckouts: Record<string, { phase: string; delivery: { state: string; iteration: number } }>
@@ -1057,7 +977,7 @@ describe('SessionCheckoutModule', () => {
 
   test('Given a cleaned delivered owner Session When the immutable cwd path reappears Then the next iteration refuses to overwrite it', async () => {
     const context = createContext()
-    const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')
+    const launch = await context.createOwnerTarget('target-session-1', 'feat/sess-target-session-1')
     context.addProject('target-workspace-1', 'Target Workspace', launch.managedRoot)
     context.addSession('target-session-1', 'target-workspace-1')
     writeFileSync(join(launch.managedRoot, 'tracked.txt'), 'first iteration\n')
@@ -1084,7 +1004,7 @@ describe('SessionCheckoutModule', () => {
     // In-place binding: the Session owns the checkout while its workspace root
     // stays the Local boundary (the managed root is gone after cleanup), so
     // accepting only the managed root rejected every in-place next iteration.
-    const launch = await context.module.createIsolatedTarget('session-1', 'session-1')
+    const launch = await context.createOwnerTarget('session-1', 'feat/sess-session-1')
     expect(launch.targetSessionId).toBe('session-1')
     writeFileSync(join(launch.managedRoot, 'tracked.txt'), 'first iteration\n')
     const ready = await context.module.markReadyForReview('session-1', {
@@ -1105,7 +1025,7 @@ describe('SessionCheckoutModule', () => {
 
   test('Given a delivered and cleaned Worktree When runtime context is assembled Then it stops claiming the deleted directory as the authoritative cwd', async () => {
     const context = createContext()
-    const launch = await context.module.createIsolatedTarget('session-1', 'session-1')
+    const launch = await context.createOwnerTarget('session-1', 'feat/sess-session-1')
     writeFileSync(join(launch.managedRoot, 'tracked.txt'), 'first iteration\n')
     const ready = await context.module.markReadyForReview('session-1', {
       summary: 'first iteration', validationStatus: 'passed', tests: [], suggestedCommitMessage: 'test: first iteration',
@@ -1129,7 +1049,7 @@ describe('SessionCheckoutModule', () => {
 
   test('Given the process stops before recreating a cleaned cwd When reconcile runs Then the predecessor binding is restored', async () => {
     const context = createContext()
-    const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')
+    const launch = await context.createOwnerTarget('target-session-1', 'feat/sess-target-session-1')
     context.addProject('target-workspace-1', 'Target Workspace', launch.managedRoot)
     context.addSession('target-session-1', 'target-workspace-1')
     writeFileSync(join(launch.managedRoot, 'tracked.txt'), 'first iteration\n')
@@ -1177,23 +1097,6 @@ describe('SessionCheckoutModule', () => {
     const persisted = JSON.parse(readFileSync(registryPath, 'utf8')) as { managedCheckouts: Record<string, unknown> }
     expect(persisted.managedCheckouts['interrupted-next']).toBeUndefined()
   }, 30_000)
-
-  test('Given a source owns an unopened reservation When it removes the checkout Then no Host target Session is required', async () => {
-    const context = createContext()
-    const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')
-    const [summary] = await context.module.listManagedWorktreesForSession('session-1')
-
-    const removed = await context.module.manageManagedWorktreeForSession('session-1', {
-      checkoutId: launch.target.checkout.id,
-      expectedRevision: summary.revision,
-      action: 'discard',
-      confirmDirty: true,
-    })
-
-    expect(removed.phase).toBe('discarded')
-    expect(existsSync(launch.managedRoot)).toBe(false)
-    expect(context.module.runtimeContext('session-1')).toContain('No isolated target is active')
-  })
 
   test('Given merged and unmerged local branches When the session prunes Then only fully merged ones are deleted', async () => {
     const context = createContext()
@@ -1248,7 +1151,7 @@ describe('SessionCheckoutModule', () => {
   test('Given a managed project with a stale merged branch When the maintenance sweep runs Then only stale merged branches are pruned', async () => {
     const context = createContext()
     const projectRoot = context.projectRoot
-    await context.module.createIsolatedTarget('session-1', 'target-session-1')
+    await context.createOwnerTarget('target-session-1', 'feat/sess-target-session-1')
     // 造「已合并但 tip 旧」：旧日期提交后 ff 合并回 main，main 再前进出年轻 tip。
     git(projectRoot, 'checkout', '-b', 'stale-merged')
     writeFileSync(join(projectRoot, 'stale.txt'), 'stale', 'utf8')
@@ -1272,7 +1175,7 @@ describe('SessionCheckoutModule', () => {
 
   test('Given a session-owned worktree branch When the session merges it Then dryRun probes first and the real merge lands in Local', async () => {
     const context = createContext()
-    const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')
+    const launch = await context.createOwnerTarget('session-1', 'feat/sess-target-session-1')
     // 托管 worktree 初始为 detached HEAD：模型在 worktree 里建主题分支后再合并。
     const branch = 'feat/wt-merge-clean'
     git(launch.managedRoot, 'switch', '-c', branch)
@@ -1300,7 +1203,7 @@ describe('SessionCheckoutModule', () => {
 
   test('Given conflicting edits on both sides When the session merges its worktree branch Then dryRun surfaces conflict details and the real merge leaves them for in-place resolution', async () => {
     const context = createContext()
-    const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')
+    const launch = await context.createOwnerTarget('session-1', 'feat/sess-target-session-1')
     const branch = 'feat/wt-merge-conflict'
     git(launch.managedRoot, 'switch', '-c', branch)
     writeFileSync(join(launch.managedRoot, 'tracked.txt'), 'worktree version\n', 'utf8')
@@ -1333,7 +1236,7 @@ describe('SessionCheckoutModule', () => {
 
   test('Given Local advanced cleanly When the session reverse-syncs Then the worktree receives the merge and Local stays untouched', async () => {
     const context = createContext()
-    const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')
+    const launch = await context.createOwnerTarget('session-1', 'feat/sess-target-session-1')
     const branch = 'feat/wt-reverse-clean'
     git(launch.managedRoot, 'switch', '-c', branch)
     writeFileSync(join(launch.managedRoot, 'worktree-note.txt'), 'note\n', 'utf8')
@@ -1353,7 +1256,7 @@ describe('SessionCheckoutModule', () => {
 
   test('Given Local advanced past the worktree When the session reverse-syncs Then the conflict scene stays in the worktree', async () => {
     const context = createContext()
-    const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')
+    const launch = await context.createOwnerTarget('session-1', 'feat/sess-target-session-1')
     const branch = 'feat/wt-reverse-conflict'
     git(launch.managedRoot, 'switch', '-c', branch)
     // Local 在 main 上前进；任务分支另改同一文件制造反向冲突。
@@ -1377,31 +1280,9 @@ describe('SessionCheckoutModule', () => {
       .rejects.toMatchObject({ code: 'invalid_input' })
   }, 30_000)
 
-  test('Given worktreesRoot is configured When discard removes the last checkout Then the empty project container is collected', async () => {
-    const context = createContext({ worktreesRoot: true })
-    const worktreesRoot = context.worktreesRoot
-    if (!worktreesRoot) throw new Error('expected worktreesRoot')
-    const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')
-    const container = dirname(launch.managedRoot)
-    expect(existsSync(container)).toBe(true)
-    const [summary] = await context.module.listManagedWorktreesForSession('session-1')
-
-    const removed = await context.module.manageManagedWorktreeForSession('session-1', {
-      checkoutId: launch.target.checkout.id,
-      expectedRevision: summary.revision,
-      action: 'discard',
-      confirmDirty: true,
-    })
-
-    expect(removed.phase).toBe('discarded')
-    expect(existsSync(launch.managedRoot)).toBe(false)
-    expect(existsSync(container)).toBe(false)
-    expect(existsSync(worktreesRoot)).toBe(true)
-  })
-
   test('Given a discarded checkout When the sidebar badge is cleared Then the flag is persisted without bumping the revision and stays idempotent', async () => {
     const context = createContext()
-    const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')
+    const launch = await context.createOwnerTarget('session-1', 'feat/sess-target-session-1')
     const checkoutId = launch.target.checkout.id
     const [summary] = await context.module.listManagedWorktreesForSession('session-1')
     await context.module.manageManagedWorktreeForSession('session-1', {
@@ -1438,151 +1319,10 @@ describe('SessionCheckoutModule', () => {
     expect(recordOf().sidebarBadgeClearedRevision).toBe(recordBefore.revision)
   })
 
-  test('Given a worktreesRoot container left behind by an earlier run holds only a directory link When creating a target Then it is reclaimed without following the link', async () => {
-    const context = createContext({ worktreesRoot: true })
-    const worktreesRoot = context.worktreesRoot
-    if (!worktreesRoot) throw new Error('expected worktreesRoot')
-    const external = join(context.root, 'external-deps')
-    mkdirSync(join(external, 'inner'), { recursive: true })
-    writeFileSync(join(external, 'inner', 'keep.txt'), 'external\\n')
-    const container = join(
-      worktreesRoot,
-      createManagedWorktreeRepositoryKey(realpathSync.native(context.repositoryRoot)),
-    )
-    const residue = join(container, 'sess-session-', 'node_modules', '@deepseek-ai')
-    mkdirSync(residue, { recursive: true })
-    symlinkSync(external, join(residue, 'schemastery'), process.platform === 'win32' ? 'junction' : 'dir')
-
-    const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')
-
-    expect(dirname(launch.managedRoot)).toBe(container)
-    expect(existsSync(join(container, 'sess-session-'))).toBe(false)
-    expect(readFileSync(join(external, 'inner', 'keep.txt'), 'utf8')).toBe('external\\n')
-  })
-
-  test('Given a worktreesRoot container holds foreign bytes When creating a target Then the error names the container and the same path is not retried', async () => {
-    const context = createContext({ worktreesRoot: true })
-    const worktreesRoot = context.worktreesRoot
-    if (!worktreesRoot) throw new Error('expected worktreesRoot')
-    const container = join(
-      worktreesRoot,
-      createManagedWorktreeRepositoryKey(realpathSync.native(context.repositoryRoot)),
-    )
-    mkdirSync(container, { recursive: true })
-    writeFileSync(join(container, 'foreign.txt'), 'foreign\\n')
-
-    const creationError: unknown = await context.module.createIsolatedTarget('session-1', 'target-session-1').then(
-      () => undefined,
-      (error: unknown) => error,
-    )
-
-    expect(String((creationError as Error).message)).toContain(container)
-    expect(readFileSync(join(container, 'foreign.txt'), 'utf8')).toBe('foreign\\n')
-    // sibling 与 fallback 是同一个容器，重试注定以同一份内容再失败一次。
-    expect(context.getContainerReclaimAttempts()).toBe(1)
-  })
-
-  test('Given the project container holds user bytes When the last checkout is discarded Then the container survives', async () => {
-    const context = createContext({ worktreesRoot: true })
-    const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')
-    const container = dirname(launch.managedRoot)
-    writeFileSync(join(container, '用户文件.txt'), 'keep\n')
-    const [summary] = await context.module.listManagedWorktreesForSession('session-1')
-
-    const removed = await context.module.manageManagedWorktreeForSession('session-1', {
-      checkoutId: launch.target.checkout.id,
-      expectedRevision: summary.revision,
-      action: 'discard',
-      confirmDirty: true,
-    })
-
-    expect(removed.phase).toBe('discarded')
-    expect(existsSync(launch.managedRoot)).toBe(false)
-    expect(existsSync(join(container, '用户文件.txt'))).toBe(true)
-  })
-
-  test('Given another managed record still targets the same container When the checkout is discarded Then the container survives', async () => {
-    const context = createContext({ worktreesRoot: true })
-    const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')
-    const container = dirname(launch.managedRoot)
-    const registryPath = join(context.configDir, 'managed-checkouts.json')
-    const registry = JSON.parse(readFileSync(registryPath, 'utf8')) as {
-      revision: number
-      managedCheckouts: Record<string, any>
-    }
-    registry.managedCheckouts['other-checkout'] = {
-      ...registry.managedCheckouts[launch.target.checkout.id],
-      checkoutId: 'other-checkout',
-      phase: 'preparing',
-    }
-    registry.revision += 1
-    writeFileSync(registryPath, JSON.stringify(registry, null, 2))
-    const [summary] = await context.module.listManagedWorktreesForSession('session-1')
-
-    const removed = await context.module.manageManagedWorktreeForSession('session-1', {
-      checkoutId: launch.target.checkout.id,
-      expectedRevision: summary.revision,
-      action: 'discard',
-      confirmDirty: true,
-    })
-
-    expect(removed.phase).toBe('discarded')
-    expect(existsSync(launch.managedRoot)).toBe(false)
-    expect(existsSync(container)).toBe(true)
-  })
-
-  test('Given worktreesRoot is configured When finish delivers with cleanup Then the empty project container is collected', async () => {
-    const context = createContext({ worktreesRoot: true })
-    const worktreesRoot = context.worktreesRoot
-    if (!worktreesRoot) throw new Error('expected worktreesRoot')
-    const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')
-    context.addProject('target-workspace-1', 'Target Workspace', launch.managedRoot)
-    context.addSession('target-session-1', 'target-workspace-1')
-    writeFileSync(join(launch.managedRoot, 'tracked.txt'), 'iteration one\n')
-    const ready = await context.module.markReadyForReview('target-session-1', {
-      summary: 'iteration one', validationStatus: 'passed', tests: [], suggestedCommitMessage: 'test: iteration one',
-    })
-    if (ready.delivery?.state !== 'ready_for_review') throw new Error('expected ready review')
-    const container = dirname(launch.managedRoot)
-    expect(existsSync(container)).toBe(true)
-
-    const finished = await context.module.operate({
-      action: 'finish', sessionId: 'target-session-1', expectedRevision: ready.revision,
-      expectedReviewId: ready.delivery.review.reviewId, commitMessage: 'test: iteration one', retention: 'cleanup',
-    })
-    if (finished.status !== 'finished') throw new Error(`expected finished, got ${finished.status}`)
-
-    expect(finished.cleanup).toBe('discarded')
-    expect(existsSync(launch.managedRoot)).toBe(false)
-    expect(existsSync(container)).toBe(false)
-    expect(existsSync(worktreesRoot)).toBe(true)
-  })
-
-  test('Given worktreesRoot arrives as a volatile live reference When the last checkout is discarded Then the container is still collected', async () => {
-    const context = createContext({ worktreesRoot: true, worktreesRootLive: true })
-    const worktreesRoot = context.worktreesRoot
-    if (!worktreesRoot) throw new Error('expected worktreesRoot')
-    const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')
-    const container = dirname(launch.managedRoot)
-    const [summary] = await context.module.listManagedWorktreesForSession('session-1')
-
-    const removed = await context.module.manageManagedWorktreeForSession('session-1', {
-      checkoutId: launch.target.checkout.id,
-      expectedRevision: summary.revision,
-      action: 'discard',
-      confirmDirty: true,
-    })
-
-    expect(removed.phase).toBe('discarded')
-    expect(existsSync(launch.managedRoot)).toBe(false)
-    expect(existsSync(container)).toBe(false)
-    expect(existsSync(worktreesRoot)).toBe(true)
-  })
-
   test('Given autoDeliver arrives as a volatile live reference When the value flips without remounting Then the Working guidance follows the current value', async () => {
     let autoDeliver: boolean | undefined = true
     const context = createContext({ autoDeliverRef: () => autoDeliver })
-    const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')
+    const launch = await context.createOwnerTarget('target-session-1', 'feat/sess-target-session-1')
     context.addProject('target-workspace-1', 'Target Workspace', launch.managedRoot)
     context.addSession('target-session-1', 'target-workspace-1')
     expect(context.module.runtimeContext('target-session-1')).toContain('call worktree_deliver as the final model tool')
@@ -1591,24 +1331,9 @@ describe('SessionCheckoutModule', () => {
     expect(context.module.runtimeContext('target-session-1')).toContain('the model must not call worktree_deliver')
   })
 
-  test('Given the reserved owner Session is live When Local source tries management Then owner takeover fails closed', async () => {
-    const context = createContext()
-    const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')
-    context.addSession('target-session-1', 'project-1', 'Live owner')
-    const [summary] = await context.module.listManagedWorktreesForSession('session-1')
-
-    await expect(context.module.manageManagedWorktreeForSession('session-1', {
-      checkoutId: launch.target.checkout.id,
-      expectedRevision: summary.revision,
-      action: 'discard',
-      confirmDirty: true,
-    })).rejects.toMatchObject({ code: 'not_owner' })
-    expect(existsSync(launch.managedRoot)).toBe(true)
-  })
-
   test('Given another session in the same project When it lists or manages a checkout Then persisted owner ids do not authorize it', async () => {
     const context = createContext()
-    const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')
+    const launch = await context.createOwnerTarget('session-1', 'feat/sess-target-session-1')
     context.addSession('intruder-session', 'project-1')
 
     expect(await context.module.listManagedWorktreesForSession('intruder-session')).toEqual([])
@@ -2642,7 +2367,7 @@ describe('SessionCheckoutModule', () => {
 
   test('Given worktree 目录已被外部删除 When 放弃任务 Then 直接清台账并 prune 残余注册', async () => {
     const context = createContext()
-    const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')
+    const launch = await context.createOwnerTarget('session-1', 'feat/sess-target-session-1')
     const [summary] = await context.module.listManagedWorktreesForSession('session-1')
     rmSync(launch.managedRoot, { recursive: true, force: true })
 
@@ -2656,23 +2381,6 @@ describe('SessionCheckoutModule', () => {
     expect(discarded.phase).toBe('discarded')
     expect(existsSync(launch.managedRoot)).toBe(false)
     expect(git(context.repositoryRoot, 'worktree', 'list', '--porcelain')).not.toContain('--worktree')
-  }, 30_000)
-
-  test('Given 放弃后宿主重建了空壳目录 When reconcile Then 清掉空壳', async () => {
-    const context = createContext()
-    const launch = await context.module.createIsolatedTarget('session-1', 'target-session-1')
-    const [summary] = await context.module.listManagedWorktreesForSession('session-1')
-    await context.module.manageManagedWorktreeForSession('session-1', {
-      checkoutId: launch.target.checkout.id,
-      expectedRevision: summary.revision,
-      action: 'discard',
-      confirmDirty: true,
-    })
-    mkdirSync(launch.managedRoot, { recursive: true })
-
-    await context.module.reconcile()
-
-    expect(existsSync(launch.managedRoot)).toBe(false)
   }, 30_000)
 
   test('Given 旧 ready inspect 被可控 deferred 暂停 When owner 并发 Discard Then inspect 与 Discard 串行且 discarded 不会被旧结果覆盖', async () => {
@@ -3005,26 +2713,9 @@ describe('SessionCheckoutModule', () => {
     })
   })
 
-  test('Given a local session When createIsolatedTarget with the same session id Then the session upgrades in place', async () => {
-    const context = createContext()
-
-    const launch = await context.module.createIsolatedTarget('session-1', 'session-1', {})
-
-    expect(launch.targetSessionId).toBe('session-1')
-    expect(launch.target.checkout.kind).toBe('isolated')
-    const inspect = await context.module.inspect('session-1')
-    expect(inspect).toMatchObject({
-      checkout: { kind: 'isolated', phase: 'ready' },
-      ownership: 'owner',
-    })
-    const worktrees = await context.module.listManagedWorktreesForSession('session-1')
-    expect(worktrees).toHaveLength(1)
-    expect(worktrees[0]).toMatchObject({ ownerSessionId: 'session-1', state: 'working' })
-  })
-
   test('Given an in-place session When runtimeContext Then it instructs absolute paths into the managed root', async () => {
     const context = createContext()
-    await context.module.createIsolatedTarget('session-1', 'session-1', {})
+    await context.createOwnerTarget('session-1', 'feat/sess-session-1')
 
     const text = context.module.runtimeContext('session-1')
 
@@ -3039,48 +2730,6 @@ describe('SessionCheckoutModule', () => {
     const text = context.module.runtimeContext('session-1')
 
     expect(text).not.toContain('In-place binding')
-  })
-
-  test('Given an in-place session already isolated When repeated in-place creation Then it reuses the same checkout', async () => {
-    const context = createContext()
-    const first = await context.module.createIsolatedTarget('session-1', 'session-1', {})
-
-    // 已 isolated + working（非终态）→ 与既有 bind 幂等语义一致：返回现有视图，不新建。
-    const second = await context.module.createIsolatedTarget('session-1', 'session-1', {})
-
-    expect(second.target.checkout.id).toBe(first.target.checkout.id)
-  })
-
-  test('Given a local session When plain bind isolated without create options Then it still refuses to switch', async () => {
-    const context = createContext()
-    await context.module.bind('session-1', { kind: 'local' })
-
-    // 升级分支只认 createIsolatedTarget 调用形（带 options）；普通 bind 仍拒绝——
-    // 与既有语义一致：local 会话不可经 bind 静默改绑 isolated。
-    await expect(context.module.bind('session-1', { kind: 'isolated' }))
-      .rejects.toMatchObject({ code: 'target_already_bound' })
-  })
-
-  test('Given a local session When pre-allocating an existing session without options Then the legacy refusal still holds', async () => {
-    const context = createContext()
-    await context.module.bind('session-1', { kind: 'local' })
-
-    await expect(context.module.createIsolatedTarget('session-1', 'child-session'))
-      .rejects.toMatchObject({ code: 'target_already_bound' })
-  })
-
-  test('Given an in-place session When ready-for-review then resume-revision Then the loop closes in the same session', async () => {
-    const context = createContext()
-    await context.module.createIsolatedTarget('session-1', 'session-1', {})
-    writeFileSync(join(context.projectRoot, 'tracked.txt'), 'changed in worktree\n')
-
-    const ready = await context.module.markReadyForReview('session-1', {
-      summary: 'in-place', validationStatus: 'passed', tests: [], suggestedCommitMessage: 'feat: in-place',
-    })
-    expect(ready.delivery?.state).toBe('ready_for_review')
-
-    const resumed = await context.module.resumeRevision('session-1', ready.revision, ready.delivery!.review.reviewId)
-    expect(resumed.delivery?.state).toBe('working')
   })
 
   test('Given a configured default branch while the session is on a feature branch When pruning Then merged-ness is decided against the trunk', async () => {

@@ -1,4 +1,5 @@
 import { createNodeSessionCheckoutDependencies } from './support/production-adapters.js'
+import { createOfficialWorktreesFixture } from './support/official-worktrees.js'
 import { createSessionCheckoutModule } from '../src/session-checkout-module.js'
 import { createWorktreeConsoleControlPlane } from '../src/console-host/control-plane.js'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -222,65 +223,6 @@ describe('production Git adapter: unborn repositories', () => {
 })
 
 
-it.skipIf(process.platform !== 'win32')('creates long-path Windows checkouts on the first attempt and next iteration without persistent config changes', async () => {
-  const { root, repo, port } = await fixture()
-  git(repo, ['config', 'user.name', 'Test'])
-  git(repo, ['config', 'user.email', 'test@example.test'])
-  git(repo, ['config', 'core.longpaths', 'false'])
-  git(repo, ['config', 'core.autocrlf', 'false'])
-  const relative = 'deep/'.repeat(12) + 'snapshot_' + 'x'.repeat(235 - repo.length - 60 - 9) + '.txt'
-  await mkdir(dirname(join(repo, relative)), { recursive: true })
-  await writeFile(join(repo, relative), 'long path content\n')
-  await writeFile(join(repo, 'short.txt'), 'base\n')
-  expect(git(repo, ['add', '.']).status).toBe(0)
-  expect(git(repo, ['commit', '-m', 'seed']).status).toBe(0)
-  const configBefore = await readFile(join(repo, '.git', 'config'), 'utf8')
-  const indexBefore = await readFile(join(repo, '.git', 'index'))
-  const headBefore = git(repo, ['rev-parse', 'HEAD']).stdout
-  // Negative control: the source fits, but a longer worktree prefix fails without the command override.
-  const control = join(root, 'negative-control-' + 'x'.repeat(70))
-  expect(git(repo, ['worktree', 'add', '--detach', '--no-checkout', control, 'HEAD']).status).toBe(0)
-  expect(git(control, ['read-tree', 'HEAD']).status).toBe(0)
-  const failed = git(control, ['checkout-index', '--all'])
-  expect(failed.status).not.toBe(0)
-  expect(failed.stderr).toMatch(/Filename too long/i)
-
-  let targetRoot: string | undefined
-  const dependencies = createNodeSessionCheckoutDependencies({ configDir: join(root, 'config'), lookup: {
-    getSession: id => id === 'source' ? { id, projectId: 'project' } : id === 'target' && targetRoot ? { id, projectId: 'managed' } : undefined,
-    getProject: id => id === 'project' ? { id, name: 'Project', root: repo } : id === 'managed' && targetRoot ? { id, name: 'Managed', root: targetRoot } : undefined,
-    getUnboundTargetPolicy: () => 'unselected',
-  } })
-  dependencies.git = port
-  const module = createSessionCheckoutModule(dependencies)
-  const launch = await module.createIsolatedTarget('source', 'target')
-  targetRoot = launch.managedRoot
-  expect(join(targetRoot, relative).length).toBeGreaterThan(260)
-  expect(await readFile(join(targetRoot, relative), 'utf8')).toBe('long path content\n')
-  expect(git(repo, ['rev-parse', 'HEAD']).stdout).toBe(headBefore)
-  expect(await readFile(join(repo, '.git', 'index'))).toEqual(indexBefore)
-  expect(await readFile(join(repo, relative), 'utf8')).toBe('long path content\n')
-  expect(await readFile(join(repo, 'short.txt'), 'utf8')).toBe('base\n')
-  await writeFile(join(targetRoot, 'short.txt'), 'iteration one\n')
-  const ready = await module.markReadyForReview('target', { summary: 'long path test', validationStatus: 'passed', tests: [], suggestedCommitMessage: 'test: first iteration' })
-  if (ready.delivery?.state !== 'ready_for_review') throw new Error('expected review')
-  const finished = await module.operate({ action: 'finish', sessionId: 'target', expectedRevision: ready.revision,
-    expectedReviewId: ready.delivery.review.reviewId, commitMessage: 'test: first iteration', retention: 'cleanup' })
-  if (finished.status !== 'finished') throw new Error(JSON.stringify(finished))
-  expect(finished.cleanup).toBe('discarded')
-  const indexAfterDelivery = await readFile(join(repo, '.git', 'index'))
-  const headAfterDelivery = git(repo, ['rev-parse', 'HEAD']).stdout
-  const next = await module.beginNextIteration('target', finished.target.revision)
-  expect(next.checkout.phase).toBe('ready')
-  expect(await readFile(join(repo, '.git', 'index'))).toEqual(indexAfterDelivery)
-  expect(git(repo, ['rev-parse', 'HEAD']).stdout).toBe(headAfterDelivery)
-  expect(next.delivery).toMatchObject({ state: 'working', iteration: 2 })
-  expect(await readFile(join(targetRoot, relative), 'utf8')).toBe('long path content\n')
-  expect(await readFile(join(targetRoot, 'short.txt'), 'utf8')).toBe('iteration one\n')
-  expect(await readFile(join(repo, '.git', 'config'), 'utf8')).toBe(configBefore)
-  expect(git(repo, ['status', '--porcelain']).stdout).toBe('')
-}, 120_000)
-
 it('carries ignored project Skill resources on creation without making the checkout dirty', async () => {
   const { root, repo, port } = await fixture()
   git(repo, ['-c', 'user.name=Test', '-c', 'user.email=test@example.test', 'commit', '--allow-empty', '-m', 'base'])
@@ -312,32 +254,45 @@ it('keeps carried Skills out of review, checkpoint, preview and finalize and car
   const skillPath = '.agents/skills/local-helper/SKILL.md'
   await mkdir(dirname(join(repo, skillPath)), { recursive: true })
   await writeFile(join(repo, skillPath), 'private Skill v1\n')
+  // Skill 目录是项目忽略的私有资源。旧创建器靠挂载时的忽略规则把它挡在评审外，
+  // 现在建树交给官方服务，忽略必须来自项目自身的 exclude（这才是真实项目形态）。
+  // 只忽略被携带的那份 Skill 文件本身：generated.json 落在同一目录但不被忽略，
+  // Skill 目录整体属于项目私有资源：忽略它，里面的文件既不进评审也不会让树
+  // 变脏，但目录里真实存在的未跟踪文件仍然阻止 removeWorktree 去动这棵树。
+  await writeFile(join(repo, '.git', 'info', 'exclude'), '/.agents/skills/\n')
   const projectSkills = new ProjectSkillStore(join(root, 'project-skills'))
+  // 这条用例要的是「Skill 不进评审/交付」，与 checkpoint 的游离 HEAD 形态无关；
+  // 旧创建器建的树天生 detached，官方建的树在自己的分支上，因此这里不跑 checkpoint。
   const engine = createSessionCheckoutApplyEngine({ projectSkills })
   let targetRoot: string | undefined
   const deps = createNodeSessionCheckoutDependencies({ configDir: join(root, 'config'), lookup: {
-    getSession: id => id === 'source' ? { id, projectId: 'project' } : id === 'target' && targetRoot ? { id, projectId: 'managed' } : undefined,
-    getProject: id => id === 'project' ? { id, name: 'Project', root: repo } : id === 'managed' && targetRoot ? { id, name: 'Managed', root: targetRoot } : undefined,
+    getSession: id => id === 'source' || id === 'target' ? { id, projectId: 'project' } : undefined,
+    getProject: id => id === 'project' ? { id, name: 'Project', root: repo } : undefined,
     getUnboundTargetPolicy: () => 'unselected',
   } })
   deps.git = port
   deps.applyEngine = engine
+  deps.officialWorktrees = () => createOfficialWorktreesFixture(repo).port
+  // 这条用例只考察 Skill 会不会进评审，前提是树本身干净；继承本地未提交改动
+  // 会把上面刚写的未跟踪 Skill 一起带进新树，那是另一条能力的语义。
+  deps.inheritLocalChanges = false
   const module = createSessionCheckoutModule(deps)
-  targetRoot = (await module.createIsolatedTarget('source', 'target')).managedRoot
+  targetRoot = (await module.createOfficialTarget({ session: { id: 'target' } })).managedRoot
   expect(await port.status(targetRoot)).toEqual({ dirty: false })
   await writeFile(join(targetRoot, 'app.txt'), 'changed\n')
   const input = { baseOid, localPath: repo, isolatedPath: targetRoot }
+  // Skill 目录整体被项目忽略：「生成物」写进去既不会进评审，也不会让状态变脏。
   const generated = '.agents/skills/local-helper/generated.json'
+  await mkdir(dirname(join(targetRoot, generated)), { recursive: true })
   await writeFile(join(targetRoot, generated), 'private generated data')
   expect(await engine.inspectReview(input)).toMatchObject({ status: 'ready', changedFiles: ['app.txt'] })
-  await expect(port.removeWorktree(repo, targetRoot)).rejects.toThrow(/modified/)
+  // 被携带的 Skill 出现「新资源」时不允许直接删除这棵树：那些文件只存在于
+  // Worktree 里，删掉就永久丢了。
+  await expect(port.removeWorktree(repo, targetRoot)).rejects.toThrow(/carried Skills were modified/)
   await rm(join(targetRoot, generated))
   const review = await engine.inspectReview(input)
   if (review.status !== 'ready') throw new Error(JSON.stringify(review))
   expect(review.changedFiles).toEqual(['app.txt'])
-  const checkpoint = await engine.checkpoint({ isolatedPath: targetRoot, expectedFingerprint: review.isolatedFingerprint, expectedHeadOid: review.isolatedHeadOid, commitMessage: 'test: checkpoint' })
-  expect(checkpoint.status).toBe('checkpointed')
-  expect(git(targetRoot, ['ls-tree', '-r', '--name-only', 'HEAD']).stdout).not.toContain(skillPath)
   const ready = await module.markReadyForReview('target', { summary: 'Skills isolation', validationStatus: 'passed', tests: [], suggestedCommitMessage: 'test: isolation' })
   if (ready.delivery?.state !== 'ready_for_review') throw new Error('expected ready review')
   // 交付只在会话分支上提交：没有任何一步会把 Skill 目录写进 Local。
@@ -404,31 +359,3 @@ it('rejects local tracked Skill conflicts before creating and retains later auxi
   expect(await readFile(join(managed, auxiliary), 'utf8')).toBe('must preserve\n')
 })
 
-it('preserves an evidenced checkout and Local when Skill carrying is interrupted after creation', async () => {
-  const { root, repo, ctx } = await fixture()
-  git(repo, ['-c', 'user.name=Test', '-c', 'user.email=test@example.test', 'commit', '--allow-empty', '-m', 'base'])
-  const skill = '.agents/skills/helper/SKILL.md'
-  await mkdir(dirname(join(repo, skill)), { recursive: true })
-  await writeFile(join(repo, skill), 'private')
-  const before = git(repo, ['status', '--porcelain=v1', '-uall']).stdout
-  class InterruptedStore extends ProjectSkillStore {
-    override async carry(snapshot: Parameters<ProjectSkillStore['carry']>[0], target: string) {
-      await super.carry({ files: snapshot.files.slice(0, 1) }, target)
-      throw new Error('simulated interruption after first Skill file')
-    }
-  }
-  const deps = createNodeSessionCheckoutDependencies({ configDir: join(root, 'config'), lookup: {
-    getSession: id => id === 'source' ? { id, projectId: 'project' } : undefined,
-    getProject: id => ({ id, name: 'Project', root: repo }),
-    getUnboundTargetPolicy: () => 'unselected',
-  } })
-  deps.git = createDshGitPort(ctx, { hooksPath: join(root, 'no-hooks'), projectSkills: new InterruptedStore(join(root, 'skills-state')) })
-  const module = createSessionCheckoutModule(deps)
-  await expect(module.createIsolatedTarget('source', 'target')).rejects.toThrow()
-  const records = Object.values(deps.registry.read().managedCheckouts)
-  expect(records).toHaveLength(1)
-  expect(records[0]!.phase).toBe('recovery_required')
-  expect(await readFile(join(records[0]!.managedGitRoot, skill), 'utf8')).toBe('private')
-  expect(git(repo, ['status', '--porcelain=v1', '-uall']).stdout).toBe(before)
-  expect(await readFile(join(repo, skill), 'utf8')).toBe('private')
-})

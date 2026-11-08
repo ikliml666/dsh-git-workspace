@@ -42,7 +42,6 @@ import {
   createManagedWorktreePathCandidates,
   createManagedWorktreeRepositoryKey,
   createSessionBranchCandidates,
-  createTopicDateStamp,
 } from './managed-worktree-path.js'
 import type {
   IsolatedTargetLaunch,
@@ -1325,12 +1324,6 @@ export function createSessionCheckoutModule(
       if (current.phase === 'discarded') {
         // 本地适配：交付/放弃时 owner 会话可能仍开着，宿主会重建已删 worktree
         // 的空壳 cwd。空壳无用户字节，reconcile 时顺手清掉并回收空容器。
-        if (
-          dependencies.files.exists(current.managedRoot)
-          && dependencies.files.removeEmptyDirectoryTree(current.managedRoot)
-        ) {
-          collectEmptyManagedContainer(current.managedGitRoot, current.checkoutId)
-        }
         // 交付记录是台账，不是日志：它一旦不再指向任何磁盘内容，就没有第二个人
         // 会来删它。留着只会让台账无限增长，并让同 topic 的新建继续撞上已被
         // 放弃的旧路径。只有路径彻底空掉（或压根不存在）时才删记录，避免把
@@ -2953,26 +2946,6 @@ export function createSessionCheckoutModule(
     })
   }
 
-  // 本地适配（合并后删除）：工作树移除成功后，若项目容器直接位于所配置的
-  // worktreesRoot 之下、无其他受管记录引用且目录已空，则一并回收容器，
-  // 避免 worktreesRoot 长期堆积空目录。removeEmptyDirectoryTree 遇到任何
-  // 条目即返回 false，绝不删除用户字节。
-  const collectEmptyManagedContainer = (managedGitRoot: string, excludedCheckoutId: string): boolean => {
-    const worktreesRoot = liveConfigValue(dependencies.worktreesRoot)
-    if (!worktreesRoot) return false
-    const container = dirname(managedGitRoot)
-    if (pathsEqual(container, worktreesRoot) || !pathsEqual(dirname(container), worktreesRoot)) return false
-    const referenced = Object.values(dependencies.registry.read().managedCheckouts).some(
-      (other) => other.checkoutId !== excludedCheckoutId && pathsEqual(dirname(other.managedGitRoot), container),
-    )
-    if (referenced) return false
-    try {
-      return dependencies.files.removeEmptyDirectoryTree(container)
-    } catch {
-      return false
-    }
-  }
-
   async function cleanupFinalized(
     record: ManagedCheckoutRecord,
     options: { allowLegacyResidue?: boolean; discardPostDeliveryChanges?: boolean } = {},
@@ -3176,7 +3149,6 @@ export function createSessionCheckoutModule(
           await quarantineAndRemove(removing, revalidatedResidue)
         }
       }
-      collectEmptyManagedContainer(record.managedGitRoot, record.checkoutId)
       await releaseApplyBaseBestEffort(record)
       updateManagedCheckout(record.checkoutId, (current) => {
         if (current.delivery.state !== 'finalized' && current.delivery.state !== 'retained') return current
@@ -3826,7 +3798,6 @@ export function createSessionCheckoutModule(
     } catch {
       // 尽力清理：git 移除成功后偶发的空壳（例如宿主重建 cwd 所致）。
     }
-    collectEmptyManagedContainer(record.managedGitRoot, record.checkoutId)
     await releaseApplyBaseBestEffort(record)
     updateManagedCheckout(record.checkoutId, (current) => ({
       ...current,
@@ -5076,17 +5047,12 @@ export function createSessionCheckoutModule(
         baseOid = tip
       }
       const repositoryKey = createManagedWorktreeRepositoryKey(localGitRoot)
-      const worktreesRoot = liveConfigValue(dependencies.worktreesRoot)
       const pathCandidates = [8, 12, 32].map(identityLength => createManagedWorktreePathCandidates({
         localGitRoot,
         managedCheckoutsRoot: dependencies.managedCheckoutsRoot,
         repositoryKey,
         checkoutId,
         identityLength,
-        ...(worktreesRoot ? { worktreesRoot } : {}),
-        ...(worktreesRoot && createOptions?.topic
-          ? { topic: createOptions.topic, dateStamp: createTopicDateStamp() }
-          : {}),
       }))
       // Prefer one repository-owned sibling container so Local never sees its
       // managed worktrees as untracked. A container that is a file/symlink is
@@ -5361,6 +5327,8 @@ export function createSessionCheckoutModule(
       const createdSnapshot = await dependencies.git.inspect(created.path)
       const localSnapshot = await dependencies.git.inspect(project.root)
       if (localSnapshot !== null) {
+        // 项目 Skills 只存在于工作区、不在 Git 里：官方建树不认识它们，必须单独携过去。
+        await dependencies.git.carryProjectSkills?.(localSnapshot.root, created.path)
         await copyWorktreeincludeFiles(localSnapshot.root, created.path)
         if (
           created.baseCommit === localSnapshot.headOid
@@ -5383,6 +5351,7 @@ export function createSessionCheckoutModule(
           localRoot: project.root,
           path: created.path,
           baseCommit: created.baseCommit,
+          ...(createOptions?.topic === undefined ? {} : { sessionTopic: createOptions.topic }),
           ...(createdSnapshot === null ? {} : { snapshot: createdSnapshot }),
         },
       )
@@ -5466,32 +5435,6 @@ export function createSessionCheckoutModule(
       return withBindingLock(() => bindTarget(sessionId, choice, 0, requestStartedAt))
     },
     createOfficialTarget,
-    createIsolatedTarget: (sourceSessionId, targetSessionId, createOptions) => withBindingLock(async () => {
-      // in-place：targetSessionId === sourceSessionId 时，当前会话直接升级为 worktree 工作会话
-      //（Claude Code EnterWorktree 同构形态）。仍要求显式传入相同 ID 以与普通路径区分。
-      const inPlace = targetSessionId === sourceSessionId
-      if (!targetSessionId) {
-        throw new SessionCheckoutError('invalid_input', hostMessage('anIsolatedTargetRequiresASeparatePreallocatedSessionID'))
-      }
-      if (!inPlace && dependencies.lookup.getSession(targetSessionId) && !getPersistedBinding(targetSessionId)) {
-        throw new SessionCheckoutError('target_already_bound', hostMessage('theTargetSessionIDIsAlreadyUsedByAnother'))
-      }
-      const sourceBinding = getPersistedBinding(sourceSessionId)
-      if (inPlace) {
-        // in-place 升级：local（或未绑定）即可；已在 isolated 时走终态替换复用逻辑。
-      } else if (!sourceBinding) {
-        await bindTarget(sourceSessionId, { kind: 'local' })
-      } else if (sourceBinding.target.kind !== 'local') {
-        throw new SessionCheckoutError('operation_not_allowed', hostMessage('aNewIsolatedTargetCanOnlyBeCreatedFrom'))
-      }
-      const target = await bindTarget(targetSessionId, { kind: 'isolated' }, 0, Date.now(), sourceSessionId, createOptions)
-      const binding = getPersistedBinding(targetSessionId)
-      const record = binding?.target.kind === 'isolated'
-        ? dependencies.registry.read().managedCheckouts[binding.target.checkoutId]
-        : undefined
-      if (!record) throw new SessionCheckoutError('checkout_missing', hostMessage('theIsolatedTargetRecordIsMissingAfterCreation'))
-      return { targetSessionId, managedRoot: record.managedRoot, target }
-    }),
     beginNextIteration: (sessionId, expectedRevision) => withBindingLock(
       () => beginNextIterationTarget(sessionId, expectedRevision),
     ),

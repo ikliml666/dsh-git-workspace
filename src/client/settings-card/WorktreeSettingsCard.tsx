@@ -198,11 +198,6 @@ export function WorktreeSettingsCard(props: WorktreeSettingsCardProps) {
         disabled, onReset: () => props.resetField('autoPush'), t,
       })}
       {fieldRow({
-        label: t('settings.worktreesRoot'), hint: t('settings.worktreesRoot.hint'), state: state.worktreesRoot,
-        control: inputControl(t('settings.worktreesRoot'), state.worktreesRoot, false, text => props.edit('worktreesRoot', text)),
-        disabled, onReset: () => props.resetField('worktreesRoot'), t,
-      })}
-      {fieldRow({
         label: t('settings.gitTimeoutMs'), hint: t('settings.gitTimeoutMs.hint'), state: state.gitTimeoutMs,
         control: inputControl(t('settings.gitTimeoutMs'), state.gitTimeoutMs, true, text => props.edit('gitTimeoutMs', text)),
         disabled, onReset: () => props.resetField('gitTimeoutMs'), t,

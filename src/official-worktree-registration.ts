@@ -34,6 +34,13 @@ export interface OfficialWorktreeRegistration {
   baseCommit: string
   /** 调用方已读过的这棵树的 Git 身份；不给就由登记函数自己读一次。 */
   snapshot?: GitCheckoutSnapshot
+  /**
+   * 建树时用的主题。
+   *
+   * 官方分支名是 `feat/sess-<会话>--<主题>`，而交付时重建分支要用同一个主题；
+   * 不记下来就会退回项目名，产出一条不同的会话分支，看起来像换了归属。
+   */
+  sessionTopic?: string
 }
 
 /** 这个目录是否位于本项目官方的 `.agents/worktrees` 下。 */
@@ -78,6 +85,7 @@ export async function registerOfficialWorktree(
     sourceRef: snapshot.headRef,
     // 台账里的分支一律是完整 ref，与 attachSessionBranch 写出的 branchRef 同形。
     sessionBranch: snapshot.headRef,
+    ...(registration.sessionTopic === undefined ? {} : { sessionTopic: registration.sessionTopic }),
     // 官方已经完成 checkout，这棵树从诞生起就是就绪态。
     phase: 'ready',
     delivery: { state: 'working', iteration: 1 },

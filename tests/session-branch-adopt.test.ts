@@ -5,6 +5,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { expect, it } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
 import { createNodeSessionCheckoutDependencies } from './support/production-adapters.js'
+import { createOfficialWorktreesFixture } from './support/official-worktrees.js'
 import { createSessionCheckoutModule } from '../src/session-checkout-module.js'
 import { createDshGitPort } from '../src/adapters/git.js'
 
@@ -84,6 +85,7 @@ function fixture() {
   const dependencies = createNodeSessionCheckoutDependencies({ configDir, lookup })
   dependencies.git = port
   dependencies.inheritLocalChanges = false
+  dependencies.officialWorktrees = () => createOfficialWorktreesFixture(repo).port
   return {
     root, repo, git, tryGit, port, dependencies, projects, sessions, configDir,
     cleanup: () => rmSync(root, { force: true, recursive: true }),
@@ -94,7 +96,8 @@ it('adopts a legacy detached record onto a Session branch at delivery', async ()
   const env = fixture()
   try {
     const module = createSessionCheckoutModule(env.dependencies)
-    const launch = await module.createIsolatedTarget('source', 'owner', { topic: 'adopt' })
+    env.sessions.set('owner', { id: 'owner', projectId: 'project' })
+    const launch = await module.createOfficialTarget({ session: { id: 'owner' } }, { topic: 'adopt' })
     env.projects.set('owner-project', { id: 'owner-project', name: 'Owner', root: launch.managedRoot })
     env.sessions.set('owner', { id: 'owner', projectId: 'owner-project' })
 

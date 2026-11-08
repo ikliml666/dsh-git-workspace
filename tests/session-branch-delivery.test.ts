@@ -5,6 +5,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { expect, it } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
 import { createNodeSessionCheckoutDependencies } from './support/production-adapters.js'
+import { createOfficialWorktreesFixture } from './support/official-worktrees.js'
 import { createSessionCheckoutModule } from '../src/session-checkout-module.js'
 import { createDshGitPort } from '../src/adapters/git.js'
 
@@ -63,6 +64,7 @@ function fixture() {
     } }
   } } } as unknown as Context
   const port = createDshGitPort(ctx, { hooksPath: join(root, 'no-hooks') })
+  const official = createOfficialWorktreesFixture(repo)
   const sessions = new Map([['source', { id: 'source', projectId: 'project' }]])
   const projects = new Map([['project', { id: 'project', name: 'Project', root: repo }]])
   const lookup = {
@@ -72,6 +74,7 @@ function fixture() {
   }
   const dependencies = createNodeSessionCheckoutDependencies({ configDir: join(root, 'config'), lookup })
   dependencies.git = port
+  dependencies.officialWorktrees = () => official.port
   return {
     root, repo, git, port, dependencies, projects, sessions, baseOid, otherHead,
     cleanup: () => rmSync(root, { force: true, recursive: true }),
@@ -86,7 +89,10 @@ it('delivers onto the session branch and leaves Local completely untouched', asy
     // 另一个问题域；交付路径完全不读 Local，这一点下面逐条断言。）
     env.dependencies.inheritLocalChanges = false
     const module = createSessionCheckoutModule(env.dependencies)
-    const launch = await module.createIsolatedTarget('source', 'owner', { topic: 'sleep-wake' })
+    // 建树前会话挂在 Local 项目上（那是建树的分叉来源），建好后再把它的 Workspace
+    // 指向自己的树——inspect 的身份校验要求 workspace 与 managedRoot 一致。
+    env.sessions.set('owner', { id: 'owner', projectId: 'project' })
+    const launch = await module.createOfficialTarget({ session: { id: 'owner' } }, { topic: 'sleep-wake' })
     env.projects.set('owner-project', { id: 'owner-project', name: 'Owner', root: launch.managedRoot })
     env.sessions.set('owner', { id: 'owner', projectId: 'owner-project' })
 
@@ -148,10 +154,13 @@ it('keeps a second session on its own branch even when both start from the same 
   const env = fixture()
   try {
     const module = createSessionCheckoutModule(env.dependencies)
-    const first = await module.createIsolatedTarget('source', 'owner-a', { topic: 'alpha' })
-    const second = await module.createIsolatedTarget('source', 'owner-b', { topic: 'alpha' })
+    env.sessions.set('owner-a', { id: 'owner-a', projectId: 'project' })
+    env.sessions.set('owner-b', { id: 'owner-b', projectId: 'project' })
+    const first = await module.createOfficialTarget({ session: { id: 'owner-a' } }, { topic: 'alpha' })
     env.projects.set('a', { id: 'a', name: 'A', root: first.managedRoot })
     env.sessions.set('owner-a', { id: 'owner-a', projectId: 'a' })
+    env.sessions.set('owner-b', { id: 'owner-b', projectId: 'project' })
+    const second = await module.createOfficialTarget({ session: { id: 'owner-b' } }, { topic: 'alpha' })
     env.projects.set('b', { id: 'b', name: 'B', root: second.managedRoot })
     env.sessions.set('owner-b', { id: 'owner-b', projectId: 'b' })
 

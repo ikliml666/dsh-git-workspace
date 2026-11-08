@@ -75,7 +75,7 @@ it('validates volatile timeout references at mount', () => {
 })
 
 it('marks exactly the settings-editable fields volatile in the Config schema', () => {
-  for (const key of ['gitTimeoutMs', 'worktreeAddTimeoutMs', 'autoDeliver', 'autoPush', 'worktreesRoot']) {
+  for (const key of ['gitTimeoutMs', 'worktreeAddTimeoutMs', 'autoDeliver', 'autoPush']) {
     expect((Config.dict?.[key]?.meta as { volatile?: boolean } | undefined)?.volatile).toBe(true)
   }
   for (const key of ['stateDir', 'enableWorkspaceProvider']) {

@@ -139,8 +139,6 @@ export interface SessionCheckoutModule {
     operation: (target: SessionTargetView) => Promise<T>,
   ): Promise<T>
   bind(sessionId: string, choice: SessionTargetBindChoice): Promise<SessionTargetView>
-  /** Reserve a distinct owner session and checkout without changing the source session cwd/identity. */
-  createIsolatedTarget(sourceSessionId: string, targetSessionId: string, createOptions?: { topic?: string; branch?: string }): Promise<IsolatedTargetLaunch>
   /**
    * Create a Worktree through the host's own `worktrees` service and record it
    * in this plugin's ledger. The one creation path for `worktree_create`: the
@@ -313,13 +311,6 @@ export const Config = z.object({
    */
   autoPush: volatile(z.boolean().default(true)),
   /**
-   * Root for managed Worktrees. When set, Worktrees are created under
-   * `<worktreesRoot>/<project>/<topic>-<YYYYMMDD>` (topic supplied by the
-   * agent) instead of the repository sibling / state directory. Should point
-   * outside any Git checkout.
-   */
-  worktreesRoot: volatile(z.string()),
-  /**
    * codex 对齐：创建受管 Worktree 时继承本地未提交修改（tracked 修改打补丁，
    * 未 ignore 的 untracked 文件复制）。仅当 Worktree 基点与本地 HEAD 一致时
    * 生效；继承失败只告警，不阻断创建。Default true.
@@ -348,16 +339,10 @@ export const Config = z.object({
 interface LocalAdaptationConfig {
   autoDeliver?: boolean | LiveValue<boolean | undefined>
   autoPush?: boolean | LiveValue<boolean | undefined>
-  worktreesRoot?: string | LiveValue<string | undefined>
   inheritLocalChanges?: boolean | LiveValue<boolean | undefined>
   worktreeKeepCount?: number | LiveValue<number | undefined>
   autoPruneMergedBranches?: boolean | LiveValue<boolean | undefined>
   enableWorkspaceProvider?: boolean
-}
-
-function resolveWorktreesRootValue(raw: string | LiveValue<string | undefined> | undefined): string | undefined {
-  const value = liveConfigValue(raw)?.trim()
-  return value ? resolve(value) : undefined
 }
 
 function resolveStateDir(config: { stateDir?: string }): string {
@@ -391,12 +376,6 @@ export async function apply(ctx: Context, config: { stateDir?: string } & GitTim
   mkdirSync(stateDir, { recursive: true })
   const hooksPath = join(stateDir, 'disabled-git-hooks')
   mkdirSync(hooksPath, { recursive: true })
-  // Volatile fields stay live: wrap the worktreesRoot so each read resolves
-  // the current value, letting a settings-page edit apply without remounting.
-  const worktreesRootInput = config.worktreesRoot
-  const worktreesRoot = worktreesRootInput === undefined
-    ? undefined
-    : { get: () => resolveWorktreesRootValue(worktreesRootInput) }
 
   const lookup = createDshLookupPort(ctx)
   const projectSkills = new ProjectSkillStore(join(stateDir, 'project-skills'))
@@ -420,7 +399,6 @@ export async function apply(ctx: Context, config: { stateDir?: string } & GitTim
     autoPush: config.autoPush,
     inheritLocalChanges: config.inheritLocalChanges,
     worktreeKeepCount: config.worktreeKeepCount,
-    ...(worktreesRoot ? { worktreesRoot } : {}),
   })
 
   new WorktreeConsoleService(ctx, createWorktreeConsoleControlPlane({

@@ -92,31 +92,11 @@ export interface ManagedWorktreePathCandidates {
   fallbackRoot: string
 }
 
-/**
- * Local adaptation: human-readable Worktree directory name in the form
- * `<topic>-<YYYYMMDD>`. The first candidate is the clean name; longer checkout
- * identities append a short suffix so same-day same-topic collisions resolve
- * deterministically (`<topic>-<date>-<id>`).
- */
-export function createTopicManagedWorktreeDirectoryName(input: {
-  topic: string
-  dateStamp: string
-  checkoutId: string
-  identityLength?: number
-}): string {
-  const topicLabel = sanitizeManagedWorktreeLabel(input.topic)
-  const identity = checkoutIdentity(input.checkoutId, input.identityLength ?? DEFAULT_IDENTITY_LENGTH)
-  const base = `${topicLabel}-${input.dateStamp}`
-  if (!input.identityLength || input.identityLength <= DEFAULT_IDENTITY_LENGTH) return base
-  return `${base}-${identity}`
-}
-
-/** Local date stamp (YYYYMMDD) used by topic-based Worktree naming. */
-export function createTopicDateStamp(now: Date = new Date()): string {
-  const year = now.getFullYear()
-  const month = `${now.getMonth() + 1}`.padStart(2, '0')
-  const day = `${now.getDate()}`.padStart(2, '0')
-  return `${year}${month}${day}`
+export interface ManagedWorktreePathCandidates {
+  siblingContainer: string
+  siblingRoot: string
+  fallbackContainer: string
+  fallbackRoot: string
 }
 
 /**
@@ -124,10 +104,6 @@ export function createTopicDateStamp(now: Date = new Date()): string {
  * The caller probes 8/12/full checkout identities and chooses the first path
  * that does not already exist.
  *
- * Local adaptation: when `worktreesRoot` is set, both containers move under
- * that root — `<worktreesRoot>/<projectLabel>` (with topic naming when a topic
- * is supplied) or `<worktreesRoot>/<repositoryKey>` otherwise — so Worktrees
- * never appear next to the repository or inside the state directory.
  */
 export function createManagedWorktreePathCandidates(input: {
   localGitRoot: string
@@ -135,35 +111,13 @@ export function createManagedWorktreePathCandidates(input: {
   repositoryKey: string
   checkoutId: string
   identityLength?: number
-  /** Local adaptation: agent-supplied topic for human-readable naming. */
-  topic?: string
-  /** Local adaptation: YYYYMMDD stamp; defaults to today when a topic is set. */
-  dateStamp?: string
-  /** Local adaptation: custom root for all managed Worktrees. */
-  worktreesRoot?: string
 }): ManagedWorktreePathCandidates {
   const repositoryLabel = sanitizeManagedWorktreeLabel(basename(input.localGitRoot))
-  const directoryName = input.worktreesRoot && input.topic
-    ? createTopicManagedWorktreeDirectoryName({
-        topic: input.topic,
-        dateStamp: input.dateStamp ?? createTopicDateStamp(),
-        checkoutId: input.checkoutId,
-        ...(input.identityLength === undefined ? {} : { identityLength: input.identityLength }),
-      })
-    : createManagedWorktreeDirectoryName({
-        repositoryName: repositoryLabel,
-        checkoutId: input.checkoutId,
-        ...(input.identityLength === undefined ? {} : { identityLength: input.identityLength }),
-      })
-  if (input.worktreesRoot) {
-    const container = join(input.worktreesRoot, input.topic ? repositoryLabel : input.repositoryKey)
-    return {
-      siblingContainer: container,
-      siblingRoot: join(container, directoryName),
-      fallbackContainer: container,
-      fallbackRoot: join(container, directoryName),
-    }
-  }
+  const directoryName = createManagedWorktreeDirectoryName({
+    repositoryName: repositoryLabel,
+    checkoutId: input.checkoutId,
+    ...(input.identityLength === undefined ? {} : { identityLength: input.identityLength }),
+  })
   const siblingContainer = join(dirname(input.localGitRoot), `${repositoryLabel}--worktrees`)
   const fallbackContainer = join(input.managedCheckoutsRoot, 'worktrees', input.repositoryKey)
   return {

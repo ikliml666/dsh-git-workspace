@@ -139,6 +139,13 @@ export interface SessionCheckoutGitPort {
   status(root: string): Promise<{ dirty: boolean }>
   createDetachedWorktree(localRoot: string, managedRoot: string, baseOid: string, saveEvidence?: (evidence: WorktreeCreationEvidence) => void): Promise<void>
   /**
+   * 把项目 Skills 携进一棵已建好的 Worktree。
+   *
+   * 建树改由官方 `worktrees` 服务负责后，Skill 携带必须单独一步：`createDetachedWorktree`
+   * 不再参与官方路径，而 Skill 只存在于项目工作区、不在 Git 里。
+   */
+  carryProjectSkills?(localRoot: string, managedRoot: string): Promise<void>
+  /**
    * Local adaptation: point a freshly created managed Worktree's HEAD at a real
    * session-owned branch without touching a single file. `expectedOldOid` null
    * creates the branch only when the ref does not exist yet; otherwise the ref
@@ -632,7 +639,6 @@ export interface SessionCheckoutDependencies {
    * of the state directory, using `<worktreesRoot>/<project>/<topic>-<YYYYMMDD>`
    * naming whenever the agent supplies a topic.
    */
-  worktreesRoot?: string | LiveValue<string | undefined>
   /**
    * Local adaptation (codex parity): carry the local checkout's uncommitted
    * changes into a newly created managed Worktree. Only applies when the

@@ -400,6 +400,17 @@ export function createDshGitPort(ctx: Context, options: GitPortOptions): Session
         saveEvidence)
       await projectSkills.carry(skills, managedRoot)
     },
+    /**
+     * 把项目 Skills 携进一棵**已经建好**的 Worktree。
+     *
+     * 建树本身交给官方 `worktrees` 服务之后，`createDetachedWorktree` 里那段
+     * 携带逻辑不会再跑；Skill 只存在于项目工作区、不在 Git 里，不携过去就等于
+     * 新树里看不见它们。所以这条能力单独暴露出来，由官方建树路径在建完后调用。
+     */
+    carryProjectSkills: async (localRoot, managedRoot) => {
+      const skills = await projectSkills.snapshot(localRoot)
+      await projectSkills.carry(skills, managedRoot)
+    },
     removeWorktree: async (localRoot, managedRoot) => {
       // Git treats a reviewed-but-uncommitted final snapshot as modified/untracked;
       // the caller has already verified checkout identity and the full fingerprint.

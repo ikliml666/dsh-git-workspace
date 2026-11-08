@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { spawn, spawnSync } from 'node:child_process'
 import { expect, test, vi } from 'vitest'
 import { createNodeSessionCheckoutDependencies } from './support/production-adapters.js'
+import { createOfficialWorktreesFixture } from './support/official-worktrees.js'
 import { createSessionCheckoutModule } from '../src/session-checkout-module.js'
 import type { Context } from '@deepseek-ai/cordis'
 import { createDshGitPort } from '../src/adapters/git.js'
@@ -44,14 +45,25 @@ test.each([1, 3])('bounds real Git queries for a one-file delivery and a %i-work
       } }
     } } } as unknown as Context
     deps.git = createDshGitPort(ctx, { hooksPath: join(root, 'no-hooks') })
+    deps.officialWorktrees = () => createOfficialWorktreesFixture(projectRoot).port
     const module = createSessionCheckoutModule(deps)
-    const launch = await module.createIsolatedTarget('source', 'owner')
+    sessions.set('owner', { id: 'owner', projectId: 'p' })
+    const launch = await module.createOfficialTarget({ session: { id: 'owner' } })
+    // inspect 的身份校验要求会话 Workspace 就是它自己的树。
     projects.set('owner-p', { id: 'owner-p', name: 'Owner', root: launch.managedRoot })
     sessions.set('owner', { id: 'owner', projectId: 'owner-p' })
     for (let index = 1; index < count; index++) {
-      const sibling = await module.createIsolatedTarget('source', `sibling-${index}`)
+      const id = `sibling-${index}`
+      sessions.set(id, { id, projectId: 'p' })
+      const sibling = await module.createOfficialTarget({ session: { id } })
       projects.set(`p-${index}`, { id: `p-${index}`, name: 'Sibling', root: sibling.managedRoot })
-      sessions.set(`sibling-${index}`, { id: `sibling-${index}`, projectId: `p-${index}` })
+      sessions.set(id, { id, projectId: `p-${index}` })
+      // 这条用例度量的是「同一会话面对多棵树时」的查询预算：官方建树只把树记在
+      // 建树会话名下，这里把兄弟树挂回 owner 的来源，复现旧模型的多树视图。
+      const registry = deps.registry.read()
+      const record = registry.managedCheckouts[sibling.target.checkout.id]!
+      registry.managedCheckouts[sibling.target.checkout.id] = { ...record, sourceSessionId: 'owner' }
+      deps.registry.write(registry)
     }
     writeFileSync(join(launch.managedRoot, 'hello.txt'), 'Hello, Worktree\n')
     const plane = createWorktreeConsoleControlPlane({ module, lookup, files: deps.files, registry: deps.registry, git: deps.git, createWorktree: async () => ({ ok: false, message: 'unused' }), adoptionFailure: () => null })

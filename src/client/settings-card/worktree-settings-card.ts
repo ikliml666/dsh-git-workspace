@@ -17,7 +17,6 @@ export const WORKTREE_SETTINGS_NS = 'dsh-git-worktree'
 export interface WorktreeSettings {
   autoDeliver?: boolean
   autoPush?: boolean
-  worktreesRoot?: string
   gitTimeoutMs?: number
   worktreeAddTimeoutMs?: number
 }
@@ -26,7 +25,6 @@ export interface WorktreeSettings {
 export interface WorktreeSettingsCardState extends SettingsFormShell {
   autoDeliver: SettingsFieldState
   autoPush: SettingsFieldState
-  worktreesRoot: SettingsFieldState
   gitTimeoutMs: SettingsFieldState
   worktreeAddTimeoutMs: SettingsFieldState
 }
@@ -44,7 +42,6 @@ export class WorktreeSettingsCardController {
     this.form = new SettingsFormModel(scope, [
       settingsBooleanField('autoDeliver'),
       settingsBooleanField('autoPush'),
-      settingsTextField('worktreesRoot'),
       settingsNumberField('gitTimeoutMs'),
       settingsNumberField('worktreeAddTimeoutMs'),
     ])
@@ -56,7 +53,6 @@ export class WorktreeSettingsCardController {
       ...this.form.shell(),
       autoDeliver: this.form.field('autoDeliver'),
       autoPush: this.form.field('autoPush'),
-      worktreesRoot: this.form.field('worktreesRoot'),
       gitTimeoutMs: this.form.field('gitTimeoutMs'),
       worktreeAddTimeoutMs: this.form.field('worktreeAddTimeoutMs'),
     }
