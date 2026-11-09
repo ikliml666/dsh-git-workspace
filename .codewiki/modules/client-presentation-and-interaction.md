@@ -27,6 +27,7 @@ source_files:
   - src/client/target-console/target-console.styles.ts
   - src/client/workspace-sidebar/index.tsx
   - src/client/workspace-sidebar/model.ts
+  - src/client/target-console/SwitchBranchAssistModal.tsx
 tags: []
 generated_by: fsoft-native
 fsoft_page: Client_Presentation_and_Interaction.md

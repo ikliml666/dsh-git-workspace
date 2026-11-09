@@ -12,6 +12,7 @@ source_files:
   - src/client/target-console/current-polling.ts
   - src/client/target-console/index.ts
   - src/client/target-console/target-console.styles.ts
+  - src/client/target-console/SwitchBranchAssistModal.tsx
 tags: []
 generated_by: fsoft-native
 fsoft_page: client_target_console.md

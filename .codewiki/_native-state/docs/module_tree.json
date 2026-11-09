@@ -57,7 +57,8 @@
             "src\\client\\workspace-sidebar\\model.ts::ManagedWorkspaceSidebarProjection",
             "src\\client\\workspace-sidebar\\model.ts::ProjectedManagedTask",
             "src\\client\\workspace-sidebar\\model.ts::SidebarSessionSummary",
-            "src\\client\\workspace-sidebar\\model.ts::SidebarWorkspaceView"
+            "src\\client\\workspace-sidebar\\model.ts::SidebarWorkspaceView",
+            "src\\client\\target-console\\SwitchBranchAssistModal.tsx::SwitchBranchAssistModalProps"
         ],
         "children": {
             "client_core": {
@@ -131,7 +132,8 @@
                     "src\\client\\target-console\\branch-overview-cache.ts::bumpEpoch",
                     "src\\client\\target-console\\current-polling.ts::Poll",
                     "src\\client\\target-console\\index.ts::TargetConsoleContextLike",
-                    "src\\client\\target-console\\target-console.styles.ts::__file__"
+                    "src\\client\\target-console\\target-console.styles.ts::__file__",
+                    "src\\client\\target-console\\SwitchBranchAssistModal.tsx::SwitchBranchAssistModalProps"
                 ],
                 "children": {}
             },
@@ -523,7 +525,8 @@
             "src\\types.ts::WorktreePreviewRecoveryProof",
             "src\\types.ts::WorktreePushOutcome",
             "src\\types.ts::WorktreeReviewView",
-            "src\\types.ts::WorktreeValidationItem"
+            "src\\types.ts::WorktreeValidationItem",
+            "src\\ports.ts::LocalBranchSwitchIssue"
         ],
         "children": {
             "adapters_infrastructure": {
@@ -682,7 +685,8 @@
                     "src\\types.ts::WorktreePreviewRecoveryProof",
                     "src\\types.ts::WorktreePushOutcome",
                     "src\\types.ts::WorktreeReviewView",
-                    "src\\types.ts::WorktreeValidationItem"
+                    "src\\types.ts::WorktreeValidationItem",
+                    "src\\ports.ts::LocalBranchSwitchIssue"
                 ],
                 "children": {}
             }
@@ -820,7 +824,10 @@
             "src\\console-contract.ts::WorktreeReviewRegenerationProof",
             "src\\console-contract.ts::WorktreeSidebarProject",
             "src\\console-contract.ts::WorktreeSidebarTask",
-            "src\\console-contract.ts::WorktreeSidebarTopologyResponse"
+            "src\\console-contract.ts::WorktreeSidebarTopologyResponse",
+            "src\\console-contract.ts::WorktreeConsoleGitCommitLocalRequest",
+            "src\\console-contract.ts::WorktreeConsoleGitCommitLocalResponse",
+            "src\\console-contract.ts::WorktreeConsoleGitSwitchIssue"
         ],
         "children": {}
     },
