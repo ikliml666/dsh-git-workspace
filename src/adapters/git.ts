@@ -641,14 +641,14 @@ export function createDshGitPort(ctx: Context, options: GitPortOptions): Session
         }
       }).filter((commit) => /^[0-9a-f]{40,64}$/iu.test(commit.oid))
     },
-    createLocalBranch: async (root, name) => {
+    createAndSwitchLocalBranch: async (root, name) => {
       const check = await runSessionGit(root, ['check-ref-format', '--branch', name])
       if (check.code !== 0) {
         throw new SessionCheckoutError('git_operation_failed', check.stderr.trim() || hostMessage('gitOperationFailedGit', { p0: 'check-ref-format', p1: name }))
       }
-      const created = await runSessionGit(root, ['branch', name, 'HEAD'])
+      const created = await runSessionGit(root, ['switch', '-c', name])
       if (created.code !== 0) {
-        throw new SessionCheckoutError('git_operation_failed', (created.stderr || created.stdout).trim() || hostMessage('gitOperationFailedGit', { p0: 'branch', p1: name }))
+        throw new SessionCheckoutError('git_operation_failed', (created.stderr || created.stdout).trim() || hostMessage('gitOperationFailedGit', { p0: 'switch', p1: name }))
       }
     },
     switchLocalBranch: async (root, branch) => {

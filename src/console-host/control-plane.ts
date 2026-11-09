@@ -91,7 +91,7 @@ export interface WorktreeConsoleControlPlane {
   clearSidebarBadge(request: WorktreeConsoleClearSidebarBadgeRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   gitOverview(sessionId: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitOverviewResponse>>
   gitGraph(sessionId: string, limit?: number): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitGraphResponse>>
-  gitCreateBranch(sessionId: string, name: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>
+  gitCreateBranchAndSwitch(sessionId: string, name: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>
   gitSwitchBranch(sessionId: string, branch: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>
   gitCommitLocalChanges(request: WorktreeConsoleGitCommitLocalRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitCommitLocalResponse>>
   gitPruneMergedBranches(sessionId: string, dryRun: boolean): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitPruneResponse>>
@@ -794,10 +794,14 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
       return { root, branch: snapshot.branch, commits }
     }),
 
-    gitCreateBranch: (sessionId, name) => outcome(async () => {
+    gitCreateBranchAndSwitch: (sessionId, name) => outcome(async () => {
       const { root } = await projectRootFor(sessionId)
-      if (options.git.createLocalBranch === undefined) throw domainError('git_error', hostMessage('gitOperationFailedGit', { p0: 'branch', p1: name }))
-      await options.git.createLocalBranch(root, name)
+      // Creating and switching moves the Local HEAD too: same delivery-baseline
+      // guard as a plain switch, otherwise an accepted apply lands on a branch
+      // that moved underneath it.
+      assertLocalHeadMutable(sessionId, root, 'switch')
+      if (options.git.createAndSwitchLocalBranch === undefined) throw domainError('git_error', hostMessage('gitOperationFailedGit', { p0: 'switch', p1: name }))
+      await options.git.createAndSwitchLocalBranch(root, name)
       return { branch: name }
     }),
 

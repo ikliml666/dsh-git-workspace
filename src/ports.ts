@@ -237,8 +237,13 @@ export interface SessionCheckoutGitPort {
   mergeLocalBranch?(root: string, source: string, options?: { dryRun?: boolean }): Promise<MergeLocalBranchResult>
   /** Local adaptation: one read-only page of the commit graph (topo-order, all refs). */
   graphLog?(root: string, limit: number): Promise<GraphLogCommit[]>
-  /** Local adaptation: create a local branch at HEAD after `git check-ref-format`. */
-  createLocalBranch?(root: string, name: string): Promise<void>
+  /**
+   * Local adaptation: create a local branch from HEAD and switch to it in one
+   * step (`git switch -c`), after `git check-ref-format`. ZCode's picker makes
+   * "new branch" and "switch to it" one action; leaving the checkout behind
+   * would require a second click for the only reason anyone creates one.
+   */
+  createAndSwitchLocalBranch?(root: string, name: string): Promise<void>
   /**
    * Local adaptation: switch the local checkout to an existing local branch.
    * A refused switch returns the structured reason (null on success) so the

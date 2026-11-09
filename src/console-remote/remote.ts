@@ -48,7 +48,7 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
     'gitWorktree/clearSidebarBadge': (agentId: string, checkoutId: string, expectedRevision: number, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>>
     'gitWorktree/gitOverview': (agentId: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleGitOverviewResponse>>>
     'gitWorktree/gitGraph': (agentId: string, limit?: number, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleGitGraphResponse>>>
-    'gitWorktree/gitCreateBranch': (agentId: string, name: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>>
+    'gitWorktree/gitCreateBranchAndSwitch': (agentId: string, name: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>>
     'gitWorktree/gitSwitchBranch': (agentId: string, branch: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>>
     'gitWorktree/gitCommitLocalChanges': (agentId: string, message: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleGitCommitLocalResponse>>>
     'gitWorktree/gitPruneMergedBranches': (agentId: string, dryRun: boolean, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleGitPruneResponse>>>

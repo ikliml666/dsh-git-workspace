@@ -145,7 +145,7 @@ export const WORKTREE_CONSOLE_DESCRIPTORS: readonly InvocationDescriptor[] = Obj
     json('checkoutId', checkoutIdSchema, `${PACKAGE}/console-contract#WorktreeConsoleClearSidebarBadgeRequest.checkoutId`),
     json('expectedRevision', revisionSchema, `${PACKAGE}/console-contract#WorktreeConsoleClearSidebarBadgeRequest.expectedRevision`),
   ], outcomeSchema(mutationResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>'),
-  descriptor('gitCreateBranch', [
+  descriptor('gitCreateBranchAndSwitch', [
     json('name', branchNameSchema, `${PACKAGE}/console-contract#WorktreeConsoleGitBranch.name`),
   ], outcomeSchema(gitMutationResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>'),
   descriptor('gitSwitchBranch', [

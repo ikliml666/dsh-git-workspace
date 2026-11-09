@@ -552,7 +552,7 @@ describe('Worktree Console Host control plane', () => {
     expect(git.switchLocalBranch).not.toHaveBeenCalled()
   })
 
-  it('still creates a Local branch while another Session delivers onto the same local root', async () => {
+  it('blocks create-and-switch while another Session delivers onto the same local root', async () => {
     const other = readyRecord()
     other.checkoutId = 'checkout-2'
     other.ownerSessionId = 'other-session'
@@ -564,13 +564,23 @@ describe('Worktree Console Host control plane', () => {
       write: vi.fn(),
       update: () => { throw new Error('control plane must not update the registry') },
     }
-    const git = { ...gitDouble(), createLocalBranch: vi.fn(async () => undefined) }
+    const git = { ...gitDouble(), createAndSwitchLocalBranch: vi.fn(async () => undefined) }
     const { control } = plane(readyRecord(), { registry: foreign, git })
 
-    const result = await control.gitCreateBranch('third-session', 'feature')
+    const result = await control.gitCreateBranchAndSwitch('third-session', 'feature')
 
-    expect(result).toMatchObject({ ok: true, value: { branch: 'feature' } })
-    expect(git.createLocalBranch).toHaveBeenCalledWith('/local', 'feature')
+    expect(result).toMatchObject({ ok: false, error: { code: 'operation_not_allowed' } })
+    expect(git.createAndSwitchLocalBranch).not.toHaveBeenCalled()
+  })
+
+  it('creates and switches a Local branch through the git port', async () => {
+    const git = { ...gitDouble(), createAndSwitchLocalBranch: vi.fn(async () => undefined) }
+    const { control } = plane(readyRecord(), { registry: emptyRegistry(), git })
+
+    const result = await control.gitCreateBranchAndSwitch('target-session', 'feature/x')
+
+    expect(result).toMatchObject({ ok: true, value: { branch: 'feature/x' } })
+    expect(git.createAndSwitchLocalBranch).toHaveBeenCalledWith('/managed', 'feature/x')
   })
 
   it('lists local tags through the git port', async () => {

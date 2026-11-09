@@ -124,7 +124,7 @@ export function createWorktreeConsoleRemoteAdapter(remote: GitWorktreeRemote, ge
     clearSidebarBadge: request => invoke<WorktreeConsoleMutationResponse>('clearSidebarBadge', locale => remote.clearSidebarBadge(request.sessionId, request.checkoutId, request.expectedRevision, locale)),
     gitOverview: sessionId => invoke<WorktreeConsoleGitOverviewResponse>('gitOverview', locale => remote.gitOverview(sessionId, locale)),
     gitGraph: (sessionId, limit) => invoke<WorktreeConsoleGitGraphResponse>('gitGraph', locale => remote.gitGraph(sessionId, limit, locale)),
-    gitCreateBranch: (sessionId, name) => invoke<WorktreeConsoleGitMutationResponse>('gitCreateBranch', locale => remote.gitCreateBranch(sessionId, name, locale)),
+    gitCreateBranchAndSwitch: (sessionId, name) => invoke<WorktreeConsoleGitMutationResponse>('gitCreateBranchAndSwitch', locale => remote.gitCreateBranchAndSwitch(sessionId, name, locale)),
     gitSwitchBranch: (sessionId, branch) => invoke<WorktreeConsoleGitMutationResponse>('gitSwitchBranch', locale => remote.gitSwitchBranch(sessionId, branch, locale)),
     gitCommitLocalChanges: request => invoke<WorktreeConsoleGitCommitLocalResponse>('gitCommitLocalChanges', locale => remote.gitCommitLocalChanges(request.sessionId, request.message, locale)),
     gitPruneMergedBranches: (sessionId, dryRun) => invoke<WorktreeConsoleGitPruneResponse>('gitPruneMergedBranches', locale => remote.gitPruneMergedBranches(sessionId, dryRun, locale)),

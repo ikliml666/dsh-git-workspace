@@ -215,8 +215,8 @@ export class WorktreeConsoleService extends TypertRemoteService {
   }
 
   @Remote
-  gitCreateBranch(agent: Agent, name: string, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>> {
-    return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.gitCreateBranch(agent.id, name))
+  gitCreateBranchAndSwitch(agent: Agent, name: string, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>> {
+    return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.gitCreateBranchAndSwitch(agent.id, name))
   }
 
   @Remote

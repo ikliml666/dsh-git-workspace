@@ -167,14 +167,17 @@ export const TARGET_CONSOLE_STYLES = String.raw`
 .dsh-wtc-facts .dsh-wtc-checkout-id { font-size:11px; overflow-wrap:anywhere; }
 .dsh-wtc-target-branch { min-width:0; max-width:220px; overflow:hidden; text-overflow:ellipsis; }
 .dsh-wtc-branches-title { display:flex; align-items:center; gap:6px; font-size:10px; font-weight:720; letter-spacing:.08em; text-transform:uppercase; color:color-mix(in srgb, currentColor 55%, transparent); }
-.dsh-wtc-branches-dirty { font-weight:560; letter-spacing:0; text-transform:none; color:color-mix(in srgb, #c47a1c 82%, currentColor); }
 .dsh-wtc-branches-more { font-size:11px; color:color-mix(in srgb, currentColor 55%, transparent); }
 .dsh-wtc-branch-search { display:block; }
 .dsh-wtc-branch-search input { width:100%; box-sizing:border-box; padding:4px 8px; border:1px solid color-mix(in srgb, currentColor 22%, transparent); border-radius:6px; background:color-mix(in srgb, currentColor 6%, transparent); color:inherit; font-size:12px; }
 .dsh-wtc-branch-search input:focus { outline:none; border-color:color-mix(in srgb, #2f6fd0 55%, transparent); }
 .dsh-wtc-switch-notice { flex:0 0 auto; color:#3aa981; font-size:11px; }
-.dsh-wtc-branch-item { display:inline-flex; align-items:center; gap:6px; min-width:0; max-width:340px; overflow:hidden; text-overflow:ellipsis; font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px; }
+.dsh-wtc-target-spinner { flex:0 0 auto; animation:dsh-wtc-spin .9s linear infinite; }
+@keyframes dsh-wtc-spin { to { transform:rotate(360deg); } }
+.dsh-wtc-branch-item { display:inline-flex; align-items:center; flex-wrap:wrap; gap:2px 6px; min-width:0; max-width:340px; font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px; }
 .dsh-wtc-branch-item[data-branch-current] { font-weight:700; }
+.dsh-wtc-branch-name { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.dsh-wtc-branch-dirty { flex:1 0 100%; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:color-mix(in srgb, #c47a1c 88%, currentColor); font-family:system-ui, sans-serif; font-size:10px; font-weight:560; }
 .dsh-wtc-branch-session { flex:0 0 auto; padding:1px 5px; border-radius:999px; background:color-mix(in srgb, #2f6fd0 14%, transparent); color:#2f6fd0; font-family:inherit; font-size:10px; font-weight:650; }
 .dsh-wtc-branch-upstream { flex:0 0 auto; color:color-mix(in srgb, currentColor 52%, transparent); font-family:inherit; font-size:10px; }
 .dsh-wtc-create-branch { display:grid; gap:8px; }

@@ -987,9 +987,9 @@ export const clientMessages = {
     "zh": "还有 {p0} 个分支未显示",
     "en": "{p0} more branches not shown"
   },
-  "branch.dirty.hint": {
-    "zh": "（{p0} 处未提交改动）",
-    "en": "({p0} uncommitted changes)"
+  "branch.dirty.current": {
+    "zh": "{p0} 处未提交改动",
+    "en": "{p0} uncommitted changes"
   },
   "branch.dirty.unknown": {
     "zh": "（未提交改动数未知）",
@@ -1104,8 +1104,8 @@ export const clientMessages = {
     "en": "Could not create the worktree: {p0}"
   },
   "branch.create.description": {
-    "zh": "基于当前 HEAD 创建新的本地分支。",
-    "en": "Create a new local branch from the current HEAD."
+    "zh": "基于当前 HEAD 创建并切换到新的本地分支。",
+    "en": "Create a new local branch from the current HEAD and switch to it."
   },
   "branch.create.placeholder": {
     "zh": "分支名，例如 feat/my-feature",
@@ -1115,9 +1115,17 @@ export const clientMessages = {
     "zh": "分支名不合法",
     "en": "Invalid branch name"
   },
+  "branch.create.failed": {
+    "zh": "新建分支失败：{p0}",
+    "en": "Could not create the branch: {p0}"
+  },
   "branch.create.confirm": {
-    "zh": "创建",
-    "en": "Create"
+    "zh": "创建并切换",
+    "en": "Create and switch"
+  },
+  "branch.create.success": {
+    "zh": "已创建并切换到 {p0}",
+    "en": "Created and switched to {p0}"
   },
   "deliver.title": {
     "zh": "交付到会话分支",

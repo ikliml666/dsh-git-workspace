@@ -475,8 +475,8 @@ export function createWorktreeConsoleAdapterFixture(stateful = false): WorktreeC
       record('gitGraph', { sessionId, limit })
       return outcome({ root: target.sourceRoot ?? '/fixture/project', branch: target.currentBranch, commits: [] })
     },
-    async gitCreateBranch(sessionId: string, name: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>> {
-      record('gitCreateBranch', { sessionId, name })
+    async gitCreateBranchAndSwitch(sessionId: string, name: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>> {
+      record('gitCreateBranchAndSwitch', { sessionId, name })
       return outcome({ branch: name })
     },
     async gitSwitchBranch(sessionId: string, branch: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>> {

@@ -65,7 +65,7 @@ const METHODS = [
   'returnToLocal',
   'createWorktree',
   'clearSidebarBadge',
-  'gitCreateBranch',
+  'gitCreateBranchAndSwitch',
   'gitSwitchBranch',
   'gitCommitLocalChanges',
   'gitPruneMergedBranches',

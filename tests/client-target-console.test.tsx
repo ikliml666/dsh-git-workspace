@@ -398,7 +398,7 @@ describe('Harness-native Session Target slots', () => {
     await waitFor(() => expect(screen.getByText('已切换到 feature')).toBeTruthy())
   })
 
-  test('分支不超过 12 条时不显示搜索框', async () => {
+  test('分支少于 12 条时搜索框仍常驻，当前分支行带未提交改动说明', async () => {
     const fixture = createWorktreeConsoleAdapterFixture()
     invalidateBranchOverview('target-session')
     render(<TargetStatusAction sessionId="target-session" adapter={fixture.adapter} services={clientServices()} />)
@@ -406,8 +406,28 @@ describe('Harness-native Session Target slots', () => {
     const trigger = await screen.findByRole('button', { name: 'Session Target：Worktree · 待验收' })
     fireEvent.click(trigger)
     await waitFor(() => expect(screen.getByText('本地分支')).toBeTruthy())
-    expect(screen.queryByPlaceholderText('搜索分支…')).toBeNull()
+    expect(screen.getByPlaceholderText('搜索分支…')).toBeTruthy()
     expect(screen.getByText('main')).toBeTruthy()
+    // ZCode shows the dirty count on the checked-out branch rather than on the
+    // section heading; the fixture's target is dirty.
+    expect(screen.getByText('1 处未提交改动')).toBeTruthy()
+  })
+
+  test('新建分支即创建并切换，成功后胶囊提示新分支', async () => {
+    const fixture = createWorktreeConsoleAdapterFixture()
+    invalidateBranchOverview('target-session')
+    render(<TargetStatusAction sessionId="target-session" adapter={fixture.adapter} services={clientServices()} />)
+
+    const trigger = await screen.findByRole('button', { name: 'Session Target：Worktree · 待验收' })
+    fireEvent.click(trigger)
+    await waitFor(() => expect(screen.getByText('本地分支')).toBeTruthy())
+    fireEvent.click(screen.getByText('新建分支'))
+    await waitFor(() => expect(screen.getByText('基于当前 HEAD 创建并切换到新的本地分支。')).toBeTruthy())
+    fireEvent.change(screen.getByPlaceholderText('分支名，例如 feat/my-feature'), { target: { value: 'feat/next' } })
+    fireEvent.click(screen.getByText('创建并切换'))
+
+    await waitFor(() => expect(fixture.calls.some(call => call.method === 'gitCreateBranchAndSwitch')).toBe(true))
+    await waitFor(() => expect(screen.getByText('已创建并切换到 feat/next')).toBeTruthy())
   })
 
   test('提交图谱里点某行的打标签按钮会把该 commit 作为 target 打开标签弹层', async () => {

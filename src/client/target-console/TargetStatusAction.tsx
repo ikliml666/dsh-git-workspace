@@ -392,14 +392,23 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
     setCreateBusy(true)
     setError(null)
     try {
-      const outcome = await adapter.gitCreateBranch(sessionId, name)
+      // ZCode parity: one action creates the branch and checks it out; a branch
+      // you cannot be on is a half-finished affordance.
+      const outcome = await adapter.gitCreateBranchAndSwitch(sessionId, name)
       if (!active()) return
       if (!outcome.ok) {
-        setError(outcome.error.message)
+        setError(t('branch.create.failed', { p0: outcome.error.message }))
         return
       }
       setCreateOpen(false)
       setCreateName('')
+      setSwitchNotice(t('branch.create.success', { p0: outcome.value.branch }))
+      window.setTimeout(() => {
+        if (active()) setSwitchNotice(null)
+      }, 1500)
+      // The checkout moved: refresh the capsule label and the branch list so the
+      // new branch is checked out in both, not after the next poll.
+      requestWorktreeReviewRefresh(sessionId)
       invalidateBranchOverview(sessionId)
       void ensureBranchOverview(adapter, sessionId).then(value => {
         if (active() && value !== null) setOverview(value)
@@ -673,17 +682,21 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
     if (leftCurrent !== rightCurrent) return leftCurrent - rightCurrent
     return left.name.localeCompare(right.name)
   })
-  // Git-graph-style picker: past the item cap the list stays reachable via a
-  // filter box instead of a dead "N more" line; an active query lifts the cap.
+  // Git-graph-style picker: the filter box stays visible even for short lists
+  // (discoverability beats the saved row), while the unqueried list keeps the
+  // cap so a repository with hundreds of branches does not flood the menu.
   const query = branchQuery.trim().toLowerCase()
   const matchedBranches = query === ''
     ? sortedBranches
     : sortedBranches.filter(branch => branch.name.toLowerCase().includes(query))
-  const showBranchSearch = sortedBranches.length > MAX_BRANCH_ITEMS
-  const visibleBranches = query === '' && showBranchSearch
+  const visibleBranches = query === ''
     ? matchedBranches.slice(0, MAX_BRANCH_ITEMS)
     : matchedBranches
   const hiddenBranchCount = query === '' ? sortedBranches.length - visibleBranches.length : 0
+  /** ZCode shows the dirty count on the checked-out branch, where it belongs. */
+  const currentBranchDirtyLabel = overview === null || overview.dirtyCount === 0
+    ? null
+    : overview.dirtyCount < 0 ? t("branch.dirty.unknown") : t("branch.dirty.current", { p0: overview.dirtyCount })
 
   // A non-Git project has no branches, tags or review target to act on: offering
   // those rows would just fail on click. Its only real action is the conversion.
@@ -694,8 +707,8 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
   ] : [
     { id: 'summary', label: summary, disabled: true },
     { type: 'separator', id: 'summary-separator' },
-    ...(overviewBranches.length > 0 && overview !== null ? [{ id: 'branches-title', label: <span className="dsh-wtc-branches-title">{t("branch.list.title")}{overview.dirtyCount > 0 ? <span className="dsh-wtc-branches-dirty">{t("branch.dirty.hint", { p0: overview.dirtyCount })}</span> : overview.dirtyCount < 0 ? <span className="dsh-wtc-branches-dirty">{t("branch.dirty.unknown")}</span> : null}</span>, disabled: true } satisfies MenuEntry] : []),
-    ...(showBranchSearch ? [{ id: 'branch-search', disabled: true, label: (
+    ...(overviewBranches.length > 0 && overview !== null ? [{ id: 'branches-title', label: <span className="dsh-wtc-branches-title">{t("branch.list.title")}</span>, disabled: true } satisfies MenuEntry] : []),
+    { id: 'branch-search', disabled: true, label: (
       <span className="dsh-wtc-branch-search">
         <input
           value={branchQuery}
@@ -720,16 +733,17 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
           }}
         />
       </span>
-    ) } satisfies MenuEntry] : []),
+    ) } satisfies MenuEntry,
     ...(query !== '' && matchedBranches.length === 0 ? [{ id: 'branch-search-empty', label: <span className="dsh-wtc-branches-more">{t("branch.search.empty")}</span>, disabled: true } satisfies MenuEntry] : []),
     ...visibleBranches.map(branch => ({
       id: `branch:${branch.name}`,
       icon: <ReviewIcon name="branch" />,
       label: (
         <span className="dsh-wtc-branch-item" data-branch-current={branch.isCurrent ? '' : undefined} title={branch.name}>
-          {branch.name}
+          <span className="dsh-wtc-branch-name">{branch.name}</span>
           {branch.name === sessionBranch && !branch.isCurrent ? <span className="dsh-wtc-branch-session">{t("branch.session.badge")}</span> : null}
           {branch.upstream ? <span className="dsh-wtc-branch-upstream">{branch.upstream}</span> : null}
+          {branch.isCurrent && currentBranchDirtyLabel !== null ? <span className="dsh-wtc-branch-dirty">{currentBranchDirtyLabel}</span> : null}
         </span>
       ),
       disabled: branch.isCurrent || pendingAction !== null,
@@ -829,6 +843,7 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
               ? <span className="dsh-wtc-target-branch">{branchLabel}</span>
               : target ? <span className="dsh-wtc-target-branch">{triggerLabel}</span> : triggerLabel}
             {switchNotice !== null ? <span className="dsh-wtc-switch-notice">{switchNotice}</span> : null}
+            {pendingAction === 'switch_branch' ? <ReviewIcon name="refresh" className="dsh-wtc-target-spinner" /> : null}
             {expiry ? <span className="dsh-wtc-target-expiry">· {expiry}</span> : null}
             <ReviewIcon name="down" className="dsh-wtc-target-chevron" />
           </button>
