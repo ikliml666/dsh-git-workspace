@@ -1640,9 +1640,13 @@ export const hostMessages = {
     "zh": "另一个会话（{p0}）正在这个 Local 检出上交付 Worktree，切换分支会改变它的交付基线；等那个会话交付或放弃后再切换",
     "en": "Another session ({p0}) is delivering a Worktree on this Local checkout, and switching the branch would move its delivery baseline. Wait until that session delivers or discards."
   },
-  "branchCheckedOutInAnotherWorktree": {
-    "zh": "分支 {p0} 已被另一个 Worktree 检出（{p1}）：Git 不允许同一分支同时检出在多处，请换一个分支，或先在那个会话交付/放弃后再试",
-    "en": "Branch {p0} is already checked out in another Worktree ({p1}): Git forbids checking out the same branch in more than one place. Pick another branch, or deliver/discard that session first."
+  "localBranchCommitBlockedDuringDelivery": {
+    "zh": "本会话正在验收 Worktree 交付，暂不能提交本地改动",
+    "en": "This session has a Worktree delivery under review; local changes cannot be committed right now."
+  },
+  "localBranchCommitBlockedByAnotherDelivery": {
+    "zh": "另一个会话（{p0}）正在这个 Local 检出上交付 Worktree，提交会移动它的交付基线；等那个会话交付或放弃后再提交",
+    "en": "Another session ({p0}) is delivering a Worktree on this Local checkout, and a commit would move its delivery baseline. Wait until that session delivers or discards."
   },
   "aDeliveredWorktreeCannotBeMarkedPermanent": {
     "zh": "已交付的 Worktree 无法设置常驻标记。",

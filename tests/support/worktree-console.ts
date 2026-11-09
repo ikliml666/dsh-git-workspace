@@ -17,6 +17,8 @@ import type {
   WorktreeConsoleGitCreateTagRequest,
   WorktreeConsoleGitDeleteTagRequest,
   WorktreeConsoleGitGraphResponse,
+  WorktreeConsoleGitCommitLocalRequest,
+  WorktreeConsoleGitCommitLocalResponse,
   WorktreeConsoleGitMutationResponse,
   WorktreeConsoleGitOverviewResponse,
   WorktreeConsoleGitPushTagRequest,
@@ -480,6 +482,10 @@ export function createWorktreeConsoleAdapterFixture(stateful = false): WorktreeC
     async gitSwitchBranch(sessionId: string, branch: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>> {
       record('gitSwitchBranch', { sessionId, branch })
       return outcome({ branch })
+    },
+    async gitCommitLocalChanges(request: WorktreeConsoleGitCommitLocalRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitCommitLocalResponse>> {
+      record('gitCommitLocalChanges', request)
+      return outcome({ commitOid: 'c'.repeat(40) })
     },
     async listAbandoned(sessionId: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleAbandonedListResponse>> {
       record('listAbandoned', sessionId)

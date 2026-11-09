@@ -1007,6 +1007,78 @@ export const clientMessages = {
     "zh": "已切换到 {p0}",
     "en": "Switched to {p0}"
   },
+  "branch.switch.blocked.title": {
+    "zh": "切换分支被阻止",
+    "en": "Branch switch blocked"
+  },
+  "branch.switch.blocked.tracked": {
+    "zh": "切到 {p0} 会覆盖 Local 工作区里未提交的改动。",
+    "en": "Switching to {p0} would overwrite uncommitted changes in the Local checkout."
+  },
+  "branch.switch.blocked.untracked": {
+    "zh": "切到 {p0} 会覆盖 Local 工作区里尚未纳入版本控制的文件。",
+    "en": "Switching to {p0} would overwrite untracked files in the Local checkout."
+  },
+  "branch.switch.blocked.files": {
+    "zh": "Git 报告会被覆盖的文件",
+    "en": "Files Git reported as overwritten"
+  },
+  "branch.switch.blocked.moreFiles": {
+    "zh": "另有 {p0} 个文件未列出",
+    "en": "{p0} more files not listed"
+  },
+  "branch.switch.blocked.dirty": {
+    "zh": "提交时会一并提交当前工作区的全部未提交改动（{p0} 处）。",
+    "en": "Committing also includes every uncommitted change in the checkout ({p0} entries)."
+  },
+  "branch.switch.blocked.confirm": {
+    "zh": "提交本地改动后切换",
+    "en": "Commit local changes and switch"
+  },
+  "branch.switch.commit.title": {
+    "zh": "提交后切换分支",
+    "en": "Commit, then switch"
+  },
+  "branch.switch.commit.description": {
+    "zh": "先把这些改动提交到当前分支，再切换到 {p0}。提交只追加历史，不改写任何已有提交。",
+    "en": "Commit these changes onto the current branch, then switch to {p0}. History is appended, never rewritten."
+  },
+  "branch.switch.commit.placeholder": {
+    "zh": "提交信息，例如 chore: 切换前保存进度",
+    "en": "Commit message, e.g. chore: checkpoint before switching"
+  },
+  "branch.switch.commit.default": {
+    "zh": "chore: 切换 {p0} 前保存进度",
+    "en": "chore: checkpoint before switching to {p0}"
+  },
+  "branch.switch.commit.confirm": {
+    "zh": "提交并切换",
+    "en": "Commit and switch"
+  },
+  "branch.switch.commit.processing": {
+    "zh": "正在提交并切换…",
+    "en": "Committing and switching…"
+  },
+  "branch.switch.issue.conflicts": {
+    "zh": "仓库还有未解决的冲突，先解决后再切换",
+    "en": "The repository still has unresolved conflicts; resolve them before switching"
+  },
+  "branch.switch.issue.operation": {
+    "zh": "另一个 Git 操作仍在进行（merge / rebase / cherry-pick 等），完成或中止后再切换",
+    "en": "Another Git operation is still in progress (merge, rebase, cherry-pick…); finish or abort it before switching"
+  },
+  "branch.switch.issue.otherWorktree": {
+    "zh": "目标分支已在其他 worktree 中被检出，当前工作区无法直接切换",
+    "en": "That branch is already checked out in another worktree"
+  },
+  "branch.switch.issue.notFound": {
+    "zh": "目标分支不存在",
+    "en": "The target branch does not exist"
+  },
+  "branch.switch.issue.invalidName": {
+    "zh": "分支名不合法",
+    "en": "Invalid branch name"
+  },
   "branch.session.badge": {
     "zh": "当前会话",
     "en": "session"

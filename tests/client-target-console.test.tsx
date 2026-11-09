@@ -340,6 +340,64 @@ describe('Harness-native Session Target slots', () => {
     await waitFor(() => expect(screen.getByText('已切换到 feature/topic-5')).toBeTruthy())
   })
 
+  test('切换被未提交改动阻止时先列出受影响文件，提交后自动重试切换', async () => {
+    const fixture = createWorktreeConsoleAdapterFixture()
+    invalidateBranchOverview('target-session')
+    fixture.adapter.gitOverview = vi.fn(async () => ({
+      ok: true,
+      value: {
+        root: '/fixture/project',
+        branch: 'main',
+        headOid: 'b'.repeat(40),
+        branches: [
+          { name: 'main', oid: 'b'.repeat(40), isCurrent: true, upstream: null },
+          { name: 'feature', oid: 'a'.repeat(40), isCurrent: false, upstream: null },
+        ],
+        dirtyCount: 2,
+      },
+    }))
+    let attempts = 0
+    fixture.adapter.gitSwitchBranch = vi.fn(async (_sessionId: string, branch: string) => {
+      attempts += 1
+      if (attempts === 1) {
+        return {
+          ok: false as const,
+          error: {
+            code: 'git_operation_failed' as const,
+            message: 'blocked',
+            switchIssue: {
+              code: 'tracked-changes-would-be-overwritten' as const,
+              paths: ['src/app.ts', 'src/util.ts'],
+              detail: 'error: Your local changes to the following files would be overwritten by checkout:',
+            },
+          },
+        }
+      }
+      return { ok: true as const, value: { branch } }
+    })
+    const commitLocal = vi.fn(fixture.adapter.gitCommitLocalChanges.bind(fixture.adapter))
+    fixture.adapter.gitCommitLocalChanges = commitLocal
+
+    render(<TargetStatusAction sessionId="target-session" adapter={fixture.adapter} services={clientServices()} />)
+
+    const trigger = await screen.findByRole('button', { name: 'Session Target：Worktree · 待验收' })
+    fireEvent.click(trigger)
+    await waitFor(() => expect(screen.getByText('本地分支')).toBeTruthy())
+    fireEvent.click(await screen.findByText('feature'))
+
+    await waitFor(() => expect(screen.getByText('切换分支被阻止')).toBeTruthy())
+    expect(screen.getByText('src/app.ts')).toBeTruthy()
+    expect(screen.getByText('src/util.ts')).toBeTruthy()
+
+    fireEvent.click(screen.getByText('提交本地改动后切换'))
+    await waitFor(() => expect(screen.getByText('提交后切换分支')).toBeTruthy())
+    fireEvent.click(screen.getByText('提交并切换'))
+
+    await waitFor(() => expect(commitLocal).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(attempts).toBe(2))
+    await waitFor(() => expect(screen.getByText('已切换到 feature')).toBeTruthy())
+  })
+
   test('分支不超过 12 条时不显示搜索框', async () => {
     const fixture = createWorktreeConsoleAdapterFixture()
     invalidateBranchOverview('target-session')

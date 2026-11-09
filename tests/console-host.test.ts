@@ -80,6 +80,15 @@ function registry(record = readyRecord()): SessionCheckoutRegistryPort {
   return { read: () => structuredClone(value), write: vi.fn(), update: () => { throw new Error('control plane must not update the registry') } }
 }
 
+/** No managed checkout is mid-delivery, so Local HEAD mutations are allowed. */
+function emptyRegistry(): SessionCheckoutRegistryPort {
+  return {
+    read: () => ({ version: 2, revision: 1, sessionBindings: {}, managedCheckouts: {} }),
+    write: vi.fn(),
+    update: () => { throw new Error('control plane must not update the registry') },
+  }
+}
+
 function moduleDouble(record = readyRecord()): SessionCheckoutModule {
   const isolated: SessionTargetView = {
     project: { id: record.projectId, name: record.projectName },
@@ -489,13 +498,37 @@ describe('Worktree Console Host control plane', () => {
   })
 
   it('blocks a Local branch switch from the source Session while delivery is pending', async () => {
-    const git = { ...gitDouble(), switchLocalBranch: vi.fn(async () => undefined) }
+    const git = { ...gitDouble(), switchLocalBranch: vi.fn(async () => null) }
     const { control } = plane(readyRecord(), { git })
 
     const result = await control.gitSwitchBranch('source-session', 'feature')
 
     expect(result).toMatchObject({ ok: false, error: { code: 'operation_not_allowed' } })
     expect(git.switchLocalBranch).not.toHaveBeenCalled()
+  })
+
+  it('returns the structured switch refusal so the client can offer commit-then-switch', async () => {
+    const issue = {
+      code: 'tracked-changes-would-be-overwritten' as const,
+      paths: ['src/app.ts'],
+      detail: 'error: Your local changes to the following files would be overwritten by checkout:',
+    }
+    const git = { ...gitDouble(), switchLocalBranch: vi.fn(async () => issue) }
+    const { control } = plane(readyRecord(), { registry: emptyRegistry(), git })
+
+    const result = await control.gitSwitchBranch('target-session', 'feature')
+
+    expect(result).toMatchObject({ ok: false, error: { code: 'git_operation_failed', switchIssue: issue } })
+  })
+
+  it('commits Local working changes through the git port and returns the commit oid', async () => {
+    const git = { ...gitDouble(), commitLocalCheckpoint: vi.fn(async () => 'c'.repeat(40)) }
+    const { control } = plane(readyRecord(), { registry: emptyRegistry(), git })
+
+    const result = await control.gitCommitLocalChanges({ sessionId: 'target-session', message: 'chore: checkpoint' })
+
+    expect(result).toMatchObject({ ok: true, value: { commitOid: 'c'.repeat(40) } })
+    expect(git.commitLocalCheckpoint).toHaveBeenCalledWith('/managed', 'chore: checkpoint')
   })
 
   it('blocks a Local branch switch while another Session delivers onto the same local root', async () => {
@@ -510,7 +543,7 @@ describe('Worktree Console Host control plane', () => {
       write: vi.fn(),
       update: () => { throw new Error('control plane must not update the registry') },
     }
-    const git = { ...gitDouble(), switchLocalBranch: vi.fn(async () => undefined) }
+    const git = { ...gitDouble(), switchLocalBranch: vi.fn(async () => null) }
     const { control } = plane(readyRecord(), { registry: foreign, git })
 
     const result = await control.gitSwitchBranch('third-session', 'feature')

@@ -7,6 +7,7 @@ import type {
   WorktreeConsoleAdapter,
   WorktreeConsoleGitOverviewResponse,
   WorktreeConsoleGitPruneResponse,
+  WorktreeConsoleGitSwitchIssue,
   WorktreeConsoleTargetDetails,
 } from '../../console-contract.js'
 import { branchNameSchema } from '../../console-remote/schemas.js'
@@ -15,6 +16,7 @@ import { openExistingSession, type WorktreeClientServices } from '../actions.js'
 import { requestWorktreeReviewRefresh } from '../review-console/status-events.js'
 import { WorktreeManagerModal } from './WorktreeManagerModal.js'
 import { BranchGraphModal } from './BranchGraphModal.js'
+import { SwitchBranchAssistModal } from './SwitchBranchAssistModal.js'
 import { TagManagerModal } from './TagManagerModal.js'
 import {
   ensureBranchOverview,
@@ -48,6 +50,24 @@ function shortOid(value: string): string {
   return value === 'unversioned' ? value : value.slice(0, 7)
 }
 
+/** Overwrite refusals get the commit-then-switch dialog; the rest stay inline. */
+function isOverwriteIssue(issue: WorktreeConsoleGitSwitchIssue): boolean {
+  return issue.code === 'tracked-changes-would-be-overwritten'
+    || issue.code === 'untracked-changes-would-be-overwritten'
+}
+
+/** Stable per-code wording; unknown falls back to Git's own stderr. */
+function switchIssueMessage(t: ClientTranslator, issue: WorktreeConsoleGitSwitchIssue): string {
+  switch (issue.code) {
+    case 'conflicts-present': return t('branch.switch.issue.conflicts')
+    case 'operation-in-progress': return t('branch.switch.issue.operation')
+    case 'branch-in-other-worktree': return t('branch.switch.issue.otherWorktree')
+    case 'target-branch-not-found': return t('branch.switch.issue.notFound')
+    case 'invalid-branch-name': return t('branch.switch.issue.invalidName')
+    default: return issue.detail ?? t('unavailable')
+  }
+}
+
 /** Interactive Session Target capsule with source-linked management actions. */
 export function TargetStatusAction({ sessionId, adapter, services }: TargetStatusActionProps) {
   const t = useClientTranslator()
@@ -75,6 +95,12 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
   const [pruneBusy, setPruneBusy] = useState(false)
   const [branchQuery, setBranchQuery] = useState('')
   const [switchNotice, setSwitchNotice] = useState<string | null>(null)
+  /** Set while a refused switch offers the commit-then-switch path. */
+  const [switchAssist, setSwitchAssist] = useState<{ branch: string; issue: WorktreeConsoleGitSwitchIssue } | null>(null)
+  const [switchAssistStep, setSwitchAssistStep] = useState<'blocked' | 'commit' | null>(null)
+  const [switchCommitMessage, setSwitchCommitMessage] = useState('')
+  const [switchCommitError, setSwitchCommitError] = useState<string | null>(null)
+  const [switchCommitBusy, setSwitchCommitBusy] = useState(false)
   const [tagsOpen, setTagsOpen] = useState(false)
   /** Commit the next created tag points at; null means HEAD. */
   const [tagTarget, setTagTarget] = useState<string | null>(null)
@@ -123,6 +149,11 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
     setTagTarget(null)
     setBranchQuery('')
     setSwitchNotice(null)
+    setSwitchAssist(null)
+    setSwitchAssistStep(null)
+    setSwitchCommitMessage('')
+    setSwitchCommitError(null)
+    setSwitchCommitBusy(false)
     setCreateWorktreeBusy(false)
     setDeliverOpen(false)
     setDeliverMessage('')
@@ -238,6 +269,19 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
     }
   }
 
+  const applySwitchedBranch = (branch: string): void => {
+    patchBranchOverview(sessionId, current => ({
+      ...current,
+      branch,
+      branches: current.branches.map(item => ({ ...item, isCurrent: item.name === branch })),
+    }))
+    // 乐观补丁即最终态：switch 的 RPC 已确认分支，直接读回补丁后的缓存，
+    // 省一次 invalidate+ensure 重取（4 个 git spawn + UI 闪回旧值）。
+    const patched = cachedBranchOverview(sessionId)
+    if (patched !== null) setOverview(patched)
+    requestWorktreeReviewRefresh(sessionId)
+  }
+
   const switchBranch = async (branch: string): Promise<void> => {
     if (pendingAction !== null) return
     const scope = actionScope.current
@@ -249,18 +293,26 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
       const outcome = await adapter.gitSwitchBranch(sessionId, branch)
       if (!active()) return
       if (!outcome.ok) {
-        setError(outcome.error.message)
+        const issue = outcome.error.switchIssue
+        if (issue !== undefined && isOverwriteIssue(issue)) {
+          // 覆盖型阻塞不是一条错误，而是一个可修的状态：转成「提交后再切换」。
+          setSwitchAssist({ branch, issue })
+          setSwitchAssistStep('blocked')
+          setSwitchCommitMessage(t('branch.switch.commit.default', { p0: branch }))
+          setSwitchCommitError(null)
+          return
+        }
+        // 菜单此刻已经收起：只写 error 的话用户在胶囊上看不到任何东西，而
+        // 「为什么切不过去」正是此刻最需要说明的。临时占用胶囊的 notice 位。
+        const message = issue === undefined ? outcome.error.message : switchIssueMessage(t, issue)
+        setError(message)
+        setSwitchNotice(message)
+        window.setTimeout(() => {
+          if (active()) setSwitchNotice(null)
+        }, 6000)
         return
       }
-      patchBranchOverview(sessionId, current => ({
-        ...current,
-        branch: outcome.value.branch,
-        branches: current.branches.map(item => ({ ...item, isCurrent: item.name === outcome.value.branch })),
-      }))
-      // 乐观补丁即最终态：switch 的 RPC 已确认分支，直接读回补丁后的缓存，
-      // 省一次 invalidate+ensure 重取（4 个 git spawn + UI 闪回旧值）。
-      const patched = cachedBranchOverview(sessionId)
-      if (patched !== null) setOverview(patched)
+      applySwitchedBranch(outcome.value.branch)
       // Git-graph-style switch feedback: the chip keeps the confirmed branch
       // visible as a notice for a beat, so a fast close is not mistaken for
       // a no-op.
@@ -270,11 +322,61 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
           if (active()) setSwitchNotice(null)
         }, 900)
       }
-      requestWorktreeReviewRefresh(sessionId)
     } catch (reason) {
       if (active()) setError(reason instanceof Error ? reason.message : String(reason))
     } finally {
       if (active()) setPendingAction(null)
+    }
+  }
+
+  /**
+   * ZCode 的切换协助：先把 Local 工作区全部未提交改动提交到当前分支，再
+   * 自动重试切换。提交只追加历史；失败原因（身份缺失、无改动可提交等）
+   * 原样留在弹窗里。
+   */
+  const commitAndSwitch = async (): Promise<void> => {
+    if (switchAssist === null || switchCommitBusy) return
+    const message = switchCommitMessage.trim()
+    if (message === '') {
+      setSwitchCommitError(t('deliver.invalid'))
+      return
+    }
+    const branch = switchAssist.branch
+    const scope = actionScope.current
+    const active = () => mounted.current && scope === actionScope.current
+    setSwitchCommitBusy(true)
+    setSwitchCommitError(null)
+    try {
+      const committed = await adapter.gitCommitLocalChanges({ sessionId, message })
+      if (!active()) return
+      if (!committed.ok) {
+        setSwitchCommitError(committed.error.message)
+        return
+      }
+      const outcome = await adapter.gitSwitchBranch(sessionId, branch)
+      if (!active()) return
+      if (!outcome.ok) {
+        const issue = outcome.error.switchIssue
+        setSwitchCommitError(issue === undefined ? outcome.error.message : switchIssueMessage(t, issue))
+        return
+      }
+      // 提交改变的不只是分支：未提交计数也归零了，重取一次概览。
+      invalidateBranchOverview(sessionId)
+      void ensureBranchOverview(adapter, sessionId).then(value => {
+        if (active() && value !== null) setOverview(value)
+      })
+      requestWorktreeReviewRefresh(sessionId)
+      setSwitchAssist(null)
+      setSwitchAssistStep(null)
+      setSwitchCommitMessage('')
+      setSwitchNotice(t('branch.switch.success', { p0: branch }))
+      window.setTimeout(() => {
+        if (active()) setSwitchNotice(null)
+      }, 900)
+    } catch (reason) {
+      if (active()) setSwitchCommitError(reason instanceof Error ? reason.message : String(reason))
+    } finally {
+      if (active()) setSwitchCommitBusy(false)
     }
   }
 
@@ -902,6 +1004,29 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
           )}
         </div>
       </Modal>
+      <SwitchBranchAssistModal
+        step={switchAssistStep}
+        branch={switchAssist?.branch ?? null}
+        issue={switchAssist?.issue ?? null}
+        dirtyCount={overview?.dirtyCount ?? -1}
+        message={switchCommitMessage}
+        busy={switchCommitBusy}
+        error={switchCommitError}
+        t={t}
+        onClose={() => {
+          if (switchCommitBusy) return
+          setSwitchAssist(null)
+          setSwitchAssistStep(null)
+          setSwitchCommitMessage('')
+          setSwitchCommitError(null)
+        }}
+        onOpenCommit={() => {
+          setSwitchAssistStep('commit')
+          setSwitchCommitError(null)
+        }}
+        onMessageChange={setSwitchCommitMessage}
+        onConfirm={() => { void commitAndSwitch() }}
+      />
     </>
   )
 }

@@ -67,6 +67,7 @@ const METHODS = [
   'clearSidebarBadge',
   'gitCreateBranch',
   'gitSwitchBranch',
+  'gitCommitLocalChanges',
   'gitPruneMergedBranches',
   'gitListTags',
   'gitCreateTag',

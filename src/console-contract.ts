@@ -504,6 +504,38 @@ export interface WorktreeConsoleGitMutationResponse {
   branch: string
 }
 
+/**
+ * Why Git refused a branch switch. Mirrors the host port's parsed refusal so
+ * the console can render a specific message and, for overwrite refusals, offer
+ * "commit these changes, then switch".
+ */
+export type WorktreeConsoleGitSwitchIssueCode =
+  | 'tracked-changes-would-be-overwritten'
+  | 'untracked-changes-would-be-overwritten'
+  | 'conflicts-present'
+  | 'operation-in-progress'
+  | 'branch-in-other-worktree'
+  | 'target-branch-not-found'
+  | 'invalid-branch-name'
+  | 'unknown'
+
+export interface WorktreeConsoleGitSwitchIssue {
+  code: WorktreeConsoleGitSwitchIssueCode
+  /** Repository-relative paths Git reported; empty when the refusal is not file-scoped. */
+  paths: string[]
+  detail: string | null
+}
+
+/** Commit the Local checkout's uncommitted work so the blocked switch can be retried. */
+export interface WorktreeConsoleGitCommitLocalRequest {
+  sessionId: string
+  message: string
+}
+
+export interface WorktreeConsoleGitCommitLocalResponse {
+  commitOid: string
+}
+
 /** One local tag in the tag manager (annotated tags keep their message). */
 export interface WorktreeConsoleGitTag {
   name: string
@@ -639,6 +671,8 @@ export interface WorktreeConsoleError {
   message: string
   details?: Record<string, string | number | boolean | null>
   continuation?: WorktreeConsoleContinuation
+  /** Present only when Git refused a branch switch; drives the fix-up dialog. */
+  switchIssue?: WorktreeConsoleGitSwitchIssue
 }
 
 export type WorktreeConsoleOutcome<T> =
@@ -711,6 +745,8 @@ export interface WorktreeConsoleAdapter {
   gitGraph(sessionId: string, limit?: number): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitGraphResponse>>
   gitCreateBranch(sessionId: string, name: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>
   gitSwitchBranch(sessionId: string, branch: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>
+  /** Commit Local's uncommitted work so a switch refused for overwriting can be retried. */
+  gitCommitLocalChanges(request: WorktreeConsoleGitCommitLocalRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitCommitLocalResponse>>
   gitPruneMergedBranches(sessionId: string, dryRun: boolean): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitPruneResponse>>
   gitListTags(sessionId: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitTagListResponse>>
   gitCreateTag(request: WorktreeConsoleGitCreateTagRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitTagMutationResponse>>

@@ -31,7 +31,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { SubprocessHandle } from '@deepseek-ai/dsh-subprocess'
 import type { ApplyConflictDetail, MergeLocalBranchResult } from '../types.js'
 import { CONFLICT_DETAIL_DIFF_LIMIT, CONFLICT_DETAIL_FILE_LIMIT } from '../types.js'
-import type { GitCheckoutSnapshot, SessionCheckoutGitPort } from '../ports.js'
+import type { GitCheckoutSnapshot, LocalBranchSwitchIssue, SessionCheckoutGitPort } from '../ports.js'
 import { SessionCheckoutError } from '../index.js'
 
 /** Termination grace is separate from the command deadline. */
@@ -89,6 +89,46 @@ function parseDecoration(decoration: string): string[] {
     if (trimmed.startsWith('tag: ')) return `tag:${trimmed.slice('tag: '.length).trim()}`
     return trimmed.replace(/^HEAD -> /u, '').trim()
   }).filter((name) => name !== '')
+}
+
+/**
+ * Normalize `git switch` stderr into one stable refusal code (ported from
+ * ZCode's branch mutation parser). The indented file list under Git's
+ * overwrite headers is exactly what the commit-then-switch dialog shows; the
+ * remaining codes only need the verbatim stderr as detail.
+ */
+export function parseLocalBranchSwitchIssue(stderr: string): LocalBranchSwitchIssue {
+  const detail = stderr.trim() === '' ? null : stderr.trim()
+  const lines = stderr.replace(/\r\n?/gu, '\n').split('\n').map(line => line.replace(/\s+$/u, ''))
+  const indentedPathsAfter = (pattern: RegExp): string[] => {
+    const headerIndex = lines.findIndex(line => pattern.test(line.toLowerCase()))
+    if (headerIndex < 0) return []
+    const paths: string[] = []
+    for (let index = headerIndex + 1; index < lines.length; index += 1) {
+      const line = lines[index] ?? ''
+      if (line === '') continue
+      if (!/^\s/u.test(line)) break
+      // Git quotes paths containing special characters; undo that so the same
+      // path can be shown and matched against status output verbatim.
+      const unquoted = line.trim().replace(/^"(.*)"$/u, '$1').replace(/\\"/gu, '"').replace(/\\\\/gu, '\\')
+      if (unquoted !== '') paths.push(unquoted)
+    }
+    return paths
+  }
+  const tracked = indentedPathsAfter(/your local changes to the following files would be overwritten by (checkout|switch)/u)
+  if (tracked.length > 0) return { code: 'tracked-changes-would-be-overwritten', paths: tracked, detail }
+  const untracked = indentedPathsAfter(/the following untracked working tree files would be overwritten by (checkout|switch)/u)
+  if (untracked.length > 0) return { code: 'untracked-changes-would-be-overwritten', paths: untracked, detail }
+  const normalized = stderr.toLowerCase()
+  if (normalized.includes('is already used by worktree at') || normalized.includes('already checked out at')) {
+    return { code: 'branch-in-other-worktree', paths: [], detail }
+  }
+  if (normalized.includes('resolve your current index first')) return { code: 'conflicts-present', paths: [], detail }
+  if (/cannot switch branch while (merging|rebasing|cherry-picking|reverting|bisecting)/u.test(normalized)
+    || normalized.includes('you have not concluded your merge')
+    || normalized.includes('rebase in progress')) return { code: 'operation-in-progress', paths: [], detail }
+  if (normalized.includes('invalid reference:')) return { code: 'target-branch-not-found', paths: [], detail }
+  return { code: 'unknown', paths: [], detail }
 }
 
 async function settleCreationTree(handle: SubprocessHandle): Promise<boolean> {
@@ -613,15 +653,27 @@ export function createDshGitPort(ctx: Context, options: GitPortOptions): Session
     },
     switchLocalBranch: async (root, branch) => {
       const switched = await runSessionGit(root, ['switch', branch])
-      if (switched.code !== 0) {
-        const stderr = (switched.stderr || switched.stdout).trim()
-        // git: fatal: '<branch>' is already used by worktree at '<path>'（旧版为 already checked out at）
-        const busy = stderr.match(/'(?:[^']*)' is (?:already used by|already checked out at) worktree at '([^']+)'/u)
-        if (busy) {
-          throw new SessionCheckoutError('git_operation_failed', hostMessage('branchCheckedOutInAnotherWorktree', { p0: branch, p1: busy[1] ?? '' }))
-        }
-        throw new SessionCheckoutError('git_operation_failed', stderr || hostMessage('gitOperationFailedGit', { p0: 'switch', p1: branch }))
+      if (switched.code === 0) return null
+      return parseLocalBranchSwitchIssue((switched.stderr || switched.stdout).trim())
+    },
+    commitLocalCheckpoint: async (root, message) => {
+      // `add -A` respects .gitignore exactly like the initial commit; staging
+      // everything the user can see is what makes the retried switch succeed.
+      const staged = await runSessionGit(root, ['add', '-A'])
+      if (staged.code !== 0) {
+        throw new SessionCheckoutError('git_operation_failed', (staged.stderr || staged.stdout).trim() || hostMessage('gitOperationFailedGit', { p0: 'add', p1: '-A' }))
       }
+      const committed = await runSessionGit(root, ['commit', '-m', message])
+      if (committed.code !== 0) {
+        // "nothing to commit" and a missing identity both land here; the user
+        // needs Git's own wording to fix either.
+        throw new SessionCheckoutError('git_operation_failed', (committed.stderr || committed.stdout).trim() || hostMessage('gitOperationFailedGit', { p0: 'commit', p1: message }))
+      }
+      const head = await runSessionGit(root, ['rev-parse', 'HEAD'])
+      if (head.code !== 0) {
+        throw new SessionCheckoutError('git_operation_failed', (head.stderr || head.stdout).trim() || hostMessage('gitOperationFailedGit', { p0: 'rev-parse', p1: 'HEAD' }))
+      }
+      return head.stdout.trim()
     },
     listTags: async (root) => {
       // One spawn lists tags with their object, peeled commit and subject;

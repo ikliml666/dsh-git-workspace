@@ -11,6 +11,7 @@ import type {
   WorktreeConsoleReturnToLocalResponse,
   WorktreeConsoleCreateWorktreeResponse,
   WorktreeConsoleGitGraphResponse,
+  WorktreeConsoleGitCommitLocalResponse,
   WorktreeConsoleGitMutationResponse,
   WorktreeConsoleGitOverviewResponse,
   WorktreeConsoleGitPruneResponse,
@@ -49,6 +50,7 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
     'gitWorktree/gitGraph': (agentId: string, limit?: number, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleGitGraphResponse>>>
     'gitWorktree/gitCreateBranch': (agentId: string, name: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>>
     'gitWorktree/gitSwitchBranch': (agentId: string, branch: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>>
+    'gitWorktree/gitCommitLocalChanges': (agentId: string, message: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleGitCommitLocalResponse>>>
     'gitWorktree/gitPruneMergedBranches': (agentId: string, dryRun: boolean, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleGitPruneResponse>>>
     'gitWorktree/gitListTags': (agentId: string, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleGitTagListResponse>>>
     'gitWorktree/gitCreateTag': (agentId: string, name: string, message?: string, target?: string, push?: boolean, locale?: Language) => Promise<RemoteResult<WorktreeConsoleOutcome<WorktreeConsoleGitTagMutationResponse>>>

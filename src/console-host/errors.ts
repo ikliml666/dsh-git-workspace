@@ -6,8 +6,13 @@ export function domainError(
   code: SessionCheckoutErrorCode,
   message: string,
   continuation?: WorktreeConsoleError['continuation'],
+  switchIssue?: WorktreeConsoleError['switchIssue'],
 ): Error {
-  return Object.assign(new Error(message), { code, ...(continuation === undefined ? {} : { continuation }) })
+  return Object.assign(new Error(message), {
+    code,
+    ...(continuation === undefined ? {} : { continuation }),
+    ...(switchIssue === undefined ? {} : { switchIssue }),
+  })
 }
 
 export function consoleFailure(error: unknown): WorktreeConsoleOutcome<never> {
@@ -18,12 +23,14 @@ export function consoleFailure(error: unknown): WorktreeConsoleOutcome<never> {
     && (SESSION_CHECKOUT_ERROR_CODES as readonly string[]).includes(error.code)
   ) {
     const continuation = 'continuation' in error ? error.continuation : undefined
+    const switchIssue = 'switchIssue' in error ? error.switchIssue : undefined
     return {
       ok: false,
       error: {
         code: error.code as SessionCheckoutErrorCode,
         message: error.message,
         ...(continuation === undefined ? {} : { continuation: continuation as WorktreeConsoleError['continuation'] }),
+        ...(switchIssue === undefined ? {} : { switchIssue: switchIssue as WorktreeConsoleError['switchIssue'] }),
       },
     }
   }

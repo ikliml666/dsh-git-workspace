@@ -9,6 +9,7 @@ import type {
   WorktreeConsoleAbandonedListResponse,
   WorktreeConsoleCurrentResponse,
   WorktreeConsoleGitGraphResponse,
+  WorktreeConsoleGitCommitLocalResponse,
   WorktreeConsoleGitMutationResponse,
   WorktreeConsoleGitOverviewResponse,
   WorktreeConsoleGitPruneResponse,
@@ -221,6 +222,11 @@ export class WorktreeConsoleService extends TypertRemoteService {
   @Remote
   gitSwitchBranch(agent: Agent, branch: string, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>> {
     return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.gitSwitchBranch(agent.id, branch))
+  }
+
+  @Remote
+  gitCommitLocalChanges(agent: Agent, message: string, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitCommitLocalResponse>> {
+    return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.gitCommitLocalChanges({ sessionId: agent.id, message }))
   }
 
   @Remote

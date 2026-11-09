@@ -6,6 +6,13 @@
 
 ### Added
 
+- 分支切换受阻时提供「提交后再切换」协助（移植自 ZCode 的 branch switch assist，2026-11-09）。
+  - **为什么**：`git switch` 只在目标分支会覆盖当前改动时才失败，失败原因埋在 stderr 里，胶囊此前只回显一段原始报错，用户看不到是哪些文件挡着，也没有一键解法。ZCode 把这类失败当成可修复的状态：先展示 Git 报告的受影响文件，再提供「把当前改动提交到本分支 → 自动重试切换」。
+  - **结构化拒绝**：`SessionCheckoutGitPort.switchLocalBranch` 改为返回 `LocalBranchSwitchIssue | null`（不再抛错），把 stderr 归一成 `tracked-changes-would-be-overwritten` / `untracked-changes-would-be-overwritten` / `conflicts-present` / `operation-in-progress` / `branch-in-other-worktree` / `target-branch-not-found` / `unknown`，覆盖型 issue 带出 Git 缩进列出的文件路径；解析函数 `parseLocalBranchSwitchIssue` 单独可测。`WorktreeConsoleError` 新增可选 `switchIssue`，`consoleFailure` 原样透传。
+  - **提交端口**：新增 `commitLocalCheckpoint`（`git add -A` + `git commit`，只追加历史）与对应 RPC `gitCommitLocalChanges`（Host service / control-plane / descriptor / Remote / client adapter 全线接线）。提交与切分支共用同一道守卫：本会话或其它会话正在该 Local 检出上交付时拒绝，避免移动交付基线；为此新增两条 Host 文案。不再被引用的 `branchCheckedOutInAnotherWorktree` 文案删除——该原因已由 `switchIssue` 结构化表达。
+  - **客户端**：新增 `SwitchBranchAssistModal`（两阶段：受影响文件 → 填提交信息），默认提交信息 `chore: 切换 <分支> 前保存进度`；提交成功后自动重试切换并刷新分支概览与胶囊。非覆盖型拒绝按 issue code 显示定制的 `branch.switch.issue.*` 文案，未知原因回退到 Git 原文。
+  - **测试**：新增 `tests/git-switch-issue.test.ts`（5 项解析）、`console-host.test.ts` 两项（结构化拒绝透传、提交走端口）、`client-target-console.test.tsx` 一项（阻塞 → 列文件 → 提交 → 自动重试成功）。
+
 - 「新建工作树」取代官方 forge 面板控件，收进目标胶囊菜单（2026-11-07）。
   - **取代的控件**：官方在 `conversation.hero.options` 注册的 `forge-panel.worktree`（分支按钮 + 「新建工作树」复选框）。本插件用同一个 id 在 `priority: -1` 注册一个空组件——slot 只渲染 priority 最低的那条，于是那对控件让位，而 forge 的变更请求、diff、review 全不受影响（不是停用整个官方插件）。
   - **新入口**：`🖥 <分支> ⌄` 胶囊菜单里的「下条消息在新工作树里开始」，只在 `state === 'local'` 时出现。菜单文案随状态改写：已排队时显示基点分支，再点一次即撤回，不必去别处找开关。

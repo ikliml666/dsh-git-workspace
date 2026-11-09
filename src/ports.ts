@@ -83,6 +83,29 @@ export interface BranchOverviewEntry {
   upstream: string | null
 }
 
+/**
+ * Why Git refused to switch local branches. Parsed from stderr into a stable
+ * code so the console can render a specific message (and a fix-up path for the
+ * overwrite cases) instead of echoing raw Git output.
+ */
+export type LocalBranchSwitchIssueCode =
+  | 'tracked-changes-would-be-overwritten'
+  | 'untracked-changes-would-be-overwritten'
+  | 'conflicts-present'
+  | 'operation-in-progress'
+  | 'branch-in-other-worktree'
+  | 'target-branch-not-found'
+  | 'invalid-branch-name'
+  | 'unknown'
+
+export interface LocalBranchSwitchIssue {
+  code: LocalBranchSwitchIssueCode
+  /** Repository-relative paths Git reported; empty when the refusal is not file-scoped. */
+  paths: string[]
+  /** Verbatim Git stderr, shown as the detail line. */
+  detail: string | null
+}
+
 /** One Worktree entry from Git's own administrative list. */
 export interface WorktreeListingEntry {
   /** Absolute working-tree path as Git reports it. */
@@ -216,8 +239,19 @@ export interface SessionCheckoutGitPort {
   graphLog?(root: string, limit: number): Promise<GraphLogCommit[]>
   /** Local adaptation: create a local branch at HEAD after `git check-ref-format`. */
   createLocalBranch?(root: string, name: string): Promise<void>
-  /** Local adaptation: switch the local checkout to an existing local branch. */
-  switchLocalBranch?(root: string, branch: string): Promise<void>
+  /**
+   * Local adaptation: switch the local checkout to an existing local branch.
+   * A refused switch returns the structured reason (null on success) so the
+   * console can offer the commit-then-switch path; only an unusable Git setup
+   * throws.
+   */
+  switchLocalBranch?(root: string, branch: string): Promise<LocalBranchSwitchIssue | null>
+  /**
+   * Local adaptation: commit the Local checkout's uncommitted work before a
+   * branch switch. Stages every non-ignored change and appends one commit on
+   * the current branch; history is never rewritten. Returns the commit oid.
+   */
+  commitLocalCheckpoint?(root: string, message: string): Promise<string>
   /**
    * Local adaptation: local tags with their commit, annotation state and
    * whether `origin` already carries the same name. One spawn for tags, one

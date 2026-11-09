@@ -222,4 +222,10 @@ export const TARGET_CONSOLE_STYLES = String.raw`
 .dsh-wtc-graph-row:hover .dsh-wtc-graph-tag-action, .dsh-wtc-graph-tag-action:focus-visible { opacity:1; }
 .dsh-wtc-graph-tag-action:hover { color:var(--wtc-blue); border-color:var(--wtc-blue); }
 .dsh-wtc-graph-footer { display:flex; justify-content:center; gap:8px; }
+.dsh-wtc-switch-assist { display:grid; gap:10px; }
+.dsh-wtc-switch-warning { margin:0; padding:8px 10px; border-radius:8px; background:color-mix(in srgb, #c47a1c 12%, transparent); color:#9a5d10; font-size:12px; line-height:1.45; }
+.dsh-wtc-switch-files { display:grid; gap:2px; max-height:180px; overflow:auto; padding:8px 10px; border-radius:8px; background:color-mix(in srgb, currentColor 5%, transparent); font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px; }
+.dsh-wtc-switch-files strong { font-family:system-ui, sans-serif; font-size:11px; font-weight:600; color:color-mix(in srgb, currentColor 62%, transparent); }
+.dsh-wtc-switch-file { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.dsh-wtc-switch-hint { margin:0; color:color-mix(in srgb, currentColor 62%, transparent); font-size:12px; line-height:1.45; }
 `

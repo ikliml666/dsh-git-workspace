@@ -10,6 +10,8 @@ import type {
   WorktreeConsoleDiscardRequest,
   WorktreeConsoleDeliverRequest,
   WorktreeConsoleGitCreateTagRequest,
+  WorktreeConsoleGitCommitLocalRequest,
+  WorktreeConsoleGitCommitLocalResponse,
   WorktreeConsoleGitDeleteTagRequest,
   WorktreeConsoleGitGraphResponse,
   WorktreeConsoleGitMutationResponse,
@@ -91,6 +93,7 @@ export interface WorktreeConsoleControlPlane {
   gitGraph(sessionId: string, limit?: number): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitGraphResponse>>
   gitCreateBranch(sessionId: string, name: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>
   gitSwitchBranch(sessionId: string, branch: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>
+  gitCommitLocalChanges(request: WorktreeConsoleGitCommitLocalRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitCommitLocalResponse>>
   gitPruneMergedBranches(sessionId: string, dryRun: boolean): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitPruneResponse>>
   gitListTags(sessionId: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitTagListResponse>>
   gitCreateTag(request: WorktreeConsoleGitCreateTagRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitTagMutationResponse>>
@@ -516,6 +519,31 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
     ))
   }
 
+  /**
+   * A commit or branch switch moves the Local HEAD. Every accepted apply lands
+   * on that HEAD, so both are refused while any Session is mid-delivery onto
+   * the same checkout.
+   */
+  function assertLocalHeadMutable(sessionId: string, root: string, action: 'switch' | 'commit'): void {
+    const delivering = Object.values(options.registry.read().managedCheckouts).some(record =>
+      (record.ownerSessionId === sessionId || record.sourceSessionId === sessionId)
+      && (record.phase === 'recovery_required'
+        || (record.phase === 'ready'
+          && (record.delivery.state === 'ready_for_review'
+            || record.delivery.state === 'preview_active'
+            || record.delivery.state === 'preview_detached'))))
+    if (delivering) {
+      throw domainError('operation_not_allowed', hostMessage(action === 'switch' ? 'localBranchSwitchBlockedDuringDelivery' : 'localBranchCommitBlockedDuringDelivery'))
+    }
+    const otherHolder = localDeliveryHolder(root, sessionId)
+    if (otherHolder) {
+      throw domainError('operation_not_allowed', hostMessage(
+        action === 'switch' ? 'localBranchSwitchBlockedByAnotherDelivery' : 'localBranchCommitBlockedByAnotherDelivery',
+        { p0: otherHolder.ownerSessionId },
+      ))
+    }
+  }
+
   function acceptanceHolder(record: ManagedCheckoutRecord): ManagedCheckoutRecord | undefined {
     return Object.values(options.registry.read().managedCheckouts).find(candidate => (
       candidate.checkoutId !== record.checkoutId
@@ -775,24 +803,34 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
 
     gitSwitchBranch: (sessionId, branch) => outcome(async () => {
       const { root } = await projectRootFor(sessionId)
-      // Switching the local root re-bases every future apply-to-local; refuse
-      // while this session holds an acceptance slot mid-delivery on that repo.
-      const delivering = Object.values(options.registry.read().managedCheckouts).some(record =>
-        (record.ownerSessionId === sessionId || record.sourceSessionId === sessionId)
-        && (record.phase === 'recovery_required'
-          || (record.phase === 'ready'
-            && (record.delivery.state === 'ready_for_review'
-              || record.delivery.state === 'preview_active'
-              || record.delivery.state === 'preview_detached'))))
-      if (delivering) throw domainError('operation_not_allowed', hostMessage('localBranchSwitchBlockedDuringDelivery'))
-      const otherHolder = localDeliveryHolder(root, sessionId)
-      if (otherHolder) {
-        throw domainError('operation_not_allowed', hostMessage('localBranchSwitchBlockedByAnotherDelivery', { p0: otherHolder.ownerSessionId }))
-      }
+      assertLocalHeadMutable(sessionId, root, 'switch')
       if (options.git.switchLocalBranch === undefined) throw domainError('git_error', hostMessage('gitOperationFailedGit', { p0: 'switch', p1: branch }))
-      await options.git.switchLocalBranch(root, branch)
+      const issue = await options.git.switchLocalBranch(root, branch)
+      if (issue !== null) {
+        // The refusal is a normal answer, not an exception: the console turns
+        // the overwrite cases into "commit, then switch" instead of an error.
+        throw domainError(
+          'git_operation_failed',
+          issue.detail ?? hostMessage('gitOperationFailedGit', { p0: 'switch', p1: branch }),
+          undefined,
+          issue,
+        )
+      }
       return { branch }
     }),
+
+    gitCommitLocalChanges: async request => {
+      try {
+        const message = request.message.trim()
+        if (!isValidCommitMessage(message)) return failure('invalid_input', hostMessage('theCommitMessageMustBeNonemptyAndContainNoNul'))
+        const { root } = await projectRootFor(request.sessionId)
+        assertLocalHeadMutable(request.sessionId, root, 'commit')
+        if (options.git.commitLocalCheckpoint === undefined) throw domainError('git_error', hostMessage('gitOperationFailedGit', { p0: 'commit', p1: '' }))
+        return { ok: true, value: { commitOid: await options.git.commitLocalCheckpoint(root, message) } }
+      } catch (error) {
+        return consoleFailure(error)
+      }
+    },
 
     gitPruneMergedBranches: (sessionId, dryRun) => outcome(async () => {
       return await options.module.pruneMergedBranchesForSession(sessionId, { dryRun })

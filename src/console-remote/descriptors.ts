@@ -12,6 +12,7 @@ import {
   gitGraphLimitSchema,
   gitGraphResponseSchema,
   gitMutationResponseSchema,
+  gitCommitLocalResponseSchema,
   gitOverviewResponseSchema,
   gitPruneResponseSchema,
   gitTagListResponseSchema,
@@ -150,6 +151,9 @@ export const WORKTREE_CONSOLE_DESCRIPTORS: readonly InvocationDescriptor[] = Obj
   descriptor('gitSwitchBranch', [
     json('branch', branchNameSchema, `${PACKAGE}/console-contract#WorktreeConsoleGitBranch.name`),
   ], outcomeSchema(gitMutationResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>'),
+  descriptor('gitCommitLocalChanges', [
+    json('message', commitMessageSchema, `${PACKAGE}/console-contract#WorktreeConsoleGitCommitLocalRequest.message`),
+  ], outcomeSchema(gitCommitLocalResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleGitCommitLocalResponse>'),
   descriptor('gitPruneMergedBranches', [
     json('dryRun', booleanSchema, 'boolean'),
   ], outcomeSchema(gitPruneResponseSchema), 'WorktreeConsoleOutcome<WorktreeConsoleGitPruneResponse>'),

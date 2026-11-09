@@ -13,6 +13,7 @@ import {
   type WorktreeConsoleOutcome,
   type WorktreeConsoleRestoreAbandonedResponse,
   type WorktreeConsoleGitGraphResponse,
+  type WorktreeConsoleGitCommitLocalResponse,
   type WorktreeConsoleGitMutationResponse,
   type WorktreeConsoleGitOverviewResponse,
   type WorktreeConsoleGitPruneResponse,
@@ -203,11 +204,26 @@ const targetDetailsSchema = targetSummarySchema.extend({
   currentBranch: z.string().nullable(),
   recoveryContinuation: recoveryProofSchema.optional(),
 }).strict()
+const gitSwitchIssueSchema = strict({
+  code: z.enum([
+    'tracked-changes-would-be-overwritten',
+    'untracked-changes-would-be-overwritten',
+    'conflicts-present',
+    'operation-in-progress',
+    'branch-in-other-worktree',
+    'target-branch-not-found',
+    'invalid-branch-name',
+    'unknown',
+  ]),
+  paths: z.array(z.string().min(1).max(4096)).max(500),
+  detail: z.string().max(16384).nullable(),
+})
 const consoleErrorSchema = strict({
   code: z.enum(WORKTREE_CONSOLE_ERROR_CODES),
   message: z.string(),
   details: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])).optional(),
   continuation: recoveryContinuationSchema.optional(),
+  switchIssue: gitSwitchIssueSchema.optional(),
 }).superRefine((value, ctx) => {
   if (value.continuation !== undefined && value.code !== 'apply_conflict') {
     ctx.addIssue({ code: 'custom', path: ['continuation'], message: 'only apply_conflict may carry a continuation' })
@@ -377,6 +393,9 @@ export const gitGraphResponseSchema: z.ZodType<WorktreeConsoleGitGraphResponse> 
 })
 export const gitMutationResponseSchema: z.ZodType<WorktreeConsoleGitMutationResponse> = strict({
   branch: z.string().min(1).max(300),
+})
+export const gitCommitLocalResponseSchema: z.ZodType<WorktreeConsoleGitCommitLocalResponse> = strict({
+  commitOid: gitOidSchema,
 })
 export const gitGraphLimitSchema = z.number().int().min(1).max(1000).optional()
 
