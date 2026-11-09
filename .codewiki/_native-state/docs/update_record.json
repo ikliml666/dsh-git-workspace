@@ -1,7 +1,7 @@
 {
-  "started_at": "2026-11-09T21:02:34+0800",
-  "finished_at": "2026-11-09T21:02:34+0800",
-  "outcome": "incremental",
+  "started_at": "2026-11-09T21:33:41+0800",
+  "finished_at": "2026-11-09T21:33:41+0800",
+  "outcome": "no_change",
   "options": {
     "rung": "3",
     "tau_ren": 0.95,
@@ -25,494 +25,32 @@
   },
   "revision": {
     "old_commit": "16c5137037da7fc8090a65522ab07e266b4bee18",
-    "new_commit": "5b792d8059e946d07474dce935595b37d1900263",
+    "new_commit": "008b2b619a72c175e6016b0248fff02950b0723d",
     "repo_path": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree"
   },
   "diff": {
     "counts": {
-      "added": 9,
+      "added": 0,
       "deleted": 0,
-      "interface": 2,
-      "body": 12,
+      "interface": 0,
+      "body": 0,
       "edge": 0,
-      "renamed": 1
+      "renamed": 0
     },
-    "added": [
-      "src\\adapters\\git.ts::parseLocalBranchSwitchIssue",
-      "src\\client\\target-console\\SwitchBranchAssistModal.tsx::SwitchBranchAssistModalProps",
-      "src\\console-contract.ts::WorktreeConsoleGitCommitLocalRequest",
-      "src\\console-contract.ts::WorktreeConsoleGitCommitLocalResponse",
-      "src\\console-contract.ts::WorktreeConsoleGitSwitchIssue",
-      "src\\console-contract.ts::WorktreeConsoleGitSwitchIssueCode",
-      "src\\console-host\\service.ts::WorktreeConsoleService.gitCommitLocalChanges",
-      "src\\ports.ts::LocalBranchSwitchIssue",
-      "src\\ports.ts::LocalBranchSwitchIssueCode"
-    ],
+    "added": [],
     "deleted": [],
-    "interface": [
-      "src\\console-host\\errors.ts::domainError",
-      "src\\console-host\\service.ts::WorktreeConsoleService.gitCreateBranchAndSwitch"
-    ],
-    "body": [
-      "src\\adapters\\git.ts::createDshGitPort",
-      "src\\client\\console-remote\\adapter.ts::createWorktreeConsoleRemoteAdapter",
-      "src\\client\\target-console\\target-console.styles.ts::__file__",
-      "src\\console-contract.ts::WorktreeConsoleAdapter",
-      "src\\console-contract.ts::WorktreeConsoleError",
-      "src\\console-host\\control-plane.ts::WorktreeConsoleControlPlane",
-      "src\\console-host\\control-plane.ts::createWorktreeConsoleControlPlane",
-      "src\\console-host\\errors.ts::consoleFailure",
-      "src\\console-host\\service.ts::WorktreeConsoleService",
-      "src\\console-remote\\remote.ts::TypertRemoteMap",
-      "src\\i18n\\client-messages.ts::__file__",
-      "src\\ports.ts::SessionCheckoutGitPort"
-    ],
+    "interface": [],
+    "body": [],
     "edge": [],
-    "renamed": {
-      "src\\console-host\\service.ts::WorktreeConsoleService.gitCreateBranch": "src\\console-host\\service.ts::WorktreeConsoleService.gitCreateBranchAndSwitch"
-    }
+    "renamed": {}
   },
-  "repair": {
-    "renamed": {},
-    "removed": [],
-    "routing": [
-      {
-        "component_id": "src\\client\\target-console\\SwitchBranchAssistModal.tsx::SwitchBranchAssistModalProps",
-        "rule": "2:same_dir",
-        "leaf_path": [
-          "Client_Presentation_and_Interaction",
-          "client_target_console"
-        ],
-        "new_leaf": false,
-        "detail": "dir 'src/client/target-console'"
-      },
-      {
-        "component_id": "src\\console-contract.ts::WorktreeConsoleGitCommitLocalRequest",
-        "rule": "1:same_file",
-        "leaf_path": [
-          "console_contract"
-        ],
-        "new_leaf": false,
-        "detail": "57 tracked components in file"
-      },
-      {
-        "component_id": "src\\console-contract.ts::WorktreeConsoleGitCommitLocalResponse",
-        "rule": "1:same_file",
-        "leaf_path": [
-          "console_contract"
-        ],
-        "new_leaf": false,
-        "detail": "58 tracked components in file"
-      },
-      {
-        "component_id": "src\\console-contract.ts::WorktreeConsoleGitSwitchIssue",
-        "rule": "1:same_file",
-        "leaf_path": [
-          "console_contract"
-        ],
-        "new_leaf": false,
-        "detail": "59 tracked components in file"
-      },
-      {
-        "component_id": "src\\ports.ts::LocalBranchSwitchIssue",
-        "rule": "1:same_file",
-        "leaf_path": [
-          "Ports,_Adapters,_and_Infrastructure",
-          "core_ports_and_types"
-        ],
-        "new_leaf": false,
-        "detail": "33 tracked components in file"
-      },
-      {
-        "component_id": "src\\adapters\\git.ts::parseLocalBranchSwitchIssue",
-        "rule": "untracked",
-        "leaf_path": null,
-        "new_leaf": false,
-        "detail": "not a selected leaf node"
-      },
-      {
-        "component_id": "src\\console-contract.ts::WorktreeConsoleGitSwitchIssueCode",
-        "rule": "untracked",
-        "leaf_path": null,
-        "new_leaf": false,
-        "detail": "not a selected leaf node"
-      },
-      {
-        "component_id": "src\\console-host\\service.ts::WorktreeConsoleService.gitCommitLocalChanges",
-        "rule": "untracked",
-        "leaf_path": null,
-        "new_leaf": false,
-        "detail": "not a selected leaf node"
-      },
-      {
-        "component_id": "src\\ports.ts::LocalBranchSwitchIssueCode",
-        "rule": "untracked",
-        "leaf_path": null,
-        "new_leaf": false,
-        "detail": "not a selected leaf node"
-      }
-    ],
-    "orphans": [],
-    "deleted_nodes": [],
-    "created_leaves": [],
-    "growth": {
-      "Client_Presentation_and_Interaction/client_target_console": 0.0714,
-      "Ports,_Adapters,_and_Infrastructure/core_ports_and_types": 0.0128,
-      "console_contract": 0.05
-    },
-    "growth_flagged": []
-  },
+  "repair": {},
   "reclustered": [],
-  "reports": {
-    "Client_Presentation_and_Interaction/client_console_remote": {
-      "leaf_path": [
-        "Client_Presentation_and_Interaction",
-        "client_console_remote"
-      ],
-      "mode": "edit",
-      "own": [
-        "src\\client\\console-remote\\adapter.ts::createWorktreeConsoleRemoteAdapter"
-      ],
-      "adopted": {},
-      "up": [
-        "src\\console-host\\service.ts::WorktreeConsoleService.gitCreateBranchAndSwitch"
-      ],
-      "context": [],
-      "refch": [],
-      "entered": [],
-      "left": [],
-      "children_added": [],
-      "children_removed": [],
-      "reclustered": false,
-      "page": "client_console_remote"
-    },
-    "Client_Presentation_and_Interaction/client_target_console": {
-      "leaf_path": [
-        "Client_Presentation_and_Interaction",
-        "client_target_console"
-      ],
-      "mode": "edit",
-      "own": [
-        "src\\client\\target-console\\target-console.styles.ts::__file__",
-        "src\\client\\target-console\\SwitchBranchAssistModal.tsx::SwitchBranchAssistModalProps"
-      ],
-      "adopted": {},
-      "up": [],
-      "context": [],
-      "refch": [],
-      "entered": [
-        "src\\client\\target-console\\SwitchBranchAssistModal.tsx::SwitchBranchAssistModalProps"
-      ],
-      "left": [],
-      "children_added": [],
-      "children_removed": [],
-      "reclustered": false,
-      "page": "client_target_console"
-    },
-    "Console_API_and_Host_Integration/console_host/console_host_control_plane": {
-      "leaf_path": [
-        "Console_API_and_Host_Integration",
-        "console_host",
-        "console_host_control_plane"
-      ],
-      "mode": "edit",
-      "own": [
-        "src\\console-host\\control-plane.ts::WorktreeConsoleControlPlane",
-        "src\\console-host\\control-plane.ts::createWorktreeConsoleControlPlane"
-      ],
-      "adopted": {
-        "src\\console-host\\control-plane.ts::createWorktreeConsoleControlPlane": "1:same_file"
-      },
-      "up": [],
-      "context": [],
-      "refch": [
-        "domainError"
-      ],
-      "entered": [],
-      "left": [],
-      "children_added": [],
-      "children_removed": [],
-      "reclustered": false,
-      "page": "console_host_control_plane"
-    },
-    "Console_API_and_Host_Integration/console_host/console_host_projection": {
-      "leaf_path": [
-        "Console_API_and_Host_Integration",
-        "console_host",
-        "console_host_projection"
-      ],
-      "mode": "edit",
-      "own": [
-        "src\\console-host\\errors.ts::consoleFailure",
-        "src\\console-host\\errors.ts::domainError"
-      ],
-      "adopted": {
-        "src\\console-host\\errors.ts::domainError": "1:same_file"
-      },
-      "up": [],
-      "context": [],
-      "refch": [
-        "domainError"
-      ],
-      "entered": [],
-      "left": [],
-      "children_added": [],
-      "children_removed": [],
-      "reclustered": false,
-      "page": "console_host_projection"
-    },
-    "Console_API_and_Host_Integration/console_host/console_host_rpc_service": {
-      "leaf_path": [
-        "Console_API_and_Host_Integration",
-        "console_host",
-        "console_host_rpc_service"
-      ],
-      "mode": "edit",
-      "own": [
-        "src\\console-host\\service.ts::WorktreeConsoleService",
-        "src\\console-host\\service.ts::WorktreeConsoleService.gitCreateBranchAndSwitch",
-        "src\\console-host\\service.ts::WorktreeConsoleService.gitCommitLocalChanges"
-      ],
-      "adopted": {},
-      "up": [],
-      "context": [],
-      "refch": [
-        "domainError"
-      ],
-      "entered": [],
-      "left": [],
-      "children_added": [],
-      "children_removed": [],
-      "reclustered": false,
-      "page": "console_host_rpc_service"
-    },
-    "Console_API_and_Host_Integration/console_remote": {
-      "leaf_path": [
-        "Console_API_and_Host_Integration",
-        "console_remote"
-      ],
-      "mode": "edit",
-      "own": [
-        "src\\console-remote\\remote.ts::TypertRemoteMap"
-      ],
-      "adopted": {},
-      "up": [],
-      "context": [],
-      "refch": [],
-      "entered": [],
-      "left": [],
-      "children_added": [],
-      "children_removed": [],
-      "reclustered": false,
-      "page": "console_remote"
-    },
-    "Ports,_Adapters,_and_Infrastructure/adapters_infrastructure/adapters_infrastructure_git_process": {
-      "leaf_path": [
-        "Ports,_Adapters,_and_Infrastructure",
-        "adapters_infrastructure",
-        "adapters_infrastructure_git_process"
-      ],
-      "mode": "edit",
-      "own": [
-        "src\\adapters\\git.ts::createDshGitPort"
-      ],
-      "adopted": {
-        "src\\adapters\\git.ts::createDshGitPort": "1:same_file"
-      },
-      "up": [],
-      "context": [],
-      "refch": [],
-      "entered": [],
-      "left": [],
-      "children_added": [],
-      "children_removed": [],
-      "reclustered": false,
-      "page": "adapters_infrastructure_git_process"
-    },
-    "Ports,_Adapters,_and_Infrastructure/core_ports_and_types": {
-      "leaf_path": [
-        "Ports,_Adapters,_and_Infrastructure",
-        "core_ports_and_types"
-      ],
-      "mode": "edit",
-      "own": [
-        "src\\ports.ts::LocalBranchSwitchIssue",
-        "src\\ports.ts::SessionCheckoutGitPort"
-      ],
-      "adopted": {},
-      "up": [],
-      "context": [
-        "src\\adapters\\git.ts::parseLocalBranchSwitchIssue",
-        "src\\ports.ts::LocalBranchSwitchIssueCode"
-      ],
-      "refch": [],
-      "entered": [
-        "src\\ports.ts::LocalBranchSwitchIssue"
-      ],
-      "left": [],
-      "children_added": [],
-      "children_removed": [],
-      "reclustered": false,
-      "page": "core_ports_and_types"
-    },
-    "Cross-Cutting_Foundation_and_Public_Surface/i18n": {
-      "leaf_path": [
-        "Cross-Cutting_Foundation_and_Public_Surface",
-        "i18n"
-      ],
-      "mode": "edit",
-      "own": [
-        "src\\i18n\\client-messages.ts::__file__"
-      ],
-      "adopted": {},
-      "up": [],
-      "context": [],
-      "refch": [],
-      "entered": [],
-      "left": [],
-      "children_added": [],
-      "children_removed": [],
-      "reclustered": false,
-      "page": "i18n"
-    },
-    "console_contract": {
-      "leaf_path": [
-        "console_contract"
-      ],
-      "mode": "edit",
-      "own": [
-        "src\\console-contract.ts::WorktreeConsoleGitCommitLocalResponse",
-        "src\\console-contract.ts::WorktreeConsoleAdapter",
-        "src\\console-contract.ts::WorktreeConsoleGitCommitLocalRequest",
-        "src\\console-contract.ts::WorktreeConsoleError",
-        "src\\console-contract.ts::WorktreeConsoleGitSwitchIssue"
-      ],
-      "adopted": {},
-      "up": [],
-      "context": [
-        "src\\console-contract.ts::WorktreeConsoleGitSwitchIssueCode"
-      ],
-      "refch": [],
-      "entered": [
-        "src\\console-contract.ts::WorktreeConsoleGitCommitLocalRequest",
-        "src\\console-contract.ts::WorktreeConsoleGitCommitLocalResponse",
-        "src\\console-contract.ts::WorktreeConsoleGitSwitchIssue"
-      ],
-      "left": [],
-      "children_added": [],
-      "children_removed": [],
-      "reclustered": false,
-      "page": "console_contract"
-    }
-  },
-  "ownership": [
-    {
-      "component_id": "src\\adapters\\git.ts::createDshGitPort",
-      "rule": "1:same_file",
-      "leaf_path": [
-        "Ports,_Adapters,_and_Infrastructure",
-        "adapters_infrastructure",
-        "adapters_infrastructure_git_process"
-      ],
-      "detail": "2 tracked components in file",
-      "deleted": false
-    },
-    {
-      "component_id": "src\\console-host\\control-plane.ts::createWorktreeConsoleControlPlane",
-      "rule": "1:same_file",
-      "leaf_path": [
-        "Console_API_and_Host_Integration",
-        "console_host",
-        "console_host_control_plane"
-      ],
-      "detail": "2 tracked components in file",
-      "deleted": false
-    },
-    {
-      "component_id": "src\\console-host\\errors.ts::domainError",
-      "rule": "1:same_file",
-      "leaf_path": [
-        "Console_API_and_Host_Integration",
-        "console_host",
-        "console_host_projection"
-      ],
-      "detail": "1 tracked components in file",
-      "deleted": false
-    }
-  ],
-  "active": [
-    {
-      "leaf": "Ports,_Adapters,_and_Infrastructure/core_ports_and_types",
-      "page": "core_ports_and_types",
-      "mode": "edit",
-      "order": 0
-    },
-    {
-      "leaf": "Ports,_Adapters,_and_Infrastructure/adapters_infrastructure/adapters_infrastructure_git_process",
-      "page": "adapters_infrastructure_git_process",
-      "mode": "edit",
-      "order": 1
-    },
-    {
-      "leaf": "Cross-Cutting_Foundation_and_Public_Surface/i18n",
-      "page": "i18n",
-      "mode": "edit",
-      "order": 2
-    },
-    {
-      "leaf": "console_contract",
-      "page": "console_contract",
-      "mode": "edit",
-      "order": 3
-    },
-    {
-      "leaf": "Console_API_and_Host_Integration/console_host/console_host_control_plane",
-      "page": "console_host_control_plane",
-      "mode": "edit",
-      "order": 4
-    },
-    {
-      "leaf": "Console_API_and_Host_Integration/console_host/console_host_projection",
-      "page": "console_host_projection",
-      "mode": "edit",
-      "order": 5
-    },
-    {
-      "leaf": "Console_API_and_Host_Integration/console_remote",
-      "page": "console_remote",
-      "mode": "edit",
-      "order": 6
-    },
-    {
-      "leaf": "Client_Presentation_and_Interaction/client_console_remote",
-      "page": "client_console_remote",
-      "mode": "edit",
-      "order": 7
-    },
-    {
-      "leaf": "Console_API_and_Host_Integration/console_host/console_host_rpc_service",
-      "page": "console_host_rpc_service",
-      "mode": "edit",
-      "order": 8
-    },
-    {
-      "leaf": "Client_Presentation_and_Interaction/client_target_console",
-      "page": "client_target_console",
-      "mode": "edit",
-      "order": 9
-    }
-  ],
+  "reports": {},
+  "ownership": [],
+  "active": [],
   "write_sets": {},
-  "fallback": {
-    "r_leaf": 0.45454545454545453,
-    "r_tree": 0.0,
-    "n_active": 10,
-    "n_leaves": 22,
-    "n_structural": 0,
-    "tau_full": 0.5,
-    "tau_tree": 0.3,
-    "fired": false
-  },
+  "fallback": {},
   "verdicts": [],
   "pages_written": [],
   "pages_removed": [],
@@ -521,7 +59,22 @@
   "calls": [],
   "detector_notes": [],
   "errors": [],
-  "wall_seconds": 0.66,
-  "usage_report": null,
-  "run_id": "a8848431-3a46-41b6-95ee-c3c54e68c045"
+  "wall_seconds": 0.08,
+  "usage_report": {
+    "schema_version": 2,
+    "scope": "this run only (modules resumed from disk cost nothing)",
+    "currency": "USD",
+    "cost_status": "complete",
+    "incomplete": false,
+    "unknown_usage_calls": 0,
+    "n_calls": 0,
+    "totals": {
+      "cost_usd": 0.0
+    },
+    "by_phase": {},
+    "by_model": {},
+    "unpriced_models": [],
+    "calls": []
+  },
+  "run_id": "ff10f7f7-9dd1-4a44-9ef7-3e22ddc3129f"
 }
