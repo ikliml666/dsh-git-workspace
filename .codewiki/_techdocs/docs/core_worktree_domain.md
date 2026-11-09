@@ -6,7 +6,7 @@ description: coreworktreedomain 是 WorktreeandSessionCheckoutDomain 的领域�
 # 核心工作树领域（core_worktree_domain）
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`e9e7bc56`](https://github.com/wloops/dsh-git-worktree/commit/e9e7bc56245c0a0ed26f0eadb11608dad69324ba) on 2026-11-09 with `deepseek-v4.1-flash`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`d1be8933`](https://github.com/wloops/dsh-git-worktree/commit/d1be8933c507c03e2741dc5a222fc4d6813a49d8) on 2026-11-09 with `deepseek-v4.1-flash`. Check the code before relying on details.
 
 ## 简介
 
@@ -474,18 +474,18 @@ flowchart TD
 6. **命令层的 `leave`/`enter` 是对称契约**。任何新增「可能删除 checkout」的动词都必须先 `leave`，并在失败时 `enter` 回退。
 
 ??? abstract "Documented components (14)"
-    - [`canonicalJson`](https://github.com/wloops/dsh-git-worktree/blob/e9e7bc56245c0a0ed26f0eadb11608dad69324ba/src%5Ccheckpoint.ts) — `src\checkpoint.ts`
-    - [`finishedText`](https://github.com/wloops/dsh-git-worktree/blob/e9e7bc56245c0a0ed26f0eadb11608dad69324ba/src%5Ccommands.ts) — `src\commands.ts`
-    - [`isValidCommitMessage`](https://github.com/wloops/dsh-git-worktree/blob/e9e7bc56245c0a0ed26f0eadb11608dad69324ba/src%5Ccommit-message.ts) — `src\commit-message.ts`
-    - [`WorktreeCreationFailure`](https://github.com/wloops/dsh-git-worktree/blob/e9e7bc56245c0a0ed26f0eadb11608dad69324ba/src%5Ccreation-failure.ts) — `src\creation-failure.ts`
-    - [`deliveryExcludePathspecs`](https://github.com/wloops/dsh-git-worktree/blob/e9e7bc56245c0a0ed26f0eadb11608dad69324ba/src%5Cdelivery-excludes.ts) — `src\delivery-excludes.ts`
-    - [`WorkspaceFlavorAnchorDiagnostic`](https://github.com/wloops/dsh-git-worktree/blob/e9e7bc56245c0a0ed26f0eadb11608dad69324ba/src%5Chost-compat.ts) — `src\host-compat.ts`
-    - [`WorkspaceFlavorDiagnostics`](https://github.com/wloops/dsh-git-worktree/blob/e9e7bc56245c0a0ed26f0eadb11608dad69324ba/src%5Chost-compat.ts) — `src\host-compat.ts`
-    - [`ManagedWorktreePathCandidates`](https://github.com/wloops/dsh-git-worktree/blob/e9e7bc56245c0a0ed26f0eadb11608dad69324ba/src%5Cmanaged-worktree-path.ts) — `src\managed-worktree-path.ts`
-    - [`OfficialWorktreeRegistration`](https://github.com/wloops/dsh-git-worktree/blob/e9e7bc56245c0a0ed26f0eadb11608dad69324ba/src%5Cofficial-worktree-registration.ts) — `src\official-worktree-registration.ts`
-    - [`OfficialWorktreeRegistrationDependencies`](https://github.com/wloops/dsh-git-worktree/blob/e9e7bc56245c0a0ed26f0eadb11608dad69324ba/src%5Cofficial-worktree-registration.ts) — `src\official-worktree-registration.ts`
-    - [`Context`](https://github.com/wloops/dsh-git-worktree/blob/e9e7bc56245c0a0ed26f0eadb11608dad69324ba/src%5Cworkspace-provider-lifecycle.ts) — `src\workspace-provider-lifecycle.ts`
-    - [`WorkspaceProviderLifecycleOptions`](https://github.com/wloops/dsh-git-worktree/blob/e9e7bc56245c0a0ed26f0eadb11608dad69324ba/src%5Cworkspace-provider-lifecycle.ts) — `src\workspace-provider-lifecycle.ts`
-    - [`WorkspaceProviderLifecycleResult`](https://github.com/wloops/dsh-git-worktree/blob/e9e7bc56245c0a0ed26f0eadb11608dad69324ba/src%5Cworkspace-provider-lifecycle.ts) — `src\workspace-provider-lifecycle.ts`
-    - [`WorktreeCreationResult`](https://github.com/wloops/dsh-git-worktree/blob/e9e7bc56245c0a0ed26f0eadb11608dad69324ba/src%5Cworktree-creation.ts) — `src\worktree-creation.ts`
+    - [`canonicalJson`](https://github.com/wloops/dsh-git-worktree/blob/d1be8933c507c03e2741dc5a222fc4d6813a49d8/src%5Ccheckpoint.ts) — `src\checkpoint.ts`
+    - [`finishedText`](https://github.com/wloops/dsh-git-worktree/blob/d1be8933c507c03e2741dc5a222fc4d6813a49d8/src%5Ccommands.ts) — `src\commands.ts`
+    - [`isValidCommitMessage`](https://github.com/wloops/dsh-git-worktree/blob/d1be8933c507c03e2741dc5a222fc4d6813a49d8/src%5Ccommit-message.ts) — `src\commit-message.ts`
+    - [`WorktreeCreationFailure`](https://github.com/wloops/dsh-git-worktree/blob/d1be8933c507c03e2741dc5a222fc4d6813a49d8/src%5Ccreation-failure.ts) — `src\creation-failure.ts`
+    - [`deliveryExcludePathspecs`](https://github.com/wloops/dsh-git-worktree/blob/d1be8933c507c03e2741dc5a222fc4d6813a49d8/src%5Cdelivery-excludes.ts) — `src\delivery-excludes.ts`
+    - [`WorkspaceFlavorAnchorDiagnostic`](https://github.com/wloops/dsh-git-worktree/blob/d1be8933c507c03e2741dc5a222fc4d6813a49d8/src%5Chost-compat.ts) — `src\host-compat.ts`
+    - [`WorkspaceFlavorDiagnostics`](https://github.com/wloops/dsh-git-worktree/blob/d1be8933c507c03e2741dc5a222fc4d6813a49d8/src%5Chost-compat.ts) — `src\host-compat.ts`
+    - [`ManagedWorktreePathCandidates`](https://github.com/wloops/dsh-git-worktree/blob/d1be8933c507c03e2741dc5a222fc4d6813a49d8/src%5Cmanaged-worktree-path.ts) — `src\managed-worktree-path.ts`
+    - [`OfficialWorktreeRegistration`](https://github.com/wloops/dsh-git-worktree/blob/d1be8933c507c03e2741dc5a222fc4d6813a49d8/src%5Cofficial-worktree-registration.ts) — `src\official-worktree-registration.ts`
+    - [`OfficialWorktreeRegistrationDependencies`](https://github.com/wloops/dsh-git-worktree/blob/d1be8933c507c03e2741dc5a222fc4d6813a49d8/src%5Cofficial-worktree-registration.ts) — `src\official-worktree-registration.ts`
+    - [`Context`](https://github.com/wloops/dsh-git-worktree/blob/d1be8933c507c03e2741dc5a222fc4d6813a49d8/src%5Cworkspace-provider-lifecycle.ts) — `src\workspace-provider-lifecycle.ts`
+    - [`WorkspaceProviderLifecycleOptions`](https://github.com/wloops/dsh-git-worktree/blob/d1be8933c507c03e2741dc5a222fc4d6813a49d8/src%5Cworkspace-provider-lifecycle.ts) — `src\workspace-provider-lifecycle.ts`
+    - [`WorkspaceProviderLifecycleResult`](https://github.com/wloops/dsh-git-worktree/blob/d1be8933c507c03e2741dc5a222fc4d6813a49d8/src%5Cworkspace-provider-lifecycle.ts) — `src\workspace-provider-lifecycle.ts`
+    - [`WorktreeCreationResult`](https://github.com/wloops/dsh-git-worktree/blob/d1be8933c507c03e2741dc5a222fc4d6813a49d8/src%5Cworktree-creation.ts) — `src\worktree-creation.ts`
 
