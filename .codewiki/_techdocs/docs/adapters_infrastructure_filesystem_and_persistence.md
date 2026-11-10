@@ -6,7 +6,7 @@ description: 本页覆盖 src/adapters/files.ts、src/adapters/safe-file.ts、sr
 # 文件系统与持久化适配器（adapters_infrastructure_filesystem_and_persistence）
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`24641287`](https://github.com/wloops/dsh-git-worktree/commit/246412876ab9f4286405ff3f415072012e61fdaa) on 2026-11-10 with `mimo-v2.6-flash`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`25aad6f5`](https://github.com/wloops/dsh-git-worktree/commit/25aad6f588fa2447d07f03a2b03c8174fddd489d) on 2026-11-10 with `mimo-v2.6-flash`. Check the code before relying on details.
 
 本页覆盖 `src/adapters/files.ts`、`src/adapters/safe-file.ts`、`src/adapters/registry.ts` 三个文件：它们是 `dsh-git-worktree` 插件里**唯一被允许直接触碰磁盘的部分**。文件端口把「删除一个目录」变成「先证明这个目录确实是我创建的那个对象」，持久化工具把「写一个 JSON 台账」变成「崩溃后可自愈的原子替换」，注册表适配器则把这两者组合成一份带跨进程互斥与逐条校验的会话检出台账。
 
@@ -335,8 +335,8 @@ flowchart LR
 - **装载方式**：插件通过 `cordis.patch.yml` 插入 `dsh-git-worktree` 条目装载，`apply()` 在挂载时才创建状态目录并实例化 `AtomicJsonCheckoutRegistry`。因此本模块不假设「初始化时目录已存在」，所有写路径都自带 `mkdirSync(recursive: true)`。
 
 ??? abstract "Documented components (4)"
-    - [`createNodeFilesPort`](https://github.com/wloops/dsh-git-worktree/blob/246412876ab9f4286405ff3f415072012e61fdaa/src%5Cadapters%5Cfiles.ts) — `src\adapters\files.ts`
-    - [`AtomicJsonCheckoutRegistry`](https://github.com/wloops/dsh-git-worktree/blob/246412876ab9f4286405ff3f415072012e61fdaa/src%5Cadapters%5Cregistry.ts) — `src\adapters\registry.ts`
-    - [`FileLockOptions`](https://github.com/wloops/dsh-git-worktree/blob/246412876ab9f4286405ff3f415072012e61fdaa/src%5Cadapters%5Csafe-file.ts) — `src\adapters\safe-file.ts`
-    - [`FileLockPayload`](https://github.com/wloops/dsh-git-worktree/blob/246412876ab9f4286405ff3f415072012e61fdaa/src%5Cadapters%5Csafe-file.ts) — `src\adapters\safe-file.ts`
+    - [`createNodeFilesPort`](https://github.com/wloops/dsh-git-worktree/blob/25aad6f588fa2447d07f03a2b03c8174fddd489d/src%5Cadapters%5Cfiles.ts) — `src\adapters\files.ts`
+    - [`AtomicJsonCheckoutRegistry`](https://github.com/wloops/dsh-git-worktree/blob/25aad6f588fa2447d07f03a2b03c8174fddd489d/src%5Cadapters%5Cregistry.ts) — `src\adapters\registry.ts`
+    - [`FileLockOptions`](https://github.com/wloops/dsh-git-worktree/blob/25aad6f588fa2447d07f03a2b03c8174fddd489d/src%5Cadapters%5Csafe-file.ts) — `src\adapters\safe-file.ts`
+    - [`FileLockPayload`](https://github.com/wloops/dsh-git-worktree/blob/25aad6f588fa2447d07f03a2b03c8174fddd489d/src%5Cadapters%5Csafe-file.ts) — `src\adapters\safe-file.ts`
 
