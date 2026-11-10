@@ -67,7 +67,7 @@
             "files": [
                 {
                     "path": "vitest.config.ts",
-                    "bytes": 1292,
+                    "bytes": 1260,
                     "truncated": false,
                     "loaded": true,
                     "units": []

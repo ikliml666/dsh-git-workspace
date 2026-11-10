@@ -1,7 +1,7 @@
 {
-  "started_at": "2026-11-10T10:29:35+0800",
-  "finished_at": "2026-11-10T10:29:36+0800",
-  "outcome": "incremental",
+  "started_at": "2026-11-10T10:41:00+0800",
+  "finished_at": "2026-11-10T10:41:00+0800",
+  "outcome": "no_change",
   "options": {
     "rung": "3",
     "tau_ren": 0.95,
@@ -25,7 +25,7 @@
   },
   "revision": {
     "old_commit": "008b2b619a72c175e6016b0248fff02950b0723d",
-    "new_commit": "c0519b987a8d2be9da0484f7b98e121a5e2f1499",
+    "new_commit": "246412876ab9f4286405ff3f415072012e61fdaa",
     "repo_path": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree"
   },
   "diff": {
@@ -33,99 +33,24 @@
       "added": 0,
       "deleted": 0,
       "interface": 0,
-      "body": 2,
+      "body": 0,
       "edge": 0,
       "renamed": 0
     },
     "added": [],
     "deleted": [],
     "interface": [],
-    "body": [
-      "src\\client\\target-console\\target-console.styles.ts::__file__",
-      "src\\i18n\\client-messages.ts::__file__"
-    ],
+    "body": [],
     "edge": [],
     "renamed": {}
   },
-  "repair": {
-    "renamed": {},
-    "removed": [],
-    "routing": [],
-    "orphans": [],
-    "deleted_nodes": [],
-    "created_leaves": [],
-    "growth": {},
-    "growth_flagged": []
-  },
+  "repair": {},
   "reclustered": [],
-  "reports": {
-    "Client_Presentation_and_Interaction/client_target_console": {
-      "leaf_path": [
-        "Client_Presentation_and_Interaction",
-        "client_target_console"
-      ],
-      "mode": "edit",
-      "own": [
-        "src\\client\\target-console\\target-console.styles.ts::__file__"
-      ],
-      "adopted": {},
-      "up": [],
-      "context": [],
-      "refch": [],
-      "entered": [],
-      "left": [],
-      "children_added": [],
-      "children_removed": [],
-      "reclustered": false,
-      "page": "client_target_console"
-    },
-    "Cross-Cutting_Foundation_and_Public_Surface/i18n": {
-      "leaf_path": [
-        "Cross-Cutting_Foundation_and_Public_Surface",
-        "i18n"
-      ],
-      "mode": "edit",
-      "own": [
-        "src\\i18n\\client-messages.ts::__file__"
-      ],
-      "adopted": {},
-      "up": [],
-      "context": [],
-      "refch": [],
-      "entered": [],
-      "left": [],
-      "children_added": [],
-      "children_removed": [],
-      "reclustered": false,
-      "page": "i18n"
-    }
-  },
+  "reports": {},
   "ownership": [],
-  "active": [
-    {
-      "leaf": "Client_Presentation_and_Interaction/client_target_console",
-      "page": "client_target_console",
-      "mode": "edit",
-      "order": 0
-    },
-    {
-      "leaf": "Cross-Cutting_Foundation_and_Public_Surface/i18n",
-      "page": "i18n",
-      "mode": "edit",
-      "order": 1
-    }
-  ],
+  "active": [],
   "write_sets": {},
-  "fallback": {
-    "r_leaf": 0.09090909090909091,
-    "r_tree": 0.0,
-    "n_active": 2,
-    "n_leaves": 22,
-    "n_structural": 0,
-    "tau_full": 0.5,
-    "tau_tree": 0.3,
-    "fired": false
-  },
+  "fallback": {},
   "verdicts": [],
   "pages_written": [],
   "pages_removed": [],
@@ -134,7 +59,22 @@
   "calls": [],
   "detector_notes": [],
   "errors": [],
-  "wall_seconds": 0.68,
-  "usage_report": null,
-  "run_id": "cf53116a-e3d3-4572-9ddc-6e2d7aa0db0f"
+  "wall_seconds": 0.14,
+  "usage_report": {
+    "schema_version": 2,
+    "scope": "this run only (modules resumed from disk cost nothing)",
+    "currency": "USD",
+    "cost_status": "complete",
+    "incomplete": false,
+    "unknown_usage_calls": 0,
+    "n_calls": 0,
+    "totals": {
+      "cost_usd": 0.0
+    },
+    "by_phase": {},
+    "by_model": {},
+    "unpriced_models": [],
+    "calls": []
+  },
+  "run_id": "30f0f82d-611f-489c-acf0-e2a7250ce555"
 }
