@@ -6,7 +6,7 @@ description: 本页描述 sessioncheckoutengine 的集成核心层：它把纯�
 # Session Checkout 集成核心（session_checkout_integration_core）
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`25aad6f5`](https://github.com/wloops/dsh-git-worktree/commit/25aad6f588fa2447d07f03a2b03c8174fddd489d) on 2026-11-10 with `mimo-v2.6-flash`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`bae4ed9c`](https://github.com/wloops/dsh-git-worktree/commit/bae4ed9cc2172114ef03ad69d3adbc5cfe99e4b7) on 2026-11-10 with `mimo-v2.6-flash`. Check the code before relying on details.
 
 本页描述 `session_checkout_engine` 的**集成核心层**：它把纯逻辑的 Apply 引擎（`src/session-checkout-apply.ts`）与 DSH 宿主真正接起来，负责「会话 ↔ 项目 ↔ 受管 Worktree」三者的绑定关系、台账（registry）持久化、乐观并发（revision CAS）与全局互斥、崩溃收敛（reconcile）、交付/清理生命周期，以及向模型注入**动态会话目标上下文**、在会话走进官方 Worktree 时自动登记。
 
@@ -481,6 +481,6 @@ stateDiagram-v2
 7. **类型严格度**：`tsconfig.json` 启用了 `strict` + `noUncheckedIndexedAccess`，因此代码中大量 `record.checkpoints!` / `[index]!` 断言是有意为之，重构时不要盲目移除。
 
 ??? abstract "Documented components (2)"
-    - [`ResolvedSessionProject`](https://github.com/wloops/dsh-git-worktree/blob/25aad6f588fa2447d07f03a2b03c8174fddd489d/src%5Csession-checkout-module.ts) — `src\session-checkout-module.ts`
-    - [`ContextAgent`](https://github.com/wloops/dsh-git-worktree/blob/25aad6f588fa2447d07f03a2b03c8174fddd489d/src%5Csession-target-context.ts) — `src\session-target-context.ts`
+    - [`ResolvedSessionProject`](https://github.com/wloops/dsh-git-worktree/blob/bae4ed9cc2172114ef03ad69d3adbc5cfe99e4b7/src%5Csession-checkout-module.ts) — `src\session-checkout-module.ts`
+    - [`ContextAgent`](https://github.com/wloops/dsh-git-worktree/blob/bae4ed9cc2172114ef03ad69d3adbc5cfe99e4b7/src%5Csession-target-context.ts) — `src\session-target-context.ts`
 
