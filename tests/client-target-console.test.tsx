@@ -320,7 +320,7 @@ describe('Harness-native Session Target slots', () => {
 
     const trigger = await screen.findByRole('button', { name: 'Session Target：Worktree · 待验收' })
     fireEvent.click(trigger)
-    await waitFor(() => expect(screen.getByText('本地分支')).toBeTruthy())
+    await waitFor(() => expect(screen.getByPlaceholderText('搜索分支…')).toBeTruthy())
     const search = await screen.findByPlaceholderText('搜索分支…')
     expect(screen.getByText('feature/topic-13')).toBeTruthy()
 
@@ -382,7 +382,7 @@ describe('Harness-native Session Target slots', () => {
 
     const trigger = await screen.findByRole('button', { name: 'Session Target：Worktree · 待验收' })
     fireEvent.click(trigger)
-    await waitFor(() => expect(screen.getByText('本地分支')).toBeTruthy())
+    await waitFor(() => expect(screen.getByPlaceholderText('搜索分支…')).toBeTruthy())
     fireEvent.click(await screen.findByText('feature'))
 
     await waitFor(() => expect(screen.getByText('切换分支被阻止')).toBeTruthy())
@@ -405,8 +405,7 @@ describe('Harness-native Session Target slots', () => {
 
     const trigger = await screen.findByRole('button', { name: 'Session Target：Worktree · 待验收' })
     fireEvent.click(trigger)
-    await waitFor(() => expect(screen.getByText('本地分支')).toBeTruthy())
-    expect(screen.getByPlaceholderText('搜索分支…')).toBeTruthy()
+    await waitFor(() => expect(screen.getByPlaceholderText('搜索分支…')).toBeTruthy())
     expect(screen.getByText('main')).toBeTruthy()
     // ZCode shows the dirty count on the checked-out branch rather than on the
     // section heading; the fixture's target is dirty.
@@ -420,7 +419,7 @@ describe('Harness-native Session Target slots', () => {
 
     const trigger = await screen.findByRole('button', { name: 'Session Target：Worktree · 待验收' })
     fireEvent.click(trigger)
-    await waitFor(() => expect(screen.getByText('本地分支')).toBeTruthy())
+    await waitFor(() => expect(screen.getByPlaceholderText('搜索分支…')).toBeTruthy())
     fireEvent.click(screen.getByText('新建分支'))
     await waitFor(() => expect(screen.getByText('基于当前 HEAD 创建并切换到新的本地分支。')).toBeTruthy())
     fireEvent.change(screen.getByPlaceholderText('分支名，例如 feat/my-feature'), { target: { value: 'feat/next' } })
@@ -428,6 +427,34 @@ describe('Harness-native Session Target slots', () => {
 
     await waitFor(() => expect(fixture.calls.some(call => call.method === 'gitCreateBranchAndSwitch')).toBe(true))
     await waitFor(() => expect(screen.getByText('已创建并切换到 feat/next')).toBeTruthy())
+  })
+
+  test('分支列表按「当前分支 / 其它分支」分组，当前分支行在各自分组里只有一条', async () => {
+    const fixture = createWorktreeConsoleAdapterFixture()
+    invalidateBranchOverview('target-session')
+    fixture.adapter.gitOverview = vi.fn(async () => ({
+      ok: true,
+      value: {
+        root: '/fixture/project',
+        branch: 'main',
+        headOid: 'b'.repeat(40),
+        branches: [
+          { name: 'feature/a', oid: 'a'.repeat(40), isCurrent: false, upstream: null },
+          { name: 'main', oid: 'b'.repeat(40), isCurrent: true, upstream: 'origin/main' },
+          { name: 'feature/b', oid: 'c'.repeat(40), isCurrent: false, upstream: null },
+        ],
+        dirtyCount: 0,
+      },
+    }))
+    render(<TargetStatusAction sessionId="target-session" adapter={fixture.adapter} services={clientServices()} />)
+
+    const trigger = await screen.findByRole('button', { name: 'Session Target：Worktree · 待验收' })
+    fireEvent.click(trigger)
+    await waitFor(() => expect(screen.getByText('当前分支')).toBeTruthy())
+    expect(screen.getByText('其它分支')).toBeTruthy()
+    expect(screen.getAllByText('main')).toHaveLength(1)
+    expect(screen.getByText('feature/a')).toBeTruthy()
+    expect(screen.getByText('feature/b')).toBeTruthy()
   })
 
   test('提交图谱里点某行的打标签按钮会把该 commit 作为 target 打开标签弹层', async () => {

@@ -166,7 +166,6 @@ export const TARGET_CONSOLE_STYLES = String.raw`
 .dsh-wtc-task-name { min-width:0; overflow-wrap:anywhere; font-weight:500; }
 .dsh-wtc-facts .dsh-wtc-checkout-id { font-size:11px; overflow-wrap:anywhere; }
 .dsh-wtc-target-branch { min-width:0; max-width:220px; overflow:hidden; text-overflow:ellipsis; }
-.dsh-wtc-branches-title { display:flex; align-items:center; gap:6px; font-size:10px; font-weight:720; letter-spacing:.08em; text-transform:uppercase; color:color-mix(in srgb, currentColor 55%, transparent); }
 .dsh-wtc-branches-more { font-size:11px; color:color-mix(in srgb, currentColor 55%, transparent); }
 .dsh-wtc-branch-search { display:block; }
 .dsh-wtc-branch-search input { width:100%; box-sizing:border-box; padding:4px 8px; border:1px solid color-mix(in srgb, currentColor 22%, transparent); border-radius:6px; background:color-mix(in srgb, currentColor 6%, transparent); color:inherit; font-size:12px; }

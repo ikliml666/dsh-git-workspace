@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Menu, Modal, type MenuEntry } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {
   WorktreeConsoleAdapter,
+  WorktreeConsoleGitBranch,
   WorktreeConsoleGitOverviewResponse,
   WorktreeConsoleGitPruneResponse,
   WorktreeConsoleGitSwitchIssue,
@@ -697,6 +698,25 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
   const currentBranchDirtyLabel = overview === null || overview.dirtyCount === 0
     ? null
     : overview.dirtyCount < 0 ? t("branch.dirty.unknown") : t("branch.dirty.current", { p0: overview.dirtyCount })
+  // ZCode groups the list: the checked-out branch sits alone under its own
+  // heading, so "where am I" never depends on scanning for bold text. A
+  // detached HEAD has no current row and keeps the bare list heading.
+  const currentVisibleBranch = visibleBranches.find(branch => branch.isCurrent) ?? null
+  const otherVisibleBranches = visibleBranches.filter(branch => !branch.isCurrent)
+  const showBranchSections = currentVisibleBranch !== null && otherVisibleBranches.length > 0
+  const branchRow = (branch: WorktreeConsoleGitBranch): MenuEntry => ({
+    id: `branch:${branch.name}`,
+    icon: <ReviewIcon name="branch" />,
+    label: (
+      <span className="dsh-wtc-branch-item" data-branch-current={branch.isCurrent ? '' : undefined} title={branch.name}>
+        <span className="dsh-wtc-branch-name">{branch.name}</span>
+        {branch.name === sessionBranch && !branch.isCurrent ? <span className="dsh-wtc-branch-session">{t("branch.session.badge")}</span> : null}
+        {branch.upstream ? <span className="dsh-wtc-branch-upstream">{branch.upstream}</span> : null}
+        {branch.isCurrent && currentBranchDirtyLabel !== null ? <span className="dsh-wtc-branch-dirty">{currentBranchDirtyLabel}</span> : null}
+      </span>
+    ),
+    disabled: branch.isCurrent || pendingAction !== null,
+  })
 
   // A non-Git project has no branches, tags or review target to act on: offering
   // those rows would just fail on click. Its only real action is the conversion.
@@ -707,7 +727,11 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
   ] : [
     { id: 'summary', label: summary, disabled: true },
     { type: 'separator', id: 'summary-separator' },
-    ...(overviewBranches.length > 0 && overview !== null ? [{ id: 'branches-title', label: <span className="dsh-wtc-branches-title">{t("branch.list.title")}</span>, disabled: true } satisfies MenuEntry] : []),
+    // A single flat list still needs a caption; the grouped form replaces it
+    // with one heading per section (see branchSection below).
+    ...(overviewBranches.length > 0 && !showBranchSections
+      ? [{ type: 'label' as const, id: 'branches-title', text: t("branch.list.title") }]
+      : []),
     { id: 'branch-search', disabled: true, label: (
       <span className="dsh-wtc-branch-search">
         <input
@@ -735,19 +759,16 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
       </span>
     ) } satisfies MenuEntry,
     ...(query !== '' && matchedBranches.length === 0 ? [{ id: 'branch-search-empty', label: <span className="dsh-wtc-branches-more">{t("branch.search.empty")}</span>, disabled: true } satisfies MenuEntry] : []),
-    ...visibleBranches.map(branch => ({
-      id: `branch:${branch.name}`,
-      icon: <ReviewIcon name="branch" />,
-      label: (
-        <span className="dsh-wtc-branch-item" data-branch-current={branch.isCurrent ? '' : undefined} title={branch.name}>
-          <span className="dsh-wtc-branch-name">{branch.name}</span>
-          {branch.name === sessionBranch && !branch.isCurrent ? <span className="dsh-wtc-branch-session">{t("branch.session.badge")}</span> : null}
-          {branch.upstream ? <span className="dsh-wtc-branch-upstream">{branch.upstream}</span> : null}
-          {branch.isCurrent && currentBranchDirtyLabel !== null ? <span className="dsh-wtc-branch-dirty">{currentBranchDirtyLabel}</span> : null}
-        </span>
-      ),
-      disabled: branch.isCurrent || pendingAction !== null,
-    }) satisfies MenuEntry),
+    // The picker's heading only exists where it carries meaning: one named
+    // heading per section when the list is split, a single caption otherwise.
+    ...(showBranchSections && currentVisibleBranch !== null
+      ? [
+        { type: 'label' as const, id: 'branches-current-title', text: t("branch.list.current") },
+        branchRow(currentVisibleBranch),
+        { type: 'label' as const, id: 'branches-others-title', text: t("branch.list.others") },
+        ...otherVisibleBranches.map(branchRow),
+      ]
+      : visibleBranches.map(branchRow)),
     ...(hiddenBranchCount > 0 ? [{ id: 'branches-more', label: <span className="dsh-wtc-branches-more">{t("branch.list.more", { p0: hiddenBranchCount })}</span>, disabled: true } satisfies MenuEntry] : []),
     ...(overviewBranches.length > 0 ? [{ type: 'separator' as const, id: 'branches-separator' }] : []),
     { id: 'create_branch', icon: <ReviewIcon name="create" />, label: t("branch.create.title"), disabled: pendingAction !== null },

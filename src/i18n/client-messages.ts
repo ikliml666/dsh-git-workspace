@@ -983,6 +983,14 @@ export const clientMessages = {
     "zh": "本地分支",
     "en": "Local branches"
   },
+  "branch.list.current": {
+    "zh": "当前分支",
+    "en": "Current branch"
+  },
+  "branch.list.others": {
+    "zh": "其它分支",
+    "en": "Other branches"
+  },
   "branch.list.more": {
     "zh": "还有 {p0} 个分支未显示",
     "en": "{p0} more branches not shown"

@@ -28,9 +28,10 @@
   - **新建分支即创建并切换**：端口 `createLocalBranch`（`git branch name HEAD`）改为 `createAndSwitchLocalBranch`（`git switch -c name`），RPC `gitCreateBranch` 更名为 `gitCreateBranchAndSwitch`；成功后胶囊提示「已创建并切换到 <分支>」并立即刷新分支列表与胶囊标签。创建并切换同样移动 Local HEAD，因此与切分支共用交付基线守卫（另一个会话正在该 Local 上交付时拒绝）。
   - **搜索框常驻**：不再只在分支超过 12 条时出现；未输入时列表保留 12 条上限，输入后全量过滤。
   - **未提交改动归位**：dirty 计数从「本地分支」标题移到当前分支行（ZCode 的做法），未知计数仍显示「未提交改动数未知」。
+  - **分支列表分组**：有当前分支且还有其它分支时，拆成「当前分支 / 其它分支」两个 `type: 'label'` 分组标题（官方 Menu 原语的分组条目，不是伪装的禁用行）；只有当前分支、或 detached HEAD 时退回单列表加一个「本地分支」caption。
   - **切换反馈**：切换进行中胶囊显示旋转图标；被拒绝的原因在胶囊上停留 6 秒——原先只写进已经收起的菜单，用户看不到。
   - **文案**：`branch.create.description/confirm/success` 改为「创建并切换」语义，新增 `branch.create.failed`，删除不再使用的 `branch.dirty.hint`。
-  - 更新测试：`client-target-console.test.tsx` 两项（搜索常驻 + dirty 归位、创建并切换提示）、`console-host.test.ts` 创建并切换的守卫与成功用例。
+  - 更新测试：`client-target-console.test.tsx` 三项（搜索常驻 + dirty 归位、创建并切换提示、分组标题），`console-host.test.ts` 创建并切换的守卫与成功用例。测试改用搜索框而非列表标题作为「菜单已展开」的信号，避免分组标题影响断言。
 
 - 「新建工作树」改为点了就建，不再排队等发消息（2026-11-07）。
   - **为什么改**：上一版照抄官方 forge 面板的语义——客户端只写一条 plugin record，真正的 `git worktree add` 留到 `agent/pre-step` 兑现，理由是「不要为用户还没打算发的消息付一次 checkout 的代价」。实际用起来是多余的：想建树的人点完就在等着，还要再发一条消息才算数，中间那一步只制造困惑。
