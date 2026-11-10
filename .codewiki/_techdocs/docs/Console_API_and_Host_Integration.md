@@ -6,7 +6,7 @@ description: ConsoleAPIandHostIntegration 是插件在 Host 侧控制平面 与 
 # Console_API_and_Host_Integration：控制台 API 与 Host 集成
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`8aa27455`](https://github.com/wloops/dsh-git-worktree/commit/8aa27455a6353c7971bc70bfe6df0e689c17c459) on 2026-11-10 with `mimo-v2.6-flash`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`d549b39a`](https://github.com/wloops/dsh-git-worktree/commit/d549b39a3933a51d282724ef9be7d65e9dd33dde) on 2026-11-10 with `mimo-v2.6-flash`. Check the code before relying on details.
 
 `Console_API_and_Host_Integration` 是插件在 **Host 侧控制平面** 与 **Host/Client 远程契约层** 之间的集成模块。它把 `SessionCheckoutModule` 的领域状态机、端口实现与 `console_contract` 中定义的 JSON DTO 连接起来，向浏览器客户端暴露一组以 `gitWorktree` 为命名空间的 Typert Remote 调用。
 
@@ -130,16 +130,16 @@ sequenceDiagram
 | [Client_Presentation_and_Interaction 模块概览](Client_Presentation_and_Interaction.md) | 客户端轮询、`TargetConsoleContextLike`、侧栏拓扑消费方与 `$mount` 封装 |
 
 ??? abstract "Documented components (12)"
-    - [`WorktreeConsoleControlPlane`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cconsole-host%5Ccontrol-plane.ts) — `src\console-host\control-plane.ts`
-    - [`WorktreeConsoleControlPlaneOptions`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cconsole-host%5Ccontrol-plane.ts) — `src\console-host\control-plane.ts`
-    - [`consoleFailure`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cconsole-host%5Cerrors.ts) — `src\console-host\errors.ts`
-    - [`capabilities`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cconsole-host%5Cprojection.ts) — `src\console-host\projection.ts`
-    - [`WorktreeConsoleService`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cconsole-host%5Cservice.ts) — `src\console-host\service.ts`
-    - [`ReviewIcon`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cclient%5Creview-console%5CReviewIcon.tsx) — `src\client\review-console\ReviewIcon.tsx`
-    - [`requestWorktreeReviewRefresh`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cclient%5Creview-console%5Cstatus-events.ts) — `src\client\review-console\status-events.ts`
-    - [`descriptor`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cconsole-remote%5Cdescriptors.ts) — `src\console-remote\descriptors.ts`
-    - [`TypertRemoteMap`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cconsole-remote%5Cremote.ts) — `src\console-remote\remote.ts`
-    - [`TypertRemoteNamespaceMap`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cconsole-remote%5Cremote.ts) — `src\console-remote\remote.ts`
-    - [`outcomeSchema`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cconsole-remote%5Cschemas.ts) — `src\console-remote\schemas.ts`
-    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cconsole-remote%5Ctypert.ts) — `src\console-remote\typert.ts`
+    - [`WorktreeConsoleControlPlane`](https://github.com/wloops/dsh-git-worktree/blob/d549b39a3933a51d282724ef9be7d65e9dd33dde/src%5Cconsole-host%5Ccontrol-plane.ts) — `src\console-host\control-plane.ts`
+    - [`WorktreeConsoleControlPlaneOptions`](https://github.com/wloops/dsh-git-worktree/blob/d549b39a3933a51d282724ef9be7d65e9dd33dde/src%5Cconsole-host%5Ccontrol-plane.ts) — `src\console-host\control-plane.ts`
+    - [`consoleFailure`](https://github.com/wloops/dsh-git-worktree/blob/d549b39a3933a51d282724ef9be7d65e9dd33dde/src%5Cconsole-host%5Cerrors.ts) — `src\console-host\errors.ts`
+    - [`capabilities`](https://github.com/wloops/dsh-git-worktree/blob/d549b39a3933a51d282724ef9be7d65e9dd33dde/src%5Cconsole-host%5Cprojection.ts) — `src\console-host\projection.ts`
+    - [`WorktreeConsoleService`](https://github.com/wloops/dsh-git-worktree/blob/d549b39a3933a51d282724ef9be7d65e9dd33dde/src%5Cconsole-host%5Cservice.ts) — `src\console-host\service.ts`
+    - [`ReviewIcon`](https://github.com/wloops/dsh-git-worktree/blob/d549b39a3933a51d282724ef9be7d65e9dd33dde/src%5Cclient%5Creview-console%5CReviewIcon.tsx) — `src\client\review-console\ReviewIcon.tsx`
+    - [`requestWorktreeReviewRefresh`](https://github.com/wloops/dsh-git-worktree/blob/d549b39a3933a51d282724ef9be7d65e9dd33dde/src%5Cclient%5Creview-console%5Cstatus-events.ts) — `src\client\review-console\status-events.ts`
+    - [`descriptor`](https://github.com/wloops/dsh-git-worktree/blob/d549b39a3933a51d282724ef9be7d65e9dd33dde/src%5Cconsole-remote%5Cdescriptors.ts) — `src\console-remote\descriptors.ts`
+    - [`TypertRemoteMap`](https://github.com/wloops/dsh-git-worktree/blob/d549b39a3933a51d282724ef9be7d65e9dd33dde/src%5Cconsole-remote%5Cremote.ts) — `src\console-remote\remote.ts`
+    - [`TypertRemoteNamespaceMap`](https://github.com/wloops/dsh-git-worktree/blob/d549b39a3933a51d282724ef9be7d65e9dd33dde/src%5Cconsole-remote%5Cremote.ts) — `src\console-remote\remote.ts`
+    - [`outcomeSchema`](https://github.com/wloops/dsh-git-worktree/blob/d549b39a3933a51d282724ef9be7d65e9dd33dde/src%5Cconsole-remote%5Cschemas.ts) — `src\console-remote\schemas.ts`
+    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/d549b39a3933a51d282724ef9be7d65e9dd33dde/src%5Cconsole-remote%5Ctypert.ts) — `src\console-remote\typert.ts`
 
