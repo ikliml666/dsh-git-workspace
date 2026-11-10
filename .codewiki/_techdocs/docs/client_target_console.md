@@ -6,7 +6,7 @@ description: clienttargetconsole 是 dsh-git-worktree 在 DSH Client（浏览器
 # 会话目标胶囊与工作树控制台（client_target_console）
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`949755de`](https://github.com/wloops/dsh-git-worktree/commit/949755de4275898cf687b68b8971e2961deb1398) on 2026-11-10 with `mimo-v2.6-flash`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`d2e564da`](https://github.com/wloops/dsh-git-worktree/commit/d2e564da3f02d8dd8750e589cff38ee45f31861b) on 2026-11-10 with `mimo-v2.6-flash`. Check the code before relying on details.
 
 `client_target_console` 是 `dsh-git-worktree` 在 DSH Client（浏览器 / 渲染进程）中**面向用户的唯一主界面**。它把 Host 侧的托管工作树台账渲染成一个「会话目标胶囊（Session Target capsule）」、一个可弹出的分支/工作树菜单、一个托管工作树管理面板，以及三个围绕 Git 的模态框（提交图、标签管理、分支清理）。
 
@@ -443,18 +443,18 @@ flowchart LR
 | [build_deployment_configuration：构建、打包与发布部署配置](build_deployment_configuration.md) | `vitest` / `tsdown` / `tsconfig` 对本模块的打包与测试约束 |
 
 ??? abstract "Documented components (14)"
-    - [`BranchGraphModalProps`](https://github.com/wloops/dsh-git-worktree/blob/949755de4275898cf687b68b8971e2961deb1398/src%5Cclient%5Ctarget-console%5CBranchGraphModal.tsx) — `src\client\target-console\BranchGraphModal.tsx`
-    - [`GraphEdge`](https://github.com/wloops/dsh-git-worktree/blob/949755de4275898cf687b68b8971e2961deb1398/src%5Cclient%5Ctarget-console%5CBranchGraphModal.tsx) — `src\client\target-console\BranchGraphModal.tsx`
-    - [`GraphRefBadge`](https://github.com/wloops/dsh-git-worktree/blob/949755de4275898cf687b68b8971e2961deb1398/src%5Cclient%5Ctarget-console%5CBranchGraphModal.tsx) — `src\client\target-console\BranchGraphModal.tsx`
-    - [`GraphRowLanes`](https://github.com/wloops/dsh-git-worktree/blob/949755de4275898cf687b68b8971e2961deb1398/src%5Cclient%5Ctarget-console%5CBranchGraphModal.tsx) — `src\client\target-console\BranchGraphModal.tsx`
-    - [`TagManagerModalProps`](https://github.com/wloops/dsh-git-worktree/blob/949755de4275898cf687b68b8971e2961deb1398/src%5Cclient%5Ctarget-console%5CTagManagerModal.tsx) — `src\client\target-console\TagManagerModal.tsx`
-    - [`TargetStatusActionProps`](https://github.com/wloops/dsh-git-worktree/blob/949755de4275898cf687b68b8971e2961deb1398/src%5Cclient%5Ctarget-console%5CTargetStatusAction.tsx) — `src\client\target-console\TargetStatusAction.tsx`
-    - [`WorktreeConsoleViewProps`](https://github.com/wloops/dsh-git-worktree/blob/949755de4275898cf687b68b8971e2961deb1398/src%5Cclient%5Ctarget-console%5CWorktreeConsoleView.tsx) — `src\client\target-console\WorktreeConsoleView.tsx`
-    - [`WorktreeHeroChipProps`](https://github.com/wloops/dsh-git-worktree/blob/949755de4275898cf687b68b8971e2961deb1398/src%5Cclient%5Ctarget-console%5CWorktreeHeroChip.tsx) — `src\client\target-console\WorktreeHeroChip.tsx`
-    - [`WorktreeManagerModalProps`](https://github.com/wloops/dsh-git-worktree/blob/949755de4275898cf687b68b8971e2961deb1398/src%5Cclient%5Ctarget-console%5CWorktreeManagerModal.tsx) — `src\client\target-console\WorktreeManagerModal.tsx`
-    - [`bumpEpoch`](https://github.com/wloops/dsh-git-worktree/blob/949755de4275898cf687b68b8971e2961deb1398/src%5Cclient%5Ctarget-console%5Cbranch-overview-cache.ts) — `src\client\target-console\branch-overview-cache.ts`
-    - [`Poll`](https://github.com/wloops/dsh-git-worktree/blob/949755de4275898cf687b68b8971e2961deb1398/src%5Cclient%5Ctarget-console%5Ccurrent-polling.ts) — `src\client\target-console\current-polling.ts`
-    - [`TargetConsoleContextLike`](https://github.com/wloops/dsh-git-worktree/blob/949755de4275898cf687b68b8971e2961deb1398/src%5Cclient%5Ctarget-console%5Cindex.ts) — `src\client\target-console\index.ts`
-    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/949755de4275898cf687b68b8971e2961deb1398/src%5Cclient%5Ctarget-console%5Ctarget-console.styles.ts) — `src\client\target-console\target-console.styles.ts`
-    - [`SwitchBranchAssistModalProps`](https://github.com/wloops/dsh-git-worktree/blob/949755de4275898cf687b68b8971e2961deb1398/src%5Cclient%5Ctarget-console%5CSwitchBranchAssistModal.tsx) — `src\client\target-console\SwitchBranchAssistModal.tsx`
+    - [`BranchGraphModalProps`](https://github.com/wloops/dsh-git-worktree/blob/d2e564da3f02d8dd8750e589cff38ee45f31861b/src%5Cclient%5Ctarget-console%5CBranchGraphModal.tsx) — `src\client\target-console\BranchGraphModal.tsx`
+    - [`GraphEdge`](https://github.com/wloops/dsh-git-worktree/blob/d2e564da3f02d8dd8750e589cff38ee45f31861b/src%5Cclient%5Ctarget-console%5CBranchGraphModal.tsx) — `src\client\target-console\BranchGraphModal.tsx`
+    - [`GraphRefBadge`](https://github.com/wloops/dsh-git-worktree/blob/d2e564da3f02d8dd8750e589cff38ee45f31861b/src%5Cclient%5Ctarget-console%5CBranchGraphModal.tsx) — `src\client\target-console\BranchGraphModal.tsx`
+    - [`GraphRowLanes`](https://github.com/wloops/dsh-git-worktree/blob/d2e564da3f02d8dd8750e589cff38ee45f31861b/src%5Cclient%5Ctarget-console%5CBranchGraphModal.tsx) — `src\client\target-console\BranchGraphModal.tsx`
+    - [`TagManagerModalProps`](https://github.com/wloops/dsh-git-worktree/blob/d2e564da3f02d8dd8750e589cff38ee45f31861b/src%5Cclient%5Ctarget-console%5CTagManagerModal.tsx) — `src\client\target-console\TagManagerModal.tsx`
+    - [`TargetStatusActionProps`](https://github.com/wloops/dsh-git-worktree/blob/d2e564da3f02d8dd8750e589cff38ee45f31861b/src%5Cclient%5Ctarget-console%5CTargetStatusAction.tsx) — `src\client\target-console\TargetStatusAction.tsx`
+    - [`WorktreeConsoleViewProps`](https://github.com/wloops/dsh-git-worktree/blob/d2e564da3f02d8dd8750e589cff38ee45f31861b/src%5Cclient%5Ctarget-console%5CWorktreeConsoleView.tsx) — `src\client\target-console\WorktreeConsoleView.tsx`
+    - [`WorktreeHeroChipProps`](https://github.com/wloops/dsh-git-worktree/blob/d2e564da3f02d8dd8750e589cff38ee45f31861b/src%5Cclient%5Ctarget-console%5CWorktreeHeroChip.tsx) — `src\client\target-console\WorktreeHeroChip.tsx`
+    - [`WorktreeManagerModalProps`](https://github.com/wloops/dsh-git-worktree/blob/d2e564da3f02d8dd8750e589cff38ee45f31861b/src%5Cclient%5Ctarget-console%5CWorktreeManagerModal.tsx) — `src\client\target-console\WorktreeManagerModal.tsx`
+    - [`bumpEpoch`](https://github.com/wloops/dsh-git-worktree/blob/d2e564da3f02d8dd8750e589cff38ee45f31861b/src%5Cclient%5Ctarget-console%5Cbranch-overview-cache.ts) — `src\client\target-console\branch-overview-cache.ts`
+    - [`Poll`](https://github.com/wloops/dsh-git-worktree/blob/d2e564da3f02d8dd8750e589cff38ee45f31861b/src%5Cclient%5Ctarget-console%5Ccurrent-polling.ts) — `src\client\target-console\current-polling.ts`
+    - [`TargetConsoleContextLike`](https://github.com/wloops/dsh-git-worktree/blob/d2e564da3f02d8dd8750e589cff38ee45f31861b/src%5Cclient%5Ctarget-console%5Cindex.ts) — `src\client\target-console\index.ts`
+    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/d2e564da3f02d8dd8750e589cff38ee45f31861b/src%5Cclient%5Ctarget-console%5Ctarget-console.styles.ts) — `src\client\target-console\target-console.styles.ts`
+    - [`SwitchBranchAssistModalProps`](https://github.com/wloops/dsh-git-worktree/blob/d2e564da3f02d8dd8750e589cff38ee45f31861b/src%5Cclient%5Ctarget-console%5CSwitchBranchAssistModal.tsx) — `src\client\target-console\SwitchBranchAssistModal.tsx`
 
