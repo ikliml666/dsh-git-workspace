@@ -6,7 +6,7 @@ description: sessioncheckoutengineintegration 是 session-checkout 领域的宿�
 # session_checkout_engine_integration 模块概览
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`ac1d0188`](https://github.com/wloops/dsh-git-worktree/commit/ac1d018827f3ec9b3dbea6724d8fa5f78586bb33) on 2026-11-10 with `mimo-v2.6-flash`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`0affdb02`](https://github.com/wloops/dsh-git-worktree/commit/0affdb0254d118a994d0b51b69779589a3f84406) on 2026-11-10 with `mimo-v2.6-flash`. Check the code before relying on details.
 
 `session_checkout_engine_integration` 是 session-checkout 领域的**宿主集成层**。它把纯逻辑的 Apply 引擎与 DSH 宿主连接起来，负责会话、项目与受管 Worktree 之间的绑定状态机、台账持久化与 revision CAS、全局互斥与维护旁路、崩溃收敛、交付与清理生命周期，并通过 `worktree_*` 模型工具、系统提示上下文和官方 Worktree 接管事件，把能力暴露给模型与用户。
 
@@ -184,7 +184,7 @@ sequenceDiagram
 - 领域总览：[Worktree 与会话检出领域（Worktree_and_Session_Checkout_Domain）](Worktree_and_Session_Checkout_Domain.md)
 
 ??? abstract "Documented components (3)"
-    - [`ResolvedSessionProject`](https://github.com/wloops/dsh-git-worktree/blob/ac1d018827f3ec9b3dbea6724d8fa5f78586bb33/src%5Csession-checkout-module.ts) — `src\session-checkout-module.ts`
-    - [`ContextAgent`](https://github.com/wloops/dsh-git-worktree/blob/ac1d018827f3ec9b3dbea6724d8fa5f78586bb33/src%5Csession-target-context.ts) — `src\session-target-context.ts`
-    - [`enterCheckout`](https://github.com/wloops/dsh-git-worktree/blob/ac1d018827f3ec9b3dbea6724d8fa5f78586bb33/src%5Ctools.ts) — `src\tools.ts`
+    - [`ResolvedSessionProject`](https://github.com/wloops/dsh-git-worktree/blob/0affdb0254d118a994d0b51b69779589a3f84406/src%5Csession-checkout-module.ts) — `src\session-checkout-module.ts`
+    - [`ContextAgent`](https://github.com/wloops/dsh-git-worktree/blob/0affdb0254d118a994d0b51b69779589a3f84406/src%5Csession-target-context.ts) — `src\session-target-context.ts`
+    - [`enterCheckout`](https://github.com/wloops/dsh-git-worktree/blob/0affdb0254d118a994d0b51b69779589a3f84406/src%5Ctools.ts) — `src\tools.ts`
 
