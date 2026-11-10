@@ -6,7 +6,7 @@ description: src/adapters/ 是 dsh-git-worktree 插件的基础设施层（infra
 # 适配器与基础设施（adapters_infrastructure）
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`4590253f`](https://github.com/wloops/dsh-git-worktree/commit/4590253f2eed5085260efc337415f413b373e084) on 2026-11-10 with `mimo-v2.6-flash`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`8aa27455`](https://github.com/wloops/dsh-git-worktree/commit/8aa27455a6353c7971bc70bfe6df0e689c17c459) on 2026-11-10 with `mimo-v2.6-flash`. Check the code before relying on details.
 
 ## 模块目的
 
@@ -252,29 +252,29 @@ flowchart LR
 - 本地化消息来源（`hostMessage`）：[i18n：中英双语文案与语言解析基础设施](i18n.md)
 
 ??? abstract "Documented components (25)"
-    - [`createNodeFilesPort`](https://github.com/wloops/dsh-git-worktree/blob/4590253f2eed5085260efc337415f413b373e084/src%5Cadapters%5Cfiles.ts) — `src\adapters\files.ts`
-    - [`GitTimeoutOptions`](https://github.com/wloops/dsh-git-worktree/blob/4590253f2eed5085260efc337415f413b373e084/src%5Cadapters%5Cgit-options.ts) — `src\adapters\git-options.ts`
-    - [`GitCommandResult`](https://github.com/wloops/dsh-git-worktree/blob/4590253f2eed5085260efc337415f413b373e084/src%5Cadapters%5Cgit.ts) — `src\adapters\git.ts`
-    - [`GitPortOptions`](https://github.com/wloops/dsh-git-worktree/blob/4590253f2eed5085260efc337415f413b373e084/src%5Cadapters%5Cgit.ts) — `src\adapters\git.ts`
-    - [`GitCommitProtocol`](https://github.com/wloops/dsh-git-worktree/blob/4590253f2eed5085260efc337415f413b373e084/src%5Cadapters%5Cinitial-commit.ts) — `src\adapters\initial-commit.ts`
-    - [`LiveSessionLike`](https://github.com/wloops/dsh-git-worktree/blob/4590253f2eed5085260efc337415f413b373e084/src%5Cadapters%5Clookup.ts) — `src\adapters\lookup.ts`
-    - [`SessionStoreLike`](https://github.com/wloops/dsh-git-worktree/blob/4590253f2eed5085260efc337415f413b373e084/src%5Cadapters%5Clookup.ts) — `src\adapters\lookup.ts`
-    - [`WorkingDirectoryLike`](https://github.com/wloops/dsh-git-worktree/blob/4590253f2eed5085260efc337415f413b373e084/src%5Cadapters%5Clookup.ts) — `src\adapters\lookup.ts`
-    - [`WorkspaceLike`](https://github.com/wloops/dsh-git-worktree/blob/4590253f2eed5085260efc337415f413b373e084/src%5Cadapters%5Clookup.ts) — `src\adapters\lookup.ts`
-    - [`WorkspaceRegistryLike`](https://github.com/wloops/dsh-git-worktree/blob/4590253f2eed5085260efc337415f413b373e084/src%5Cadapters%5Clookup.ts) — `src\adapters\lookup.ts`
-    - [`SkillBytes`](https://github.com/wloops/dsh-git-worktree/blob/4590253f2eed5085260efc337415f413b373e084/src%5Cadapters%5Cproject-skill-io.ts) — `src\adapters\project-skill-io.ts`
-    - [`SkillRead`](https://github.com/wloops/dsh-git-worktree/blob/4590253f2eed5085260efc337415f413b373e084/src%5Cadapters%5Cproject-skill-io.ts) — `src\adapters\project-skill-io.ts`
-    - [`ClaudeProjectSkillProvider`](https://github.com/wloops/dsh-git-worktree/blob/4590253f2eed5085260efc337415f413b373e084/src%5Cadapters%5Cproject-skill-provider.ts) — `src\adapters\project-skill-provider.ts`
-    - [`Locator`](https://github.com/wloops/dsh-git-worktree/blob/4590253f2eed5085260efc337415f413b373e084/src%5Cadapters%5Cproject-skill-provider.ts) — `src\adapters\project-skill-provider.ts`
-    - [`CarriedSkillState`](https://github.com/wloops/dsh-git-worktree/blob/4590253f2eed5085260efc337415f413b373e084/src%5Cadapters%5Cproject-skills.ts) — `src\adapters\project-skills.ts`
-    - [`Entry`](https://github.com/wloops/dsh-git-worktree/blob/4590253f2eed5085260efc337415f413b373e084/src%5Cadapters%5Cproject-skills.ts) — `src\adapters\project-skills.ts`
-    - [`Manifest`](https://github.com/wloops/dsh-git-worktree/blob/4590253f2eed5085260efc337415f413b373e084/src%5Cadapters%5Cproject-skills.ts) — `src\adapters\project-skills.ts`
-    - [`ProjectSkillStore`](https://github.com/wloops/dsh-git-worktree/blob/4590253f2eed5085260efc337415f413b373e084/src%5Cadapters%5Cproject-skills.ts) — `src\adapters\project-skills.ts`
-    - [`SkillSnapshot`](https://github.com/wloops/dsh-git-worktree/blob/4590253f2eed5085260efc337415f413b373e084/src%5Cadapters%5Cproject-skills.ts) — `src\adapters\project-skills.ts`
-    - [`AtomicJsonCheckoutRegistry`](https://github.com/wloops/dsh-git-worktree/blob/4590253f2eed5085260efc337415f413b373e084/src%5Cadapters%5Cregistry.ts) — `src\adapters\registry.ts`
-    - [`FileLockOptions`](https://github.com/wloops/dsh-git-worktree/blob/4590253f2eed5085260efc337415f413b373e084/src%5Cadapters%5Csafe-file.ts) — `src\adapters\safe-file.ts`
-    - [`FileLockPayload`](https://github.com/wloops/dsh-git-worktree/blob/4590253f2eed5085260efc337415f413b373e084/src%5Cadapters%5Csafe-file.ts) — `src\adapters\safe-file.ts`
-    - [`SessionWorkingDirectoryPort`](https://github.com/wloops/dsh-git-worktree/blob/4590253f2eed5085260efc337415f413b373e084/src%5Cadapters%5Cworking-directory.ts) — `src\adapters\working-directory.ts`
-    - [`WorkingDirectoryServiceLike`](https://github.com/wloops/dsh-git-worktree/blob/4590253f2eed5085260efc337415f413b373e084/src%5Cadapters%5Cworking-directory.ts) — `src\adapters\working-directory.ts`
-    - [`Result`](https://github.com/wloops/dsh-git-worktree/blob/4590253f2eed5085260efc337415f413b373e084/src%5Cadapters%5Cworktree-creation.ts) — `src\adapters\worktree-creation.ts`
+    - [`createNodeFilesPort`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cadapters%5Cfiles.ts) — `src\adapters\files.ts`
+    - [`GitTimeoutOptions`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cadapters%5Cgit-options.ts) — `src\adapters\git-options.ts`
+    - [`GitCommandResult`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cadapters%5Cgit.ts) — `src\adapters\git.ts`
+    - [`GitPortOptions`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cadapters%5Cgit.ts) — `src\adapters\git.ts`
+    - [`GitCommitProtocol`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cadapters%5Cinitial-commit.ts) — `src\adapters\initial-commit.ts`
+    - [`LiveSessionLike`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cadapters%5Clookup.ts) — `src\adapters\lookup.ts`
+    - [`SessionStoreLike`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cadapters%5Clookup.ts) — `src\adapters\lookup.ts`
+    - [`WorkingDirectoryLike`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cadapters%5Clookup.ts) — `src\adapters\lookup.ts`
+    - [`WorkspaceLike`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cadapters%5Clookup.ts) — `src\adapters\lookup.ts`
+    - [`WorkspaceRegistryLike`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cadapters%5Clookup.ts) — `src\adapters\lookup.ts`
+    - [`SkillBytes`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cadapters%5Cproject-skill-io.ts) — `src\adapters\project-skill-io.ts`
+    - [`SkillRead`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cadapters%5Cproject-skill-io.ts) — `src\adapters\project-skill-io.ts`
+    - [`ClaudeProjectSkillProvider`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cadapters%5Cproject-skill-provider.ts) — `src\adapters\project-skill-provider.ts`
+    - [`Locator`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cadapters%5Cproject-skill-provider.ts) — `src\adapters\project-skill-provider.ts`
+    - [`CarriedSkillState`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cadapters%5Cproject-skills.ts) — `src\adapters\project-skills.ts`
+    - [`Entry`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cadapters%5Cproject-skills.ts) — `src\adapters\project-skills.ts`
+    - [`Manifest`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cadapters%5Cproject-skills.ts) — `src\adapters\project-skills.ts`
+    - [`ProjectSkillStore`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cadapters%5Cproject-skills.ts) — `src\adapters\project-skills.ts`
+    - [`SkillSnapshot`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cadapters%5Cproject-skills.ts) — `src\adapters\project-skills.ts`
+    - [`AtomicJsonCheckoutRegistry`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cadapters%5Cregistry.ts) — `src\adapters\registry.ts`
+    - [`FileLockOptions`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cadapters%5Csafe-file.ts) — `src\adapters\safe-file.ts`
+    - [`FileLockPayload`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cadapters%5Csafe-file.ts) — `src\adapters\safe-file.ts`
+    - [`SessionWorkingDirectoryPort`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cadapters%5Cworking-directory.ts) — `src\adapters\working-directory.ts`
+    - [`WorkingDirectoryServiceLike`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cadapters%5Cworking-directory.ts) — `src\adapters\working-directory.ts`
+    - [`Result`](https://github.com/wloops/dsh-git-worktree/blob/8aa27455a6353c7971bc70bfe6df0e689c17c459/src%5Cadapters%5Cworktree-creation.ts) — `src\adapters\worktree-creation.ts`
 
