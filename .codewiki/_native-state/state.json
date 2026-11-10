@@ -2,35 +2,19 @@
   "stateVersion": 1,
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
-    "baseCommit": "2d9fc5b7b01d5a3d7b5c9cf65505ffa3756ff487",
-    "headCommit": "a9a10952e932da187f08e624c8dc8ded482cba07"
+    "baseCommit": "a9a10952e932da187f08e624c8dc8ded482cba07",
+    "headCommit": "69a7b214c64449a55ed392ca8a2ef17d52a8d152"
   },
   "pendingChanges": {
     "state": "ok",
-    "baseCommit": "2d9fc5b7b01d5a3d7b5c9cf65505ffa3756ff487",
-    "headCommit": "a9a10952e932da187f08e624c8dc8ded482cba07",
+    "baseCommit": "a9a10952e932da187f08e624c8dc8ded482cba07",
+    "headCommit": "69a7b214c64449a55ed392ca8a2ef17d52a8d152",
     "committed": [
       "CHANGELOG.md",
-      "src/adapters/git.ts",
-      "src/client/console-remote/adapter.ts",
-      "src/client/target-console/SwitchBranchAssistModal.tsx",
       "src/client/target-console/TargetStatusAction.tsx",
       "src/client/target-console/target-console.styles.ts",
-      "src/console-contract.ts",
-      "src/console-host/control-plane.ts",
-      "src/console-host/errors.ts",
-      "src/console-host/service.ts",
-      "src/console-remote/descriptors.ts",
-      "src/console-remote/remote.ts",
-      "src/console-remote/schemas.ts",
       "src/i18n/client-messages.ts",
-      "src/i18n/host-messages.ts",
-      "src/ports.ts",
-      "tests/client-target-console.test.tsx",
-      "tests/console-host.test.ts",
-      "tests/console-remote.test.ts",
-      "tests/git-switch-issue.test.ts",
-      "tests/support/worktree-console.ts"
+      "tests/client-target-console.test.tsx"
     ],
     "staged": [],
     "unstaged": [],
@@ -49,13 +33,13 @@
   "engineVersion": "2.0.0",
   "scope": "auto",
   "effectiveScope": "stale",
-  "updateOutcome": "no_change",
+  "updateOutcome": "incremental",
   "fallbackReason": "",
   "missingRepair": null,
   "notes": [
-    "工作区未提交改动已合成临时 commit 008b2b619a72（2 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mw9afrao-5-native（40 个文件）",
-    "本轮把 2 个未提交源码改动一并写进产物（快照 008b2b619a72）：__pycache__/cut_helper.cpython-312.pyc、cut_helper.py"
+    "持久化基线 2d9fc5b 与本次 cw 基线 a9a1095 不同（以 cw 基线为准，未消费变化仍会并入）",
+    "工作区未提交改动已合成临时 commit c0519b987a8d（2 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mwa2lskc-0-native（40 个文件）"
   ],
-  "updatedAt": "2026-11-09T13:33:42.468Z"
+  "updatedAt": "2026-11-10T02:29:37.099Z"
 }
