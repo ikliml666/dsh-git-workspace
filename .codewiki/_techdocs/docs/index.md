@@ -6,7 +6,7 @@ description: dsh-git-worktree 是运行在 DeepSeek Harness（DSH）之上的 Gi
 # dsh-git-worktree 仓库概览
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`952b230f`](https://github.com/wloops/dsh-git-worktree/commit/952b230fc1caa9925d497cea768e96d5cc59e7fe) on 2026-11-11 with `mimo-v2.6-flash`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`5b95f640`](https://github.com/wloops/dsh-git-worktree/commit/5b95f640c1b489cd3e1c7dd85445c51573405e3f) on 2026-11-11 with `mimo-v2.6-flash`. Check the code before relying on details.
 
 `dsh-git-worktree` 是运行在 DeepSeek Harness（DSH）之上的 Git Worktree 插件。它的目标是把「会话、项目与受管 Worktree」之间的绑定关系，实现为一套可持久化、可并发、可崩溃恢复的**隔离交付机制**：模型在受管 Worktree 中写代码，结果以可复核、可回滚、可恢复的 Git 事务形式整合回目标分支，而不直接污染用户的本地仓库（Local）。
 
