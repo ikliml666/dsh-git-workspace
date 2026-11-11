@@ -386,12 +386,26 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
     if (record.phase === 'discarded') return { managedRoot: null }
     const reused = observeFromCaller(record, observedCaller)
     if (reused !== undefined) return reused
-    if (options.module.observeManagedCheckout) return options.module.observeManagedCheckout(record.checkoutId)
-    const managedRoot = await options.module.resolveManagedRoot(record.checkoutId)
-    const snapshot = await options.git.inspect(managedRoot)
-    if (snapshot === null) throw domainError('checkout_mismatch', hostMessage('theWorktreeGitIdentityCannotBeVerified'))
-    const status = await options.git.status(managedRoot)
-    return { managedRoot, snapshot, dirty: status.dirty }
+    try {
+      if (options.module.observeManagedCheckout) return await options.module.observeManagedCheckout(record.checkoutId)
+      const managedRoot = await options.module.resolveManagedRoot(record.checkoutId)
+      const snapshot = await options.git.inspect(managedRoot)
+      if (snapshot === null) throw domainError('checkout_mismatch', hostMessage('theWorktreeGitIdentityCannotBeVerified'))
+      const status = await options.git.status(managedRoot)
+      return { managedRoot, snapshot, dirty: status.dirty }
+    } catch (error) {
+      // A delivered record keeps its frozen environment for the retention window,
+      // and that directory can be gone or replaced (Git pruned the worktree
+      // metadata, the user deleted the folder, another tool moved it) while the
+      // ledger still says finalized/retained. Identity validation then fails, and
+      // propagating it turned the whole conversation chip into unavailable right
+      // after worktree_merge — the Session is back at the Local boundary and the
+      // chip must read the branch it actually stands on. Degrading to no
+      // observation is enough: settledLocalBranch supplies the Local branch, while
+      // an undelivered record still fails loudly.
+      if (worktreeReachedDelivery(record.phase, record.delivery.state)) return { managedRoot: null }
+      throw error
+    }
   }
 
   // Retention, permanence and cleanup dispatch delete the frozen directory on disk.

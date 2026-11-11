@@ -74,6 +74,10 @@
 
 ### Fixed
 
+- 合并后胶囊塌成「不可用」，切不回 main（2026-11-11）。
+  - **问题**：`worktree_merge` 把会话分支合进 Local 之后，托管 Worktree 进入 finalized/retained 的冻结期。这期间它的目录可能先不在了或被 Git 剪掉（本机就有一条记录：冻结目录还在，但里面空了、`.git` 文件也没了），于是 `observeManagedCheckout` 的身份校验必然失败，`current` 整个报 `checkout_mismatch`，胶囊退化成「不可用」，菜单里「回到 Local 工作区」也就无处可点。
+  - **修法**：`src/console-host/control-plane.ts` 的 `observe()` 只在**已交付**的记录（`worktreeReachedDelivery`）上把观察失败降级成「无观察」（`managedRoot: null`）。降级后 `settledLocalBranch` 照常给出 Local 当前分支，胶囊显示 `main`；未交付的记录仍然照原样大声失败，不掩盖真实故障。
+  - **配套**：`tests/console-host.test.ts` 新增两项——已交付记录观察失败仍可读（`state: cleanup_pending`、`currentBranch: main`），未交付记录观察失败仍报 `checkout_mismatch`。
 - 官方建的树没能接进台账时用户毫无感知（2026-11-08）。
   - **问题**：`registerOfficialWorktreeAdoption` 的 catch 只写 `console.warn`。那棵树于是永远不进台账，`list` / `deliver` / `cleanup` 对它全部失效，而用户看不到任何提示。
   - **修法**：原因记进会话（`module.recordAdoptionFailure`），`current` 响应携带 `adoptionFailure`，胶囊轮询时显示。客户端只在它非 null 时覆盖 notice——无条件 `setSwitchNotice(null)` 会把「已切换到 xxx」这类短暂提示每 5 秒抹掉一次。

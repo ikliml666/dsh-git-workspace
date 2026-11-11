@@ -1098,6 +1098,75 @@ describe('Worktree Console Host control plane', () => {
     })
   })
 
+  it('keeps a finalized record readable when its frozen directory no longer validates', async () => {
+    // After `worktree_merge` the environment is frozen for retention, and its
+    // directory can be pruned or emptied by Git itself. Identity validation then
+    // fails; the chip must keep naming the Local branch instead of collapsing
+    // into `unavailable` (the reported symptom right after a merge).
+    const finalized = readyRecord()
+    finalized.phase = 'finalized'
+    finalized.revision = 9
+    finalized.delivery = {
+      state: 'finalized', review: readyReviewOf(finalized), commitOid: B, isolatedFingerprint: 'fingerprint-1',
+      finalizedAt: 10, cleanup: 'blocked', cleanupReason: 'identity_changed',
+    }
+    const git = gitDouble()
+    vi.mocked(git.inspect).mockImplementation(async root => ({
+      root, commonDir: '/git/common', gitDir: '/git/worktrees/one',
+      branch: root === '/local' ? 'main' : null,
+      headOid: B, headRef: 'HEAD',
+    }))
+    const lookup = ownerLocalLookup()
+    lookup.getSessionCwd = () => '/local'
+    const { control, module } = plane(finalized, { lookup, git })
+    vi.mocked(module.inspect).mockResolvedValue({
+      ...local('target-session'),
+      checkout: { id: finalized.checkoutId, kind: 'isolated', label: 'Task', phase: 'finalized' },
+      current: { branch: 'main', oid: A },
+      dirty: false,
+      revision: finalized.revision,
+      delivery: { state: 'finalized', iteration: 1, commitOid: B },
+    })
+    module.observeManagedCheckout = vi.fn(async () => {
+      throw Object.assign(new Error('Worktree 目录身份无法验证'), { code: 'checkout_mismatch' })
+    }) as unknown as SessionCheckoutModule['observeManagedCheckout']
+
+    const result = await control.current('target-session')
+
+    expect(result).toMatchObject({
+      ok: true,
+      value: {
+        target: {
+          currentBranch: 'main',
+          state: 'cleanup_pending',
+          managedRoot: null,
+          // 合并后的退路必须还在：胶囊能读、菜单能给回 Local 的入口。
+          capabilities: { returnToLocal: true },
+        },
+      },
+    })
+  })
+
+  it('still reports a vanished undelivered Worktree instead of hiding the failure', async () => {
+    const record = readyRecord()
+    const { control, module } = plane(record)
+    module.observeManagedCheckout = vi.fn(async () => {
+      throw Object.assign(new Error('Worktree 目录身份无法验证'), { code: 'checkout_mismatch' })
+    }) as unknown as SessionCheckoutModule['observeManagedCheckout']
+    // A stale caller view forces the authoritative observation, which is where
+    // the identity failure surfaces for a Worktree that has not been delivered.
+    vi.mocked(module.inspect).mockResolvedValue({
+      ...local('target-session'),
+      checkout: { id: record.checkoutId, kind: 'isolated', label: 'Task', phase: 'ready' },
+      current: { branch: 'feat/live', oid: B },
+      revision: record.revision - 1,
+    })
+
+    const result = await control.current('target-session')
+
+    expect(result).toMatchObject({ ok: false, error: { code: 'checkout_mismatch' } })
+  })
+
   it('uses the fresh registry proof when the caller proof belongs to an older revision', async () => {
     const retained = retainedRecord()
     const currentRecord = {
