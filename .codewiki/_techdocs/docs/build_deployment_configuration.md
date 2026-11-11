@@ -6,7 +6,7 @@ description: builddeploymentconfiguration 不是运行时模块，而是 dsh-git
 # build_deployment_configuration：构建、打包与发布部署配置
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`e2e2ae58`](https://github.com/wloops/dsh-git-worktree/commit/e2e2ae58946431d5e473f2c96c26bdc613b3beda) on 2026-11-11 with `mimo-v2.6-flash`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`1c956b22`](https://github.com/wloops/dsh-git-worktree/commit/1c956b229ea8b0ac790bc7eaeb989d41c9a1a956) on 2026-11-11 with `mimo-v2.6-flash`. Check the code before relying on details.
 
 `build_deployment_configuration` 不是运行时模块，而是 `dsh-git-worktree` 的**交付面（delivery surface）**：它由仓库根目录的清单文件、TypeScript/打包配置、CI 工作流、Host 挂载补丁和若干构建期脚本组成，决定了「源码如何变成 npm 包、包如何被 DSH Host 挂载、什么条件下才允许发布」这三件事。
 
@@ -480,26 +480,26 @@ README「界面预览」章节引用的三张截图的路径清单：
 - [i18n：中英双语文案与语言解析基础设施](i18n.md)：随包发布的 `docs/i18n.md` 描述的语言契约
 
 ??? abstract "Documented components (22)"
-    - [`check`](https://github.com/wloops/dsh-git-worktree/blob/e2e2ae58946431d5e473f2c96c26bdc613b3beda/.github/workflows/ci.yml) — `.github/workflows/ci.yml`
-    - [`ci.yml`](https://github.com/wloops/dsh-git-worktree/blob/e2e2ae58946431d5e473f2c96c26bdc613b3beda/.github/workflows/ci.yml) — `.github/workflows/ci.yml`
-    - [`cordis.patch.yml`](https://github.com/wloops/dsh-git-worktree/blob/e2e2ae58946431d5e473f2c96c26bdc613b3beda/cordis.patch.yml) — `cordis.patch.yml`
-    - [`cut_block`](https://github.com/wloops/dsh-git-worktree/blob/e2e2ae58946431d5e473f2c96c26bdc613b3beda/cut_helper.py) — `cut_helper.py`
-    - [`build`](https://github.com/wloops/dsh-git-worktree/blob/e2e2ae58946431d5e473f2c96c26bdc613b3beda/package.json) — `package.json`
-    - [`check:publish`](https://github.com/wloops/dsh-git-worktree/blob/e2e2ae58946431d5e473f2c96c26bdc613b3beda/package.json) — `package.json`
-    - [`check:publish:release`](https://github.com/wloops/dsh-git-worktree/blob/e2e2ae58946431d5e473f2c96c26bdc613b3beda/package.json) — `package.json`
-    - [`check:sidebar-version`](https://github.com/wloops/dsh-git-worktree/blob/e2e2ae58946431d5e473f2c96c26bdc613b3beda/package.json) — `package.json`
-    - [`dev:dsh`](https://github.com/wloops/dsh-git-worktree/blob/e2e2ae58946431d5e473f2c96c26bdc613b3beda/package.json) — `package.json`
-    - [`dev:dsh:install`](https://github.com/wloops/dsh-git-worktree/blob/e2e2ae58946431d5e473f2c96c26bdc613b3beda/package.json) — `package.json`
-    - [`dev:dsh:remove`](https://github.com/wloops/dsh-git-worktree/blob/e2e2ae58946431d5e473f2c96c26bdc613b3beda/package.json) — `package.json`
-    - [`dev:dsh:smoke`](https://github.com/wloops/dsh-git-worktree/blob/e2e2ae58946431d5e473f2c96c26bdc613b3beda/package.json) — `package.json`
-    - [`package.json`](https://github.com/wloops/dsh-git-worktree/blob/e2e2ae58946431d5e473f2c96c26bdc613b3beda/package.json) — `package.json`
-    - [`prepare`](https://github.com/wloops/dsh-git-worktree/blob/e2e2ae58946431d5e473f2c96c26bdc613b3beda/package.json) — `package.json`
-    - [`prepublishOnly`](https://github.com/wloops/dsh-git-worktree/blob/e2e2ae58946431d5e473f2c96c26bdc613b3beda/package.json) — `package.json`
-    - [`test`](https://github.com/wloops/dsh-git-worktree/blob/e2e2ae58946431d5e473f2c96c26bdc613b3beda/package.json) — `package.json`
-    - [`typecheck`](https://github.com/wloops/dsh-git-worktree/blob/e2e2ae58946431d5e473f2c96c26bdc613b3beda/package.json) — `package.json`
-    - [`pnpm-workspace.yaml`](https://github.com/wloops/dsh-git-worktree/blob/e2e2ae58946431d5e473f2c96c26bdc613b3beda/pnpm-workspace.yaml) — `pnpm-workspace.yaml`
-    - [`screenshots.json`](https://github.com/wloops/dsh-git-worktree/blob/e2e2ae58946431d5e473f2c96c26bdc613b3beda/screenshots.json) — `screenshots.json`
-    - [`tsconfig.json`](https://github.com/wloops/dsh-git-worktree/blob/e2e2ae58946431d5e473f2c96c26bdc613b3beda/tsconfig.json) — `tsconfig.json`
-    - [`defineConfig`](https://github.com/wloops/dsh-git-worktree/blob/e2e2ae58946431d5e473f2c96c26bdc613b3beda/tsdown.config.ts) — `tsdown.config.ts`
-    - [`vitest.config.ts`](https://github.com/wloops/dsh-git-worktree/blob/e2e2ae58946431d5e473f2c96c26bdc613b3beda/vitest.config.ts) — `vitest.config.ts`
+    - [`check`](https://github.com/wloops/dsh-git-worktree/blob/1c956b229ea8b0ac790bc7eaeb989d41c9a1a956/.github/workflows/ci.yml) — `.github/workflows/ci.yml`
+    - [`ci.yml`](https://github.com/wloops/dsh-git-worktree/blob/1c956b229ea8b0ac790bc7eaeb989d41c9a1a956/.github/workflows/ci.yml) — `.github/workflows/ci.yml`
+    - [`cordis.patch.yml`](https://github.com/wloops/dsh-git-worktree/blob/1c956b229ea8b0ac790bc7eaeb989d41c9a1a956/cordis.patch.yml) — `cordis.patch.yml`
+    - [`cut_block`](https://github.com/wloops/dsh-git-worktree/blob/1c956b229ea8b0ac790bc7eaeb989d41c9a1a956/cut_helper.py) — `cut_helper.py`
+    - [`build`](https://github.com/wloops/dsh-git-worktree/blob/1c956b229ea8b0ac790bc7eaeb989d41c9a1a956/package.json) — `package.json`
+    - [`check:publish`](https://github.com/wloops/dsh-git-worktree/blob/1c956b229ea8b0ac790bc7eaeb989d41c9a1a956/package.json) — `package.json`
+    - [`check:publish:release`](https://github.com/wloops/dsh-git-worktree/blob/1c956b229ea8b0ac790bc7eaeb989d41c9a1a956/package.json) — `package.json`
+    - [`check:sidebar-version`](https://github.com/wloops/dsh-git-worktree/blob/1c956b229ea8b0ac790bc7eaeb989d41c9a1a956/package.json) — `package.json`
+    - [`dev:dsh`](https://github.com/wloops/dsh-git-worktree/blob/1c956b229ea8b0ac790bc7eaeb989d41c9a1a956/package.json) — `package.json`
+    - [`dev:dsh:install`](https://github.com/wloops/dsh-git-worktree/blob/1c956b229ea8b0ac790bc7eaeb989d41c9a1a956/package.json) — `package.json`
+    - [`dev:dsh:remove`](https://github.com/wloops/dsh-git-worktree/blob/1c956b229ea8b0ac790bc7eaeb989d41c9a1a956/package.json) — `package.json`
+    - [`dev:dsh:smoke`](https://github.com/wloops/dsh-git-worktree/blob/1c956b229ea8b0ac790bc7eaeb989d41c9a1a956/package.json) — `package.json`
+    - [`package.json`](https://github.com/wloops/dsh-git-worktree/blob/1c956b229ea8b0ac790bc7eaeb989d41c9a1a956/package.json) — `package.json`
+    - [`prepare`](https://github.com/wloops/dsh-git-worktree/blob/1c956b229ea8b0ac790bc7eaeb989d41c9a1a956/package.json) — `package.json`
+    - [`prepublishOnly`](https://github.com/wloops/dsh-git-worktree/blob/1c956b229ea8b0ac790bc7eaeb989d41c9a1a956/package.json) — `package.json`
+    - [`test`](https://github.com/wloops/dsh-git-worktree/blob/1c956b229ea8b0ac790bc7eaeb989d41c9a1a956/package.json) — `package.json`
+    - [`typecheck`](https://github.com/wloops/dsh-git-worktree/blob/1c956b229ea8b0ac790bc7eaeb989d41c9a1a956/package.json) — `package.json`
+    - [`pnpm-workspace.yaml`](https://github.com/wloops/dsh-git-worktree/blob/1c956b229ea8b0ac790bc7eaeb989d41c9a1a956/pnpm-workspace.yaml) — `pnpm-workspace.yaml`
+    - [`screenshots.json`](https://github.com/wloops/dsh-git-worktree/blob/1c956b229ea8b0ac790bc7eaeb989d41c9a1a956/screenshots.json) — `screenshots.json`
+    - [`tsconfig.json`](https://github.com/wloops/dsh-git-worktree/blob/1c956b229ea8b0ac790bc7eaeb989d41c9a1a956/tsconfig.json) — `tsconfig.json`
+    - [`defineConfig`](https://github.com/wloops/dsh-git-worktree/blob/1c956b229ea8b0ac790bc7eaeb989d41c9a1a956/tsdown.config.ts) — `tsdown.config.ts`
+    - [`vitest.config.ts`](https://github.com/wloops/dsh-git-worktree/blob/1c956b229ea8b0ac790bc7eaeb989d41c9a1a956/vitest.config.ts) — `vitest.config.ts`
 

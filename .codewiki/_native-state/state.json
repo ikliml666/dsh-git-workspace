@@ -2,13 +2,13 @@
   "stateVersion": 1,
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
-    "baseCommit": "e081f8b4a24fada09241cc4e11819f03c66cf263",
-    "headCommit": "f07e84cc526814562bb1db41f7b2e3a5441c6762"
+    "baseCommit": "f07e84cc526814562bb1db41f7b2e3a5441c6762",
+    "headCommit": "0fb820b60bd34330ba6fd1ab9b70a76ec8a0593d"
   },
   "pendingChanges": {
     "state": "ok",
-    "baseCommit": "e081f8b4a24fada09241cc4e11819f03c66cf263",
-    "headCommit": "f07e84cc526814562bb1db41f7b2e3a5441c6762",
+    "baseCommit": "f07e84cc526814562bb1db41f7b2e3a5441c6762",
+    "headCommit": "0fb820b60bd34330ba6fd1ab9b70a76ec8a0593d",
     "committed": [],
     "staged": [],
     "unstaged": [],
@@ -31,10 +31,10 @@
   "fallbackReason": "",
   "missingRepair": null,
   "notes": [
-    "持久化基线 9da124e 与本次 cw 基线 e081f8b 不同（以 cw 基线为准，未消费变化仍会并入）",
-    "工作区未提交改动已合成临时 commit e2e2ae589464（2 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mwbm22rz-0-native（40 个文件）",
-    "本轮把 2 个未提交源码改动一并写进产物（快照 e2e2ae589464）：__pycache__/cut_helper.cpython-312.pyc、cut_helper.py"
+    "持久化基线 e081f8b 与本次 cw 基线 f07e84c 不同（以 cw 基线为准，未消费变化仍会并入）",
+    "工作区未提交改动已合成临时 commit 1c956b229ea8（2 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mwbpg1pm-0-native（40 个文件）",
+    "本轮把 2 个未提交源码改动一并写进产物（快照 1c956b229ea8）：__pycache__/cut_helper.cpython-312.pyc、cut_helper.py"
   ],
-  "updatedAt": "2026-11-11T04:21:53.290Z"
+  "updatedAt": "2026-11-11T05:56:40.792Z"
 }
