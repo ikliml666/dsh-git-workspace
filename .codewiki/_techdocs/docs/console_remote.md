@@ -6,7 +6,7 @@ description: src/console-remote/ 是本插件 Host 与 Client 之间唯一的 RP
 # console_remote：控制台远程契约层（Typert Remote）
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`44b0c669`](https://github.com/wloops/dsh-git-worktree/commit/44b0c66969d9ffe7557e7771384b578f7329a153) on 2026-11-11 with `mimo-v2.6-flash`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`ec6cb48d`](https://github.com/wloops/dsh-git-worktree/commit/ec6cb48deddbaf95f32fc1c50532cd0dd1cd81d3) on 2026-11-11 with `mimo-v2.6-flash`. Check the code before relying on details.
 
 `src/console-remote/` 是本插件 Host 与 Client 之间**唯一的 RPC 契约面**。它不实现任何业务逻辑，只做三件事：
 
@@ -370,11 +370,11 @@ flowchart LR
 - [Worktree 与会话检出领域（Worktree_and_Session_Checkout_Domain）](Worktree_and_Session_Checkout_Domain.md) — 状态机与交付/清理语义
 
 ??? abstract "Documented components (7)"
-    - [`ReviewIcon`](https://github.com/wloops/dsh-git-worktree/blob/44b0c66969d9ffe7557e7771384b578f7329a153/src%5Cclient%5Creview-console%5CReviewIcon.tsx) — `src\client\review-console\ReviewIcon.tsx`
-    - [`requestWorktreeReviewRefresh`](https://github.com/wloops/dsh-git-worktree/blob/44b0c66969d9ffe7557e7771384b578f7329a153/src%5Cclient%5Creview-console%5Cstatus-events.ts) — `src\client\review-console\status-events.ts`
-    - [`descriptor`](https://github.com/wloops/dsh-git-worktree/blob/44b0c66969d9ffe7557e7771384b578f7329a153/src%5Cconsole-remote%5Cdescriptors.ts) — `src\console-remote\descriptors.ts`
-    - [`TypertRemoteMap`](https://github.com/wloops/dsh-git-worktree/blob/44b0c66969d9ffe7557e7771384b578f7329a153/src%5Cconsole-remote%5Cremote.ts) — `src\console-remote\remote.ts`
-    - [`TypertRemoteNamespaceMap`](https://github.com/wloops/dsh-git-worktree/blob/44b0c66969d9ffe7557e7771384b578f7329a153/src%5Cconsole-remote%5Cremote.ts) — `src\console-remote\remote.ts`
-    - [`outcomeSchema`](https://github.com/wloops/dsh-git-worktree/blob/44b0c66969d9ffe7557e7771384b578f7329a153/src%5Cconsole-remote%5Cschemas.ts) — `src\console-remote\schemas.ts`
-    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/44b0c66969d9ffe7557e7771384b578f7329a153/src%5Cconsole-remote%5Ctypert.ts) — `src\console-remote\typert.ts`
+    - [`ReviewIcon`](https://github.com/wloops/dsh-git-worktree/blob/ec6cb48deddbaf95f32fc1c50532cd0dd1cd81d3/src%5Cclient%5Creview-console%5CReviewIcon.tsx) — `src\client\review-console\ReviewIcon.tsx`
+    - [`requestWorktreeReviewRefresh`](https://github.com/wloops/dsh-git-worktree/blob/ec6cb48deddbaf95f32fc1c50532cd0dd1cd81d3/src%5Cclient%5Creview-console%5Cstatus-events.ts) — `src\client\review-console\status-events.ts`
+    - [`descriptor`](https://github.com/wloops/dsh-git-worktree/blob/ec6cb48deddbaf95f32fc1c50532cd0dd1cd81d3/src%5Cconsole-remote%5Cdescriptors.ts) — `src\console-remote\descriptors.ts`
+    - [`TypertRemoteMap`](https://github.com/wloops/dsh-git-worktree/blob/ec6cb48deddbaf95f32fc1c50532cd0dd1cd81d3/src%5Cconsole-remote%5Cremote.ts) — `src\console-remote\remote.ts`
+    - [`TypertRemoteNamespaceMap`](https://github.com/wloops/dsh-git-worktree/blob/ec6cb48deddbaf95f32fc1c50532cd0dd1cd81d3/src%5Cconsole-remote%5Cremote.ts) — `src\console-remote\remote.ts`
+    - [`outcomeSchema`](https://github.com/wloops/dsh-git-worktree/blob/ec6cb48deddbaf95f32fc1c50532cd0dd1cd81d3/src%5Cconsole-remote%5Cschemas.ts) — `src\console-remote\schemas.ts`
+    - [`__file__`](https://github.com/wloops/dsh-git-worktree/blob/ec6cb48deddbaf95f32fc1c50532cd0dd1cd81d3/src%5Cconsole-remote%5Ctypert.ts) — `src\console-remote\typert.ts`
 
