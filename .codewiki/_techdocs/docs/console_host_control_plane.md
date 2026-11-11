@@ -6,7 +6,7 @@ description: src/console-host/control-plane.ts 是 Worktree Console 在 Host 侧
 # Worktree Console 控制面（Host 业务编排层）
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`d476e6f7`](https://github.com/wloops/dsh-git-worktree/commit/d476e6f7777d04adcdae9fa4b49cf6cb397e6353) on 2026-11-11 with `mimo-v2.6-flash`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`e2e2ae58`](https://github.com/wloops/dsh-git-worktree/commit/e2e2ae58946431d5e473f2c96c26bdc613b3beda) on 2026-11-11 with `mimo-v2.6-flash`. Check the code before relying on details.
 
 `src/console-host/control-plane.ts` 是 Worktree Console 在 **Host 侧的业务控制面**：它把「远程 RPC 面」与「领域状态机 + 端口」之间的所有判断收拢到一个纯函数式工厂里。对外只暴露一个工厂 `createWorktreeConsoleControlPlane(options)`，返回实现了 `WorktreeConsoleControlPlane` 接口的对象；构造参数的类型是 `WorktreeConsoleControlPlaneOptions`。
 
@@ -448,6 +448,6 @@ flowchart LR
 - 多语言消息：[i18n：中英双语文案与语言解析基础设施](i18n.md)
 
 ??? abstract "Documented components (2)"
-    - [`WorktreeConsoleControlPlane`](https://github.com/wloops/dsh-git-worktree/blob/d476e6f7777d04adcdae9fa4b49cf6cb397e6353/src%5Cconsole-host%5Ccontrol-plane.ts) — `src\console-host\control-plane.ts`
-    - [`WorktreeConsoleControlPlaneOptions`](https://github.com/wloops/dsh-git-worktree/blob/d476e6f7777d04adcdae9fa4b49cf6cb397e6353/src%5Cconsole-host%5Ccontrol-plane.ts) — `src\console-host\control-plane.ts`
+    - [`WorktreeConsoleControlPlane`](https://github.com/wloops/dsh-git-worktree/blob/e2e2ae58946431d5e473f2c96c26bdc613b3beda/src%5Cconsole-host%5Ccontrol-plane.ts) — `src\console-host\control-plane.ts`
+    - [`WorktreeConsoleControlPlaneOptions`](https://github.com/wloops/dsh-git-worktree/blob/e2e2ae58946431d5e473f2c96c26bdc613b3beda/src%5Cconsole-host%5Ccontrol-plane.ts) — `src\console-host\control-plane.ts`
 

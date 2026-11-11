@@ -6,7 +6,7 @@ description: 本页描述 src/adapters/project-skill-io.ts、src/adapters/projec
 # Project Skills 适配器：跨 Worktree 携带与 Claude Skill 提供者
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`d476e6f7`](https://github.com/wloops/dsh-git-worktree/commit/d476e6f7777d04adcdae9fa4b49cf6cb397e6353) on 2026-11-11 with `mimo-v2.6-flash`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`e2e2ae58`](https://github.com/wloops/dsh-git-worktree/commit/e2e2ae58946431d5e473f2c96c26bdc613b3beda) on 2026-11-11 with `mimo-v2.6-flash`. Check the code before relying on details.
 
 本页描述 `src/adapters/project-skill-io.ts`、`src/adapters/project-skills.ts` 与 `src/adapters/project-skill-provider.ts` 三个文件构成的适配器子模块。它的职责是让**项目级 Skill 目录**在「Local Checkout → 受管 Worktree」的跨越中不丢失、不被篡改、不被误判为交付物，并让 Worktree 内的 `.claude/skills` 作为额外 Skill 来源被宿主发现。
 
@@ -394,13 +394,13 @@ flowchart LR
 6. **Provider 不得信任 Skill 文件内的路径**。root 只能来自 `managedSkillRoot` 的台账校验，`Locator` 只作二次一致性比对。
 
 ??? abstract "Documented components (9)"
-    - [`SkillBytes`](https://github.com/wloops/dsh-git-worktree/blob/d476e6f7777d04adcdae9fa4b49cf6cb397e6353/src%5Cadapters%5Cproject-skill-io.ts) — `src\adapters\project-skill-io.ts`
-    - [`SkillRead`](https://github.com/wloops/dsh-git-worktree/blob/d476e6f7777d04adcdae9fa4b49cf6cb397e6353/src%5Cadapters%5Cproject-skill-io.ts) — `src\adapters\project-skill-io.ts`
-    - [`ClaudeProjectSkillProvider`](https://github.com/wloops/dsh-git-worktree/blob/d476e6f7777d04adcdae9fa4b49cf6cb397e6353/src%5Cadapters%5Cproject-skill-provider.ts) — `src\adapters\project-skill-provider.ts`
-    - [`Locator`](https://github.com/wloops/dsh-git-worktree/blob/d476e6f7777d04adcdae9fa4b49cf6cb397e6353/src%5Cadapters%5Cproject-skill-provider.ts) — `src\adapters\project-skill-provider.ts`
-    - [`CarriedSkillState`](https://github.com/wloops/dsh-git-worktree/blob/d476e6f7777d04adcdae9fa4b49cf6cb397e6353/src%5Cadapters%5Cproject-skills.ts) — `src\adapters\project-skills.ts`
-    - [`Entry`](https://github.com/wloops/dsh-git-worktree/blob/d476e6f7777d04adcdae9fa4b49cf6cb397e6353/src%5Cadapters%5Cproject-skills.ts) — `src\adapters\project-skills.ts`
-    - [`Manifest`](https://github.com/wloops/dsh-git-worktree/blob/d476e6f7777d04adcdae9fa4b49cf6cb397e6353/src%5Cadapters%5Cproject-skills.ts) — `src\adapters\project-skills.ts`
-    - [`ProjectSkillStore`](https://github.com/wloops/dsh-git-worktree/blob/d476e6f7777d04adcdae9fa4b49cf6cb397e6353/src%5Cadapters%5Cproject-skills.ts) — `src\adapters\project-skills.ts`
-    - [`SkillSnapshot`](https://github.com/wloops/dsh-git-worktree/blob/d476e6f7777d04adcdae9fa4b49cf6cb397e6353/src%5Cadapters%5Cproject-skills.ts) — `src\adapters\project-skills.ts`
+    - [`SkillBytes`](https://github.com/wloops/dsh-git-worktree/blob/e2e2ae58946431d5e473f2c96c26bdc613b3beda/src%5Cadapters%5Cproject-skill-io.ts) — `src\adapters\project-skill-io.ts`
+    - [`SkillRead`](https://github.com/wloops/dsh-git-worktree/blob/e2e2ae58946431d5e473f2c96c26bdc613b3beda/src%5Cadapters%5Cproject-skill-io.ts) — `src\adapters\project-skill-io.ts`
+    - [`ClaudeProjectSkillProvider`](https://github.com/wloops/dsh-git-worktree/blob/e2e2ae58946431d5e473f2c96c26bdc613b3beda/src%5Cadapters%5Cproject-skill-provider.ts) — `src\adapters\project-skill-provider.ts`
+    - [`Locator`](https://github.com/wloops/dsh-git-worktree/blob/e2e2ae58946431d5e473f2c96c26bdc613b3beda/src%5Cadapters%5Cproject-skill-provider.ts) — `src\adapters\project-skill-provider.ts`
+    - [`CarriedSkillState`](https://github.com/wloops/dsh-git-worktree/blob/e2e2ae58946431d5e473f2c96c26bdc613b3beda/src%5Cadapters%5Cproject-skills.ts) — `src\adapters\project-skills.ts`
+    - [`Entry`](https://github.com/wloops/dsh-git-worktree/blob/e2e2ae58946431d5e473f2c96c26bdc613b3beda/src%5Cadapters%5Cproject-skills.ts) — `src\adapters\project-skills.ts`
+    - [`Manifest`](https://github.com/wloops/dsh-git-worktree/blob/e2e2ae58946431d5e473f2c96c26bdc613b3beda/src%5Cadapters%5Cproject-skills.ts) — `src\adapters\project-skills.ts`
+    - [`ProjectSkillStore`](https://github.com/wloops/dsh-git-worktree/blob/e2e2ae58946431d5e473f2c96c26bdc613b3beda/src%5Cadapters%5Cproject-skills.ts) — `src\adapters\project-skills.ts`
+    - [`SkillSnapshot`](https://github.com/wloops/dsh-git-worktree/blob/e2e2ae58946431d5e473f2c96c26bdc613b3beda/src%5Cadapters%5Cproject-skills.ts) — `src\adapters\project-skills.ts`
 
