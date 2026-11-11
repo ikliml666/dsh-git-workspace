@@ -6,7 +6,7 @@ description: clientconsoleremote 是 dsh-git-worktree 在浏览器端（DSH Clie
 # client_console_remote 模块
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`bcedc929`](https://github.com/wloops/dsh-git-worktree/commit/bcedc92945ef864444c59d7aece2c226ac9c2f68) on 2026-11-10 with `mimo-v2.6-flash`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`b35a9e2a`](https://github.com/wloops/dsh-git-worktree/commit/b35a9e2a83765b03d51b05efe77e720f0c24a18b) on 2026-11-11 with `mimo-v2.6-flash`. Check the code before relying on details.
 
 `client_console_remote` 是 `dsh-git-worktree` 在浏览器端（DSH Client / Web 渲染进程）的**入口与传输层**。它由两个文件构成，承担两件互不相同但强耦合的职责：
 
@@ -274,7 +274,7 @@ Web RPC 载体**没有超时**：服务端 handler 卡住（binding-lock 队列�
 - **调整超时**：`FAST_METHODS` 的成员语义是「一次 RPC 只做少量 git spawn」，新增全量重算类方法时不要误入快档。
 
 ??? abstract "Documented components (3)"
-    - [`createWorktreeConsoleRemoteAdapter`](https://github.com/wloops/dsh-git-worktree/blob/bcedc92945ef864444c59d7aece2c226ac9c2f68/src%5Cclient%5Cconsole-remote%5Cadapter.ts) — `src\client\console-remote\adapter.ts`
-    - [`ConsoleClientContext`](https://github.com/wloops/dsh-git-worktree/blob/bcedc92945ef864444c59d7aece2c226ac9c2f68/src%5Cclient%5Cconsole-remote%5Cindex.ts) — `src\client\console-remote\index.ts`
-    - [`Context`](https://github.com/wloops/dsh-git-worktree/blob/bcedc92945ef864444c59d7aece2c226ac9c2f68/src%5Cclient%5Cconsole-remote%5Cindex.ts) — `src\client\console-remote\index.ts`
+    - [`createWorktreeConsoleRemoteAdapter`](https://github.com/wloops/dsh-git-worktree/blob/b35a9e2a83765b03d51b05efe77e720f0c24a18b/src%5Cclient%5Cconsole-remote%5Cadapter.ts) — `src\client\console-remote\adapter.ts`
+    - [`ConsoleClientContext`](https://github.com/wloops/dsh-git-worktree/blob/b35a9e2a83765b03d51b05efe77e720f0c24a18b/src%5Cclient%5Cconsole-remote%5Cindex.ts) — `src\client\console-remote\index.ts`
+    - [`Context`](https://github.com/wloops/dsh-git-worktree/blob/b35a9e2a83765b03d51b05efe77e720f0c24a18b/src%5Cclient%5Cconsole-remote%5Cindex.ts) — `src\client\console-remote\index.ts`
 

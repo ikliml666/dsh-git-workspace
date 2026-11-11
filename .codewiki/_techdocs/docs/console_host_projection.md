@@ -6,7 +6,7 @@ description: 本模块是 consolehost 的只读投影层：它把领域层的 Ma
 # console_host_projection — Host 侧投影与能力门控
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`bcedc929`](https://github.com/wloops/dsh-git-worktree/commit/bcedc92945ef864444c59d7aece2c226ac9c2f68) on 2026-11-10 with `mimo-v2.6-flash`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`b35a9e2a`](https://github.com/wloops/dsh-git-worktree/commit/b35a9e2a83765b03d51b05efe77e720f0c24a18b) on 2026-11-11 with `mimo-v2.6-flash`. Check the code before relying on details.
 
 本模块是 `console_host` 的**只读投影层**：它把领域层的 `ManagedCheckoutRecord`（台账记录）与一次性的 Git 观测结果，翻译成 Console 契约中面向 UI 的 DTO（`WorktreeConsoleTargetSummary` / `WorktreeConsoleTargetDetails`），并在同一趟里算出调用者 Session 对每个操作的能力开关（`WorktreeConsoleCapabilities`）。同时它提供 Host 侧统一的**错误封装**，把领域异常与第三方异常收敛成 `WorktreeConsoleOutcome` 这一可序列化的结果形状。
 
@@ -377,6 +377,6 @@ flowchart LR
 - 构建与类型门禁：`pnpm run typecheck` 与 `pnpm run build`（见 `.github/workflows/ci.yml`，与 `package.json` 中的 `typecheck` / `build` 脚本对应）；测试通过 `pnpm run test`（`vitest.config.ts`，Windows 下关闭文件级并行以避免 Git fixture 争抢句柄）。
 
 ??? abstract "Documented components (2)"
-    - [`consoleFailure`](https://github.com/wloops/dsh-git-worktree/blob/bcedc92945ef864444c59d7aece2c226ac9c2f68/src%5Cconsole-host%5Cerrors.ts) — `src\console-host\errors.ts`
-    - [`capabilities`](https://github.com/wloops/dsh-git-worktree/blob/bcedc92945ef864444c59d7aece2c226ac9c2f68/src%5Cconsole-host%5Cprojection.ts) — `src\console-host\projection.ts`
+    - [`consoleFailure`](https://github.com/wloops/dsh-git-worktree/blob/b35a9e2a83765b03d51b05efe77e720f0c24a18b/src%5Cconsole-host%5Cerrors.ts) — `src\console-host\errors.ts`
+    - [`capabilities`](https://github.com/wloops/dsh-git-worktree/blob/b35a9e2a83765b03d51b05efe77e720f0c24a18b/src%5Cconsole-host%5Cprojection.ts) — `src\console-host\projection.ts`
 
