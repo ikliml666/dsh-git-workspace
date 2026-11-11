@@ -1,7 +1,7 @@
 {
-  "started_at": "2026-11-11T10:24:26+0800",
-  "finished_at": "2026-11-11T10:24:27+0800",
-  "outcome": "incremental",
+  "started_at": "2026-11-11T11:00:24+0800",
+  "finished_at": "2026-11-11T11:00:24+0800",
+  "outcome": "no_change",
   "options": {
     "rung": "3",
     "tau_ren": 0.95,
@@ -25,7 +25,7 @@
   },
   "revision": {
     "old_commit": "9f839c51905e44b1053293883bc0dda64aadbe5d",
-    "new_commit": "99cc779098445f6a4d66ed5d966e4371d7cf5af8",
+    "new_commit": "d476e6f7777d04adcdae9fa4b49cf6cb397e6353",
     "repo_path": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree"
   },
   "diff": {
@@ -33,87 +33,24 @@
       "added": 0,
       "deleted": 0,
       "interface": 0,
-      "body": 1,
+      "body": 0,
       "edge": 0,
       "renamed": 0
     },
     "added": [],
     "deleted": [],
     "interface": [],
-    "body": [
-      "src\\console-host\\control-plane.ts::createWorktreeConsoleControlPlane"
-    ],
+    "body": [],
     "edge": [],
     "renamed": {}
   },
-  "repair": {
-    "renamed": {},
-    "removed": [],
-    "routing": [],
-    "orphans": [],
-    "deleted_nodes": [],
-    "created_leaves": [],
-    "growth": {},
-    "growth_flagged": []
-  },
+  "repair": {},
   "reclustered": [],
-  "reports": {
-    "Console_API_and_Host_Integration/console_host/console_host_control_plane": {
-      "leaf_path": [
-        "Console_API_and_Host_Integration",
-        "console_host",
-        "console_host_control_plane"
-      ],
-      "mode": "edit",
-      "own": [
-        "src\\console-host\\control-plane.ts::createWorktreeConsoleControlPlane"
-      ],
-      "adopted": {
-        "src\\console-host\\control-plane.ts::createWorktreeConsoleControlPlane": "1:same_file"
-      },
-      "up": [],
-      "context": [],
-      "refch": [],
-      "entered": [],
-      "left": [],
-      "children_added": [],
-      "children_removed": [],
-      "reclustered": false,
-      "page": "console_host_control_plane"
-    }
-  },
-  "ownership": [
-    {
-      "component_id": "src\\console-host\\control-plane.ts::createWorktreeConsoleControlPlane",
-      "rule": "1:same_file",
-      "leaf_path": [
-        "Console_API_and_Host_Integration",
-        "console_host",
-        "console_host_control_plane"
-      ],
-      "detail": "2 tracked components in file",
-      "deleted": false
-    }
-  ],
-  "active": [
-    {
-      "leaf": "Console_API_and_Host_Integration/console_host/console_host_control_plane",
-      "page": "console_host_control_plane",
-      "mode": "edit",
-      "order": 0
-    }
-  ],
+  "reports": {},
+  "ownership": [],
+  "active": [],
   "write_sets": {},
-  "fallback": {
-    "r_leaf": 0.045454545454545456,
-    "r_tree": 0.0,
-    "n_active": 1,
-    "n_leaves": 22,
-    "n_structural": 0,
-    "tau_full": 0.5,
-    "tau_tree": 0.3,
-    "fired": false
-  },
+  "fallback": {},
   "verdicts": [],
   "pages_written": [],
   "pages_removed": [],
@@ -122,7 +59,22 @@
   "calls": [],
   "detector_notes": [],
   "errors": [],
-  "wall_seconds": 0.93,
-  "usage_report": null,
-  "run_id": "f36da239-b5ce-4a78-9585-269d945bf232"
+  "wall_seconds": 0.07,
+  "usage_report": {
+    "schema_version": 2,
+    "scope": "this run only (modules resumed from disk cost nothing)",
+    "currency": "USD",
+    "cost_status": "complete",
+    "incomplete": false,
+    "unknown_usage_calls": 0,
+    "n_calls": 0,
+    "totals": {
+      "cost_usd": 0.0
+    },
+    "by_phase": {},
+    "by_model": {},
+    "unpriced_models": [],
+    "calls": []
+  },
+  "run_id": "2b3aa7ca-84e0-4cd8-a48e-507b6ffa74c4"
 }
