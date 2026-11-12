@@ -1,6 +1,6 @@
 {
-  "started_at": "2026-11-12T16:59:57+0800",
-  "finished_at": "2026-11-12T16:59:58+0800",
+  "started_at": "2026-11-12T17:06:49+0800",
+  "finished_at": "2026-11-12T17:06:49+0800",
   "outcome": "incremental",
   "options": {
     "rung": "3",
@@ -25,28 +25,27 @@
   },
   "revision": {
     "old_commit": "e1bb46dcb7e626e7a0bc8875b5980a70ba0eb79a",
-    "new_commit": "9a0dd98010d188f517aa130a195627a3bd575cf9",
+    "new_commit": "3d16b5f95983884c5ff57393f257dbc3e1de9d61",
     "repo_path": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree"
   },
   "diff": {
     "counts": {
-      "added": 1,
+      "added": 0,
       "deleted": 0,
       "interface": 0,
-      "body": 4,
+      "body": 5,
       "edge": 0,
       "renamed": 0
     },
-    "added": [
-      "src\\client\\target-console\\relative-time.ts::formatRelativeTime"
-    ],
+    "added": [],
     "deleted": [],
     "interface": [],
     "body": [
-      "src\\adapters\\git.ts::createDshGitPort",
-      "src\\client\\target-console\\target-console.styles.ts::__file__",
-      "src\\console-contract.ts::WorktreeConsoleGitBranch",
-      "src\\ports.ts::BranchOverviewEntry"
+      "src\\console-host\\control-plane.ts::WorktreeConsoleControlPlane",
+      "src\\console-host\\control-plane.ts::createWorktreeConsoleControlPlane",
+      "src\\console-host\\service.ts::WorktreeConsoleService",
+      "src\\console-host\\service.ts::WorktreeConsoleService.constructor",
+      "src\\console-host\\service.ts::WorktreeConsoleService.returnToLocal"
     ],
     "edge": [],
     "renamed": {}
@@ -54,15 +53,7 @@
   "repair": {
     "renamed": {},
     "removed": [],
-    "routing": [
-      {
-        "component_id": "src\\client\\target-console\\relative-time.ts::formatRelativeTime",
-        "rule": "untracked",
-        "leaf_path": null,
-        "new_leaf": false,
-        "detail": "not a selected leaf node"
-      }
-    ],
+    "routing": [],
     "orphans": [],
     "deleted_nodes": [],
     "created_leaves": [],
@@ -71,38 +62,19 @@
   },
   "reclustered": [],
   "reports": {
-    "Client_Presentation_and_Interaction/client_target_console": {
+    "Console_API_and_Host_Integration/console_host/console_host_control_plane": {
       "leaf_path": [
-        "Client_Presentation_and_Interaction",
-        "client_target_console"
+        "Console_API_and_Host_Integration",
+        "console_host",
+        "console_host_control_plane"
       ],
       "mode": "edit",
       "own": [
-        "src\\client\\target-console\\target-console.styles.ts::__file__"
-      ],
-      "adopted": {},
-      "up": [],
-      "context": [],
-      "refch": [],
-      "entered": [],
-      "left": [],
-      "children_added": [],
-      "children_removed": [],
-      "reclustered": false,
-      "page": "client_target_console"
-    },
-    "Ports,_Adapters,_and_Infrastructure/adapters_infrastructure/adapters_infrastructure_git_process": {
-      "leaf_path": [
-        "Ports,_Adapters,_and_Infrastructure",
-        "adapters_infrastructure",
-        "adapters_infrastructure_git_process"
-      ],
-      "mode": "edit",
-      "own": [
-        "src\\adapters\\git.ts::createDshGitPort"
+        "src\\console-host\\control-plane.ts::WorktreeConsoleControlPlane",
+        "src\\console-host\\control-plane.ts::createWorktreeConsoleControlPlane"
       ],
       "adopted": {
-        "src\\adapters\\git.ts::createDshGitPort": "1:same_file"
+        "src\\console-host\\control-plane.ts::createWorktreeConsoleControlPlane": "1:same_file"
       },
       "up": [],
       "context": [],
@@ -112,16 +84,19 @@
       "children_added": [],
       "children_removed": [],
       "reclustered": false,
-      "page": "adapters_infrastructure_git_process"
+      "page": "console_host_control_plane"
     },
-    "Ports,_Adapters,_and_Infrastructure/core_ports_and_types": {
+    "Console_API_and_Host_Integration/console_host/console_host_rpc_service": {
       "leaf_path": [
-        "Ports,_Adapters,_and_Infrastructure",
-        "core_ports_and_types"
+        "Console_API_and_Host_Integration",
+        "console_host",
+        "console_host_rpc_service"
       ],
       "mode": "edit",
       "own": [
-        "src\\ports.ts::BranchOverviewEntry"
+        "src\\console-host\\service.ts::WorktreeConsoleService.returnToLocal",
+        "src\\console-host\\service.ts::WorktreeConsoleService",
+        "src\\console-host\\service.ts::WorktreeConsoleService.constructor"
       ],
       "adopted": {},
       "up": [],
@@ -132,36 +107,17 @@
       "children_added": [],
       "children_removed": [],
       "reclustered": false,
-      "page": "core_ports_and_types"
-    },
-    "console_contract": {
-      "leaf_path": [
-        "console_contract"
-      ],
-      "mode": "edit",
-      "own": [
-        "src\\console-contract.ts::WorktreeConsoleGitBranch"
-      ],
-      "adopted": {},
-      "up": [],
-      "context": [],
-      "refch": [],
-      "entered": [],
-      "left": [],
-      "children_added": [],
-      "children_removed": [],
-      "reclustered": false,
-      "page": "console_contract"
+      "page": "console_host_rpc_service"
     }
   },
   "ownership": [
     {
-      "component_id": "src\\adapters\\git.ts::createDshGitPort",
+      "component_id": "src\\console-host\\control-plane.ts::createWorktreeConsoleControlPlane",
       "rule": "1:same_file",
       "leaf_path": [
-        "Ports,_Adapters,_and_Infrastructure",
-        "adapters_infrastructure",
-        "adapters_infrastructure_git_process"
+        "Console_API_and_Host_Integration",
+        "console_host",
+        "console_host_control_plane"
       ],
       "detail": "2 tracked components in file",
       "deleted": false
@@ -169,35 +125,23 @@
   ],
   "active": [
     {
-      "leaf": "Ports,_Adapters,_and_Infrastructure/core_ports_and_types",
-      "page": "core_ports_and_types",
+      "leaf": "Console_API_and_Host_Integration/console_host/console_host_control_plane",
+      "page": "console_host_control_plane",
       "mode": "edit",
       "order": 0
     },
     {
-      "leaf": "Ports,_Adapters,_and_Infrastructure/adapters_infrastructure/adapters_infrastructure_git_process",
-      "page": "adapters_infrastructure_git_process",
+      "leaf": "Console_API_and_Host_Integration/console_host/console_host_rpc_service",
+      "page": "console_host_rpc_service",
       "mode": "edit",
       "order": 1
-    },
-    {
-      "leaf": "console_contract",
-      "page": "console_contract",
-      "mode": "edit",
-      "order": 2
-    },
-    {
-      "leaf": "Client_Presentation_and_Interaction/client_target_console",
-      "page": "client_target_console",
-      "mode": "edit",
-      "order": 3
     }
   ],
   "write_sets": {},
   "fallback": {
-    "r_leaf": 0.18181818181818182,
+    "r_leaf": 0.09090909090909091,
     "r_tree": 0.0,
-    "n_active": 4,
+    "n_active": 2,
     "n_leaves": 22,
     "n_structural": 0,
     "tau_full": 0.5,
@@ -210,11 +154,9 @@
   "write_set_violations": [],
   "stale_scan": {},
   "calls": [],
-  "detector_notes": [
-    "补齐 1 个未归属文件到已有叶子：src\\client\\target-console\\relative-time.ts"
-  ],
+  "detector_notes": [],
   "errors": [],
-  "wall_seconds": 1.1,
+  "wall_seconds": 0.57,
   "usage_report": null,
-  "run_id": "bb355988-1952-456c-94f1-1ffe04321ab7"
+  "run_id": "0d918d89-204d-4aa6-9917-4ba535e1f4c9"
 }
