@@ -81,6 +81,12 @@
 
 ### Fixed
 
+- 交付后「回到 Local 工作区」只改台账、不挪目录，会话仍站在冻结的 Worktree 里（2026-11-12）。
+  - **现象**：Worktree 交付（或合并）之后点胶囊里的「回到 Local 工作区」，胶囊翻成 `main`，但会话的 cwd 还在那棵（保留期结束后甚至已被删除的）树里；之后所有相对路径读写都落在旧检出上——用户看到的是「切了，但没切回去」。
+  - **根因**：`returnToLocal` 只调 `module.bind(sessionId, { kind: 'local' })` 改台账。`bindTarget` 的 `local` 分支全程不碰 `ctx.workingDirectory`——创建时 `worktree_create` 用 `workingDirectory.set` 把会话搬进树里，回程没有对称的一步。
+  - **修法**：`WorktreeConsoleService.returnToLocal` 构造 `createSessionWorkingDirectoryPort`，把「移出检出」作为回调交给控制面；`returnToLocal` 在 **`module.bind` 之前** 调它（`leave(agent, managedRoot, localRoot)`），移出失败则整条操作失败、不改绑定——先改台账会让 cwd 留在一棵用户以为已经离开的树上。宿主没挂 `workingDirectory` 时回调不移动，行为退回原样。
+  - **测试**：`tests/console-host.test.ts` 新增两条——移出发生在绑定之前（断言调用顺序与 `/managed` → `/local` 参数）、移出抛错时不调用 `bind`。
+
 - 胶囊提示「Remote current 返回了不符合 strict contract 的 payload」并显示「不可用」（2026-11-12）。
   - **问题**：`src/console-host/projection.ts:160` 一直把 `cleanupReason` 写进目标投影（finalized/retained 且清理被阻塞时），客户端也按它决定要不要给「放弃改动再清理」的确认，但 `src/console-remote/schemas.ts` 的 `targetSummarySchema` 从来没有声明这个键。`.strict()` 于是把整条 `current` 判为不符合契约，胶囊退化成「不可用」。本机 `Wxxy-CampusLogin` 那条 `4ab39ee0`（finalized + `cleanupReason: identity_changed`）就是触发源。
   - **为什么上次的修复把它暴露出来**：上一轮只让已交付记录的观察失败降级，`current` 因此不再在 `checkout_mismatch` 处中止，而是继续走到投影阶段，才把这条一直在的契约漂移暴露出来。

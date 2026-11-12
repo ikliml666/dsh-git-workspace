@@ -85,7 +85,16 @@ export interface WorktreeConsoleControlPlane {
   setPermanent(request: WorktreeConsoleSetPermanentRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   retryCleanup(request: WorktreeConsoleRetryCleanupRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
   beginNextIteration(request: WorktreeConsoleBeginNextIterationRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
-  returnToLocal(request: WorktreeConsoleReturnToLocalRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleReturnToLocalResponse>>
+  /**
+   * 把一个已交付的隔离会话释放回 Local 边界。
+   *
+   * `leaveCheckout` 由 Host 注入：交付后 owner 仍站在已冻结（甚至已被回收）的检出里，
+   * 只改台账不改 cwd 会让「回到 Local」变成假的——胶囊说 main，命令还在旧树里。
+   */
+  returnToLocal(
+    request: WorktreeConsoleReturnToLocalRequest,
+    leaveCheckout?: (sessionId: string, managedRoot: string, localRoot: string) => Promise<void>,
+  ): Promise<WorktreeConsoleOutcome<WorktreeConsoleReturnToLocalResponse>>
   /** 立刻为本会话建一棵工作树。 */
   createWorktree(request: WorktreeConsoleCreateWorktreeRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleCreateWorktreeResponse>>
   clearSidebarBadge(request: WorktreeConsoleClearSidebarBadgeRequest): Promise<WorktreeConsoleOutcome<WorktreeConsoleMutationResponse>>
@@ -1164,7 +1173,7 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
     // 边界：只放行已交付（delivered/finalized/retained）的记录。未交付时解绑会把
     // 未合并的工作留在冻结目录里，那一律拒绝。记录本身不动，保留期倒计时与已
     // 交付徽章照旧，回滚材料还在。
-    returnToLocal: request => outcome(async () => {
+    returnToLocal: (request, leaveCheckout) => outcome(async () => {
       const record = recordOf(options.registry, request.checkoutId)
       if (record.ownerSessionId !== request.sessionId) {
         throw domainError('not_owner', hostMessage('onlyTheOwnerSessionCanBeginTheNextIteration'))
@@ -1181,6 +1190,11 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
         // current Local projection instead of failing a no-op.
         const localTarget = await callerTarget(request.sessionId)
         return { target: projectLocal(localTarget, request.sessionId) }
+      }
+      // 先离开检出、再改绑定。绑完 record 仍然在，可 live cwd 还指着那棵冻结的树——
+      // 之后的相对路径写入会落到一棵用户以为已经离开的目录里。
+      if (leaveCheckout !== undefined && record.managedRoot && record.localRoot) {
+        await leaveCheckout(request.sessionId, record.managedRoot, record.localRoot)
       }
       const target = await options.module.bind(request.sessionId, { kind: 'local' })
       if (target.checkout.kind !== 'local') {

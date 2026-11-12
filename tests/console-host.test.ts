@@ -1277,6 +1277,73 @@ describe('Worktree Console Host control plane', () => {
     expect(result).toMatchObject({ ok: true, value: { target: { state: 'local', checkoutId: null } } })
   })
 
+  it('moves the Session out of the frozen Worktree before rebinding it to Local', async () => {
+    const retained = retainedRecord()
+    const registryPort = registry(retained)
+    registryPort.read = () => ({
+      version: 2,
+      revision: 1,
+      sessionBindings: {
+        'target-session': {
+          sessionId: 'target-session',
+          projectId: retained.projectId,
+          projectName: retained.projectName,
+          target: { kind: 'isolated', checkoutId: retained.checkoutId },
+          ownerSessionId: 'target-session',
+          sourceRef: retained.sourceRef,
+          sourceOid: retained.baseOid,
+          revision: 1,
+        },
+      },
+      managedCheckouts: { [retained.checkoutId]: retained },
+    })
+    const { module, control } = plane(retained, { lookup: ownerLocalLookup(), registry: registryPort })
+    const order: string[] = []
+    vi.mocked(module.bind).mockImplementation(async () => {
+      order.push('bind')
+      return local('target-session')
+    })
+    const leave = vi.fn(async (_sessionId: string, from: string, to: string) => {
+      order.push(`leave:${from}->${to}`)
+    })
+
+    const result = await control.returnToLocal({ sessionId: 'target-session', checkoutId: retained.checkoutId }, leave)
+
+    expect(leave).toHaveBeenCalledWith('target-session', '/managed', '/local')
+    // 绑定必须在移出之后：先改台账会让 cwd 留在一棵用户以为已经离开的树上。
+    expect(order).toEqual(['leave:/managed->/local', 'bind'])
+    expect(result).toMatchObject({ ok: true, value: { target: { state: 'local' } } })
+  })
+
+  it('refuses to rebind when the Session cannot be moved out of the Worktree', async () => {
+    const retained = retainedRecord()
+    const registryPort = registry(retained)
+    registryPort.read = () => ({
+      version: 2,
+      revision: 1,
+      sessionBindings: {
+        'target-session': {
+          sessionId: 'target-session',
+          projectId: retained.projectId,
+          projectName: retained.projectName,
+          target: { kind: 'isolated', checkoutId: retained.checkoutId },
+          ownerSessionId: 'target-session',
+          sourceRef: retained.sourceRef,
+          sourceOid: retained.baseOid,
+          revision: 1,
+        },
+      },
+      managedCheckouts: { [retained.checkoutId]: retained },
+    })
+    const { module, control } = plane(retained, { lookup: ownerLocalLookup(), registry: registryPort })
+    const leave = vi.fn(async () => { throw new Error('cwd is locked') })
+
+    const result = await control.returnToLocal({ sessionId: 'target-session', checkoutId: retained.checkoutId }, leave)
+
+    expect(result.ok).toBe(false)
+    expect(module.bind).not.toHaveBeenCalled()
+  })
+
   it('refuses to release a Worktree that has not reached delivery', async () => {
     const working = readyRecord()
     const { module, control } = plane(working, { lookup: ownerLocalLookup() })

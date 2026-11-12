@@ -28,12 +28,18 @@ import type {
 } from '../console-contract.js'
 import type { WorktreePreviewRecoveryProof, WorktreeRetentionMode } from '../types.js'
 import type { WorktreeConsoleControlPlane } from './control-plane.js'
+import { createSessionWorkingDirectoryPort, type SessionWorkingDirectoryPort } from '../adapters/working-directory.js'
 
 /** Diagnostics log cap; rotating keeps one previous segment. */
 const DIAG_MAX_BYTES = 8 * 1024 * 1024
 
 /** Official Typert Remote service; the Gateway resolves `agentId` before business code runs. */
 export class WorktreeConsoleService extends TypertRemoteService {
+  /**
+   * 交付后把会话 cwd 从冻结的检出移回 Local。只改台账不改目录时，胶囊会显示
+   * Local 分支，而模型的相对路径读写还落在那棵树上——「切回仓库」就是假的。
+   */
+  private readonly workingDirectory: SessionWorkingDirectoryPort
   constructor(
     private readonly hostContext: Context,
     private readonly controlPlane: WorktreeConsoleControlPlane,
@@ -42,6 +48,7 @@ export class WorktreeConsoleService extends TypertRemoteService {
     private readonly officialWorkspaceActive = true,
   ) {
     super(hostContext, 'gitWorktree')
+    this.workingDirectory = createSessionWorkingDirectoryPort(hostContext)
   }
 
   /**
@@ -185,7 +192,10 @@ export class WorktreeConsoleService extends TypertRemoteService {
 
   @Remote
   returnToLocal(agent: Agent, checkoutId: string, locale?: Language): Promise<WorktreeConsoleOutcome<WorktreeConsoleReturnToLocalResponse>> {
-    return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.returnToLocal({ sessionId: agent.id, checkoutId }))
+    return withHostLanguage(locale ?? languageFromSettings(agent.ctx ?? this.hostContext), () => this.controlPlane.returnToLocal(
+      { sessionId: agent.id, checkoutId },
+      async (_sessionId, managedRoot, localRoot) => { await this.workingDirectory.leave(agent, managedRoot, localRoot) },
+    ))
   }
 
   /**
