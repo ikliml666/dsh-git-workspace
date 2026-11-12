@@ -209,6 +209,7 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule, contr
               properties: { path: { type: 'string', required: true }, reason: { type: 'string', required: true } },
             },
           },
+          linkFailureSummary: { type: 'string' },
           sharedReadOnly: { type: 'boolean' },
         },
       },
@@ -259,6 +260,9 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule, contr
             : {
                 linkedDeps: launch.linkResult.linked,
                 linkFailures: launch.linkResult.failures,
+                ...(launch.linkResult.failures.length > 0
+                  ? { linkFailureSummary: launch.linkResult.failures.map(failure => `${failure.path}: ${failure.reason}`).join('; ') }
+                  : {}),
                 sharedReadOnly: launch.linkResult.sharedReadOnly,
               }),
         }
@@ -359,6 +363,7 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule, contr
               properties: { path: { type: 'string', required: true }, reason: { type: 'string', required: true } },
             },
           },
+          linkFailureSummary: { type: 'string' },
           sharedReadOnly: { type: 'boolean' },
         },
       },
@@ -394,6 +399,9 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule, contr
             : {
                 linkedDeps: target.linkResult.linked,
                 linkFailures: target.linkResult.failures,
+                ...(target.linkResult.failures.length > 0
+                  ? { linkFailureSummary: target.linkResult.failures.map(failure => `${failure.path}: ${failure.reason}`).join('; ') }
+                  : {}),
                 sharedReadOnly: target.linkResult.sharedReadOnly,
               }),
         }
