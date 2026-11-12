@@ -657,17 +657,19 @@ export function createNodeSessionCheckoutDependencies(
       },
       branchOverview: async (root) => {
         const [refs, status] = await Promise.all([
-          runSessionGit(root, ['for-each-ref', '--format=%(refname)%00%(objectname)%00%(HEAD)%00%(upstream:short)', 'refs/heads']),
+          runSessionGit(root, ['for-each-ref', '--format=%(refname)%00%(objectname)%00%(HEAD)%00%(upstream:short)%00%(committerdate:unix)', 'refs/heads']),
           runSessionGit(root, ['status', '--porcelain=v1', '-z', '--untracked-files=all']),
         ])
         if (refs.code !== 0) return null
         const branches = refs.stdout.split(/\r?\n/).filter(Boolean).map((line) => {
-          const [refname, oid, head, upstream] = line.split('\0')
+          const [refname, oid, head, upstream, committerDate] = line.split('\0')
+          const seconds = Number.parseInt(committerDate ?? '', 10)
           return {
             name: (refname ?? '').replace(/^refs\/heads\//u, ''),
             oid: oid ?? '',
             isCurrent: head === '*',
             upstream: upstream ? upstream : null,
+            tipTime: Number.isFinite(seconds) ? seconds * 1000 : 0,
           }
         }).filter((branch) => branch.name && /^[0-9a-f]{40,64}$/iu.test(branch.oid))
         return { branches, dirtyCount: status.stdout ? status.stdout.split('\0').filter(Boolean).length : 0 }

@@ -305,12 +305,13 @@ describe('Harness-native Session Target slots', () => {
         branch: 'feat/session',
         headOid: 'b'.repeat(40),
         branches: [
-          { name: 'feat/session', oid: 'b'.repeat(40), isCurrent: true, upstream: null },
+          { name: 'feat/session', oid: 'b'.repeat(40), isCurrent: true, upstream: null, tipTime: 15 },
           ...Array.from({ length: 14 }, (_, index) => ({
             name: `feature/topic-${index}`,
             oid: `${index}${'a'.repeat(39)}`,
             isCurrent: false,
             upstream: null,
+            tipTime: index,
           })),
         ],
         dirtyCount: 0,
@@ -350,8 +351,8 @@ describe('Harness-native Session Target slots', () => {
         branch: 'main',
         headOid: 'b'.repeat(40),
         branches: [
-          { name: 'main', oid: 'b'.repeat(40), isCurrent: true, upstream: null },
-          { name: 'feature', oid: 'a'.repeat(40), isCurrent: false, upstream: null },
+          { name: 'main', oid: 'b'.repeat(40), isCurrent: true, upstream: null, tipTime: 2 },
+          { name: 'feature', oid: 'a'.repeat(40), isCurrent: false, upstream: null, tipTime: 1 },
         ],
         dirtyCount: 2,
       },
@@ -439,9 +440,9 @@ describe('Harness-native Session Target slots', () => {
         branch: 'main',
         headOid: 'b'.repeat(40),
         branches: [
-          { name: 'feature/a', oid: 'a'.repeat(40), isCurrent: false, upstream: null },
-          { name: 'main', oid: 'b'.repeat(40), isCurrent: true, upstream: 'origin/main' },
-          { name: 'feature/b', oid: 'c'.repeat(40), isCurrent: false, upstream: null },
+          { name: 'feature/a', oid: 'a'.repeat(40), isCurrent: false, upstream: null, tipTime: 1 },
+          { name: 'main', oid: 'b'.repeat(40), isCurrent: true, upstream: 'origin/main', tipTime: 3 },
+          { name: 'feature/b', oid: 'c'.repeat(40), isCurrent: false, upstream: null, tipTime: 2 },
         ],
         dirtyCount: 0,
       },
@@ -455,6 +456,36 @@ describe('Harness-native Session Target slots', () => {
     expect(screen.getAllByText('main')).toHaveLength(1)
     expect(screen.getByText('feature/a')).toBeTruthy()
     expect(screen.getByText('feature/b')).toBeTruthy()
+  })
+
+  test('分支列表按最近提交排序，而不是字母序', async () => {
+    const fixture = createWorktreeConsoleAdapterFixture()
+    invalidateBranchOverview('target-session')
+    const now = Date.now()
+    fixture.adapter.gitOverview = vi.fn(async () => ({
+      ok: true,
+      value: {
+        root: '/fixture/project',
+        branch: 'main',
+        headOid: 'b'.repeat(40),
+        branches: [
+          // 名称序是 alpha < zulu，提交时间序是 zulu < alpha：两种规则结论相反。
+          { name: 'feature/alpha', oid: 'a'.repeat(40), isCurrent: false, upstream: null, tipTime: now - 3 * 86_400_000 },
+          { name: 'main', oid: 'b'.repeat(40), isCurrent: true, upstream: null, tipTime: now },
+          { name: 'feature/zulu', oid: 'c'.repeat(40), isCurrent: false, upstream: null, tipTime: now - 60_000 },
+        ],
+        dirtyCount: 0,
+      },
+    }))
+    render(<TargetStatusAction sessionId="target-session" adapter={fixture.adapter} services={clientServices()} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Session Target：Worktree · 待验收' }))
+    await waitFor(() => expect(screen.getByText('其它分支')).toBeTruthy())
+
+    const zulu = screen.getByText('feature/zulu')
+    const alpha = screen.getByText('feature/alpha')
+    expect(zulu.compareDocumentPosition(alpha) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(document.querySelectorAll('.dsh-wtc-branch-time').length).toBeGreaterThan(0)
   })
 
   test('提交图谱里点某行的打标签按钮会把该 commit 作为 target 打开标签弹层', async () => {

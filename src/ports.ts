@@ -81,6 +81,8 @@ export interface BranchOverviewEntry {
   oid: string
   isCurrent: boolean
   upstream: string | null
+  /** Tip committer time (ms); 0 when Git reports no readable date. */
+  tipTime: number
 }
 
 /**

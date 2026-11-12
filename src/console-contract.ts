@@ -453,6 +453,8 @@ export interface WorktreeConsoleGitBranch {
   oid: string
   isCurrent: boolean
   upstream: string | null
+  /** Tip committer time (ms); the branch picker orders by recency. */
+  tipTime: number
 }
 
 export interface WorktreeConsoleGitOverviewResponse {

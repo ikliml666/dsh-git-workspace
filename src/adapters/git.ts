@@ -573,17 +573,21 @@ export function createDshGitPort(ctx: Context, options: GitPortOptions): Session
     },
     branchOverview: async (root) => {
       const [refs, status] = await Promise.all([
-        runSessionGit(root, ['for-each-ref', '--format=%(refname)%00%(objectname)%00%(HEAD)%00%(upstream:short)', 'refs/heads']),
+        runSessionGit(root, ['for-each-ref', '--format=%(refname)%00%(objectname)%00%(HEAD)%00%(upstream:short)%00%(committerdate:unix)', 'refs/heads']),
         runStatus(root),
       ])
       if (refs.code !== 0) return null
       const branches = refs.stdout.split(/\r?\n/).filter(Boolean).map((line) => {
-        const [refname, oid, head, upstream] = line.split('\0')
+        const [refname, oid, head, upstream, committerDate] = line.split('\0')
+        const seconds = Number.parseInt(committerDate ?? '', 10)
         return {
           name: (refname ?? '').replace(/^refs\/heads\//u, ''),
           oid: oid ?? '',
           isCurrent: head === '*',
           upstream: upstream ? upstream : null,
+          // The picker orders by recency; an unreadable date sorts last rather
+          // than posing as the newest branch.
+          tipTime: Number.isFinite(seconds) ? seconds * 1000 : 0,
         }
       }).filter((branch) => branch.name && /^[0-9a-f]{40,64}$/iu.test(branch.oid))
       // A failed status must not read as "nothing uncommitted": the menu draws

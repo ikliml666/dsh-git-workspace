@@ -461,8 +461,8 @@ export function createWorktreeConsoleAdapterFixture(stateful = false): WorktreeC
     async gitOverview(sessionId: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitOverviewResponse>> {
       record('gitOverview', sessionId)
       const branches: WorktreeConsoleGitBranch[] = target.currentBranch
-        ? [{ name: target.currentBranch, oid: target.currentOid, isCurrent: true, upstream: null }, { name: 'main', oid: 'a'.repeat(40), isCurrent: false, upstream: 'origin/main' }]
-        : [{ name: 'main', oid: 'a'.repeat(40), isCurrent: true, upstream: 'origin/main' }]
+        ? [{ name: target.currentBranch, oid: target.currentOid, isCurrent: true, upstream: null, tipTime: 2 }, { name: 'main', oid: 'a'.repeat(40), isCurrent: false, upstream: 'origin/main', tipTime: 1 }]
+        : [{ name: 'main', oid: 'a'.repeat(40), isCurrent: true, upstream: 'origin/main', tipTime: 1 }]
       return outcome({
         root: target.sourceRoot ?? '/fixture/project',
         branch: target.currentBranch,

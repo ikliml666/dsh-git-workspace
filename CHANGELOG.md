@@ -24,6 +24,13 @@
 
 ### Changed
 
+- 分支菜单按最近提交排序并显示提交时间（2026-11-12，对齐官方 forge 变更范围菜单的同类判断）。
+  - **为什么**：菜单原来按名称 `localeCompare` 排序，分支一多，找「上次在哪条分支上」只能逐行看名字；官方 forge 的分支范围菜单按最近提交排序。时间数据本插件早就有（`branchTipTimes` 端口给已合并分支的年龄过滤用），只是分支菜单没接。
+  - **数据**：`BranchOverviewEntry` / `WorktreeConsoleGitBranch` 新增 `tipTime`（ms），`branchOverview` 的 `for-each-ref` 格式串追加 `%(committerdate:unix)`——同一 spawn，不增加 git 调用。读不出的日期记 0 并排在最后，不让它冒充最新分支。
+  - **前后兼容**：`gitOverviewResponseSchema` 的 `tipTime` 写成 `.default(0)`。新 Client 配旧 Host 时按名称序退让，而不是整条 `gitOverview` 校验失败（与 `returnToLocal`、`cleanupReason` 同一类教训）。
+  - **客户端**：排序改为「当前分支优先 → `tipTime` 降序 → 名称」，分支行尾部显示相对时间。相对时间格式化从 `BranchGraphModal` 抽到 `relative-time.ts`，提交图与分支菜单共用一套措辞。
+  - **测试**：新增「分支列表按最近提交排序，而不是字母序」——夹具名称序（alpha < zulu）与时间序（zulu < alpha）结论相反，断言 DOM 顺序；三个测试夹具补齐 `tipTime`。
+
 - 分支选择器对齐 ZCode 的交互设计（2026-11-09）。
   - **新建分支即创建并切换**：端口 `createLocalBranch`（`git branch name HEAD`）改为 `createAndSwitchLocalBranch`（`git switch -c name`），RPC `gitCreateBranch` 更名为 `gitCreateBranchAndSwitch`；成功后胶囊提示「已创建并切换到 <分支>」并立即刷新分支列表与胶囊标签。创建并切换同样移动 Local HEAD，因此与切分支共用交付基线守卫（另一个会话正在该 Local 上交付时拒绝）。
   - **搜索框常驻**：不再只在分支超过 12 条时出现；未输入时列表保留 12 条上限，输入后全量过滤。

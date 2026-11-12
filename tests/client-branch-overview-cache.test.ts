@@ -18,7 +18,7 @@ function overview(branches: { name: string; isCurrent: boolean }[]): WorktreeCon
     root: '/fixture/project',
     branch: branches.find(branch => branch.isCurrent)?.name ?? null,
     headOid: 'a'.repeat(40),
-    branches: branches.map(branch => ({ ...branch, oid: 'a'.repeat(40), upstream: null })),
+    branches: branches.map(branch => ({ ...branch, oid: 'a'.repeat(40), upstream: null, tipTime: 0 })),
     dirtyCount: 0,
   }
 }

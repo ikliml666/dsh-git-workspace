@@ -17,6 +17,7 @@ import { openExistingSession, type WorktreeClientServices } from '../actions.js'
 import { requestWorktreeReviewRefresh } from '../review-console/status-events.js'
 import { WorktreeManagerModal } from './WorktreeManagerModal.js'
 import { BranchGraphModal } from './BranchGraphModal.js'
+import { formatRelativeTime } from './relative-time.js'
 import { SwitchBranchAssistModal } from './SwitchBranchAssistModal.js'
 import { TagManagerModal } from './TagManagerModal.js'
 import {
@@ -681,7 +682,10 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
     const leftCurrent = left.isCurrent || left.name === sessionBranch ? 0 : 1
     const rightCurrent = right.isCurrent || right.name === sessionBranch ? 0 : 1
     if (leftCurrent !== rightCurrent) return leftCurrent - rightCurrent
-    return left.name.localeCompare(right.name)
+    // Recency first: the branch you touched last is the one you want back.
+    // Ties fall back to the name so the list stays stable across refreshes.
+    const byRecency = right.tipTime - left.tipTime
+    return byRecency !== 0 ? byRecency : left.name.localeCompare(right.name)
   })
   // Git-graph-style picker: the filter box stays visible even for short lists
   // (discoverability beats the saved row), while the unqueried list keeps the
@@ -712,6 +716,7 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
         <span className="dsh-wtc-branch-name">{branch.name}</span>
         {branch.name === sessionBranch && !branch.isCurrent ? <span className="dsh-wtc-branch-session">{t("branch.session.badge")}</span> : null}
         {branch.upstream ? <span className="dsh-wtc-branch-upstream">{branch.upstream}</span> : null}
+        {branch.tipTime > 0 ? <span className="dsh-wtc-branch-time">{formatRelativeTime(Math.floor(branch.tipTime / 1000), t)}</span> : null}
         {branch.isCurrent && currentBranchDirtyLabel !== null ? <span className="dsh-wtc-branch-dirty">{currentBranchDirtyLabel}</span> : null}
       </span>
     ),

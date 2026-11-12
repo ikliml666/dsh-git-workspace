@@ -375,6 +375,7 @@ const gitBranchSchema = strict({
   oid: gitOidSchema,
   isCurrent: booleanSchema,
   upstream: z.string().min(1).max(300).nullable(),
+  tipTime: z.number().int().nonnegative().default(0),
 })
 export const gitOverviewResponseSchema: z.ZodType<WorktreeConsoleGitOverviewResponse> = strict({
   root: z.string().min(1),

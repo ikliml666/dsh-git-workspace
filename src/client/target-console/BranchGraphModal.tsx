@@ -5,6 +5,7 @@ import type {
   WorktreeConsoleGitGraphCommit,
 } from '../../console-contract.js'
 import type { ClientTranslator } from '../i18n.js'
+import { formatRelativeTime } from './relative-time.js'
 
 /** One drawn segment: x in lane units (column), y in row fractions (0 top, 0.5 node center, 1 bottom). */
 export interface GraphEdge {
@@ -132,17 +133,6 @@ const ROW_HEIGHT = 36
 const NODE_RADIUS = 4
 const INITIAL_LIMIT = 200
 const PAGE_STEP = 100
-
-function formatTime(epochSeconds: number, t: ClientTranslator): string {
-  const elapsed = Math.max(0, Math.floor(Date.now() / 1000 - epochSeconds))
-  if (elapsed < 60) return t("time.just.now")
-  if (elapsed < 3600) return t("time.minutes.ago", { p0: Math.floor(elapsed / 60) })
-  if (elapsed < 86400) return t("time.hours.ago", { p0: Math.floor(elapsed / 3600) })
-  if (elapsed < 30 * 86400) return t("time.days.ago", { p0: Math.floor(elapsed / 86400) })
-  const date = new Date(epochSeconds * 1000)
-  const pad = (value: number): string => String(value).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
-}
 
 export interface BranchGraphModalProps {
   open: boolean
@@ -289,7 +279,7 @@ export function BranchGraphModal({ open, onClose, adapter, sessionId, t, current
                     </span>
                   ))}
                   <span>{commit.author}</span>
-                  <span>{formatTime(commit.authorTime, t)}</span>
+                  <span>{formatRelativeTime(commit.authorTime, t)}</span>
                   {onTagCommit ? (
                     <button
                       type="button"

@@ -179,6 +179,7 @@ export const TARGET_CONSOLE_STYLES = String.raw`
 .dsh-wtc-branch-dirty { flex:1 0 100%; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:color-mix(in srgb, #c47a1c 88%, currentColor); font-family:system-ui, sans-serif; font-size:10px; font-weight:560; }
 .dsh-wtc-branch-session { flex:0 0 auto; padding:1px 5px; border-radius:999px; background:color-mix(in srgb, #2f6fd0 14%, transparent); color:#2f6fd0; font-family:inherit; font-size:10px; font-weight:650; }
 .dsh-wtc-branch-upstream { flex:0 0 auto; color:color-mix(in srgb, currentColor 52%, transparent); font-family:inherit; font-size:10px; }
+.dsh-wtc-branch-time { flex:0 0 auto; color:color-mix(in srgb, currentColor 40%, transparent); font-family:inherit; font-size:10px; }
 .dsh-wtc-create-branch { display:grid; gap:8px; }
 .dsh-wtc-create-branch-input { min-height:32px; border:1px solid color-mix(in srgb, currentColor 22%, transparent); border-radius:8px; padding:6px 10px; background:transparent; color:inherit; font:inherit; font-size:13px; }
 .dsh-wtc-create-branch-input:focus-visible { outline:2px solid #5b8fe8; outline-offset:1px; }
