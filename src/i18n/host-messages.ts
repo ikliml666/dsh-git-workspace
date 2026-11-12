@@ -1180,6 +1180,14 @@ export const hostMessages = {
     "zh": "在临时 worktree 里试合并，不改动 Local（建议先 true 预览冲突）。",
     "en": "Trial-merge in a throwaway worktree without touching Local (preview with true first)."
   },
+  "worktreeMergeTargetBranch": {
+    "zh": "可选：forward 方向要合并进哪个 Local 分支。默认是 Local 当前检出的分支；指定后合并前会先切过去。",
+    "en": "Optional: which Local branch to merge into for the forward direction. Defaults to the branch currently checked out; when set, the checkout switches to it before merging."
+  },
+  "worktreeMergeTargetBranchUnavailable": {
+    "zh": "无法切换到目标分支 {p0}（{p1}）；合并只能在当前分支执行，请先处理该分支上的未提交改动或冲突。",
+    "en": "Could not switch to target branch {p0} ({p1}); a merge runs on the checked-out branch, so resolve its uncommitted changes or conflicts first."
+  },
   "worktreeMergeDirection": {
     "zh": "合并方向：forward（默认）把任务分支合进 Local 当前分支；'reverse' 反向同步，把 Local 当前分支合进任务 worktree 的当前分支，冲突现场留在任务 worktree。",
     "en": "Merge direction: forward (default) merges the worktree branch into the Local checkout HEAD; 'reverse' syncs the Local checkout HEAD into the worktree branch, leaving any conflict scene in the worktree."
@@ -1835,6 +1843,10 @@ export const hostMessages = {
   "cleanupDirectoryBusy": {
     "zh": "Worktree 目录仍被进程占用或 Windows 暂时拒绝删除；dsh-git-worktree 已完成有限重试，可稍后重试清理。",
     "en": "A process still holds the Worktree directory or Windows temporarily denied deletion. dsh-git-worktree has completed its limited retries. Retry cleanup later."
+  },
+  "cleanupBusyHint": {
+    "zh": "排查占用：资源监视器（resmon）→ CPU → 关联的句柄，搜索 {p0}；或安装 Sysinternals handle.exe 后执行 handle.exe {p0}。",
+    "en": "To find the holder: Resource Monitor (resmon) → CPU → Associated Handles, search {p0}; or install Sysinternals handle.exe and run handle.exe {p0}."
   },
   "cleanupIdentityChangedActionable": {
     "zh": "Worktree 的 Git 身份或路径已变化，未执行清理。目录已没有可校验的 .git 身份，记录本身仍可解除注册。",

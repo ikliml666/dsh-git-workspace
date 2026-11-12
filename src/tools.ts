@@ -772,6 +772,7 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule, contr
       sourceBranch: { type: 'string', description: hostRegistrationMessage('worktreeMergeSourceBranch') },
       dryRun: { type: 'boolean', description: hostRegistrationMessage('worktreeMergeDryRun') },
       direction: { type: 'string', description: hostRegistrationMessage('worktreeMergeDirection') },
+      targetBranch: { type: 'string', description: hostRegistrationMessage('worktreeMergeTargetBranch') },
     },
     output: {
       schema: {
@@ -810,7 +811,13 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule, contr
         const sourceBranch = typeof args?.sourceBranch === 'string' ? args.sourceBranch.trim() : ''
         if (!sourceBranch) throw new Error(hostMessage('worktreeMergeSourceBranchRequired'))
         const direction = args?.direction === 'reverse' ? 'reverse' : args?.direction === 'forward' ? 'forward' : undefined
-        const result = await module.mergeBranchForSession(sessionId, { sourceBranch, dryRun: args?.dryRun === true, ...(direction ? { direction } : {}) })
+        const targetBranch = typeof args?.targetBranch === 'string' && args.targetBranch.trim() ? args.targetBranch.trim() : undefined
+        const result = await module.mergeBranchForSession(sessionId, {
+          sourceBranch,
+          dryRun: args?.dryRun === true,
+          ...(direction ? { direction } : {}),
+          ...(targetBranch ? { targetBranch } : {}),
+        })
         if (result.type === 'failed') throw new Error(result.reason || hostMessage('gitOperationFailedGit', { p0: 'merge', p1: sourceBranch }))
         return {
           kind: 'worktree_merge',

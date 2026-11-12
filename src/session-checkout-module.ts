@@ -3199,9 +3199,13 @@ export function createSessionCheckoutModule(
       const reason: WorktreeCleanupReason = quarantineBusy
         ? 'quarantine_busy'
         : identityMismatch ? 'identity_changed' : 'directory_busy'
-      const message = quarantineBusy
+      const baseMessage = quarantineBusy
         ? hostMessages.cleanupQuarantineBusy.zh
         : identityMismatch ? hostMessages.cleanupIdentityChanged.zh : hostMessages.cleanupDirectoryBusy.zh
+      // 「被进程占用」本身没有行动价值：把排查占用者的具体入口一起交出去。
+      const message = reason === 'directory_busy'
+        ? `${baseMessage} ${hostMessage('cleanupBusyHint', { p0: record.managedRoot })}`
+        : baseMessage
       updateManagedCheckout(record.checkoutId, (current) => {
         const journal = current.journal?.operation === 'cleanup' ? current.journal : null
         if (current.delivery.state === 'finalized') {
@@ -4355,9 +4359,31 @@ export function createSessionCheckoutModule(
       if (current) managedRootByBranch.set(current.name, record.managedGitRoot)
     }
     const localOverview = await branchOverview(localRoot)
-    const localBranch = localOverview?.branches.find((branch) => branch.isCurrent)?.name ?? null
+    let localBranch = localOverview?.branches.find((branch) => branch.isCurrent)?.name ?? null
     if (localBranch === sourceBranch) {
       throw new SessionCheckoutError('invalid_input', hostMessage('worktreeMergeSourceIsLocalHead', { p0: sourceBranch }))
+    }
+    // 合并只能在当前分支执行：指定了目标分支就先切过去。dryRun 只在临时 worktree
+    // 试合，不移动 Local HEAD，因此只记录目标分支。
+    const requestedTarget = typeof input.targetBranch === 'string' ? input.targetBranch.trim() : ''
+    if (direction === 'forward' && requestedTarget && requestedTarget !== localBranch) {
+      if (input.dryRun !== true) {
+        const switchBranch = dependencies.git.switchLocalBranch
+        if (!switchBranch) {
+          throw new SessionCheckoutError('operation_not_allowed', hostMessage('theGitPortOfThisInstallationDoesNotSupportBranchMerge'))
+        }
+        const issue = await switchBranch(localRoot, requestedTarget)
+        if (issue !== null) {
+          throw new SessionCheckoutError(
+            'operation_not_allowed',
+            hostMessage('worktreeMergeTargetBranchUnavailable', { p0: requestedTarget, p1: issue.code }),
+          )
+        }
+      }
+      localBranch = requestedTarget
+      if (localBranch === sourceBranch) {
+        throw new SessionCheckoutError('invalid_input', hostMessage('worktreeMergeSourceIsLocalHead', { p0: sourceBranch }))
+      }
     }
     const managedRoot = managedRootByBranch.get(sourceBranch)
     if (!managedRoot) {

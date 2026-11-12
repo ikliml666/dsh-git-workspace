@@ -97,6 +97,8 @@ export interface MergeBranchForSessionInput {
   dryRun?: boolean
   /** 'reverse' syncs the Local checkout HEAD into the worktree branch; any conflict scene stays in the worktree. */
   direction?: 'forward' | 'reverse'
+  /** forward: the Local branch to merge into; defaults to the branch currently checked out. */
+  targetBranch?: string
 }
 
 export interface MarkReadyForReviewInput {

@@ -6,6 +6,8 @@
 
 ### Added
 
+- `worktree_merge` 支持指定目标分支（2026-11-12）：forward 方向原来只能合并到 Local 当前检出的分支，要合到别的分支只能先手工 `git switch`，而切换的守卫与冲突处理都在控制面里。新增 `targetBranch` 参数：合并前切到目标分支，切换失败（未提交改动、冲突、分支不存在、被其它 worktree 占用）原样报出结构化原因；`dryRun` 不移动 Local HEAD。回执的 `targetBranch` 一直是实际合并目标，现在它可以是调用方指定的那个。
+
 - 迭代流程的三处摩擦：依赖不继承、收尾材料被清理、回执不可信（2026-11-12）。
   - **依赖不继承**：Worktree 只含 Git 跟踪内容，`node_modules` 每轮要手工建 Junction，忘了或旧树被删后联接悬空时，tsc/构建报的错误指向别处。`worktree_create` 与 `worktree_begin_next_iteration` 新增 `linkDeps`：创建后按点名的相对路径建目录联接（Windows junction），源目录失效时直接报「悬空联接」，不再让构建报无关错误。回执返回 `linkedDeps` 与 `linkFailures`。
   - **依赖共享收紧为只读**：`linkDeps` 建链前比对主仓库与 Worktree 的 `package.json` 与 lock 文件（`pnpm-lock.yaml` / `package-lock.json` / `yarn.lock` / `npm-shrinkwrap.json` / `bun.lock`），不一致就拒绝共享并提示在 Worktree 内安装；回执新增 `sharedReadOnly`。原因是共享 `node_modules` 后，Worktree 里任何一次安装都会写穿主仓库，正在并行的其它会话会被当场换掉环境——主流做法是每个 Worktree 独立安装，靠包管理器 store 加速。
@@ -44,6 +46,8 @@
   - **实测性能**：新增 `tests/worktree-creation-perf.test.ts` 把三条成本钉成回归基线。首次建树（官方 `worktree add` + `reset --hard` + 登记 + 补回 `.worktreeinclude`/WIP）533 ms；已绑定时的复用路径 116 ms 且不产生第二次建树；`pendingWorktreeRequest` 单次折叠在 1 万条记录下 2 ms。前两条断言 <15 s / <1 s，第三条 <10 ms/次——胶囊每次 `current` 都会折叠一次日志，单次成本才是有意义的量。
 
 ### Changed
+
+- 清理失败不再只说「被进程占用」（2026-11-12）：`directory_busy` 的说明后面追加了排查入口——资源监视器的「关联的句柄」搜索该路径，或 Sysinternals `handle.exe <path>`。原来那句话没有行动价值，用户只能猜是谁占着目录。
 
 - 发布门禁的 Remote 方法表对齐实际表面（2026-11-12）：`scripts/check-publish.mjs` 的 `expectedRemoteMethods` 停在 2026-10-28，而 `bbcd996` 已删掉评审背板等入口、`9150c36` 又新增分支切换方法，导致 `pnpm run check:publish` 与 `prepublishOnly` 失败。表更新为当前 27 个方法。
 
