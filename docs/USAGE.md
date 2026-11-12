@@ -77,6 +77,8 @@ Local 项目仍可包含多个普通会话。每个 Managed Worktree 只对应�
 
 Worktree 只包含 Git 跟踪的内容，被 `.gitignore` 忽略的东西（`node_modules`、`changelogs/` 这类草稿）不会自动跟过来。
 
+- **自动继承 `node_modules`**：不写任何配置时，创建 Worktree 会扫描 Local 根下三层以内已经装好的 `node_modules` 并建链（只认这个通用约定，不猜业务目录）。声明不一致的会被一致性校验拒绝并提示在 Worktree 内安装；要排除某些目录时显式写 `linkDeps` 覆盖自动结果。
+
 - **项目级配置（推荐）**：在 Local 项目根放一个 `.dsh-worktree.json`，声明一次，之后每轮创建、下一轮迭代与交付自动沿用；显式参数仍然优先。
 
   ```json
@@ -91,6 +93,7 @@ Worktree 只包含 Git 跟踪的内容，被 `.gitignore` 忽略的东西（`nod
 - **创建时带入忽略文件**：在 Local 项目根放一个 `.worktreeinclude`，每行一个相对路径（`#` 开头为注释）。新建 Worktree 时这些文件会被复制过去，适合体积小、必须存在的本地配置。
 - **联依赖目录（只读共享）**：`node_modules` 这类大目录不要写进 `.worktreeinclude`。默认做法是在每个 Worktree 内自行安装依赖（pnpm 复用全局 store，通常几秒）；确需共享时用 `linkDeps` 建目录联接（Windows 为 junction）：`linkDeps: ["android/frontend/node_modules", "tauri-app/node_modules"]`。共享前会比对两边 `package.json` 与 lock 文件，不一致就拒绝并提示「在 Worktree 内安装」，避免 Worktree 里的 `npm install` 写穿主仓库。源目录失效时报「悬空联接」，不会让 tsc/构建报无关错误。`worktree_begin_next_iteration` 同样接受 `linkDeps`。
 - **交付时带回收尾材料**：`worktree_deliver` 的 `preservePaths` 在清理冻结副本前把点名的路径复制回 Local（Local 已有同名文件时不覆盖）。回执的 `droppedIgnoredFiles` 列出这次随清理丢弃、没有保留的忽略路径，便于确认没有误删。
+- **相对路径基准**：所有工具的相对路径都以当前会话的 `Authoritative cwd`（即 Worktree 根）为基准。宿主工具的 `workdir: "."` 不遵循这条规则，需要确定性时用绝对路径。
 
 ## Ready for Review
 

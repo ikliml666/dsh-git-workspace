@@ -49,6 +49,8 @@
 
 ### Changed
 
+- 创建 Worktree 自动继承 `node_modules`（2026-11-12）：不写 `linkDeps` 时扫描 Local 根下三层以内已装好的 `node_modules` 并建链，省掉每轮手工 `mklink`。只认 `node_modules` 这个通用约定，不猜业务目录；链接前仍比对 `package.json` 与 lock，声明不一致的拒绝并提示在 Worktree 内安装。
+
 - 新建 Worktree 的检出强制 LF（2026-11-12）：检出走 `read-tree` + `checkout-index`，Windows 上 `core.eol` 默认 `native`，仓库里存的是 LF 却被写成 CRLF——新建的工作区一出现就整树「已修改」（实测 774 个文件），`git add -A` 会把上万行行尾变化写进提交。两处检出命令现在都带 `-c core.autocrlf=false -c core.eol=lf`。
 
 - `worktree_force_cleanup` 一步落账（2026-11-12）：quarantine 与 discard 都把记录直接推进到 `phase: 'discarded'`，不再要求补一次 `worktree_cleanup`。之前隔离成功后记录仍停在 `needs_attention`，`worktree_begin_next_iteration` 会被「只有已成功清理的交付状态可以开始下一轮」挡住，调用方得知道「先 force 再 cleanup」这条隐藏口令。

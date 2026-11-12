@@ -3,6 +3,7 @@ import { hostMessages, hostPersistedCleanupMessage, type PersistedCleanupKey } f
 import { hostMessage } from './i18n/host.js'
 import { createHash } from 'node:crypto'
 import { realpathSync } from 'node:fs'
+import { readdir } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import type {
   AbandonedWorktreeSnapshotView,
@@ -4985,16 +4986,47 @@ export function createSessionCheckoutModule(
    * 既容易漏，也会在旧 Worktree 被删后留下悬空联接——那时 tsc/构建报的错误指向
    * 别处，看不出真正原因。这里在创建后立刻建链，并在源目录失效时直接说明。
    */
+  /**
+   * Local 里已经装好的 node_modules：创建 Worktree 时自动建链，省掉每轮手工 mklink。
+   * 只认 node_modules 这个通用约定，不猜业务目录；链接前仍走依赖声明一致性校验，
+   * 声明不一致的会被 findDependencyDrift 拒绝并提示在 Worktree 内安装。
+   */
+  async function discoverNodeModules(sourceRoot: string, targetRoot: string): Promise<string[]> {
+    const found: string[] = []
+    const walk = async (dir: string, depth: number): Promise<void> => {
+      if (depth > 3) return
+      let entries: Array<{ name: string; isDirectory(): boolean }>
+      try {
+        entries = await readdir(dir, { withFileTypes: true })
+      } catch {
+        return
+      }
+      for (const entry of entries) {
+        if (!entry.isDirectory() || entry.name === 'node_modules' || entry.name === '.git') continue
+        if (entry.name.startsWith('.')) continue
+        const child = join(dir, entry.name)
+        if (resolve(child) === resolve(targetRoot)) continue
+        if (dependencies.files.exists(join(child, 'node_modules'))) {
+          found.push(relative(sourceRoot, join(child, 'node_modules')).split(/[\\/]/u).join('/'))
+        }
+        await walk(child, depth + 1)
+      }
+    }
+    await walk(sourceRoot, 1)
+    return found
+  }
+
   async function linkWorktreeDependencies(
     sourceRoot: string,
     targetRoot: string,
     paths: readonly string[] | undefined,
   ): Promise<WorktreeLinkResult | undefined> {
-    if (!paths || paths.length === 0) return undefined
+    const resolvedPaths = paths && paths.length > 0 ? paths : await discoverNodeModules(sourceRoot, targetRoot)
+    if (resolvedPaths.length === 0) return undefined
     const createLink = dependencies.files.createDirectoryLink
     if (!createLink) return undefined
     const result: WorktreeLinkResult = { linked: [], failures: [], sharedReadOnly: false }
-    for (const raw of paths) {
+    for (const raw of resolvedPaths) {
       const relativePath = raw.trim().replace(/^[/\\]+/u, '').replace(/[/\\]+$/u, '')
       if (!relativePath || isAbsolute(relativePath) || relativePath.split(/[/\\]/u).includes('..')) {
         throw new SessionCheckoutError('invalid_input', hostMessage('worktreeLinkDepsInvalidPath', { p0: raw }))
