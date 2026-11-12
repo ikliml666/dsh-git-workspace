@@ -34,7 +34,7 @@ describe('public surfaces', () => {
       output?: { schema?: { properties?: Record<string, { type?: string; required?: boolean }> } }
     }> = []
     const ctx = { tools: { register: (tool: (typeof tools)[number]) => { tools.push(tool) } } }
-    registerTools(ctx as never, {} as SessionCheckoutModule)
+    registerTools(ctx as never, {} as SessionCheckoutModule, {} as never)
 
     expect(tools.map(tool => tool.name)).toEqual([
       'worktree_create',
@@ -42,9 +42,41 @@ describe('public surfaces', () => {
       'worktree_begin_next_iteration',
       'worktree_deliver',
       'worktree_cleanup',
+      'worktree_switch_branch',
       'worktree_prune_branches',
       'worktree_merge',
     ])
+  })
+
+  test('a refused branch switch hands the model the reason and the affected files', async () => {
+    const tools: Array<{ name: string; execute: (args: unknown, exec: unknown) => Promise<unknown> }> = []
+    const branches = {
+      // 覆盖型拒绝：模型必须先提交再切，所以 paths 与 nextAction 必须原样带回去。
+      gitSwitchBranch: vi.fn(async () => ({
+        ok: false as const,
+        error: {
+          code: 'git_operation_failed',
+          message: 'git switch failed',
+          switchIssue: { code: 'tracked-changes-would-be-overwritten', paths: ['src/index.ts'], detail: 'error: Your local changes' },
+        },
+      })),
+      gitCreateBranchAndSwitch: vi.fn(),
+    }
+    registerTools({ tools: { register: (tool: typeof tools[number]) => { tools.push(tool) } } } as never, {} as SessionCheckoutModule, branches as never)
+    const tool = tools.find(candidate => candidate.name === 'worktree_switch_branch')
+    if (!tool) throw new Error('switch tool was not registered')
+
+    const result = await tool.execute({ branch: 'main' }, { agent: { session: { id: 'target-session' } } }) as unknown as Record<string, unknown>
+
+    expect(branches.gitSwitchBranch).toHaveBeenCalledWith('target-session', 'main')
+    expect(result).toMatchObject({
+      kind: 'worktree_branch_switch_blocked',
+      branch: 'main',
+      created: false,
+      code: 'tracked-changes-would-be-overwritten',
+      paths: ['src/index.ts'],
+    })
+    expect(typeof result.nextAction).toBe('string')
   })
 
   test('list output never carries a key whose value is undefined (the host rejects that as not lossless JSON)', async () => {
@@ -60,7 +92,7 @@ describe('public surfaces', () => {
         },
       ]),
     } as unknown as SessionCheckoutModule
-    registerTools({ tools: { register: (tool: typeof tools[number]) => { tools.push(tool) } } } as never, module)
+    registerTools({ tools: { register: (tool: typeof tools[number]) => { tools.push(tool) } } } as never, module, {} as never)
     const tool = tools.find(candidate => candidate.name === 'worktree_list')
     if (!tool) throw new Error('list tool was not registered')
 
@@ -98,7 +130,7 @@ describe('public surfaces', () => {
       inspect: vi.fn(async () => delivered),
       beginNextIteration: vi.fn(async () => next),
     } as unknown as SessionCheckoutModule
-    registerTools({ tools: { register: (tool: typeof tools[number]) => { tools.push(tool) } } } as never, module)
+    registerTools({ tools: { register: (tool: typeof tools[number]) => { tools.push(tool) } } } as never, module, {} as never)
     const tool = tools.find(candidate => candidate.name === 'worktree_begin_next_iteration')
     if (!tool) throw new Error('next iteration tool was not registered')
 
@@ -154,7 +186,7 @@ describe('public surfaces', () => {
       push: { status: 'pushed' as const },
     }))
     const module = { inspect: vi.fn(async () => working), operate, isAutoDeliverEnabled: () => true } as unknown as SessionCheckoutModule
-    registerTools({ tools: { register: (tool: typeof tools[number]) => { tools.push(tool) } } } as never, module)
+    registerTools({ tools: { register: (tool: typeof tools[number]) => { tools.push(tool) } } } as never, module, {} as never)
     const tool = tools.find(candidate => candidate.name === 'worktree_deliver')
     if (!tool) throw new Error('deliver tool was not registered')
 
@@ -190,7 +222,7 @@ describe('public surfaces', () => {
       cleanup: 'cleanup' as const,
     }))
     const module = { inspect: vi.fn(async () => readyTarget), operate, isAutoDeliverEnabled: () => true } as unknown as SessionCheckoutModule
-    registerTools({ tools: { register: (tool: typeof tools[number]) => { tools.push(tool) } } } as never, module)
+    registerTools({ tools: { register: (tool: typeof tools[number]) => { tools.push(tool) } } } as never, module, {} as never)
     const tool = tools.find(candidate => candidate.name === 'worktree_deliver')
     if (!tool) throw new Error('deliver tool was not registered')
 

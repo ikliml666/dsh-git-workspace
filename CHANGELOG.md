@@ -6,6 +6,13 @@
 
 ### Added
 
+- 模型获得 `worktree_switch_branch`：切分支不再只能靠 shell 猜（2026-11-12）。
+  - **为什么**：这个插件是给模型用的。模型能建树、能交付、能合并，唯独「切换分支」没有工具——只能自己跑 `git switch`，撞上未提交改动时只拿到一段 git stderr，看不出哪些文件挡着，也不知道该先提交还是换分支。界面早就有结构化的拒绝（`WorktreeConsoleGitSwitchIssue`）和「先提交再切」的协助，模型一条都拿不到。
+  - **接法**：`registerTools` 增加第三参数 `WorktreeBranchPort`（`gitSwitchBranch` / `gitCreateBranchAndSwitch`），由 `index.ts` 把已构造好的 `controlPlane` 传进去。在 tools 里再写一份实现会绕过 `assertLocalHeadMutable`——切分支移动的 Local HEAD 正是所有待交付 apply 的基线，那条守卫必须与控制面同源。
+  - **参数**：`branch` 必填；`create: true` 时以当前 HEAD 为起点新建并切换。
+  - **拒绝不是异常**：覆盖型 / 冲突型 / 进行中 / 分支被其它 worktree 占用 / 分支不存在 / 名字不合法，一律返回 `kind: worktree_branch_switch_blocked` + 结构化 `code` + `paths`（Git 报告的文件）+ `nextAction`（中英文的下一步指引），让模型能决策，而不是对同一分支反复重试。
+  - **测试**：`tests/surface.test.ts` 的工具清单加入新工具，并新增「被拒绝时把原因与受影响文件交回模型」用例。
+
 - 分支切换受阻时提供「提交后再切换」协助（移植自 ZCode 的 branch switch assist，2026-11-09）。
   - **为什么**：`git switch` 只在目标分支会覆盖当前改动时才失败，失败原因埋在 stderr 里，胶囊此前只回显一段原始报错，用户看不到是哪些文件挡着，也没有一键解法。ZCode 把这类失败当成可修复的状态：先展示 Git 报告的受影响文件，再提供「把当前改动提交到本分支 → 自动重试切换」。
   - **结构化拒绝**：`SessionCheckoutGitPort.switchLocalBranch` 改为返回 `LocalBranchSwitchIssue | null`（不再抛错），把 stderr 归一成 `tracked-changes-would-be-overwritten` / `untracked-changes-would-be-overwritten` / `conflicts-present` / `operation-in-progress` / `branch-in-other-worktree` / `target-branch-not-found` / `unknown`，覆盖型 issue 带出 Git 缩进列出的文件路径；解析函数 `parseLocalBranchSwitchIssue` 单独可测。`WorktreeConsoleError` 新增可选 `switchIssue`，`consoleFailure` 原样透传。

@@ -1076,6 +1076,50 @@ export const hostMessages = {
     "zh": "无法先把本会话 cwd 移出该 Worktree（{p0}），为避免 cwd 悬空指向已删目录，本次删除已中止。请先手动 cd 出该目录后重试。",
     "en": "The Session cwd could not be moved out of the Worktree first ({p0}); the removal was aborted so the cwd cannot be left pointing at a deleted directory. Leave the directory manually and retry."
   },
+  "worktreeSwitchBranchDescription": {
+    "zh": "把本会话项目的 Local 检出切到指定本地分支（create=true 时以当前 HEAD 为起点新建并切换）。这是唯一会移动 Local HEAD 的模型动作：该 HEAD 是所有待交付 apply 的基线，因此有会话正在交付时会被拒绝。被拒绝时返回 kind=worktree_branch_switch_blocked、结构化 code 与受影响 paths，按 nextAction 处理，不要对同一分支反复重试。",
+    "en": "Switch this session's project Local checkout to a local branch (with create=true, create it from the current HEAD and switch). This is the only model action that moves the Local HEAD, which is the baseline every pending delivery is computed against, so it is refused while any session is mid-delivery. A refusal returns kind=worktree_branch_switch_blocked with a structured code and affected paths; follow nextAction instead of retrying the same branch."
+  },
+  "worktreeSwitchBranchBranch": {
+    "zh": "目标本地分支短名（例如 main 或 feat/login）。",
+    "en": "Target local branch short name (for example main or feat/login)."
+  },
+  "worktreeSwitchBranchCreate": {
+    "zh": "true 时以当前 HEAD 为起点新建该分支并切换（git switch -c）；省略或 false 时只切换到已存在的分支。",
+    "en": "When true, create the branch from the current HEAD and switch to it (git switch -c); omitted or false only switches to an existing branch."
+  },
+  "worktreeSwitchBranchRequiresBranch": {
+    "zh": "worktree_switch_branch 需要 branch 参数（本地分支短名）。",
+    "en": "worktree_switch_branch requires a branch argument (a local branch short name)."
+  },
+  "worktreeSwitchCommitThenRetry": {
+    "zh": "这些文件有未提交改动，切换会覆盖它们：先提交（git add -A && git commit）或处理掉这些改动，再重试切换。paths 是 Git 报告的文件。",
+    "en": "These files have uncommitted changes the switch would overwrite: commit them first (git add -A && git commit) or deal with the changes, then retry the switch. paths lists the files Git reported."
+  },
+  "worktreeSwitchResolveConflictsFirst": {
+    "zh": "仓库里有未解决的合并/变基冲突：先解决冲突并完成或中止该操作，再切换分支。",
+    "en": "The repository has unresolved merge or rebase conflicts: resolve them and finish or abort that operation before switching branches."
+  },
+  "worktreeSwitchOperationInProgress": {
+    "zh": "仓库里有进行中的 merge/rebase/cherry-pick/revert：先完成或中止它，再切换分支。",
+    "en": "A merge, rebase, cherry-pick or revert is in progress: finish or abort it before switching branches."
+  },
+  "worktreeSwitchBranchInOtherWorktree": {
+    "zh": "该分支已被另一棵 worktree 检出：改切其它分支，或先移除占用它的那棵树。",
+    "en": "Another worktree already has that branch checked out: switch to a different branch, or remove the worktree that holds it."
+  },
+  "worktreeSwitchTargetBranchMissing": {
+    "zh": "目标分支不存在：用 create=true 新建并切换，或换一个已存在的分支名。",
+    "en": "The target branch does not exist: create it with create=true, or pick an existing branch name."
+  },
+  "worktreeSwitchInvalidBranchName": {
+    "zh": "分支名不合法：改用合法的短名（不含空格与 ~ ^ : ? * [ \\ 等字符）。",
+    "en": "That branch name is invalid: use a legal short name without spaces or the characters ~ ^ : ? * [ \\."
+  },
+  "switchBranch": {
+    "zh": "切换分支",
+    "en": "Switch branch"
+  },
   "worktreePruneBranchesDescription": {
     "zh": "安全清理当前会话项目里已完全合并的本地分支（git branch -d 语义，绝不强删）：当前分支、main/master 和未合并分支一律跳过并说明原因。先 dryRun 预览，再正式删除。",
     "en": "Safely prune fully merged local branches in the current session's project (git branch -d semantics, never force): the current branch, main/master, and unmerged branches are skipped with a reason. Preview with dryRun first, then delete for real."

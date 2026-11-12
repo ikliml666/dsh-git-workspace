@@ -401,7 +401,7 @@ export async function apply(ctx: Context, config: { stateDir?: string } & GitTim
     worktreeKeepCount: config.worktreeKeepCount,
   })
 
-  new WorktreeConsoleService(ctx, createWorktreeConsoleControlPlane({
+  const controlPlane = createWorktreeConsoleControlPlane({
     module,
     lookup,
     files,
@@ -409,9 +409,10 @@ export async function apply(ctx: Context, config: { stateDir?: string } & GitTim
     git,
     createWorktree: (sessionId, from) => createWorktreeNow(ctx, module, sessionId, from),
     adoptionFailure: (sessionId) => module.adoptionFailure(sessionId),
-  }), join(stateDir, 'sidebar-diag.ndjson'), providerLifecycle.officialWorkspaceActive)
+  })
+  new WorktreeConsoleService(ctx, controlPlane, join(stateDir, 'sidebar-diag.ndjson'), providerLifecycle.officialWorkspaceActive)
 
-  registerTools(ctx, module)
+  registerTools(ctx, module, controlPlane)
   registerWorktreeCommand(ctx, module)
   registerSessionTargetContext(ctx, module)
   registerOfficialWorktreeAdoption(ctx, module)

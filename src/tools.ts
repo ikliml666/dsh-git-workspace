@@ -12,6 +12,7 @@ import { hostRegistrationMessage } from './i18n/host-messages.js'
  */
 
 import type { Context } from '@deepseek-ai/cordis'
+import type { WorktreeConsoleGitMutationResponse, WorktreeConsoleOutcome } from './console-contract.js'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { SessionCheckoutModule } from './index.js'
 import type { WorktreeValidationStatus } from './types.js'
@@ -97,8 +98,45 @@ async function enterCheckout(
   }
 }
 
+/**
+ * Local-checkout branch operations the model shares with the console.
+ *
+ * The console RPC and this tool must go through the same guard
+ * (`assertLocalHeadMutable`): a model-initiated switch moves the Local HEAD that
+ * every pending delivery is computed against, so it cannot bypass that check.
+ */
+export interface WorktreeBranchPort {
+  gitSwitchBranch(sessionId: string, branch: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>
+  gitCreateBranchAndSwitch(sessionId: string, branch: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>
+}
+
+/**
+ * What the model should do after a refused switch. The console renders the same
+ * refusal as a "commit, then switch" button; the model gets the sentence because
+ * it has to pick the action itself.
+ */
+function switchNextAction(code: string, fallback: string): string {
+  switch (code) {
+    case 'tracked-changes-would-be-overwritten':
+    case 'untracked-changes-would-be-overwritten':
+      return hostMessage('worktreeSwitchCommitThenRetry')
+    case 'conflicts-present':
+      return hostMessage('worktreeSwitchResolveConflictsFirst')
+    case 'operation-in-progress':
+      return hostMessage('worktreeSwitchOperationInProgress')
+    case 'branch-in-other-worktree':
+      return hostMessage('worktreeSwitchBranchInOtherWorktree')
+    case 'target-branch-not-found':
+      return hostMessage('worktreeSwitchTargetBranchMissing')
+    case 'invalid-branch-name':
+      return hostMessage('worktreeSwitchInvalidBranchName')
+    default:
+      return fallback
+  }
+}
+
 /** Register the safe model-facing worktree tools. */
-export function registerTools(ctx: Context, module: SessionCheckoutModule): void {
+export function registerTools(ctx: Context, module: SessionCheckoutModule, branches: WorktreeBranchPort): void {
   // Official parity: the experimental create_worktree bundle ends creation with
   // ctx.workingDirectory.set(agent, path), so the Session really works inside
   // the new checkout. This port reproduces that for a Managed Worktree, and
@@ -441,6 +479,61 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule): void
       })
     },
     presentCall: () => ({ card: 'generic', title: hostRegistrationMessage('cleanupFinishedWorktree'), kind: 'other', rawInput: {} }),
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'worktree_switch_branch',
+    description: hostRegistrationMessage('worktreeSwitchBranchDescription'),
+    parameters: {
+      branch: {
+        type: 'string',
+        description: hostRegistrationMessage('worktreeSwitchBranchBranch'),
+      },
+      create: {
+        type: 'boolean',
+        description: hostRegistrationMessage('worktreeSwitchBranchCreate'),
+      },
+    },
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          kind: { type: 'string', required: true },
+          branch: { type: 'string', required: true },
+          created: { type: 'boolean', required: true },
+          code: { type: 'string' },
+          paths: { type: 'array', items: { type: 'string' } },
+          nextAction: { type: 'string' },
+        },
+      },
+      render: (_args, value) => renderJson(value),
+    },
+    async execute(args, exec) {
+      return withHostLanguage(languageForInvocation(exec.agent, ctx), async () => {
+        const sessionId = sessionIdOf(exec.agent)
+        const branch = typeof args?.branch === 'string' ? args.branch.trim() : ''
+        if (!branch) throw new Error(hostMessage('worktreeSwitchBranchRequiresBranch'))
+        const create = args?.create === true
+        // 与控制面同一条守卫：切分支移动的是 Local HEAD，而它正是所有待交付
+        // apply 的基线，模型不能绕过这条检查。
+        const result = create
+          ? await branches.gitCreateBranchAndSwitch(sessionId, branch)
+          : await branches.gitSwitchBranch(sessionId, branch)
+        if (result.ok) return { kind: 'worktree_branch_switched', branch: result.value.branch, created: create }
+        // 拒绝是正常答案，不是异常：模型要靠 code/paths 决定「先提交再切」还是换目标分支。
+        const issue = result.error.switchIssue
+        return {
+          kind: 'worktree_branch_switch_blocked',
+          branch,
+          created: create,
+          code: issue?.code ?? result.error.code,
+          ...(issue !== undefined && issue.paths.length > 0 ? { paths: issue.paths } : {}),
+          nextAction: switchNextAction(issue?.code ?? result.error.code, result.error.message),
+        }
+      })
+    },
+    presentCall: () => ({ card: 'generic', title: hostRegistrationMessage('switchBranch'), kind: 'other', rawInput: {} }),
   }))
 
   ctx.tools.register(defineTool({
