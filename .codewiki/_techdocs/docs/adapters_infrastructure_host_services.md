@@ -6,7 +6,7 @@ description: 本模块包含两个把 Harness 主机服务投影为 领域端口
 # 主机服务适配器（Host Services Adapters）
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`e1bb46dc`](https://github.com/wloops/dsh-git-worktree/commit/e1bb46dcb7e626e7a0bc8875b5980a70ba0eb79a) on 2026-11-12 with `mimo-v2.6-flash`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`9c2a5319`](https://github.com/wloops/dsh-git-worktree/commit/9c2a531914320240ac5ec15fd28306c849436002) on 2026-11-12 with `mimo-v2.6-flash`. Check the code before relying on details.
 
 本模块包含两个把 **Harness 主机服务**投影为 **领域端口** 的适配器：`src/adapters/lookup.ts` 与 `src/adapters/working-directory.ts`。前者回答「这个会话属于哪个项目、它现在站在哪个目录」，后者负责「把会话真正搬进 / 搬出一棵受管 Worktree」。两者都是**纯结构性、动态解析**的适配层：主机没有挂载对应服务时一律降级为 `undefined`，绝不抛出，从而让上层的状态机把缺失当作「恢复 / 孤儿事实」而不是失败。
 
@@ -341,11 +341,11 @@ flowchart TB
 - 插件装配入口：[公共 API](public_api.md)
 
 ??? abstract "Documented components (7)"
-    - [`LiveSessionLike`](https://github.com/wloops/dsh-git-worktree/blob/e1bb46dcb7e626e7a0bc8875b5980a70ba0eb79a/src%5Cadapters%5Clookup.ts) — `src\adapters\lookup.ts`
-    - [`SessionStoreLike`](https://github.com/wloops/dsh-git-worktree/blob/e1bb46dcb7e626e7a0bc8875b5980a70ba0eb79a/src%5Cadapters%5Clookup.ts) — `src\adapters\lookup.ts`
-    - [`WorkingDirectoryLike`](https://github.com/wloops/dsh-git-worktree/blob/e1bb46dcb7e626e7a0bc8875b5980a70ba0eb79a/src%5Cadapters%5Clookup.ts) — `src\adapters\lookup.ts`
-    - [`WorkspaceLike`](https://github.com/wloops/dsh-git-worktree/blob/e1bb46dcb7e626e7a0bc8875b5980a70ba0eb79a/src%5Cadapters%5Clookup.ts) — `src\adapters\lookup.ts`
-    - [`WorkspaceRegistryLike`](https://github.com/wloops/dsh-git-worktree/blob/e1bb46dcb7e626e7a0bc8875b5980a70ba0eb79a/src%5Cadapters%5Clookup.ts) — `src\adapters\lookup.ts`
-    - [`SessionWorkingDirectoryPort`](https://github.com/wloops/dsh-git-worktree/blob/e1bb46dcb7e626e7a0bc8875b5980a70ba0eb79a/src%5Cadapters%5Cworking-directory.ts) — `src\adapters\working-directory.ts`
-    - [`WorkingDirectoryServiceLike`](https://github.com/wloops/dsh-git-worktree/blob/e1bb46dcb7e626e7a0bc8875b5980a70ba0eb79a/src%5Cadapters%5Cworking-directory.ts) — `src\adapters\working-directory.ts`
+    - [`LiveSessionLike`](https://github.com/wloops/dsh-git-worktree/blob/9c2a531914320240ac5ec15fd28306c849436002/src%5Cadapters%5Clookup.ts) — `src\adapters\lookup.ts`
+    - [`SessionStoreLike`](https://github.com/wloops/dsh-git-worktree/blob/9c2a531914320240ac5ec15fd28306c849436002/src%5Cadapters%5Clookup.ts) — `src\adapters\lookup.ts`
+    - [`WorkingDirectoryLike`](https://github.com/wloops/dsh-git-worktree/blob/9c2a531914320240ac5ec15fd28306c849436002/src%5Cadapters%5Clookup.ts) — `src\adapters\lookup.ts`
+    - [`WorkspaceLike`](https://github.com/wloops/dsh-git-worktree/blob/9c2a531914320240ac5ec15fd28306c849436002/src%5Cadapters%5Clookup.ts) — `src\adapters\lookup.ts`
+    - [`WorkspaceRegistryLike`](https://github.com/wloops/dsh-git-worktree/blob/9c2a531914320240ac5ec15fd28306c849436002/src%5Cadapters%5Clookup.ts) — `src\adapters\lookup.ts`
+    - [`SessionWorkingDirectoryPort`](https://github.com/wloops/dsh-git-worktree/blob/9c2a531914320240ac5ec15fd28306c849436002/src%5Cadapters%5Cworking-directory.ts) — `src\adapters\working-directory.ts`
+    - [`WorkingDirectoryServiceLike`](https://github.com/wloops/dsh-git-worktree/blob/9c2a531914320240ac5ec15fd28306c849436002/src%5Cadapters%5Cworking-directory.ts) — `src\adapters\working-directory.ts`
 
