@@ -209,6 +209,7 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule, contr
               properties: { path: { type: 'string', required: true }, reason: { type: 'string', required: true } },
             },
           },
+          sharedReadOnly: { type: 'boolean' },
         },
       },
       render: (_args, value) => renderJson(value),
@@ -255,7 +256,11 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule, contr
           ...(entered.failure === undefined ? {} : { cwdError: entered.failure }),
           ...(launch.linkResult === undefined
             ? {}
-            : { linkedDeps: launch.linkResult.linked, linkFailures: launch.linkResult.failures }),
+            : {
+                linkedDeps: launch.linkResult.linked,
+                linkFailures: launch.linkResult.failures,
+                sharedReadOnly: launch.linkResult.sharedReadOnly,
+              }),
         }
       })
     },
@@ -354,6 +359,7 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule, contr
               properties: { path: { type: 'string', required: true }, reason: { type: 'string', required: true } },
             },
           },
+          sharedReadOnly: { type: 'boolean' },
         },
       },
       render: (_args, value) => renderJson(value),
@@ -385,7 +391,11 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule, contr
           ...(entered.failure === undefined ? {} : { cwdError: entered.failure }),
           ...(target.linkResult === undefined
             ? {}
-            : { linkedDeps: target.linkResult.linked, linkFailures: target.linkResult.failures }),
+            : {
+                linkedDeps: target.linkResult.linked,
+                linkFailures: target.linkResult.failures,
+                sharedReadOnly: target.linkResult.sharedReadOnly,
+              }),
         }
       })
     },

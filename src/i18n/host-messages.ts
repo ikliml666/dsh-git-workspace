@@ -1284,6 +1284,10 @@ export const hostMessages = {
     "zh": "主仓库的 {p0} 是悬空联接，指向的目标已不存在；先修复主仓库的依赖联接再重试。",
     "en": "The Local checkout's {p0} is a dangling link whose target no longer exists; repair the Local dependency link first."
   },
+  "worktreeLinkDepsDrifted": {
+    "zh": "主仓库与 Worktree 的 {p0} 依赖声明不一致（{p1}），依赖可能已漂移；不共享该目录，请在 Worktree 内安装依赖。",
+    "en": "The dependency declarations for {p0} differ between the Local checkout and the Worktree ({p1}); the directory is not shared. Install dependencies inside the Worktree instead."
+  },
   "worktreePreservePathInvalid": {
     "zh": "preservePaths 只接受 Worktree 内的相对路径：{p0}",
     "en": "preservePaths accepts only Worktree-relative paths: {p0}"

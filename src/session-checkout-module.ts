@@ -38,6 +38,7 @@ import { WorktreeCreationFailure } from './creation-failure.js'
 import type { WorktreeCreationEvidence } from './ports.js'
 import { adoptWorktreeForSession, registerOfficialWorktree } from './official-worktree-registration.js'
 import { checkpointGenerationForRecord } from './checkpoint.js'
+import { findDependencyDrift } from './dependency-sharing.js'
 import { readWorktreeConfig, resolveConfiguredPaths } from './worktree-config.js'
 import {
   createManagedWorktreePathCandidates,
@@ -4881,7 +4882,7 @@ export function createSessionCheckoutModule(
     if (!paths || paths.length === 0) return undefined
     const createLink = dependencies.files.createDirectoryLink
     if (!createLink) return undefined
-    const result: WorktreeLinkResult = { linked: [], failures: [] }
+    const result: WorktreeLinkResult = { linked: [], failures: [], sharedReadOnly: false }
     for (const raw of paths) {
       const relativePath = raw.trim().replace(/^[/\\]+/u, '').replace(/[/\\]+$/u, '')
       if (!relativePath || isAbsolute(relativePath) || relativePath.split(/[/\\]/u).includes('..')) {
@@ -4903,6 +4904,18 @@ export function createSessionCheckoutModule(
         result.failures.push({ path: relativePath, reason: 'already exists in the Worktree' })
         continue
       }
+      // 链接会让 Worktree 里的安装写穿到主仓库：只有两边依赖声明逐字节一致时才共享。
+      const read = dependencies.files.readTextFile
+      if (read !== undefined) {
+        const drift = findDependencyDrift(sourceRoot, targetRoot, relativePath, read)
+        if (drift !== null) {
+          result.failures.push({
+            path: relativePath,
+            reason: hostMessage('worktreeLinkDepsDrifted', { p0: relativePath, p1: drift.manifest }),
+          })
+          continue
+        }
+      }
       try {
         createLink(source, target)
         result.linked.push(relativePath)
@@ -4910,6 +4923,7 @@ export function createSessionCheckoutModule(
         result.failures.push({ path: relativePath, reason: error instanceof Error ? error.message : String(error) })
       }
     }
+    result.sharedReadOnly = result.linked.length > 0
     return result
   }
 

@@ -1,0 +1,57 @@
+import { dirname, join } from 'node:path'
+
+/**
+ * 共享依赖目录前必须先证明两边的依赖声明一致。
+ *
+ * 主流的做法是每个 Worktree 自己安装依赖（pnpm store / Yarn PnP 让这一步很快），
+ * 而不是把 node_modules 链到主 checkout：链接之后任何一次 `npm install` 都会写穿
+ * 到主仓库，正在并行工作的其它会话会当场被换掉环境。
+ *
+ * 但大仓库里装一次要几分钟，只读共享仍有价值。所以共享的前提是：主仓库与
+ * Worktree 的 package.json 与 lock 文件逐字节相同——依赖树没有漂移，链接才安全。
+ */
+export const DEPENDENCY_MANIFESTS = [
+  'package.json',
+  'package-lock.json',
+  'pnpm-lock.yaml',
+  'yarn.lock',
+  'npm-shrinkwrap.json',
+  'bun.lock',
+  'bun.lockb',
+] as const
+
+/**
+ * 依赖目录所属的包根：`android/frontend/node_modules` → `android/frontend`。
+ * 嵌套依赖（`node_modules/a/node_modules`）取最后一个 node_modules 之前的部分。
+ */
+export function dependencyRootOf(relativePath: string): string {
+  const segments = relativePath.split('/')
+  const index = segments.lastIndexOf('node_modules')
+  const root = index >= 0 ? segments.slice(0, index).join('/') : dirname(relativePath)
+  // 顶层 node_modules 的父路径是空串，统一成当前目录。
+  return root === '' ? '.' : root
+}
+
+export interface DependencyDrift {
+  manifest: string
+}
+
+/**
+ * 返回第一个不一致的依赖声明文件；两边都没有声明文件时返回 null（无从判断，
+ * 不阻断）。read 由调用方注入，便于测试与端口替换。
+ */
+export function findDependencyDrift(
+  localRoot: string,
+  worktreeRoot: string,
+  relativePath: string,
+  read: (path: string) => string | null,
+): DependencyDrift | null {
+  const root = dependencyRootOf(relativePath)
+  for (const manifest of DEPENDENCY_MANIFESTS) {
+    const local = read(join(localRoot, root, manifest))
+    const worktree = read(join(worktreeRoot, root, manifest))
+    if (local === null && worktree === null) continue
+    if (local !== worktree) return { manifest }
+  }
+  return null
+}

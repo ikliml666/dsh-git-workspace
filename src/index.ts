@@ -112,6 +112,8 @@ export interface MarkReadyForReviewInput {
 export interface WorktreeLinkResult {
   linked: string[]
   failures: { path: string; reason: string }[]
+  /** True when at least one directory is shared with the Local checkout, read-only. */
+  sharedReadOnly: boolean
 }
 
 /** Handoff data used by the client to create the authoritative isolated Workspace/Session. */
