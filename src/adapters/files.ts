@@ -91,8 +91,10 @@ async function removeDirectoryTree(path: string): Promise<void> {
   await rm(path, {
     recursive: true,
     force: true,
-    maxRetries: process.platform === 'win32' ? 6 : 2,
-    retryDelay: 150,
+    // Windows 上几千个文件的 node_modules 第一次常常删不完（杀软扫描、句柄释放慢），
+    // 实测 2s 内放弃后等 25s 重试就能成功——把重试窗口拉到约 3.6s。
+    maxRetries: process.platform === 'win32' ? 12 : 2,
+    retryDelay: process.platform === 'win32' ? 300 : 150,
   })
 }
 

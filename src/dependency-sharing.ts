@@ -47,9 +47,13 @@ export function findDependencyDrift(
   read: (path: string) => string | null,
 ): DependencyDrift | null {
   const root = dependencyRootOf(relativePath)
+  // 行尾不是依赖内容：主仓库工作区常是 CRLF，Worktree 检出是 LF，逐字节比较会把
+  // 「完全相同的声明」判成漂移，共享被全量拒绝。比较前统一成 LF。
+  const normalize = (value: string | null): string | null =>
+    value === null ? null : value.replace(/\r\n/g, '\n')
   for (const manifest of DEPENDENCY_MANIFESTS) {
-    const local = read(join(localRoot, root, manifest))
-    const worktree = read(join(worktreeRoot, root, manifest))
+    const local = normalize(read(join(localRoot, root, manifest)))
+    const worktree = normalize(read(join(worktreeRoot, root, manifest)))
     if (local === null && worktree === null) continue
     if (local !== worktree) return { manifest }
   }
