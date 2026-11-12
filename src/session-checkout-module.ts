@@ -4667,9 +4667,24 @@ export function createSessionCheckoutModule(
     return summarizeManagedWorktree(updated)
   }
 
+  // 顶部胶囊与控制台每几秒各走一次 observe，每次都跑两次 `git rev-parse` 加一次
+  // `git status`。只读路径允许 2 秒陈旧：记录 revision 变了立即失效，写操作不走这里。
+  const observeCache = new Map<string, { revision: number; at: number; value: Awaited<ReturnType<typeof observeManagedCheckoutFresh>> }>()
+  const OBSERVE_TTL_MS = 2000
+
   async function observeManagedCheckout(checkoutId: string) {
     const record = dependencies.registry.read().managedCheckouts[checkoutId]
     if (!record || record.phase === 'discarded') throw new SessionCheckoutError('checkout_missing', hostMessage('theWorktreeDirectoryNoLongerExists'))
+    const cached = observeCache.get(checkoutId)
+    if (cached !== undefined && cached.revision === record.revision && Date.now() - cached.at < OBSERVE_TTL_MS) {
+      return cached.value
+    }
+    const value = await observeManagedCheckoutFresh(record)
+    observeCache.set(checkoutId, { revision: record.revision, at: Date.now(), value })
+    return value
+  }
+
+  async function observeManagedCheckoutFresh(record: ManagedCheckoutRecord) {
     const validated = await validateManagedCheckout(bindingForManagedRecord(record), record, false)
     if (!validated) throw new SessionCheckoutError('checkout_mismatch', hostMessage('theWorktreeDirectoryIdentityCannotBeVerified'))
     // `localSnapshot` rides along because validation already inspected the Local
