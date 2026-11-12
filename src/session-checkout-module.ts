@@ -39,7 +39,7 @@ import { WorktreeCreationFailure } from './creation-failure.js'
 import type { WorktreeCreationEvidence } from './ports.js'
 import { adoptWorktreeForSession, registerOfficialWorktree } from './official-worktree-registration.js'
 import { checkpointGenerationForRecord } from './checkpoint.js'
-import { findDependencyDrift } from './dependency-sharing.js'
+import { dependencyRootOf, findDependencyDrift } from './dependency-sharing.js'
 import { readWorktreeConfig, resolveConfiguredPaths } from './worktree-config.js'
 import {
   createManagedWorktreePathCandidates,
@@ -3112,12 +3112,15 @@ export function createSessionCheckoutModule(
       await retryTransientCleanup(() => dependencies.files.removeDirectoryTree(validatedQuarantine))
     }
 
+    const cleanupJournal = record.journal?.operation === 'cleanup' ? record.journal : undefined
     try {
       const existingQuarantine = await validateCleanupQuarantine(record)
       if (existingQuarantine) {
         await retryTransientCleanup(() => dependencies.files.removeDirectoryTree(existingQuarantine))
-      } else if (record.journal?.operation === 'cleanup' && record.journal.cleanupQuarantinePath && dependencies.files.exists(record.journal.cleanupQuarantinePath)) {
-        return block('cleanupIdentityChanged', 'identity_changed')
+      } else if (cleanupJournal?.cleanupQuarantinePath && dependencies.files.exists(cleanupJournal.cleanupQuarantinePath)) {
+        // 隔离目录还在但身份校验不过（目录里有 junction、或上次删除被外部改动打断）：
+        // 它的内容本来就是待丢弃的残留，先尝试直接删除，删不掉再交给用户。
+        await retryTransientCleanup(() => dependencies.files.removeDirectoryTree(cleanupJournal.cleanupQuarantinePath as string))
       } else if (dependencies.files.exists(record.managedGitRoot)) {
         const validated = dependencies.files.exists(record.managedRoot)
           ? await validateManagedCheckout(binding, record, false)
@@ -5050,7 +5053,12 @@ export function createSessionCheckoutModule(
       // 链接会让 Worktree 里的安装写穿到主仓库：只有两边依赖声明逐字节一致时才共享。
       const read = dependencies.files.readTextFile
       if (read !== undefined) {
-        const drift = findDependencyDrift(sourceRoot, targetRoot, relativePath, read)
+        // 包根在 Worktree 里根本不存在时（目录没检出），不会有人在那里跑 install，
+        // 单向存在的声明也就不构成漂移；否则仍按「单向存在即不一致」拒绝。
+        const packageRoot = join(targetRoot, dependencyRootOf(relativePath))
+        const drift = dependencies.files.exists(packageRoot)
+          ? findDependencyDrift(sourceRoot, targetRoot, relativePath, read)
+          : null
         if (drift !== null) {
           result.failures.push({
             path: relativePath,

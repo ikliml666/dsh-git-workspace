@@ -49,6 +49,10 @@
 
 ### Changed
 
+- 依赖自动继承不再被「Worktree 尚未检出声明」挡掉（2026-11-12）：一致性校验原来把「一侧缺失」当成漂移，而 Worktree 里包根目录根本不存在时（目录没检出）必然缺失，结果自动继承全部失败。现在只有包根在 Worktree 里存在时才比对声明；单向存在的保守拒绝保留在真正能比较的场景。
+
+- 清理残留目录不再直接报「Git 身份已变化」（2026-11-12）：上次清理中断留下的隔离目录还在、但身份校验不过（目录里有 junction、或删除被外部改动打断）时，原来直接返回 `identity_changed` 让调用方卡住；隔离目录的内容本来就是待丢弃的残留，现在先尝试直接删除，删不掉才交给用户。
+
 - 创建 Worktree 自动继承 `node_modules`（2026-11-12）：不写 `linkDeps` 时扫描 Local 根下三层以内已装好的 `node_modules` 并建链，省掉每轮手工 `mklink`。只认 `node_modules` 这个通用约定，不猜业务目录；链接前仍比对 `package.json` 与 lock，声明不一致的拒绝并提示在 Worktree 内安装。
 
 - 新建 Worktree 的检出强制 LF（2026-11-12）：检出走 `read-tree` + `checkout-index`，Windows 上 `core.eol` 默认 `native`，仓库里存的是 LF 却被写成 CRLF——新建的工作区一出现就整树「已修改」（实测 774 个文件），`git add -A` 会把上万行行尾变化写进提交。两处检出命令现在都带 `-c core.autocrlf=false -c core.eol=lf`。
