@@ -3,17 +3,19 @@
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
     "baseCommit": "a5ac5082661c410657502bc7f2264a69688c91c1",
-    "headCommit": "7bdb34fe56c7b34ebd8175370b55c4f1aa0ddc41"
+    "headCommit": "b9a020f64421c5e59628c552a6f7ae933ecd136f"
   },
   "pendingChanges": {
     "state": "ok",
     "baseCommit": "a5ac5082661c410657502bc7f2264a69688c91c1",
-    "headCommit": "7bdb34fe56c7b34ebd8175370b55c4f1aa0ddc41",
+    "headCommit": "b9a020f64421c5e59628c552a6f7ae933ecd136f",
     "committed": [
       "CHANGELOG.md",
       "src/i18n/host-messages.ts",
       "src/index.ts",
+      "src/session-checkout-module.ts",
       "src/tools.ts",
+      "src/types.ts",
       "tests/surface.test.ts"
     ],
     "staged": [],
@@ -34,19 +36,26 @@
   ],
   "engineVersion": "2.0.0",
   "scope": "auto",
-  "effectiveScope": "stale",
+  "effectiveScope": "full",
   "updateOutcome": "incremental",
   "fallbackReason": "",
-  "missingRepair": null,
+  "missingRepair": {
+    "baseCommit": "a5ac5082661c410657502bc7f2264a69688c91c1",
+    "modules": [
+      "root",
+      "session_checkout_engine_integration",
+      "session_checkout_integration_core",
+      "session_checkout_tools",
+      "src_session-checkout-module.ts"
+    ],
+    "overviewLinks": [],
+    "attempts": 1,
+    "at": "2026-11-12T09:52:04.406Z"
+  },
   "notes": [
-    "持久化基线 9d0e1bc 与本次 cw 基线 a5ac508 不同（以 cw 基线为准，未消费变化仍会并入）",
-    "工作区未提交改动已合成临时 commit 5484a8b063eb（3 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mwdcqnsb-3-native（37 个文件）",
-    "adapters_infrastructure_host_services.md：校对改写 2 处失效链接（剩余 0 处）",
-    "core_ports_and_types.md：校对改写 2 处失效链接（剩余 0 处）",
-    "session_checkout_apply_engine.md：校对改写 3 处失效链接（剩余 0 处）",
-    "session_checkout_engine.md：校对改写 1 处失效链接（剩余 0 处）",
-    "语义校对改写了 4 篇（adapters_infrastructure_host_services.md、core_ports_and_types.md、session_checkout_apply_engine.md、session_checkout_engine.md），改后重新判门"
+    "产物缺页 5 个模块（session_checkout_engine_integration、session_checkout_integration_core、session_checkout_tools 等），转全量修复（复用已有页面）",
+    "工作区未提交改动已合成临时 commit 5f670ff20329（3 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mwddchr4-4-native（37 个文件）"
   ],
-  "updatedAt": "2026-11-12T09:42:17.821Z"
+  "updatedAt": "2026-11-12T09:53:30.105Z"
 }
