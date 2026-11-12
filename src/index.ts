@@ -108,11 +108,18 @@ export interface MarkReadyForReviewInput {
   suggestedCommitMessage: string
 }
 
+/** Outcome of linking local dependency directories into a fresh Worktree. */
+export interface WorktreeLinkResult {
+  linked: string[]
+  failures: { path: string; reason: string }[]
+}
+
 /** Handoff data used by the client to create the authoritative isolated Workspace/Session. */
 export interface IsolatedTargetLaunch {
   targetSessionId: string
   managedRoot: string
   target: SessionTargetView
+  linkResult?: WorktreeLinkResult
 }
 
 /** Complete core interface the session-checkout module exposes to business callers. */
@@ -145,7 +152,7 @@ export interface SessionCheckoutModule {
    * host owns the Git operation, this plugin owns tracking, delivery, review
    * and cleanup for the result.
    */
-  createOfficialTarget(agent: unknown, createOptions?: { topic?: string; branch?: string }): Promise<IsolatedTargetLaunch>
+  createOfficialTarget(agent: unknown, createOptions?: { topic?: string; branch?: string; linkDeps?: string[] }): Promise<IsolatedTargetLaunch>
   /**
    * Record a Worktree that appeared under `.agents/worktrees/` because some
    * other path created it (the official `create_worktree` tool, the forge
@@ -158,7 +165,7 @@ export interface SessionCheckoutModule {
   /** 本会话最近一次接管失败的原因；没有则 null。 */
   adoptionFailure(sessionId: string): string | null
   /** Recreate a cleaned delivered owner's immutable cwd as the next isolated iteration. */
-  beginNextIteration(sessionId: string, expectedRevision: number): Promise<SessionTargetView>
+  beginNextIteration(sessionId: string, expectedRevision: number, linkDeps?: string[]): Promise<SessionTargetView & { linkResult?: WorktreeLinkResult }>
   /** Invalidate an unsynced review and resume the same iteration without touching Local. */
   resumeRevision(
     sessionId: string,

@@ -6,6 +6,12 @@
 
 ### Added
 
+- 迭代流程的三处摩擦：依赖不继承、收尾材料被清理、回执不可信（2026-11-12）。
+  - **依赖不继承**：Worktree 只含 Git 跟踪内容，`node_modules` 每轮要手工建 Junction，忘了或旧树被删后联接悬空时，tsc/构建报的错误指向别处。`worktree_create` 与 `worktree_begin_next_iteration` 新增 `linkDeps`：创建后按点名的相对路径建目录联接（Windows junction），源目录失效时直接报「悬空联接」，不再让构建报无关错误。回执返回 `linkedDeps` 与 `linkFailures`。
+  - **收尾材料被清理**：被 gitignore 的草稿（`changelogs/`）不进提交，冻结副本一删就没了。`worktree_deliver` 新增 `preservePaths`，在清理前把点名的路径复制回 Local；Local 已有同名文件时不覆盖，避免用旧草稿盖掉新版本。回执新增 `preservedFiles` 与 `droppedIgnoredFiles`（本次随清理丢弃、没保留的忽略路径，目录级清单，最多 50 条）。
+  - **回执不可信**：交付回执的 `changedFiles` 改为 `git diff-tree` 的提交自身差异，不再用 `baseOid → tree` 的累计范围。baseOid 早于提交父节点时（checkpoint 或恢复历史），旧算法会列出从未进入该提交的文件，逼得每次交付都要额外 `git show --stat` 复核。
+  - **测试**：`tests/surface.test.ts` 新增三条接线用例——`worktree_create` 与 `worktree_begin_next_iteration` 的 `linkDeps` 透传、`worktree_deliver` 的 `preservePaths` 与 `preservedFiles`/`droppedIgnoredFiles` 回执。
+
 - 模型侧三条断链：合并后出不去、看不到自己的分支、交付后不知道自己在哪（2026-11-12）。
   - **合并后出不去**：`worktree_merge` 不移动 checkout，只有 `worktree_deliver` 会在删除前 `leave`，所以「先合并、再回 Local 继续」没有工具可走——`returnToLocal` 只挂在胶囊 RPC 上。新增 `worktree_return_to_local`：走控制面同一条路径（先移出 cwd、再解绑），已在 Local 时幂等返回真实位置，未交付的树被拒绝并说明原因。
   - **看不到自己的分支**：`worktree_list` 只给 checkoutId / state / commitOid，模型列完不知道每棵树的工作落在哪条分支上，而 `worktree_merge` 恰恰需要分支名。`ManagedWorktreeSummaryView` 增加 `branch`，从台账的 `sessionBranch` 经 `branchNameOf` 派生——零 Git 调用，不破坏「快速列表不扫描磁盘」的前提；工具输出带上它。
@@ -36,6 +42,10 @@
   - **实测性能**：新增 `tests/worktree-creation-perf.test.ts` 把三条成本钉成回归基线。首次建树（官方 `worktree add` + `reset --hard` + 登记 + 补回 `.worktreeinclude`/WIP）533 ms；已绑定时的复用路径 116 ms 且不产生第二次建树；`pendingWorktreeRequest` 单次折叠在 1 万条记录下 2 ms。前两条断言 <15 s / <1 s，第三条 <10 ms/次——胶囊每次 `current` 都会折叠一次日志，单次成本才是有意义的量。
 
 ### Changed
+
+- 清理不再死锁在「Git 身份或路径已变化」（2026-11-12）：记录一旦被标成 `identity_changed`，旧代码每次都提前返回同一句文案，即使目录后来被删空也走不出去。现在目录不存在时才复用旧说明，否则继续做真实校验；目录还在但已没有 `.git` 身份且为空时直接收掉，非空时给出可执行提示（路径 + 删除后重试）。
+
+- 交付后回到 Local 的提示不再承诺宿主一定放行写操作（2026-11-12）：原文案写「Ordinary Local work is allowed again」，但宿主的写守卫并不认这个状态，写 changelog 会被拦。改为说明 Local 是工作边界、宿主文件策略仍然生效，被拒时先开主题分支。
 
 - 分支菜单按最近提交排序并显示提交时间（2026-11-12，对齐官方 forge 变更范围菜单的同类判断）。
   - **为什么**：菜单原来按名称 `localeCompare` 排序，分支一多，找「上次在哪条分支上」只能逐行看名字；官方 forge 的分支范围菜单按最近提交排序。时间数据本插件早就有（`branchTipTimes` 端口给已合并分支的年龄过滤用），只是分支菜单没接。

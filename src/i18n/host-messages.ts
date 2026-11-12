@@ -1248,6 +1248,34 @@ export const hostMessages = {
     "zh": "面向用户的完整交付报告（Markdown），随交付结果返回，不写入提交。",
     "en": "Complete user-facing delivery report (Markdown), returned with the delivery result; not written into the commit."
   },
+  "worktreeLinkDepsDescription": {
+    "zh": "可选：需要在新建 Worktree 里联到主仓库的相对目录（如 android/frontend/node_modules）。Worktree 只含 Git 跟踪内容，依赖目录不会跟过来；这里建目录联接（Windows junction），源目录失效时直接报出悬空联接。",
+    "en": "Optional: Worktree-relative directories to link from the Local checkout into the new Worktree (for example android/frontend/node_modules). A Worktree only contains Git-tracked content, so dependency directories never follow; this creates directory links (junctions on Windows) and reports a dangling source explicitly."
+  },
+  "worktreePreservePathsDescription": {
+    "zh": "可选：交付后、清理冻结副本之前需要带回 Local 的相对路径（如 changelogs/ 这类被 gitignore 的收尾材料）。只复制文件，不覆盖 Local 已有的同名目录内容。",
+    "en": "Optional: Worktree-relative paths to carry back to Local after delivery but before the frozen runtime is removed (gitignored hand-off material such as changelogs/). Files only; existing Local content is never merged over."
+  },
+  "worktreeLinkDepsInvalidPath": {
+    "zh": "linkDeps 只接受 Worktree 内的相对路径：{p0}",
+    "en": "linkDeps accepts only Worktree-relative paths: {p0}"
+  },
+  "worktreeLinkDepsSourceMissing": {
+    "zh": "主仓库里没有可联接的 {p0}；先在主仓库安装依赖再重试。",
+    "en": "The Local checkout has nothing to link at {p0}; install the dependencies there first."
+  },
+  "worktreeLinkDepsSourceDangling": {
+    "zh": "主仓库的 {p0} 是悬空联接，指向的目标已不存在；先修复主仓库的依赖联接再重试。",
+    "en": "The Local checkout's {p0} is a dangling link whose target no longer exists; repair the Local dependency link first."
+  },
+  "worktreePreservePathInvalid": {
+    "zh": "preservePaths 只接受 Worktree 内的相对路径：{p0}",
+    "en": "preservePaths accepts only Worktree-relative paths: {p0}"
+  },
+  "worktreePreservePathMissing": {
+    "zh": "Worktree 里没有可保留的 {p0}，已跳过。",
+    "en": "The Worktree has nothing to preserve at {p0}; skipped."
+  },
   "optionalTopicForHumanReadableWorktreeNaming": {
     "zh": "可选的主题名：既用于 Worktree 目录命名（<主题>-<YYYYMMDD>，需宿主配置 worktreesRoot），也用于生成本会话专属的分支名 feat/sess-<会话>--<主题>。",
     "en": "Optional topic: used both for the Worktree directory name (<topic>-<YYYYMMDD>, needs a host-configured worktreesRoot) and for this session's own branch name feat/sess-<session>--<topic>."
@@ -1788,6 +1816,14 @@ export const hostMessages = {
     "zh": "Worktree 目录仍被进程占用或 Windows 暂时拒绝删除；dsh-git-worktree 已完成有限重试，可稍后重试清理。",
     "en": "A process still holds the Worktree directory or Windows temporarily denied deletion. dsh-git-worktree has completed its limited retries. Retry cleanup later."
   },
+  "cleanupIdentityChangedActionable": {
+    "zh": "Worktree 的 Git 身份或路径已变化，未执行清理。目录已没有可校验的 .git 身份，记录本身仍可解除注册。",
+    "en": "The Worktree Git identity or path has changed. Cleanup was not performed: the directory no longer carries a verifiable .git identity, while the record itself can still be released."
+  },
+  "cleanupDeleteDirectoryHint": {
+    "zh": "确认目录内没有需要保留的文件后，删除 {p0} 再重试 worktree_cleanup；空目录会由插件直接收掉。",
+    "en": "Confirm nothing in {p0} needs to be kept, delete it, then retry worktree_cleanup; empty directories are reclaimed automatically."
+  },
   "commandConflict": {
     "zh": "冲突：{files}",
     "en": "Conflict: {files}"
@@ -1869,7 +1905,7 @@ export function hostRegistrationMessage(key: keyof typeof hostMessages): string 
  * Keep their stored values unchanged; localize only their public projection.
  * This finite allowlist never interprets or rewrites third-party error text.
  */
-export const persistedCleanupKeys = ["cleanupIdentityChanged","cleanupResidue","cleanupIncompleteDelivery","cleanupIncompleteReceipt","cleanupMissingBeforeQuarantine","cleanupQuarantineIdentity","cleanupNewChanges","cleanupMissingBeforeRemoval","cleanupQuarantineBusy","cleanupDirectoryBusy"] as const
+export const persistedCleanupKeys = ["cleanupIdentityChanged","cleanupIdentityChangedActionable","cleanupResidue","cleanupIncompleteDelivery","cleanupIncompleteReceipt","cleanupMissingBeforeQuarantine","cleanupQuarantineIdentity","cleanupNewChanges","cleanupMissingBeforeRemoval","cleanupQuarantineBusy","cleanupDirectoryBusy"] as const
 
 export type PersistedCleanupKey = typeof persistedCleanupKeys[number]
 

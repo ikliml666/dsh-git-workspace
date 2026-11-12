@@ -842,6 +842,15 @@ export function createDshGitPort(ctx: Context, options: GitPortOptions): Session
       const output = await runSessionGitChecked(root, ['ls-files', '--others', '--exclude-standard', '-z'])
       return output.split('\0').filter(Boolean)
     },
+    listIgnoredPaths: async (root) => {
+      // `!!` 行只报到目录本身，不会把 node_modules 里每个文件都列出来；交付
+      // 清理用这份清单告诉调用方「哪些被丢弃的本地材料没进提交」。
+      const output = await runSessionGitChecked(root, ['status', '--porcelain=v1', '-z', '--ignored=matching'])
+      return output.split('\0')
+        .filter((entry) => entry.startsWith('!! '))
+        .map((entry) => entry.slice(3))
+        .filter(Boolean)
+    },
     snapshotAbandonedWorktree: async (localRoot, managedRoot, checkoutId) => {
       // codex 对齐：add -A 把 tracked 修改与未 ignore 的 untracked 文件一并
       // 写入 worktree 索引（ignored 文件源头在 Local，不属可丢失内容），

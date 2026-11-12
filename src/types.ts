@@ -238,6 +238,8 @@ export interface SessionCheckoutFinishOperation extends SessionCheckoutOperation
   action: 'finish'
   commitMessage: string
   retention?: WorktreeRetentionMode
+  /** Worktree-relative paths copied back to Local before the frozen runtime is removed. */
+  preservePaths?: string[]
   /** When present, Finish is bound to this persisted human-reviewed snapshot. */
   expectedReviewId?: string
 }
@@ -410,6 +412,10 @@ export interface SessionCheckoutFinishedResult {
   branch?: string
   /** retained means the commit succeeded and the user explicitly kept the frozen runtime. */
   cleanup: 'discarded' | 'pending' | 'retained'
+  /** Worktree-relative paths carried back to Local before cleanup removed the runtime. */
+  preservedFiles?: string[]
+  /** Gitignored paths that were removed with the frozen runtime and not preserved. */
+  droppedIgnoredFiles?: string[]
   cleanupMessage?: string
   cleanupReason?: WorktreeCleanupReason
   /** Present when automatic push is enabled; failures never block the delivery. */

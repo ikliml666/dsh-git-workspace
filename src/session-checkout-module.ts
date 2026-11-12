@@ -45,6 +45,7 @@ import {
 } from './managed-worktree-path.js'
 import type {
   IsolatedTargetLaunch,
+  WorktreeLinkResult,
   ListManagedWorktreesInput,
   ManageManagedWorktreeInput,
   MarkReadyForReviewInput,
@@ -1096,7 +1097,7 @@ export function createSessionCheckoutModule(
       return [
         `Session Target: Local Checkout (the previous Worktree ${record.checkoutId} was delivered and cleaned).`,
         `Original Local boundary (now the working boundary again): ${record.localRoot}`,
-        'Ordinary Local work is allowed again in this Session.',
+        'Local is the working boundary again. The host file policy still applies here: if a write is refused with a branch-guard error, open a topic branch first.',
         'If the user requests new code or file changes, call worktree_begin_next_iteration first; it safely recreates this Session immutable cwd for the next iteration. Do not call worktree_create.',
       ].join('\n')
     }
@@ -1116,7 +1117,7 @@ export function createSessionCheckoutModule(
       return [
         `Session Target: Local Checkout (this Session's Worktree ${record.checkoutId} is already delivered).`,
         `Working boundary: ${record.localRoot}`,
-        'Ordinary Local work is allowed again in this Session: the delivery did not write Local, so finish Local-side chores (baseline refresh, changelog, follow-up edits) normally.',
+        'Local is the working boundary again: the delivery did not write Local, so Local-side chores (baseline refresh, changelog, follow-up edits) belong here. The host file policy still applies; if a write is refused, open a topic branch first.',
         deliveredBranch,
         'The preserved Worktree is frozen for rollback and cleanup only; do not edit it. Merge the session branch into Local with worktree_merge, and remove the frozen runtime with worktree_cleanup.',
         'If the user requests new code or file changes, call worktree_begin_next_iteration first to recreate this Session immutable cwd. Do not call worktree_create.',
@@ -3025,8 +3026,11 @@ export function createSessionCheckoutModule(
       && record.delivery.cleanup === 'blocked'
       && record.delivery.cleanupMessage
       && persistedCleanupReason(record.delivery) === 'identity_changed'
+      && !dependencies.files.exists(record.managedRoot)
     ) {
       // 已经是身份变更阻塞：原文可能来自旧记录，只更新原因，不重写说明。
+      // 目录还在时不能提前返回：那样记录一旦被标成 blocked，之后无论目录变成
+      // 什么样都只回放旧文案，清理再没有出口。让流程继续做真实校验。
       return {
         cleaned: false,
         message: hostPersistedCleanupMessage(
@@ -3141,12 +3145,27 @@ export function createSessionCheckoutModule(
           }
         } else {
           const residue = await validateDetachedCleanupResidue(record, options.allowLegacyResidue === true)
-          if (!residue) return block('cleanupIdentityChanged', 'identity_changed')
-          const removing = beginRemoval(record, residue.directoryIdentity)
-          if (!removing) return block('cleanupMissingBeforeRemoval', 'directory_busy')
-          const revalidatedResidue = await validateDetachedCleanupResidue(removing)
-          if (!revalidatedResidue) return block('cleanupIdentityChanged', 'identity_changed')
-          await quarantineAndRemove(removing, revalidatedResidue)
+          if (!residue) {
+            // 目录还在，但 .git 身份已经消失（被手删或从未建立）：没有可校验的
+            // 身份，也没有能证明属于本次 checkout 的字节。空目录直接收掉，让台账
+            // 走完；非空目录必须由人确认，给出可执行的下一步，而不是把同一句阻塞
+            // 反复写进记录。
+            const emptied = dependencies.files.exists(record.managedRoot)
+              && dependencies.files.removeEmptyDirectoryTree(record.managedRoot)
+            if (!emptied) {
+              const blocked = block('cleanupIdentityChangedActionable', 'identity_changed')
+              return {
+                ...blocked,
+                message: `${blocked.message} ${hostMessage('cleanupDeleteDirectoryHint', { p0: record.managedRoot })}`,
+              }
+            }
+          } else {
+            const removing = beginRemoval(record, residue.directoryIdentity)
+            if (!removing) return block('cleanupMissingBeforeRemoval', 'directory_busy')
+            const revalidatedResidue = await validateDetachedCleanupResidue(removing)
+            if (!revalidatedResidue) return block('cleanupIdentityChanged', 'identity_changed')
+            await quarantineAndRemove(removing, revalidatedResidue)
+          }
         }
       }
       await releaseApplyBaseBestEffort(record)
@@ -3595,6 +3614,9 @@ export function createSessionCheckoutModule(
     if (!finalized) {
       return operationError('checkout_missing', hostMessage('theTaskCommitWasCreatedButTheCheckoutRecord'))
     }
+    // 冻结副本会被清理：先把调用方点名要保留的收尾材料带回 Local，否则
+    // changelog 这类被 gitignore 的草稿会随清理一起消失。
+    const preservedFiles = await preserveDeliveredPaths(finalized, input.preservePaths)
     const retention = input.retention ?? DEFAULT_WORKTREE_RETENTION
     // 自动 push 推的是会话分支（Worktree 的 HEAD），不是 Local 的当前分支；
     // 新分支通常没有 upstream，于是退化成一条「已跳过」的备注，不会误推。
@@ -3612,10 +3634,12 @@ export function createSessionCheckoutModule(
         changedFiles: committed.changedFiles,
         commitOid: committed.commitOid,
         ...(branchName ? { branch: branchName } : {}),
+        ...(preservedFiles === undefined ? {} : { preservedFiles }),
         cleanup: 'retained',
         ...(push ? { push } : {}),
       }
     }
+    const droppedIgnoredFiles = await listDroppedIgnoredPaths(finalized, preservedFiles)
     const cleanup = await cleanupFinalized(finalized)
     return {
       status: 'finished',
@@ -3623,6 +3647,8 @@ export function createSessionCheckoutModule(
       changedFiles: committed.changedFiles,
       commitOid: committed.commitOid,
       ...(branchName ? { branch: branchName } : {}),
+      ...(preservedFiles === undefined ? {} : { preservedFiles }),
+      ...(droppedIgnoredFiles === undefined ? {} : { droppedIgnoredFiles }),
       cleanup: cleanup.cleaned ? 'discarded' : 'pending',
       ...(cleanup.message ? { cleanupMessage: cleanup.message } : {}),
       ...(cleanup.reason ? { cleanupReason: cleanup.reason } : {}),
@@ -4616,7 +4642,8 @@ export function createSessionCheckoutModule(
   async function beginNextIterationTarget(
     sessionId: string,
     expectedRevision: number,
-  ): Promise<SessionTargetView> {
+    linkDeps?: string[],
+  ): Promise<SessionTargetView & { linkResult?: WorktreeLinkResult }> {
     const session = requireSession(sessionId)
     const registry = dependencies.registry.read()
     const previousBinding = registry.sessionBindings[sessionId]
@@ -4782,7 +4809,9 @@ export function createSessionCheckoutModule(
       readyRegistry.sessionBindings[sessionId] = readyBinding
       readyRegistry.revision += 1
       dependencies.registry.write(readyRegistry)
-      return inspectIsolated(readyBinding)
+      const linkResult = await linkWorktreeDependencies(canonicalLocalRoot, canonicalManagedRoot, linkDeps)
+      const view = await inspectIsolated(readyBinding)
+      return linkResult === undefined ? view : { ...view, linkResult }
     } catch (error) {
       finishFailedCreation(sessionId, checkoutId, error, previousBinding)
       let partialCheckout: GitCheckoutSnapshot | null = null
@@ -4827,6 +4856,100 @@ export function createSessionCheckoutModule(
    *  `.git` 指针也随之断链。绑定到有效 Git 项目时，若当前仓库的 `.git/worktrees`
    *  下仍保留该 checkout 的管理目录，则用 `git worktree repair` 重连 Worktree，
    *  并把台账记录搬迁到当前项目；验证失败的记录保持原样。 */
+  /**
+   * 把主仓库的本地依赖目录联进新 Worktree。
+   *
+   * Worktree 只包含 Git 跟踪的内容，node_modules 不会跟过来；每轮手工建 junction
+   * 既容易漏，也会在旧 Worktree 被删后留下悬空联接——那时 tsc/构建报的错误指向
+   * 别处，看不出真正原因。这里在创建后立刻建链，并在源目录失效时直接说明。
+   */
+  async function linkWorktreeDependencies(
+    sourceRoot: string,
+    targetRoot: string,
+    paths: readonly string[] | undefined,
+  ): Promise<WorktreeLinkResult | undefined> {
+    if (!paths || paths.length === 0) return undefined
+    const createLink = dependencies.files.createDirectoryLink
+    if (!createLink) return undefined
+    const result: WorktreeLinkResult = { linked: [], failures: [] }
+    for (const raw of paths) {
+      const relativePath = raw.trim().replace(/^[/\\]+/u, '').replace(/[/\\]+$/u, '')
+      if (!relativePath || isAbsolute(relativePath) || relativePath.split(/[/\\]/u).includes('..')) {
+        throw new SessionCheckoutError('invalid_input', hostMessage('worktreeLinkDepsInvalidPath', { p0: raw }))
+      }
+      const source = join(sourceRoot, relativePath)
+      const exists = dependencies.files.exists(source)
+      if (!exists) {
+        // existsSync 跟随链接：悬空联接和「从来没装过」都返回 false，但修复方式不同。
+        const dangling = dependencies.files.isSymbolicLink !== undefined
+          && await dependencies.files.isSymbolicLink(source)
+        throw new SessionCheckoutError(
+          'invalid_input',
+          hostMessage(dangling ? 'worktreeLinkDepsSourceDangling' : 'worktreeLinkDepsSourceMissing', { p0: relativePath }),
+        )
+      }
+      const target = join(targetRoot, relativePath)
+      if (dependencies.files.exists(target)) {
+        result.failures.push({ path: relativePath, reason: 'already exists in the Worktree' })
+        continue
+      }
+      try {
+        createLink(source, target)
+        result.linked.push(relativePath)
+      } catch (error) {
+        result.failures.push({ path: relativePath, reason: error instanceof Error ? error.message : String(error) })
+      }
+    }
+    return result
+  }
+
+  /**
+   * 把调用方点名保留的 Worktree 路径复制回 Local。
+   *
+   * 交付后冻结副本会按保留策略被清理，被 gitignore 的收尾材料（changelog、草稿）
+   * 不进提交，也就没有任何东西能证明它们存在过。这里在清理前把它们带回 Local；
+   * Local 已有同名文件时不覆盖，避免用旧草稿盖掉更新的版本。
+   */
+  async function preserveDeliveredPaths(
+    record: ManagedCheckoutRecord,
+    paths: readonly string[] | undefined,
+  ): Promise<string[] | undefined> {
+    if (!paths || paths.length === 0) return undefined
+    const copyFile = dependencies.files.copyFile
+    if (!copyFile) return undefined
+    const preserved: string[] = []
+    for (const raw of paths) {
+      const relativePath = raw.trim().replace(/^[/\\]+/u, '').replace(/[/\\]+$/u, '')
+      if (!relativePath || isAbsolute(relativePath) || relativePath.split(/[/\\]/u).includes('..')) {
+        throw new SessionCheckoutError('invalid_input', hostMessage('worktreePreservePathInvalid', { p0: raw }))
+      }
+      const source = join(record.managedRoot, relativePath)
+      if (!dependencies.files.exists(source)) continue
+      const target = join(record.localRoot, relativePath)
+      if (dependencies.files.exists(target)) continue
+      copyFile(source, target)
+      preserved.push(relativePath)
+    }
+    return preserved.length === 0 ? undefined : preserved
+  }
+
+  /** 清理会连同冻结副本一起删掉被 gitignore 的本地材料；回执要能说清丢了什么。 */
+  async function listDroppedIgnoredPaths(
+    record: ManagedCheckoutRecord,
+    preserved: readonly string[] | undefined,
+  ): Promise<string[] | undefined> {
+    const list = dependencies.git.listIgnoredPaths
+    if (!list) return undefined
+    try {
+      const kept = preserved ?? []
+      const dropped = (await list(record.managedRoot))
+        .filter((path) => !kept.some((prefix) => path === prefix || path.startsWith(`${prefix}/`)))
+      return dropped.length === 0 ? undefined : dropped.slice(0, 50)
+    } catch {
+      return undefined
+    }
+  }
+
   async function copyWorktreeincludeFiles(sourceRoot: string, targetRoot: string): Promise<void> {
     if (!dependencies.files.readTextFile || !dependencies.files.copyFile || !dependencies.git.listWorktreeincludeFiles) return
     try {
@@ -5287,7 +5410,7 @@ export function createSessionCheckoutModule(
 
   async function createOfficialTarget(
     agent: unknown,
-    createOptions?: { topic?: string; branch?: string },
+    createOptions?: { topic?: string; branch?: string; linkDeps?: string[] },
   ): Promise<IsolatedTargetLaunch> {
     const sessionId = (agent as { session?: { id?: unknown } } | undefined)?.session?.id
     if (typeof sessionId !== 'string' || sessionId === '') {
@@ -5340,6 +5463,11 @@ export function createSessionCheckoutModule(
           await carryLocalWorkInProgress(localSnapshot.root, created.path)
         }
       }
+      // Worktree 只含 Git 跟踪内容：依赖目录不会跟过来，创建后立刻按调用方点名
+      // 的路径建目录联接，而不是让每轮 tsc/构建去报无关错误。
+      const linkResult = localSnapshot === null
+        ? undefined
+        : await linkWorktreeDependencies(localSnapshot.root, created.path, createOptions?.linkDeps)
       const record = await registerOfficialWorktree(
         {
           lookup: dependencies.lookup,
@@ -5362,6 +5490,7 @@ export function createSessionCheckoutModule(
         targetSessionId: sessionId,
         managedRoot: record.managedRoot,
         target: await inspectTarget(sessionId),
+        ...(linkResult === undefined ? {} : { linkResult }),
       }
     })
   }

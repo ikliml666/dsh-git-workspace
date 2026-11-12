@@ -7,7 +7,7 @@ import { hostMessage } from '../i18n/host.js'
  * @module dsh-git-worktree/adapters/files
  */
 
-import { copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmdirSync, rmSync, unlinkSync } from 'node:fs'
+import { copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmdirSync, rmSync, symlinkSync, unlinkSync } from 'node:fs'
 import { lstat, readdir, realpath, rename, rm } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import type { DirectoryIdentity, SessionCheckoutFilesPort } from '../ports.js'
@@ -111,6 +111,11 @@ export function createNodeFilesPort(): SessionCheckoutFilesPort {
     },
     isSymbolicLink: async (path) => {
       try { return lstatSync(path).isSymbolicLink() } catch { return false }
+    },
+    // Windows 用 junction：不需要管理员权限，也不依赖开发者模式；其余平台用目录符号链接。
+    createDirectoryLink: (target, linkPath) => {
+      mkdirSync(dirname(linkPath), { recursive: true })
+      symlinkSync(resolve(target), linkPath, process.platform === 'win32' ? 'junction' : 'dir')
     },
   }
 }

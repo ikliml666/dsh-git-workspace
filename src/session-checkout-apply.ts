@@ -591,6 +591,20 @@ async function changedTreePaths(
   return parseNullSeparated(result.stdout)
 }
 
+/**
+ * Files this commit itself introduced — exactly what `git show --stat <oid>`
+ * reports. The delivery receipt must not use the base→tree range instead: baseOid
+ * can predate the commit's parent (checkpoint or recovered history), and the
+ * cumulative range then lists files that never entered this commit.
+ */
+async function committedPaths(checkoutPath: string, commitOid: string): Promise<string[]> {
+  const result = await runGit(
+    checkoutPath,
+    ['diff-tree', '--no-commit-id', '--name-only', '-r', '-z', '--no-renames', commitOid, '--'],
+  )
+  return parseNullSeparated(result.stdout)
+}
+
 function snapshotFingerprint(
   headOid: string,
   headRef: string | null,
@@ -1601,7 +1615,8 @@ class DefaultSessionCheckoutApplyEngine implements SessionCheckoutApplyEngine {
           ...(committedOid === undefined ? {} : { committedOid }),
         }
       }
-      const changedTree = await changedTreePaths(isolatedGitRoot, input.baseOid, snapshot.treeOid, null, null)
+      // 回执只列这次提交真正带入的文件；created 为 false 时没有任何新文件。
+      const changedTree = created ? await committedPaths(isolatedGitRoot, commitOid) : []
       if (changedTree.some((path) => !isProjectPath(path, prefix))) {
         return {
           status: 'error',

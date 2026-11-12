@@ -129,6 +129,16 @@ export interface WorktreeConsolePort {
  * refusal as a "commit, then switch" button; the model gets the sentence because
  * it has to pick the action itself.
  */
+/** 只接受非空字符串的相对路径列表；空列表等价于没传。 */
+function parseRelativePaths(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined
+  const paths = value
+    .filter((item): item is string => typeof item === 'string')
+    .map(item => item.trim())
+    .filter(item => item !== '')
+  return paths.length === 0 ? undefined : paths
+}
+
 function switchNextAction(code: string, fallback: string): string {
   switch (code) {
     case 'tracked-changes-would-be-overwritten':
@@ -168,6 +178,11 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule, contr
         type: 'string',
         description: hostRegistrationMessage('optionalLocalBranchWhoseCurrentTipBecomesThe'),
       },
+      linkDeps: {
+        type: 'array',
+        items: { type: 'string' },
+        description: hostRegistrationMessage('worktreeLinkDepsDescription'),
+      },
     },
     output: {
       schema: {
@@ -185,6 +200,15 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule, contr
           cwd: { type: 'string' },
           cwdSelected: { type: 'boolean', required: true },
           cwdError: { type: 'string' },
+          linkedDeps: { type: 'array', items: { type: 'string' } },
+          linkFailures: {
+            type: 'array',
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              properties: { path: { type: 'string', required: true }, reason: { type: 'string', required: true } },
+            },
+          },
         },
       },
       render: (_args, value) => renderJson(value),
@@ -198,9 +222,16 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule, contr
         const targetSessionId = sourceSessionId
         const topic = typeof args?.topic === 'string' && args.topic.trim() ? args.topic.trim() : undefined
         const branch = typeof args?.branch === 'string' && args.branch.trim() ? args.branch.trim() : undefined
+        const linkDeps = parseRelativePaths(args?.linkDeps)
         const launch = await module.createOfficialTarget(
           exec.agent,
-          topic || branch ? { ...(topic ? { topic } : {}), ...(branch ? { branch } : {}) } : {},
+          topic || branch || linkDeps
+            ? {
+                ...(topic ? { topic } : {}),
+                ...(branch ? { branch } : {}),
+                ...(linkDeps ? { linkDeps } : {}),
+              }
+            : {},
         )
         // Official-mechanism parity: enter the new checkout so relative paths,
         // file tools and subprocesses all resolve inside it. A host without the
@@ -222,6 +253,9 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule, contr
           cwdSelected: entered.cwd !== undefined,
           ...(entered.cwd === undefined ? {} : { cwd: entered.cwd }),
           ...(entered.failure === undefined ? {} : { cwdError: entered.failure }),
+          ...(launch.linkResult === undefined
+            ? {}
+            : { linkedDeps: launch.linkResult.linked, linkFailures: launch.linkResult.failures }),
         }
       })
     },
@@ -291,7 +325,13 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule, contr
   ctx.tools.register(defineTool({
     name: 'worktree_begin_next_iteration',
     description: hostRegistrationMessage('whenTheCurrentIsolatedSessionHasBeenDeliveredAnd'),
-    parameters: {},
+    parameters: {
+      linkDeps: {
+        type: 'array',
+        items: { type: 'string' },
+        description: hostRegistrationMessage('worktreeLinkDepsDescription'),
+      },
+    },
     output: {
       schema: {
         type: 'object',
@@ -305,15 +345,27 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule, contr
           sessionId: { type: 'string', required: true },
           cwd: { type: 'string' },
           cwdError: { type: 'string' },
+          linkedDeps: { type: 'array', items: { type: 'string' } },
+          linkFailures: {
+            type: 'array',
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              properties: { path: { type: 'string', required: true }, reason: { type: 'string', required: true } },
+            },
+          },
         },
       },
       render: (_args, value) => renderJson(value),
     },
-    async execute(_args, exec) {
+    async execute(args, exec) {
       return withHostLanguage(languageForInvocation(exec.agent, ctx), async () => {
         const sessionId = sessionIdOf(exec.agent)
         const current = await module.inspect(sessionId)
-        const target = await module.beginNextIteration(sessionId, current.revision)
+        const linkDeps = parseRelativePaths(args?.linkDeps)
+        const target = linkDeps === undefined
+          ? await module.beginNextIteration(sessionId, current.revision)
+          : await module.beginNextIteration(sessionId, current.revision, linkDeps)
         if (target.delivery?.state !== 'working') {
           throw new Error(hostMessage('theNextWorktreeIterationDidNotEnterWorkingState', { p0: target.delivery?.state ?? 'unknown' }))
         }
@@ -331,6 +383,9 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule, contr
           sessionId,
           ...(entered.cwd === undefined ? {} : { cwd: entered.cwd }),
           ...(entered.failure === undefined ? {} : { cwdError: entered.failure }),
+          ...(target.linkResult === undefined
+            ? {}
+            : { linkedDeps: target.linkResult.linked, linkFailures: target.linkResult.failures }),
         }
       })
     },
@@ -354,6 +409,11 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule, contr
         type: 'string',
         description: hostRegistrationMessage('worktreeDeliverReport'),
       },
+      preservePaths: {
+        type: 'array',
+        items: { type: 'string' },
+        description: hostRegistrationMessage('worktreePreservePathsDescription'),
+      },
     },
     output: {
       schema: {
@@ -365,6 +425,8 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule, contr
           commitOid: { type: 'string' },
           branch: { type: 'string' },
           changedFiles: { type: 'array', required: true, items: { type: 'string' } },
+          preservedFiles: { type: 'array', items: { type: 'string' } },
+          droppedIgnoredFiles: { type: 'array', items: { type: 'string' } },
           cleanup: { type: 'string', required: true },
           /** 交付后会话所在的目录（通常在 Local）。 */
           cwd: { type: 'string' },
@@ -408,6 +470,7 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule, contr
         if (leaveFailure !== undefined) {
           throw new Error(hostMessage('worktreeCwdCouldNotBeRestoredBeforeRemoval', { p0: leaveFailure }))
         }
+        const preservePaths = parseRelativePaths(args?.preservePaths)
         const result = await module.operate({
           sessionId,
           expectedRevision: current.revision,
@@ -415,6 +478,7 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule, contr
           commitMessage,
           retention: parseWorktreeRetention(args?.retention),
           ...(expectedReviewId ? { expectedReviewId } : {}),
+          ...(preservePaths ? { preservePaths } : {}),
         })
         if (result.status !== 'finished') {
           // The checkout survived the failed delivery, so the Session belongs
@@ -440,6 +504,8 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule, contr
           // 交付提交落在会话分支上（Local 未被写），把分支名交回调用方用于后续合并。
           ...(result.branch ? { branch: result.branch } : {}),
           changedFiles: result.changedFiles,
+          ...(result.preservedFiles === undefined ? {} : { preservedFiles: result.preservedFiles }),
+          ...(result.droppedIgnoredFiles === undefined ? {} : { droppedIgnoredFiles: result.droppedIgnoredFiles }),
           cleanup: result.cleanup,
           ...(result.push ? { push: { status: result.push.status, ...(result.push.message ? { message: result.push.message } : {}) } } : {}),
           ...(typeof args?.report === 'string' && args.report.trim() ? { report: args.report.trim() } : {}),

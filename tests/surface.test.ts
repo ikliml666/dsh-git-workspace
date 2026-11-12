@@ -357,4 +357,92 @@ describe('public surfaces', () => {
       .rejects.toThrow(/cwd is locked by the sandbox/)
     expect(cleanup).not.toHaveBeenCalled()
   })
+
+  test('create forwards linkDeps and returns the link outcome', async () => {
+    const tools: Array<{ name: string; execute: (args: unknown, exec: unknown) => Promise<unknown> }> = []
+    const module = {
+      createOfficialTarget: vi.fn(async () => ({
+        targetSessionId: 'session-abc',
+        managedRoot: 'C:/repo/wt/topic-20261112',
+        target: { ...readyTarget, checkout: { ...readyTarget.checkout, phase: 'working' as const }, delivery: { state: 'working' as const, iteration: 1 } },
+        linkResult: { linked: ['app/node_modules'], failures: [{ path: 'api/node_modules', reason: 'already exists in the Worktree' }] },
+      })),
+    }
+    registerTools({ tools: { register: (tool: typeof tools[number]) => { tools.push(tool) } } } as never, module as never)
+    const tool = tools.find(candidate => candidate.name === 'worktree_create')
+    if (!tool) throw new Error('create tool was not registered')
+
+    const result = await tool.execute(
+      { topic: 'topic', linkDeps: ['app/node_modules', 'api/node_modules'] },
+      { agent: { session: { id: 'session-abc' } } },
+    ) as Record<string, unknown>
+
+    expect(module.createOfficialTarget).toHaveBeenCalledWith(expect.anything(), {
+      topic: 'topic',
+      linkDeps: ['app/node_modules', 'api/node_modules'],
+    })
+    expect(result.linkedDeps).toEqual(['app/node_modules'])
+    expect(result.linkFailures).toEqual([{ path: 'api/node_modules', reason: 'already exists in the Worktree' }])
+  })
+
+  test('next iteration forwards linkDeps and returns the link outcome', async () => {
+    const tools: Array<{ name: string; execute: (args: unknown, exec: unknown) => Promise<unknown> }> = []
+    const delivered: SessionTargetView = {
+      ...readyTarget,
+      checkout: { ...readyTarget.checkout, phase: 'discarded' },
+      revision: 9,
+      delivery: { state: 'delivered', iteration: 1, commitOid: 'c'.repeat(40), deliveredAt: 2 },
+    }
+    const next = {
+      ...readyTarget,
+      checkout: { ...readyTarget.checkout, phase: 'working' as const },
+      revision: 10,
+      delivery: { state: 'working' as const, iteration: 2 },
+      linkResult: { linked: ['app/node_modules'], failures: [] },
+    }
+    const module = {
+      inspect: vi.fn(async () => delivered),
+      beginNextIteration: vi.fn(async () => next),
+    }
+    registerTools({ tools: { register: (tool: typeof tools[number]) => { tools.push(tool) } } } as never, module as never)
+    const tool = tools.find(candidate => candidate.name === 'worktree_begin_next_iteration')
+    if (!tool) throw new Error('next-iteration tool was not registered')
+
+    const result = await tool.execute({ linkDeps: ['app/node_modules'] }, { agent: { session: { id: 'target-session' } } }) as Record<string, unknown>
+
+    expect(module.beginNextIteration).toHaveBeenCalledWith('target-session', 9, ['app/node_modules'])
+    expect(result.linkedDeps).toEqual(['app/node_modules'])
+  })
+
+  test('deliver forwards preservePaths and reports preserved and dropped paths', async () => {
+    const tools: Array<{ name: string; execute: (args: unknown, exec: unknown) => Promise<unknown> }> = []
+    const working: SessionTargetView = {
+      ...readyTarget,
+      checkout: { ...readyTarget.checkout, phase: 'working' },
+      revision: 8,
+      delivery: { state: 'working', iteration: 1 },
+    }
+    const operate = vi.fn(async () => ({
+      status: 'finished' as const,
+      target: readyTarget,
+      changedFiles: ['src/index.ts'],
+      preservedFiles: ['changelogs/1.2.3.md'],
+      droppedIgnoredFiles: ['dist'],
+      commitOid: 'c'.repeat(40),
+      cleanup: 'discarded' as const,
+    }))
+    const module = { inspect: vi.fn(async () => working), operate, isAutoDeliverEnabled: () => true }
+    registerTools({ tools: { register: (tool: typeof tools[number]) => { tools.push(tool) } } } as never, module as never)
+    const tool = tools.find(candidate => candidate.name === 'worktree_deliver')
+    if (!tool) throw new Error('deliver tool was not registered')
+
+    const result = await tool.execute(
+      { commitMessage: 'feat: done', preservePaths: ['changelogs/1.2.3.md'] },
+      { agent: { session: { id: 'target-session' } } },
+    ) as Record<string, unknown>
+
+    expect(operate).toHaveBeenCalledWith(expect.objectContaining({ preservePaths: ['changelogs/1.2.3.md'] }))
+    expect(result.preservedFiles).toEqual(['changelogs/1.2.3.md'])
+    expect(result.droppedIgnoredFiles).toEqual(['dist'])
+  })
 })

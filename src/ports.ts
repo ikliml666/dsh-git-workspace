@@ -285,6 +285,8 @@ export interface SessionCheckoutGitPort {
   applyWorktreePatch?(root: string, patch: string): Promise<void>
   /** Local adaptation (codex parity): non-ignored untracked paths, relative to root. */
   listUntrackedFiles?(root: string): Promise<string[]>
+  /** Gitignored paths relative to root; ignored directories are reported once, not per file. */
+  listIgnoredPaths?(root: string): Promise<string[]>
   /**
    * codex 对齐：删除带未提交内容的受管 Worktree 前，把全部可丢失内容
    * （tracked 修改 + 未 ignore 的 untracked 文件）固化为一个提交，保留在
@@ -318,6 +320,8 @@ export interface SessionCheckoutFilesPort {
   copyFile?(from: string, to: string): void
   /** Reports whether an existing path is a symlink; copy sources that are links are skipped (.worktreeinclude). */
   isSymbolicLink?(path: string): Promise<boolean>
+  /** Creates a directory link (junction on Windows) at linkPath pointing to an absolute target. */
+  createDirectoryLink?(target: string, linkPath: string): void
 }
 
 export interface SessionBindingRecord {

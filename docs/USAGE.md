@@ -73,6 +73,14 @@ Local 项目仍可包含多个普通会话。每个 Managed Worktree 只对应�
 
 模型可以调用 `worktree_create` 创建新的 owner Session。返回卡片后打开目标 Session，再让 Agent 修改代码。
 
+### 本地依赖与收尾材料
+
+Worktree 只包含 Git 跟踪的内容，被 `.gitignore` 忽略的东西（`node_modules`、`changelogs/` 这类草稿）不会自动跟过来。
+
+- **创建时带入忽略文件**：在 Local 项目根放一个 `.worktreeinclude`，每行一个相对路径（`#` 开头为注释）。新建 Worktree 时这些文件会被复制过去，适合体积小、必须存在的本地配置。
+- **联依赖目录**：`node_modules` 这类大目录不要写进 `.worktreeinclude`，用 `worktree_create` 的 `linkDeps` 建目录联接（Windows 为 junction）：`linkDeps: ["android/frontend/node_modules", "tauri-app/node_modules"]`。源目录失效时工具直接报「悬空联接」，不会让 tsc/构建报无关错误。`worktree_begin_next_iteration` 同样接受 `linkDeps`，用于下一轮重建。
+- **交付时带回收尾材料**：`worktree_deliver` 的 `preservePaths` 在清理冻结副本前把点名的路径复制回 Local（Local 已有同名文件时不覆盖）。回执的 `droppedIgnoredFiles` 列出这次随清理丢弃、没有保留的忽略路径，便于确认没有误删。
+
 ## Ready for Review
 
 Agent 完成实现和验证后调用 `worktree_ready_for_review`，保存：
