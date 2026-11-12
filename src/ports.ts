@@ -314,6 +314,11 @@ export interface SessionCheckoutFilesPort {
   quarantineDirectoryTree(path: string, expectedIdentity: DirectoryIdentity, quarantinePath: string): Promise<void>
   /** Deletes a fully owned non-empty directory tree; the root must not be a file or symlink. */
   removeDirectoryTree(path: string): Promise<void>
+  /**
+   * 把整棵目录移到目标路径。用于「目录身份已失效、内容还在」的强制清理：
+   * 移动是原子的，失败时源目录保持原样，调用方能把选择权交回用户。
+   */
+  moveDirectoryTree?(path: string, target: string): Promise<void>
   /** Estimates real file usage; does not follow symlinks. */
   measureDirectoryBytes(path: string): Promise<number>
   readTextFile?(path: string): string | null
@@ -612,6 +617,8 @@ export interface ManagedCheckoutRecord {
   phase: SessionCheckoutPhase
   delivery: ManagedCheckoutDelivery
   journal: ManagedCheckoutJournal | null
+  /** 身份已失效时的显式清理留痕：谁在何时把它隔离或删掉了。 */
+  forcedCleanup?: { at: string; mode: 'quarantine' | 'discard'; path: string }
   revision: number
 }
 

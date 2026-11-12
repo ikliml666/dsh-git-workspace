@@ -78,6 +78,10 @@ async function quarantineDirectoryTree(
   throw new SessionCheckoutError('checkout_mismatch', hostMessage('theWorktreeDirectoryObjectWasReplacedRecursiveCleanupWas'))
 }
 
+async function moveDirectoryTree(path: string, target: string): Promise<void> {
+  await rename(path, target)
+}
+
 async function removeDirectoryTree(path: string): Promise<void> {
   if (!existsSync(path)) return
   const stat = await lstat(path)
@@ -102,6 +106,7 @@ export function createNodeFilesPort(): SessionCheckoutFilesPort {
     removeEmptyDirectoryTree,
     quarantineDirectoryTree,
     removeDirectoryTree,
+  moveDirectoryTree,
     measureDirectoryBytes,
     readTextFile: (path) => (existsSync(path) ? readFileSync(path, 'utf8') : null),
     copyFile: (from, to) => {

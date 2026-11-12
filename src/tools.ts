@@ -583,6 +583,55 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule, contr
   }))
 
   ctx.tools.register(defineTool({
+    name: 'worktree_force_cleanup',
+    description: hostRegistrationMessage('worktreeForceCleanupDescription'),
+    parameters: {
+      checkoutId: { type: 'string', description: hostRegistrationMessage('worktreeForceCleanupCheckoutId') },
+      expectedRevision: { type: 'number', description: hostRegistrationMessage('worktreeForceCleanupExpectedRevision') },
+      mode: { type: 'string', description: hostRegistrationMessage('worktreeForceCleanupMode') },
+      confirm: { type: 'string', description: hostRegistrationMessage('worktreeForceCleanupConfirm') },
+    },
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          kind: { type: 'string', required: true },
+          checkoutId: { type: 'string', required: true },
+          mode: { type: 'string', required: true },
+          quarantinedPath: { type: 'string' },
+          removedPath: { type: 'string' },
+          revision: { type: 'number', required: true },
+        },
+      },
+      render: (_args, value) => renderJson(value),
+    },
+    async execute(args, exec) {
+      return withHostLanguage(languageForInvocation(exec.agent, ctx), async () => {
+        const sessionId = sessionIdOf(exec.agent)
+        const checkoutId = typeof args?.checkoutId === 'string' ? args.checkoutId.trim() : ''
+        const expectedRevision = typeof args?.expectedRevision === 'number' ? Math.floor(args.expectedRevision) : Number.NaN
+        if (!checkoutId) throw new Error(hostMessage('worktreeCleanupRequiresCheckoutId'))
+        if (!Number.isFinite(expectedRevision)) throw new Error(hostMessage('worktreeCleanupRequiresExpectedRevision'))
+        const mode = args?.mode === 'discard' ? 'discard' : 'quarantine'
+        const confirm = typeof args?.confirm === 'string' ? args.confirm.trim() : undefined
+        // 目录可能被移走；先离开它，保证会话 cwd 安全。
+        const leaveFailure = await leaveCheckoutBeforeRemoval(workingDirectory, module, exec.agent, checkoutId)
+        if (leaveFailure !== undefined) {
+          throw new Error(hostMessage('worktreeCwdCouldNotBeRestoredBeforeRemoval', { p0: leaveFailure }))
+        }
+        return module.forceCleanupManagedWorktree(sessionId, {
+          checkoutId,
+          expectedRevision,
+          mode,
+          ...(confirm ? { confirm } : {}),
+        })
+      })
+    },
+    presentCall: () => ({ card: 'generic', title: hostRegistrationMessage('cleanupFinishedWorktree'), kind: 'other', rawInput: {} }),
+  }))
+
+  ctx.tools.register(defineTool({
     name: 'worktree_switch_branch',
     description: hostRegistrationMessage('worktreeSwitchBranchDescription'),
     parameters: {

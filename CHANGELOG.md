@@ -6,6 +6,8 @@
 
 ### Added
 
+- `worktree_force_cleanup`：目录身份已失效时的显式出口（2026-11-12）。交付后目录被外部工具改成普通目录（`.git` 不在）时，普通 cleanup 只能停在 `identity_changed`，用户只能手工 `rm -rf` 再调一次。新工具只处理「已交付、目录还在、已经不是 Git worktree」的记录：默认 `quarantine` 把目录移到同级 `.dsh-wt-quarantine--<id>--<时间戳>`，内容不丢、可恢复；`discard` 需要 `confirm` 与 checkoutId 完全一致才删除。两种模式都在记录上写 `forcedCleanup` 留痕，`discard` 直接把 phase 推到 `discarded`。仍有 `.git` 的记录走 `worktree_cleanup` 的身份校验，这条路径不提供「跳过校验删任意目录」。
+
 - `worktree_merge` 支持指定目标分支（2026-11-12）：forward 方向原来只能合并到 Local 当前检出的分支，要合到别的分支只能先手工 `git switch`，而切换的守卫与冲突处理都在控制面里。新增 `targetBranch` 参数：合并前切到目标分支，切换失败（未提交改动、冲突、分支不存在、被其它 worktree 占用）原样报出结构化原因；`dryRun` 不移动 Local HEAD。回执的 `targetBranch` 一直是实际合并目标，现在它可以是调用方指定的那个。
 
 - 迭代流程的三处摩擦：依赖不继承、收尾材料被清理、回执不可信（2026-11-12）。

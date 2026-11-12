@@ -50,6 +50,8 @@ import type {
   WorktreeLinkResult,
   ListManagedWorktreesInput,
   ManageManagedWorktreeInput,
+  ForceCleanupManagedWorktreeInput,
+  ForcedCleanupView,
   MarkReadyForReviewInput,
   MergeBranchForSessionInput,
   PruneMergedBranchesInput,
@@ -4489,6 +4491,80 @@ export function createSessionCheckoutModule(
     return manageManagedWorktree(input)
   }
 
+  /**
+   * 目录身份已失效（.git 不在）时的显式清理。身份校验不做「跳过」：只处理
+   * 「已交付、目录还在、已经不是 worktree」的记录，且由调用方显式选择隔离
+   * 还是删除，两种模式都写留痕。
+   */
+  async function forceCleanupManagedWorktree(
+    sessionId: string,
+    input: ForceCleanupManagedWorktreeInput,
+  ): Promise<ForcedCleanupView> {
+    requireSession(sessionId)
+    const record = dependencies.registry.read().managedCheckouts[input.checkoutId]
+    if (!record) throw new SessionCheckoutError('checkout_missing', hostMessage('theWorktreeRecordDoesNotExist'))
+    if (record.ownerSessionId !== sessionId && record.sourceSessionId !== sessionId) {
+      throw new SessionCheckoutError('not_owner', hostMessage('theCurrentSessionIsNotAllowedToManageThis'))
+    }
+    if (record.revision !== input.expectedRevision) {
+      throw new SessionCheckoutError('stale_target', hostMessage('theWorktreeRecordChangedSinceItWasRead'))
+    }
+    if (record.delivery.state !== 'finalized' && record.delivery.state !== 'retained') {
+      throw new SessionCheckoutError('invalid_input', hostMessage('worktreeForceCleanupRequiresDelivered'))
+    }
+    const target = dependencies.files.exists(record.managedGitRoot) ? record.managedGitRoot : record.managedRoot
+    if (!dependencies.files.exists(target)) {
+      throw new SessionCheckoutError('invalid_input', hostMessage('worktreeForceCleanupNoDirectory', { p0: record.managedRoot }))
+    }
+    if (dependencies.files.exists(join(target, '.git'))) {
+      throw new SessionCheckoutError('invalid_input', hostMessage('worktreeForceCleanupStillWorktree'))
+    }
+    const mode = input.mode === 'discard' ? 'discard' : 'quarantine'
+    if (mode === 'discard' && input.confirm !== record.checkoutId) {
+      throw new SessionCheckoutError('invalid_input', hostMessage('worktreeForceCleanupConfirmRequired', { p0: record.checkoutId }))
+    }
+    const at = new Date().toISOString()
+    let quarantinedPath: string | undefined
+    try {
+      if (mode === 'quarantine') {
+        const move = dependencies.files.moveDirectoryTree
+        if (!move) throw new SessionCheckoutError('invalid_input', hostMessage('worktreeForceCleanupMoveUnsupported'))
+        quarantinedPath = join(
+          dirname(target),
+          `.dsh-wt-quarantine--${record.checkoutId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8)}--${Date.now()}`,
+        )
+        await move(target, quarantinedPath)
+      } else {
+        await dependencies.files.removeDirectoryTree(target)
+      }
+    } catch (error) {
+      if (error instanceof SessionCheckoutError) throw error
+      throw new SessionCheckoutError(
+        'git_operation_failed',
+        `${hostMessages.cleanupDirectoryBusy.zh} ${hostMessage('cleanupBusyHint', { p0: target })}`,
+      )
+    }
+    const updated = updateManagedCheckout(record.checkoutId, (current) => {
+      if (current.revision !== record.revision) return current
+      if (mode === 'discard') {
+        return { ...current, phase: 'discarded', forcedCleanup: { at, mode, path: target }, revision: current.revision + 1 }
+      }
+      return {
+        ...current,
+        forcedCleanup: { at, mode, path: quarantinedPath as string },
+        revision: current.revision + 1,
+      }
+    })
+    return {
+      kind: 'worktree_force_cleanup',
+      checkoutId: record.checkoutId,
+      mode,
+      ...(quarantinedPath ? { quarantinedPath } : {}),
+      ...(mode === 'discard' ? { removedPath: target } : {}),
+      revision: updated?.revision ?? record.revision + 1,
+    }
+  }
+
   async function manageManagedWorktree(input: ManageManagedWorktreeInput): Promise<ManagedWorktreeSummaryView> {
     const record = dependencies.registry.read().managedCheckouts[input.checkoutId]
     if (!record) throw new SessionCheckoutError('checkout_missing', hostMessage('theWorktreeRecordDoesNotExist'))
@@ -5661,6 +5737,9 @@ export function createSessionCheckoutModule(
     ),
     manageManagedWorktreeForSession: (sessionId, input) => withBindingLock(
       () => manageManagedWorktreeForSession(sessionId, input),
+    ),
+    forceCleanupManagedWorktree: (sessionId, input) => withBindingLock(
+      () => forceCleanupManagedWorktree(sessionId, input),
     ),
     inspectManagedWorktreeCleanup,
     bulkCleanupManagedWorktrees: (candidates) => withBindingLock(() => bulkCleanupManagedWorktrees(candidates)),

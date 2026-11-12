@@ -42,6 +42,7 @@ describe('public surfaces', () => {
       'worktree_begin_next_iteration',
       'worktree_deliver',
       'worktree_cleanup',
+      'worktree_force_cleanup',
       'worktree_switch_branch',
       'worktree_return_to_local',
       'worktree_prune_branches',
@@ -356,6 +357,39 @@ describe('public surfaces', () => {
     await expect(tool.execute({ checkoutId: 'checkout-9', expectedRevision: 3 }, { agent: { session: { id: 'session-abc' } } }))
       .rejects.toThrow(/cwd is locked by the sandbox/)
     expect(cleanup).not.toHaveBeenCalled()
+  })
+
+  test('force cleanup forwards mode and confirm and reports the quarantine path', async () => {
+    const tools: Array<{ name: string; execute: (args: unknown, exec: unknown) => Promise<unknown> }> = []
+    const forceCleanup = vi.fn(async () => ({
+      kind: 'worktree_force_cleanup',
+      checkoutId: 'checkout-9',
+      mode: 'quarantine' as const,
+      quarantinedPath: 'C:/repo/wt/.dsh-wt-quarantine--checkout--1',
+      revision: 4,
+    }))
+    const module = {
+      resolveRoots: vi.fn(() => ({ managedRoot: 'C:/repo/wt/topic-20261112', localRoot: 'C:/repo' })),
+      forceCleanupManagedWorktree: forceCleanup,
+    } as unknown as SessionCheckoutModule
+    registerTools({
+      get: (name: string) => (name === 'workingDirectory' ? { get: () => 'C:/repo', set: vi.fn() } : undefined),
+      tools: { register: (tool: typeof tools[number]) => { tools.push(tool) } },
+    } as never, module)
+    const tool = tools.find(candidate => candidate.name === 'worktree_force_cleanup')
+    if (!tool) throw new Error('force cleanup tool was not registered')
+
+    const result = await tool.execute(
+      { checkoutId: 'checkout-9', expectedRevision: 3, mode: 'discard', confirm: 'checkout-9' },
+      { agent: { session: { id: 'session-abc' } } },
+    )
+    expect(forceCleanup).toHaveBeenCalledWith('session-abc', expect.objectContaining({
+      checkoutId: 'checkout-9',
+      expectedRevision: 3,
+      mode: 'discard',
+      confirm: 'checkout-9',
+    }))
+    expect(result).toMatchObject({ mode: 'quarantine', quarantinedPath: 'C:/repo/wt/.dsh-wt-quarantine--checkout--1' })
   })
 
   test('create forwards linkDeps and returns the link outcome', async () => {

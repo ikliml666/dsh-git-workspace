@@ -101,6 +101,25 @@ export interface MergeBranchForSessionInput {
   targetBranch?: string
 }
 
+/** 目录身份已失效（没有 .git）时的显式清理。 */
+export interface ForceCleanupManagedWorktreeInput {
+  checkoutId: string
+  expectedRevision: number
+  /** quarantine parks the directory beside itself; discard removes it. Defaults to quarantine. */
+  mode?: 'quarantine' | 'discard'
+  /** discard only: must repeat checkoutId verbatim. */
+  confirm?: string
+}
+
+export interface ForcedCleanupView {
+  kind: 'worktree_force_cleanup'
+  checkoutId: string
+  mode: 'quarantine' | 'discard'
+  quarantinedPath?: string
+  removedPath?: string
+  revision: number
+}
+
 export interface MarkReadyForReviewInput {
   detailsMarkdown?: string
   summary: string
@@ -216,6 +235,8 @@ export interface SessionCheckoutModule {
   restoreAbandonedWorktreeSnapshot(sessionId: string, checkoutId: string): Promise<{ branch: string }>
   /** Caller-scoped management; never treats persisted owner ids as authorization. */
   manageManagedWorktreeForSession(sessionId: string, input: ManageManagedWorktreeInput): Promise<ManagedWorktreeSummaryView>
+  /** 目录身份已失效（无 .git）时的显式清理：隔离或删除，写留痕。 */
+  forceCleanupManagedWorktree(sessionId: string, input: ForceCleanupManagedWorktreeInput): Promise<ForcedCleanupView>
   /** Main-owned read-only cleanup inspection; writes no registry, refs, or directories. */
   inspectManagedWorktreeCleanup(input?: ListManagedWorktreesInput): Promise<ManagedWorktreeSummaryView[]>
   bulkCleanupManagedWorktrees(candidates: BulkCleanupManagedWorktreeCandidate[]): Promise<BulkCleanupManagedWorktreesResult>

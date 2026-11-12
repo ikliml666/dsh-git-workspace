@@ -1180,6 +1180,38 @@ export const hostMessages = {
     "zh": "在临时 worktree 里试合并，不改动 Local（建议先 true 预览冲突）。",
     "en": "Trial-merge in a throwaway worktree without touching Local (preview with true first)."
   },
+  "worktreeForceCleanupDescription": {
+    "zh": "目录身份已失效（.git 不在）时的显式清理。只处理已交付、目录还在、已经不是 Git worktree 的记录：默认把目录移到同级的隔离路径，或按 discard 删除。两种模式都写进台账留痕；仍有 .git 的记录请用 worktree_cleanup。",
+    "en": "Explicit cleanup for a delivered directory whose Git identity is gone (.git missing). Defaults to moving it beside itself as a quarantine; discard removes it. Both leave a record; directories that still have .git belong to worktree_cleanup."
+  },
+  "worktreeForceCleanupCheckoutId": { "zh": "要清理的 Worktree 记录 id。", "en": "Checkout record id to clean up." },
+  "worktreeForceCleanupExpectedRevision": { "zh": "读取记录时的 revision，防止清理过期目标。", "en": "Record revision read earlier, so a stale target is never cleaned up." },
+  "worktreeForceCleanupMode": { "zh": "quarantine（默认）把目录移到同级隔离路径；discard 直接删除。", "en": "quarantine (default) moves the directory beside itself; discard removes it." },
+  "worktreeForceCleanupConfirm": { "zh": "discard 模式必填，必须与 checkoutId 完全一致。", "en": "Required for discard; must repeat the checkoutId verbatim." },
+  "worktreeForceCleanupRequiresDelivered": {
+    "zh": "只有已交付（finalized/retained）的记录可以强制清理；工作中的 Worktree 请走普通清理。",
+    "en": "Only delivered records (finalized/retained) can be force-cleaned; work in progress belongs to ordinary cleanup."
+  },
+  "worktreeForceCleanupNoDirectory": {
+    "zh": "目录 {p0} 已不存在；直接再调一次 worktree_cleanup 就会解除登记。",
+    "en": "Directory {p0} no longer exists; calling worktree_cleanup again releases the record."
+  },
+  "worktreeForceCleanupStillWorktree": {
+    "zh": "目录里仍有 .git，说明它还是 Git worktree；请用 worktree_cleanup 走身份校验的清理。",
+    "en": "The directory still has .git, so it is still a Git worktree; use worktree_cleanup, which validates identity."
+  },
+  "worktreeForceCleanupConfirmRequired": {
+    "zh": "discard 会不可撤销地删除目录，请把 confirm 设为 \"{p0}\"。",
+    "en": "discard deletes the directory irreversibly; set confirm to \"{p0}\"."
+  },
+  "worktreeForceCleanupMoveUnsupported": {
+    "zh": "当前安装不支持目录移动，无法隔离；可改用 discard 或手工移动后清理。",
+    "en": "This installation cannot move directories, so quarantine is unavailable; use discard or move it by hand."
+  },
+  "theWorktreeRecordChangedSinceItWasRead": {
+    "zh": "记录在读取之后被改过；请重新读取再试。",
+    "en": "The record changed after it was read; read it again and retry."
+  },
   "worktreeMergeTargetBranch": {
     "zh": "可选：forward 方向要合并进哪个 Local 分支。默认是 Local 当前检出的分支；指定后合并前会先切过去。",
     "en": "Optional: which Local branch to merge into for the forward direction. Defaults to the branch currently checked out; when set, the checkout switches to it before merging."
