@@ -34,6 +34,22 @@ export function dependencyRootOf(relativePath: string): string {
 
 export interface DependencyDrift {
   manifest: string
+  /** 人可读的差异摘要：首个不同行，以及是否只差行尾/空白。 */
+  detail?: string
+}
+
+/** 找出第一处不同的行；只差行尾空白时单独标注，避免被当成版本漂移。 */
+function describeDifference(local: string, worktree: string): string {
+  const left = local.split('\n')
+  const right = worktree.split('\n')
+  const limit = Math.max(left.length, right.length)
+  for (let index = 0; index < limit; index += 1) {
+    if (left[index] === right[index]) continue
+    return (left[index] ?? '').trim() === (right[index] ?? '').trim()
+      ? `line ${index + 1} differs only in trailing whitespace`
+      : `line ${index + 1} differs`
+  }
+  return 'content differs'
 }
 
 /**
@@ -55,7 +71,12 @@ export function findDependencyDrift(
     const local = normalize(read(join(localRoot, root, manifest)))
     const worktree = normalize(read(join(worktreeRoot, root, manifest)))
     if (local === null && worktree === null) continue
-    if (local !== worktree) return { manifest }
+    // Worktree 侧读不到：该文件在那边不可见（被 .gitignore 忽略、未被跟踪，或根本没检出）。
+    // 隔离工作区只含 git 跟踪内容，把 ignored 的锁文件纳入比较必然判「不一致」，
+    // 依赖共享会永远失败。以 Worktree 能看到的声明为准。
+    if (worktree === null) continue
+    if (local === null) return { manifest, detail: 'missing in Local' }
+    if (local !== worktree) return { manifest, detail: describeDifference(local, worktree) }
   }
   return null
 }

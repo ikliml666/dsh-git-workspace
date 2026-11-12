@@ -5062,7 +5062,7 @@ export function createSessionCheckoutModule(
         if (drift !== null) {
           result.failures.push({
             path: relativePath,
-            reason: hostMessage('worktreeLinkDepsDrifted', { p0: relativePath, p1: drift.manifest }),
+            reason: `${hostMessage('worktreeLinkDepsDrifted', { p0: relativePath, p1: drift.manifest })}${drift.detail ? ` (${drift.detail})` : ''}`,
           })
           continue
         }

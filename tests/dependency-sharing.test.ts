@@ -28,7 +28,7 @@ describe('dependency sharing safety', () => {
       '/worktree/app/package.json': '{"dependencies":{"a":"2"}}',
     }
     expect(findDependencyDrift('/local', '/worktree', 'app/node_modules', reader(files)))
-      .toEqual({ manifest: 'package.json' })
+      .toMatchObject({ manifest: 'package.json' })
   })
 
   test('a drifted lockfile blocks sharing even when package.json matches', () => {
@@ -39,17 +39,26 @@ describe('dependency sharing safety', () => {
       '/worktree/app/package-lock.json': '{"lockfileVersion":2}',
     }
     expect(findDependencyDrift('/local', '/worktree', 'app/node_modules', reader(files)))
-      .toEqual({ manifest: 'package-lock.json' })
+      .toMatchObject({ manifest: 'package-lock.json' })
   })
 
-  test('a declaration that exists on only one side is drift', () => {
+  test('a lockfile that only exists in Local is not drift', () => {
     const files = {
       '/local/app/package.json': '{}',
       '/local/app/yarn.lock': '# yarn lockfile v1',
       '/worktree/app/package.json': '{}',
     }
+    // Worktree 只含 git 跟踪内容：ignored/untracked 的锁文件在那边不存在是常态。
+    expect(findDependencyDrift('/local', '/worktree', 'app/node_modules', reader(files))).toBeNull()
+  })
+
+  test('a whitespace-only difference reports its line instead of a bare mismatch', () => {
+    const files = {
+      '/local/app/package.json': '{\n  "name": "a"  \n}',
+      '/worktree/app/package.json': '{\n  "name": "a"\n}',
+    }
     expect(findDependencyDrift('/local', '/worktree', 'app/node_modules', reader(files)))
-      .toEqual({ manifest: 'yarn.lock' })
+      .toEqual({ manifest: 'package.json', detail: 'line 2 differs only in trailing whitespace' })
   })
 
   test('no declaration files at all means there is nothing to compare', () => {
