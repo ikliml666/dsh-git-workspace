@@ -6,7 +6,7 @@ description: publicapi 是 dsh-git-worktree 的唯一插件入口，实体只有
 # public_api 模块：插件公共入口与契约面
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`843f8bca`](https://github.com/wloops/dsh-git-worktree/commit/843f8bca9a8eed0ffa6582ed9c7867320f258f81) on 2026-11-12 with `mimo-v2.6-flash`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`69c708cc`](https://github.com/wloops/dsh-git-worktree/commit/69c708cc59aaae2f9750f68137d77a85a02c9c47) on 2026-11-12 with `mimo-v2.6-flash`. Check the code before relying on details.
 
 `public_api` 是 `dsh-git-worktree` 的**唯一插件入口**，实体只有一个文件 `src/index.ts`。它承担三件事：
 
@@ -645,14 +645,14 @@ if (result.status === 'error') {
 - [横切基础与公共交付面模块总览](Cross-Cutting_Foundation_and_Public_Surface.md) —— 构建、CI、发布校验与 i18n。
 
 ??? abstract "Documented components (10)"
-    - [`IsolatedTargetLaunch`](https://github.com/wloops/dsh-git-worktree/blob/843f8bca9a8eed0ffa6582ed9c7867320f258f81/src%5Cindex.ts) — `src\index.ts`
-    - [`ListManagedWorktreesInput`](https://github.com/wloops/dsh-git-worktree/blob/843f8bca9a8eed0ffa6582ed9c7867320f258f81/src%5Cindex.ts) — `src\index.ts`
-    - [`LocalAdaptationConfig`](https://github.com/wloops/dsh-git-worktree/blob/843f8bca9a8eed0ffa6582ed9c7867320f258f81/src%5Cindex.ts) — `src\index.ts`
-    - [`ManageManagedWorktreeInput`](https://github.com/wloops/dsh-git-worktree/blob/843f8bca9a8eed0ffa6582ed9c7867320f258f81/src%5Cindex.ts) — `src\index.ts`
-    - [`MarkReadyForReviewInput`](https://github.com/wloops/dsh-git-worktree/blob/843f8bca9a8eed0ffa6582ed9c7867320f258f81/src%5Cindex.ts) — `src\index.ts`
-    - [`MergeBranchForSessionInput`](https://github.com/wloops/dsh-git-worktree/blob/843f8bca9a8eed0ffa6582ed9c7867320f258f81/src%5Cindex.ts) — `src\index.ts`
-    - [`PruneMergedBranchesInput`](https://github.com/wloops/dsh-git-worktree/blob/843f8bca9a8eed0ffa6582ed9c7867320f258f81/src%5Cindex.ts) — `src\index.ts`
-    - [`SessionCheckoutError`](https://github.com/wloops/dsh-git-worktree/blob/843f8bca9a8eed0ffa6582ed9c7867320f258f81/src%5Cindex.ts) — `src\index.ts`
-    - [`SessionCheckoutModule`](https://github.com/wloops/dsh-git-worktree/blob/843f8bca9a8eed0ffa6582ed9c7867320f258f81/src%5Cindex.ts) — `src\index.ts`
-    - [`SessionCheckoutReconcileSummary`](https://github.com/wloops/dsh-git-worktree/blob/843f8bca9a8eed0ffa6582ed9c7867320f258f81/src%5Cindex.ts) — `src\index.ts`
+    - [`IsolatedTargetLaunch`](https://github.com/wloops/dsh-git-worktree/blob/69c708cc59aaae2f9750f68137d77a85a02c9c47/src%5Cindex.ts) — `src\index.ts`
+    - [`ListManagedWorktreesInput`](https://github.com/wloops/dsh-git-worktree/blob/69c708cc59aaae2f9750f68137d77a85a02c9c47/src%5Cindex.ts) — `src\index.ts`
+    - [`LocalAdaptationConfig`](https://github.com/wloops/dsh-git-worktree/blob/69c708cc59aaae2f9750f68137d77a85a02c9c47/src%5Cindex.ts) — `src\index.ts`
+    - [`ManageManagedWorktreeInput`](https://github.com/wloops/dsh-git-worktree/blob/69c708cc59aaae2f9750f68137d77a85a02c9c47/src%5Cindex.ts) — `src\index.ts`
+    - [`MarkReadyForReviewInput`](https://github.com/wloops/dsh-git-worktree/blob/69c708cc59aaae2f9750f68137d77a85a02c9c47/src%5Cindex.ts) — `src\index.ts`
+    - [`MergeBranchForSessionInput`](https://github.com/wloops/dsh-git-worktree/blob/69c708cc59aaae2f9750f68137d77a85a02c9c47/src%5Cindex.ts) — `src\index.ts`
+    - [`PruneMergedBranchesInput`](https://github.com/wloops/dsh-git-worktree/blob/69c708cc59aaae2f9750f68137d77a85a02c9c47/src%5Cindex.ts) — `src\index.ts`
+    - [`SessionCheckoutError`](https://github.com/wloops/dsh-git-worktree/blob/69c708cc59aaae2f9750f68137d77a85a02c9c47/src%5Cindex.ts) — `src\index.ts`
+    - [`SessionCheckoutModule`](https://github.com/wloops/dsh-git-worktree/blob/69c708cc59aaae2f9750f68137d77a85a02c9c47/src%5Cindex.ts) — `src\index.ts`
+    - [`SessionCheckoutReconcileSummary`](https://github.com/wloops/dsh-git-worktree/blob/69c708cc59aaae2f9750f68137d77a85a02c9c47/src%5Cindex.ts) — `src\index.ts`
 
