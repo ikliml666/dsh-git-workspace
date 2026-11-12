@@ -58,12 +58,14 @@ export async function createWorktree(localRoot: string, target: string, baseOid:
     if (sparse === 'true') {
       // Match native worktree add's sparse checkout semantics. A failed reset
       // may retain an index lock and therefore cannot be automatically removed.
-      await checked(target, ['reset', '--hard', '--no-recurse-submodules', baseOid])
+      await checked(target, ['-c', 'core.autocrlf=false', '-c', 'core.eol=lf', 'reset', '--hard', '--no-recurse-submodules', baseOid])
     } else {
       await checked(target, ['read-tree', baseOid])
       evidence = { ...evidence, indexFingerprint: createHash('sha256').update(await readFile(join(gitDir, 'index'))).digest('hex') }
       await saveEvidence(evidence)
-      await checked(target, ['checkout-index', '--all'])
+      // Windows 上 core.eol 默认 native，checkout-index 会把仓库里的 LF 写成 CRLF，
+      // 新建的 Worktree 一出现就整树「已修改」。检出阶段显式钉死 LF。
+      await checked(target, ['-c', 'core.autocrlf=false', '-c', 'core.eol=lf', 'checkout-index', '--all'])
     }
     await verifyIdentity(evidence, baseOid)
     await checked(localRoot, ['worktree', 'unlock', target])

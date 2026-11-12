@@ -4544,14 +4544,23 @@ export function createSessionCheckoutModule(
         `${hostMessages.cleanupDirectoryBusy.zh} ${hostMessage('cleanupBusyHint', { p0: target })}`,
       )
     }
+    // 两种模式都直接推进到终态：目录已经不在原处（隔离或删除），再要求补一次
+    // worktree_cleanup 只会把调用方卡在「先 force 再 cleanup」这条隐藏口令上。
     const updated = updateManagedCheckout(record.checkoutId, (current) => {
       if (current.revision !== record.revision) return current
-      if (mode === 'discard') {
-        return { ...current, phase: 'discarded', forcedCleanup: { at, mode, path: target }, revision: current.revision + 1 }
-      }
+      const delivery = current.delivery
+      if (delivery.state !== 'finalized' && delivery.state !== 'retained') return current
       return {
         ...current,
-        forcedCleanup: { at, mode, path: quarantinedPath as string },
+        phase: 'discarded',
+        delivery: {
+          state: 'delivered',
+          iteration: delivery.review.iteration,
+          commitOid: delivery.commitOid,
+          ...(delivery.proof ? { proof: delivery.proof } : {}),
+          deliveredAt: Date.now(),
+        },
+        forcedCleanup: { at, mode, path: mode === 'discard' ? target : (quarantinedPath as string) },
         revision: current.revision + 1,
       }
     })

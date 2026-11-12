@@ -49,6 +49,10 @@
 
 ### Changed
 
+- 新建 Worktree 的检出强制 LF（2026-11-12）：检出走 `read-tree` + `checkout-index`，Windows 上 `core.eol` 默认 `native`，仓库里存的是 LF 却被写成 CRLF——新建的工作区一出现就整树「已修改」（实测 774 个文件），`git add -A` 会把上万行行尾变化写进提交。两处检出命令现在都带 `-c core.autocrlf=false -c core.eol=lf`。
+
+- `worktree_force_cleanup` 一步落账（2026-11-12）：quarantine 与 discard 都把记录直接推进到 `phase: 'discarded'`，不再要求补一次 `worktree_cleanup`。之前隔离成功后记录仍停在 `needs_attention`，`worktree_begin_next_iteration` 会被「只有已成功清理的交付状态可以开始下一轮」挡住，调用方得知道「先 force 再 cleanup」这条隐藏口令。
+
 - 清理失败不再只说「被进程占用」（2026-11-12）：`directory_busy` 的说明后面追加了排查入口——资源监视器的「关联的句柄」搜索该路径，或 Sysinternals `handle.exe <path>`。原来那句话没有行动价值，用户只能猜是谁占着目录。
 
 - 发布门禁的 Remote 方法表对齐实际表面（2026-11-12）：`scripts/check-publish.mjs` 的 `expectedRemoteMethods` 停在 2026-10-28，而 `bbcd996` 已删掉评审背板等入口、`9150c36` 又新增分支切换方法，导致 `pnpm run check:publish` 与 `prepublishOnly` 失败。表更新为当前 27 个方法。
