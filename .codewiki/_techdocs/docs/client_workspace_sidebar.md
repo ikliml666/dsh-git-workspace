@@ -6,7 +6,7 @@ description: clientworkspacesidebar 负责把插件自有的「Managed Worktree 
 # client_workspace_sidebar 模块
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`8b44e2a7`](https://github.com/wloops/dsh-git-worktree/commit/8b44e2a7098c49d39abae5f42bd3e205e5f608b1) on 2026-11-12 with `mimo-v2.6-flash`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`721a7f5e`](https://github.com/wloops/dsh-git-worktree/commit/721a7f5e1d5ff83570a2af6186c145fd410f8ed7) on 2026-11-12 with `mimo-v2.6-flash`. Check the code before relying on details.
 
 `client_workspace_sidebar` 负责把插件自有的「Managed Worktree 任务」注入 DSH 官方的 Workspace 侧栏（Session 列表）。它**不实现自己的侧栏 UI**：官方 Workspace Client 已被 Host 声明为侧栏的唯一提供者，本模块的全部工作都是「在官方实现之上做数据投影与装饰」——把每个受管 Worktree 的 owner Session 从它自己的临时 Workspace 搬回原来的 Local 项目下、给它加上分支图标与状态徽章、并在 owner 行上屏蔽会破坏「一个 Worktree 对应一个 Session」不变式的官方操作。
 
@@ -351,9 +351,9 @@ Mode A/B 都依赖「构建期把官方 Workspace Client 源码物化成虚拟�
 | [build_deployment_configuration：构建、打包与发布部署配置](build_deployment_configuration.md) | `tsdown` 虚拟模块插件、`check:sidebar-version` 版本/哈希门禁、`vitest` 别名 |
 
 ??? abstract "Documented components (5)"
-    - [`ManagedWorktreeSessionDecoration`](https://github.com/wloops/dsh-git-worktree/blob/8b44e2a7098c49d39abae5f42bd3e205e5f608b1/src%5Cclient%5Cworkspace-sidebar%5Cindex.tsx) — `src\client\workspace-sidebar\index.tsx`
-    - [`ManagedWorkspaceSidebarProjection`](https://github.com/wloops/dsh-git-worktree/blob/8b44e2a7098c49d39abae5f42bd3e205e5f608b1/src%5Cclient%5Cworkspace-sidebar%5Cmodel.ts) — `src\client\workspace-sidebar\model.ts`
-    - [`ProjectedManagedTask`](https://github.com/wloops/dsh-git-worktree/blob/8b44e2a7098c49d39abae5f42bd3e205e5f608b1/src%5Cclient%5Cworkspace-sidebar%5Cmodel.ts) — `src\client\workspace-sidebar\model.ts`
-    - [`SidebarSessionSummary`](https://github.com/wloops/dsh-git-worktree/blob/8b44e2a7098c49d39abae5f42bd3e205e5f608b1/src%5Cclient%5Cworkspace-sidebar%5Cmodel.ts) — `src\client\workspace-sidebar\model.ts`
-    - [`SidebarWorkspaceView`](https://github.com/wloops/dsh-git-worktree/blob/8b44e2a7098c49d39abae5f42bd3e205e5f608b1/src%5Cclient%5Cworkspace-sidebar%5Cmodel.ts) — `src\client\workspace-sidebar\model.ts`
+    - [`ManagedWorktreeSessionDecoration`](https://github.com/wloops/dsh-git-worktree/blob/721a7f5e1d5ff83570a2af6186c145fd410f8ed7/src%5Cclient%5Cworkspace-sidebar%5Cindex.tsx) — `src\client\workspace-sidebar\index.tsx`
+    - [`ManagedWorkspaceSidebarProjection`](https://github.com/wloops/dsh-git-worktree/blob/721a7f5e1d5ff83570a2af6186c145fd410f8ed7/src%5Cclient%5Cworkspace-sidebar%5Cmodel.ts) — `src\client\workspace-sidebar\model.ts`
+    - [`ProjectedManagedTask`](https://github.com/wloops/dsh-git-worktree/blob/721a7f5e1d5ff83570a2af6186c145fd410f8ed7/src%5Cclient%5Cworkspace-sidebar%5Cmodel.ts) — `src\client\workspace-sidebar\model.ts`
+    - [`SidebarSessionSummary`](https://github.com/wloops/dsh-git-worktree/blob/721a7f5e1d5ff83570a2af6186c145fd410f8ed7/src%5Cclient%5Cworkspace-sidebar%5Cmodel.ts) — `src\client\workspace-sidebar\model.ts`
+    - [`SidebarWorkspaceView`](https://github.com/wloops/dsh-git-worktree/blob/721a7f5e1d5ff83570a2af6186c145fd410f8ed7/src%5Cclient%5Cworkspace-sidebar%5Cmodel.ts) — `src\client\workspace-sidebar\model.ts`
 

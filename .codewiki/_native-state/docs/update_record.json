@@ -1,6 +1,6 @@
 {
-  "started_at": "2026-11-12T14:54:56+0800",
-  "finished_at": "2026-11-12T14:54:56+0800",
+  "started_at": "2026-11-12T15:11:43+0800",
+  "finished_at": "2026-11-12T15:11:43+0800",
   "outcome": "no_change",
   "options": {
     "rung": "3",
@@ -24,8 +24,8 @@
     }
   },
   "revision": {
-    "old_commit": "84724981404027b926acaeb166b6b6ef5545ee4a",
-    "new_commit": "8b44e2a7098c49d39abae5f42bd3e205e5f608b1",
+    "old_commit": "8b44e2a7098c49d39abae5f42bd3e205e5f608b1",
+    "new_commit": "721a7f5e1d5ff83570a2af6186c145fd410f8ed7",
     "repo_path": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree"
   },
   "diff": {
@@ -59,7 +59,7 @@
   "calls": [],
   "detector_notes": [],
   "errors": [],
-  "wall_seconds": 0.08,
+  "wall_seconds": 0.07,
   "usage_report": {
     "schema_version": 2,
     "scope": "this run only (modules resumed from disk cost nothing)",
@@ -76,5 +76,5 @@
     "unpriced_models": [],
     "calls": []
   },
-  "run_id": "38b04dbc-2a1b-4029-ad32-f51d3668d023"
+  "run_id": "7d241b32-e5dd-4735-bcde-e000dd5ea16c"
 }
