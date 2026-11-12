@@ -6,6 +6,12 @@
 
 ### Added
 
+- 模型侧三条断链：合并后出不去、看不到自己的分支、交付后不知道自己在哪（2026-11-12）。
+  - **合并后出不去**：`worktree_merge` 不移动 checkout，只有 `worktree_deliver` 会在删除前 `leave`，所以「先合并、再回 Local 继续」没有工具可走——`returnToLocal` 只挂在胶囊 RPC 上。新增 `worktree_return_to_local`：走控制面同一条路径（先移出 cwd、再解绑），已在 Local 时幂等返回真实位置，未交付的树被拒绝并说明原因。
+  - **看不到自己的分支**：`worktree_list` 只给 checkoutId / state / commitOid，模型列完不知道每棵树的工作落在哪条分支上，而 `worktree_merge` 恰恰需要分支名。`ManagedWorktreeSummaryView` 增加 `branch`，从台账的 `sessionBranch` 经 `branchNameOf` 派生——零 Git 调用，不破坏「快速列表不扫描磁盘」的前提；工具输出带上它。
+  - **不知道自己站在哪**：`worktree_deliver` 与 `worktree_cleanup` 都会先把会话移回 Local，但返回体里没有这个事实，模型可能以为还在树里继续用相对路径写代码。两者现在都返回 `cwd`（宿主没挂 `workingDirectory` 时省略）；`worktree_merge` 返回 `nextAction`，明说「合并没有移动会话，需要回 Local 就调 worktree_return_to_local」。
+  - **测试**：`tests/surface.test.ts` 工具清单更新，新增两条（已交付时走控制面并带移出回调；已在 Local 时幂等、不调用控制面），list 用例断言 `branch` 透传。
+
 - 模型获得 `worktree_switch_branch`：切分支不再只能靠 shell 猜（2026-11-12）。
   - **为什么**：这个插件是给模型用的。模型能建树、能交付、能合并，唯独「切换分支」没有工具——只能自己跑 `git switch`，撞上未提交改动时只拿到一段 git stderr，看不出哪些文件挡着，也不知道该先提交还是换分支。界面早就有结构化的拒绝（`WorktreeConsoleGitSwitchIssue`）和「先提交再切」的协助，模型一条都拿不到。
   - **接法**：`registerTools` 增加第三参数 `WorktreeBranchPort`（`gitSwitchBranch` / `gitCreateBranchAndSwitch`），由 `index.ts` 把已构造好的 `controlPlane` 传进去。在 tools 里再写一份实现会绕过 `assertLocalHeadMutable`——切分支移动的 Local HEAD 正是所有待交付 apply 的基线，那条守卫必须与控制面同源。

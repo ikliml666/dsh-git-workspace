@@ -43,6 +43,7 @@ describe('public surfaces', () => {
       'worktree_deliver',
       'worktree_cleanup',
       'worktree_switch_branch',
+      'worktree_return_to_local',
       'worktree_prune_branches',
       'worktree_merge',
     ])
@@ -79,6 +80,48 @@ describe('public surfaces', () => {
     expect(typeof result.nextAction).toBe('string')
   })
 
+  test('return to local releases a delivered checkout through the shared cwd-moving path', async () => {
+    const tools: Array<{ name: string; execute: (args: unknown, exec: unknown) => Promise<unknown> }> = []
+    const control = {
+      gitSwitchBranch: vi.fn(),
+      gitCreateBranchAndSwitch: vi.fn(),
+      returnToLocal: vi.fn(async () => ({ ok: true as const, value: { target: { currentBranch: 'main' } } })),
+    }
+    const module = {
+      inspect: vi.fn(async () => ({ checkout: { id: 'checkout-1', kind: 'isolated', label: 'Task', phase: 'retained' } })),
+    }
+    registerTools({ tools: { register: (tool: typeof tools[number]) => { tools.push(tool) } } } as never, module as never, control as never)
+    const tool = tools.find(candidate => candidate.name === 'worktree_return_to_local')
+    if (!tool) throw new Error('return-to-local tool was not registered')
+
+    const result = await tool.execute({}, { agent: { session: { id: 'target-session' } } }) as unknown as Record<string, unknown>
+
+    expect(control.returnToLocal).toHaveBeenCalledTimes(1)
+    const [request, leave] = control.returnToLocal.mock.calls[0] as unknown as [
+      Record<string, unknown>,
+      (sessionId: string, managedRoot: string, localRoot: string) => Promise<void>,
+    ]
+    expect(request).toEqual({ sessionId: 'target-session', checkoutId: 'checkout-1' })
+    // 只解绑不移出，模型拿到的是一个「看起来成功了」的假 Local。
+    expect(typeof leave).toBe('function')
+    await leave('target-session', '/managed', '/local')
+    expect(result).toMatchObject({ kind: 'worktree_returned_to_local', state: 'local', branch: 'main' })
+  })
+
+  test('return to local reports the real location without unbinding when the session is already on Local', async () => {
+    const tools: Array<{ name: string; execute: (args: unknown, exec: unknown) => Promise<unknown> }> = []
+    const control = { gitSwitchBranch: vi.fn(), gitCreateBranchAndSwitch: vi.fn(), returnToLocal: vi.fn() }
+    const module = { inspect: vi.fn(async () => ({ checkout: { id: 'local', kind: 'local', label: 'Local', phase: 'ready' } })) }
+    registerTools({ tools: { register: (tool: typeof tools[number]) => { tools.push(tool) } } } as never, module as never, control as never)
+    const tool = tools.find(candidate => candidate.name === 'worktree_return_to_local')
+    if (!tool) throw new Error('return-to-local tool was not registered')
+
+    const result = await tool.execute({}, { agent: { session: { id: 'target-session' } } }) as unknown as Record<string, unknown>
+
+    expect(control.returnToLocal).not.toHaveBeenCalled()
+    expect(result).toMatchObject({ kind: 'worktree_returned_to_local', state: 'local' })
+  })
+
   test('list output never carries a key whose value is undefined (the host rejects that as not lossless JSON)', async () => {
     const tools: Array<{ name: string; execute: (args: unknown, exec: unknown) => Promise<unknown> }> = []
     const module = {
@@ -89,6 +132,7 @@ describe('public surfaces', () => {
           checkoutId: 'checkout-1', project: { id: 'project-1', name: 'Project' },
           ownerSessionId: 'target-session', iteration: 1, revision: 2,
           state: 'ready', phase: 'ready', dirty: true, commitOid: null,
+          branch: 'feat/sess-target-session--task',
         },
       ]),
     } as unknown as SessionCheckoutModule
@@ -101,6 +145,8 @@ describe('public surfaces', () => {
     }
 
     expect(result.worktrees[0]).not.toHaveProperty('commitOid')
+    // 模型要靠 branch 才知道这棵树的工作落在哪条分支上。
+    expect(result.worktrees[0].branch).toBe('feat/sess-target-session--task')
     const undefinedKeys = (value: unknown, path = ''): string[] => {
       if (Array.isArray(value)) return value.flatMap((item, index) => undefinedKeys(item, `${path}[${index}]`))
       if (value === null || typeof value !== 'object') return []

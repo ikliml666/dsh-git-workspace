@@ -1076,6 +1076,18 @@ export const hostMessages = {
     "zh": "无法先把本会话 cwd 移出该 Worktree（{p0}），为避免 cwd 悬空指向已删目录，本次删除已中止。请先手动 cd 出该目录后重试。",
     "en": "The Session cwd could not be moved out of the Worktree first ({p0}); the removal was aborted so the cwd cannot be left pointing at a deleted directory. Leave the directory manually and retry."
   },
+  "worktreeReturnToLocalDescription": {
+    "zh": "把本会话从托管 worktree 释放回项目 Local 检出：只对已交付的 worktree（完成交付或合并后的记录）生效，会先把会话 cwd 移回 Local 根目录再解绑。已经在 Local 时幂等返回当前位置。交付/合并后想继续在 Local 上工作时用它；未交付的 worktree 会被拒绝——解绑会把未合并的改动留在冻结目录里。",
+    "en": "Release this session from its managed worktree back to the project Local checkout. Only delivered checkouts (after delivery or merge) qualify: the session cwd is moved to the Local root first, then the binding is released. Idempotent when already on Local. Use it to keep working on Local after delivering or merging; undelivered checkouts are refused because unbinding would strand unmerged work in a frozen directory."
+  },
+  "worktreeReturnedToLocal": {
+    "zh": "回到 Local 工作区",
+    "en": "Return to Local"
+  },
+  "worktreeMergeThenReturnToLocal": {
+    "zh": "这次合并没有移动会话：如果你还在托管 worktree 里，调 worktree_return_to_local 回到 Local；已经在 Local 时不需要调用。",
+    "en": "The merge did not move the session: if you are still inside a managed worktree, call worktree_return_to_local to get back to Local; if you are already on Local, no call is needed."
+  },
   "worktreeSwitchBranchDescription": {
     "zh": "把本会话项目的 Local 检出切到指定本地分支（create=true 时以当前 HEAD 为起点新建并切换）。这是唯一会移动 Local HEAD 的模型动作：该 HEAD 是所有待交付 apply 的基线，因此有会话正在交付时会被拒绝。被拒绝时返回 kind=worktree_branch_switch_blocked、结构化 code 与受影响 paths，按 nextAction 处理，不要对同一分支反复重试。",
     "en": "Switch this session's project Local checkout to a local branch (with create=true, create it from the current HEAD and switch). This is the only model action that moves the Local HEAD, which is the baseline every pending delivery is computed against, so it is refused while any session is mid-delivery. A refusal returns kind=worktree_branch_switch_blocked with a structured code and affected paths; follow nextAction instead of retrying the same branch."

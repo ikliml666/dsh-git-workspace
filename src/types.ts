@@ -466,6 +466,8 @@ export interface ManagedWorktreeSummaryView {
   state: ManagedWorktreeSummaryState
   phase: SessionCheckoutPhase
   dirty: boolean
+  /** Branch this checkout's work lands on; null when the ledger never attached one. */
+  branch: string | null
   commitOid: string | null
   /** Number of saved managed-Worktree stages not yet delivered to Local. */
   checkpointCount?: number

@@ -3986,6 +3986,9 @@ export function createSessionCheckoutModule(
       state,
       phase: record.phase,
       dirty,
+      // 台账里就有分支名（建树时 attach、交付后仍在），列表因此不必为每棵树
+      // 跑一次 git——模型却要靠它才知道这棵树的工作落在哪条分支上。
+      branch: branchNameOf(record.sessionBranch),
       commitOid,
       ...((record.checkpoints?.length ?? 0) > 0 ? { checkpointCount: record.checkpoints!.length } : {}),
       ...(delivery.state === 'retained' ? {

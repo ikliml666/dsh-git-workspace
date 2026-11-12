@@ -12,7 +12,12 @@ import { hostRegistrationMessage } from './i18n/host-messages.js'
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import type { WorktreeConsoleGitMutationResponse, WorktreeConsoleOutcome } from './console-contract.js'
+import type {
+  WorktreeConsoleGitMutationResponse,
+  WorktreeConsoleOutcome,
+  WorktreeConsoleReturnToLocalRequest,
+  WorktreeConsoleReturnToLocalResponse,
+} from './console-contract.js'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { SessionCheckoutModule } from './index.js'
 import type { WorktreeValidationStatus } from './types.js'
@@ -105,9 +110,18 @@ async function enterCheckout(
  * (`assertLocalHeadMutable`): a model-initiated switch moves the Local HEAD that
  * every pending delivery is computed against, so it cannot bypass that check.
  */
-export interface WorktreeBranchPort {
+export interface WorktreeConsolePort {
   gitSwitchBranch(sessionId: string, branch: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>
   gitCreateBranchAndSwitch(sessionId: string, branch: string): Promise<WorktreeConsoleOutcome<WorktreeConsoleGitMutationResponse>>
+  /**
+   * Release a delivered owner back to Local. The callback moves the Session cwd
+   * out of the checkout first; the console injects the very same one, so a model
+   * call cannot leave the cwd behind in a frozen directory.
+   */
+  returnToLocal(
+    request: WorktreeConsoleReturnToLocalRequest,
+    leaveCheckout?: (sessionId: string, managedRoot: string, localRoot: string) => Promise<void>,
+  ): Promise<WorktreeConsoleOutcome<WorktreeConsoleReturnToLocalResponse>>
 }
 
 /**
@@ -136,7 +150,7 @@ function switchNextAction(code: string, fallback: string): string {
 }
 
 /** Register the safe model-facing worktree tools. */
-export function registerTools(ctx: Context, module: SessionCheckoutModule, branches: WorktreeBranchPort): void {
+export function registerTools(ctx: Context, module: SessionCheckoutModule, control: WorktreeConsolePort): void {
   // Official parity: the experimental create_worktree bundle ends creation with
   // ctx.workingDirectory.set(agent, path), so the Session really works inside
   // the new checkout. This port reproduces that for a Managed Worktree, and
@@ -239,6 +253,7 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule, branc
                 state: { type: 'string', required: true },
                 phase: { type: 'string', required: true },
                 dirty: { type: 'boolean', required: true },
+                branch: { type: 'string' },
                 commitOid: { type: 'string' },
               },
             },
@@ -262,6 +277,7 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule, branc
             state: summary.state,
             phase: summary.phase,
             dirty: summary.dirty,
+            ...(summary.branch ? { branch: summary.branch } : {}),
             // Omit instead of emitting a present-but-empty key: the host rejects
             // `undefined` here as "not lossless JSON", and null/'' carry no commit.
             ...(summary.commitOid ? { commitOid: summary.commitOid } : {}),
@@ -350,6 +366,8 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule, branc
           branch: { type: 'string' },
           changedFiles: { type: 'array', required: true, items: { type: 'string' } },
           cleanup: { type: 'string', required: true },
+          /** 交付后会话所在的目录（通常在 Local）。 */
+          cwd: { type: 'string' },
           push: {
             type: 'object',
             additionalProperties: false,
@@ -413,6 +431,8 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule, branc
           }
           throw new Error(hostMessage('worktreeDeliverUnexpectedResult', { p0: detail }))
         }
+        // 交付前已把会话移回 Local；把这件事告诉模型，否则它会以为还站在树里。
+        const deliveredCwd = workingDirectory.current(exec.agent)
         return {
           kind: 'worktree_delivered',
           state: result.target.delivery?.state ?? 'unknown',
@@ -423,6 +443,7 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule, branc
           cleanup: result.cleanup,
           ...(result.push ? { push: { status: result.push.status, ...(result.push.message ? { message: result.push.message } : {}) } } : {}),
           ...(typeof args?.report === 'string' && args.report.trim() ? { report: args.report.trim() } : {}),
+          ...(deliveredCwd === undefined ? {} : { cwd: deliveredCwd }),
         }
       })
     },
@@ -447,6 +468,8 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule, branc
           phase: { type: 'string', required: true },
           revision: { type: 'number', required: true },
           cleanupMessage: { type: 'string' },
+          /** 清理后会话所在的目录（通常在 Local）。 */
+          cwd: { type: 'string' },
         },
       },
       render: (_args, value) => renderJson(value),
@@ -468,6 +491,7 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule, branc
           expectedRevision,
           action: 'cleanup_retained',
         })
+        const cleanedCwd = workingDirectory.current(exec.agent)
         return {
           kind: 'worktree_cleanup',
           checkoutId: summary.checkoutId,
@@ -475,6 +499,7 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule, branc
           phase: summary.phase,
           revision: summary.revision,
           ...(summary.cleanupMessage ? { cleanupMessage: summary.cleanupMessage } : {}),
+          ...(cleanedCwd === undefined ? {} : { cwd: cleanedCwd }),
         }
       })
     },
@@ -518,8 +543,8 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule, branc
         // 与控制面同一条守卫：切分支移动的是 Local HEAD，而它正是所有待交付
         // apply 的基线，模型不能绕过这条检查。
         const result = create
-          ? await branches.gitCreateBranchAndSwitch(sessionId, branch)
-          : await branches.gitSwitchBranch(sessionId, branch)
+          ? await control.gitCreateBranchAndSwitch(sessionId, branch)
+          : await control.gitSwitchBranch(sessionId, branch)
         if (result.ok) return { kind: 'worktree_branch_switched', branch: result.value.branch, created: create }
         // 拒绝是正常答案，不是异常：模型要靠 code/paths 决定「先提交再切」还是换目标分支。
         const issue = result.error.switchIssue
@@ -534,6 +559,64 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule, branc
       })
     },
     presentCall: () => ({ card: 'generic', title: hostRegistrationMessage('switchBranch'), kind: 'other', rawInput: {} }),
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'worktree_return_to_local',
+    description: hostRegistrationMessage('worktreeReturnToLocalDescription'),
+    parameters: {},
+    output: {
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          kind: { type: 'string', required: true },
+          state: { type: 'string', required: true },
+          branch: { type: 'string' },
+          cwd: { type: 'string' },
+        },
+      },
+      render: (_args, value) => renderJson(value),
+    },
+    async execute(_args, exec) {
+      return withHostLanguage(languageForInvocation(exec.agent, ctx), async () => {
+        const sessionId = sessionIdOf(exec.agent)
+        let checkoutId: string | null = null
+        try {
+          const current = await module.inspect(sessionId)
+          checkoutId = current.checkout.kind === 'isolated' ? current.checkout.id : null
+        } catch (error) {
+          // `target_unselected` 就是「还没绑到任何目标」，等价于已经在 Local。
+          // 其它失败必须照原样抛出去，不能把探测失败说成「已在 Local」。
+          const code = (error as { code?: string } | undefined)?.code
+          if (code !== 'target_unselected') throw error
+        }
+        const settled = workingDirectory.current(exec.agent)
+        if (checkoutId === null) {
+          return {
+            kind: 'worktree_returned_to_local',
+            state: 'local',
+            ...(settled === undefined ? {} : { cwd: settled }),
+          }
+        }
+        // 与控制面同一条路径：先移出检出、再解绑。未交付的 worktree 在这里被拒绝。
+        const result = await control.returnToLocal(
+          { sessionId, checkoutId },
+          async (_targetSessionId, managedRoot, localRoot) => {
+            await workingDirectory.leave(exec.agent, managedRoot, localRoot)
+          },
+        )
+        if (!result.ok) throw new Error(result.error.message)
+        const moved = workingDirectory.current(exec.agent)
+        return {
+          kind: 'worktree_returned_to_local',
+          state: 'local',
+          ...(result.value.target.currentBranch ? { branch: result.value.target.currentBranch } : {}),
+          ...(moved === undefined ? {} : { cwd: moved }),
+        }
+      })
+    },
+    presentCall: () => ({ card: 'generic', title: hostRegistrationMessage('worktreeReturnedToLocal'), kind: 'other', rawInput: {} }),
   }))
 
   ctx.tools.register(defineTool({
@@ -640,6 +723,7 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule, branc
             },
           },
           reason: { type: 'string' },
+          nextAction: { type: 'string' },
         },
       },
       render: (_args, value) => renderJson(value),
@@ -664,6 +748,8 @@ export function registerTools(ctx: Context, module: SessionCheckoutModule, branc
           ...(result.conflictingFiles ? { conflictingFiles: result.conflictingFiles } : {}),
           ...(result.conflictDetails ? { conflictDetails: result.conflictDetails } : {}),
           ...(result.reason ? { reason: result.reason } : {}),
+          // 合并本身不移动会话；模型可能还站在树里，这里明确给出回 Local 的入口。
+          nextAction: hostMessage('worktreeMergeThenReturnToLocal'),
         }
       })
     },
