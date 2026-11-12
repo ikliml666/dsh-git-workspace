@@ -4210,7 +4210,7 @@ export function createSessionCheckoutModule(
     localRoot: string,
     input: { dryRun?: boolean; olderThanDays?: number } = {},
   ): Promise<PruneMergedBranchesView> {
-    const { branchOverview, isAncestor, deleteLocalBranch, branchTipTimes, defaultBranch } = dependencies.git
+    const { branchOverview, isAncestor, mergedBranches, deleteLocalBranch, branchTipTimes, defaultBranch } = dependencies.git
     if (!branchOverview || !isAncestor || !deleteLocalBranch) {
       throw new SessionCheckoutError('operation_not_allowed', hostMessage('theGitPortOfThisInstallationDoesNotSupportBranchPrune'))
     }
@@ -4250,6 +4250,9 @@ export function createSessionCheckoutModule(
     )
     const headOid = mergeTarget?.oid
     if (headOid) {
+      // 逐个 isAncestor 在几十个分支上要 spawn 几十次 git（Windows 上每次几十毫秒），
+      // 清理预览会卡好几秒；优先一次 for-each-ref --merged 拿全量。
+      const mergedNames = mergedBranches ? await mergedBranches(localRoot, headOid) : null
       for (const branch of overview.branches) {
         if (branch.isCurrent || trunkBranches.has(branch.name)) continue
         if (activeSessionBranches.has(branch.name)) {
@@ -4257,11 +4260,15 @@ export function createSessionCheckoutModule(
           continue
         }
         let merged: boolean
-        try {
-          merged = await isAncestor(localRoot, branch.oid, headOid)
-        } catch {
-          skipped.push({ name: branch.name, oid: branch.oid, reason: hostMessage('cannotVerifyWhetherThisBranchIsFullyMerged') })
-          continue
+        if (mergedNames !== null) {
+          merged = mergedNames.includes(branch.name)
+        } else {
+          try {
+            merged = await isAncestor(localRoot, branch.oid, headOid)
+          } catch {
+            skipped.push({ name: branch.name, oid: branch.oid, reason: hostMessage('cannotVerifyWhetherThisBranchIsFullyMerged') })
+            continue
+          }
         }
         if (!merged) {
           skipped.push({ name: branch.name, oid: branch.oid, reason: hostMessage('thisBranchHasCommitsNotYetMergedInto', { p0: mergeTarget?.name ?? 'HEAD' }) })

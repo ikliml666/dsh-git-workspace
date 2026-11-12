@@ -134,4 +134,19 @@ export const WORKTREE_STYLES = String.raw`
 @media (max-width: 560px) { .dsh-wt-grid { grid-template-columns:1fr; gap:3px; } .dsh-wt-label { margin-top:4px; } }
 .dsh-wt-create-dialog .dsh-wt-button { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:34px; line-height:20px; box-sizing:border-box; }
 .dsh-wt-create-dialog .dsh-wt-button .dsh-wt-icon { width:16px; height:16px; flex:0 0 16px; vertical-align:middle; }
+/* 清理预览：几十个分支会把弹窗撑出视口，确认按钮被截在屏幕外。
+   内容区自己滚动，footer 常驻可见。 */
+.dsh-wtc-prune-body {
+  max-height: min(56vh, 460px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.dsh-wtc-prune-preview ul {
+  margin: 4px 0 10px;
+  padding-inline-start: 18px;
+}
+.dsh-wtc-prune-preview li {
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
 `

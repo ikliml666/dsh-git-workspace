@@ -188,6 +188,12 @@ export interface SessionCheckoutGitPort {
   releaseInternalArtifacts(localRoot: string, checkoutId: string, artifactPrefix?: string): Promise<void>
   /** Read-only ancestry proof; only accepts host-verified checkout roots and OIDs. */
   isAncestor(root: string, ancestorOid: string, descendantOid: string): Promise<boolean>
+  /**
+   * 一次拿到所有已并入 intoOid 的本地分支名。逐个 isAncestor 在几十个分支上要
+   * spawn 几十次 git，清理预览会卡好几秒；这条走单次 for-each-ref --merged。
+   * 返回 null 表示这条路径不可用或读取失败，调用方回退到逐个判断。
+   */
+  mergedBranches?(root: string, intoOid: string): Promise<string[] | null>
   listWorktreeincludeFiles?(localRoot: string, includeFile: string): Promise<string[]>
   /**
    * Local adaptation: best-effort `git push` of the given worktree's current

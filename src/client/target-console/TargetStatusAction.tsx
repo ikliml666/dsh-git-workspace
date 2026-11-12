@@ -1007,6 +1007,7 @@ export function TargetStatusAction({ sessionId, adapter, services }: TargetStatu
         title={t("branch.prune.title")}
         closeLabel={t("cancel")}
         description={t("branch.prune.description")}
+        contentClassName="dsh-wtc-prune-body"
         footer={(
           <span className="dsh-wtc-confirm-actions">
             <button type="button" className="dsh-wtc-button" disabled={pruneBusy} onClick={() => setPruneOpen(false)}>{t("cancel")}</button>

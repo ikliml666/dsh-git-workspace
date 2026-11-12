@@ -49,6 +49,10 @@
 
 ### Changed
 
+- 清理分支的预览从「逐个分支跑 git」改成一次批量判定（2026-11-12）：原来对每个分支串行调 `isAncestor`（`git merge-base --is-ancestor`），30 多个分支要 spawn 30 多次 git，Windows 上清理预览要等好几秒。新增 `mergedBranches` 端口走单次 `git for-each-ref --merged`；实测同一仓库 34 个分支从 0.55s 降到 0.04s。端口不可用时回退到逐个判断。
+
+- 清理预览弹窗的内容区改为内部滚动（2026-11-12）：几十个分支会把弹窗撑出视口，确认按钮被截在屏幕外。现在内容区 `max-height: min(56vh, 460px)` 自己滚动，footer 常驻可见。
+
 - 依赖声明比较跳过 Worktree 侧不可见的文件（2026-11-12）：隔离工作区只含 git 跟踪内容，`pnpm-lock.yaml` 这类被 `.gitignore` 忽略的锁文件在那边必然不存在；原来把它纳入比较，结论永远是「不一致」，依赖共享在「Windows 本地 CRLF + ignored 锁文件」的仓库里不可能成功。现在以 Worktree 能看到的声明为准，Local 独有但 Worktree 不可见的文件不构成漂移。
 
 - 漂移信息附带差异摘要（2026-11-12）：`linkFailures` 的 reason 现在带首个不同行，并区分「仅行尾空白不同」与真实内容差异，不用再逐字节排查。

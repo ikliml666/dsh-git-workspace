@@ -491,6 +491,11 @@ export function createDshGitPort(ctx: Context, options: GitPortOptions): Session
       const result = await runSessionGit(localRoot, ['update-ref', '--stdin'], `start\n${refs.map((ref) => `delete ${ref}`).join('\n')}\ncommit\n`)
       if (result.code !== 0) throw new SessionCheckoutError('git_operation_failed', result.stderr || hostMessage('gitOperationFailedGit', { p0: 'update-ref', p1: '' }))
     },
+    mergedBranches: async (root, intoOid) => {
+      const result = await runSessionGit(root, ['for-each-ref', '--merged', intoOid, '--format=%(refname:short)', 'refs/heads'])
+      if (result.code !== 0) return null
+      return result.stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
+    },
     isAncestor: async (root, ancestorOid, descendantOid) => {
       const result = await runSessionGit(root, ['merge-base', '--is-ancestor', ancestorOid, descendantOid])
       if (result.code === 0) return true
