@@ -135,6 +135,11 @@ const targetSummarySchema = strict({
   expiresAt: z.number().finite().nullable().optional(),
   permanent: z.boolean().optional(),
   cleanupMessage: z.string().optional(),
+  // 结构化清理阻塞原因：`projection.ts` 在 finalized/retained 且清理被阻塞时
+  // 一直输出这个键，客户端也按它决定要不要给「放弃改动再清理」的确认。schema
+  // 漏了它，`.strict()` 就把整条 `current` 判为不符合契约——胶囊塌成「不可用」，
+  // 正是 Wxxy-CampusLogin 那条 finalized+identity_changed 记录的表现。
+  cleanupReason: z.enum(['directory_busy', 'modified_after_finalize', 'identity_changed', 'detached_residue', 'quarantine_busy']).optional(),
   deliveryProof: deliveryProofSchema.optional(),
   review: reviewSchema.optional(),
   checkpoints: z.array(checkpointSchema).max(100).optional(),

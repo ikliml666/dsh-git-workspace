@@ -74,6 +74,11 @@
 
 ### Fixed
 
+- 胶囊提示「Remote current 返回了不符合 strict contract 的 payload」并显示「不可用」（2026-11-12）。
+  - **问题**：`src/console-host/projection.ts:160` 一直把 `cleanupReason` 写进目标投影（finalized/retained 且清理被阻塞时），客户端也按它决定要不要给「放弃改动再清理」的确认，但 `src/console-remote/schemas.ts` 的 `targetSummarySchema` 从来没有声明这个键。`.strict()` 于是把整条 `current` 判为不符合契约，胶囊退化成「不可用」。本机 `Wxxy-CampusLogin` 那条 `4ab39ee0`（finalized + `cleanupReason: identity_changed`）就是触发源。
+  - **为什么上次的修复把它暴露出来**：上一轮只让已交付记录的观察失败降级，`current` 因此不再在 `checkout_mismatch` 处中止，而是继续走到投影阶段，才把这条一直在的契约漂移暴露出来。
+  - **修法**：`targetSummarySchema` 补上 `cleanupReason` 枚举（`directory_busy` / `modified_after_finalize` / `identity_changed` / `detached_residue` / `quarantine_busy`，可选）。
+  - **防回归**：新增 `tests/console-remote-projection.test.ts`，拿 `projectDetails` / `projectRecord` 的真实输出喂给 `current` / `inspect` / `list` / 交付响应的真实 strict schema，覆盖 ready/working/preview/恢复/交付/保留/清理阻塞等 11 种状态。删掉 schema 里那个键会让 5 项全部变红，已实测。
 - 合并后胶囊塌成「不可用」，切不回 main（2026-11-11）。
   - **问题**：`worktree_merge` 把会话分支合进 Local 之后，托管 Worktree 进入 finalized/retained 的冻结期。这期间它的目录可能先不在了或被 Git 剪掉（本机就有一条记录：冻结目录还在，但里面空了、`.git` 文件也没了），于是 `observeManagedCheckout` 的身份校验必然失败，`current` 整个报 `checkout_mismatch`，胶囊退化成「不可用」，菜单里「回到 Local 工作区」也就无处可点。
   - **修法**：`src/console-host/control-plane.ts` 的 `observe()` 只在**已交付**的记录（`worktreeReachedDelivery`）上把观察失败降级成「无观察」（`managedRoot: null`）。降级后 `settledLocalBranch` 照常给出 Local 当前分支，胶囊显示 `main`；未交付的记录仍然照原样大声失败，不掩盖真实故障。
