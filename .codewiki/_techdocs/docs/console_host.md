@@ -6,7 +6,7 @@ description: consolehost 是本插件在 Host 侧的控制平面（control plane
 # console_host：Worktree 控制平面与 Host RPC 服务
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`f749bed8`](https://github.com/wloops/dsh-git-worktree/commit/f749bed8d2a00be44e579a433f88985c9d03ea73) on 2026-11-11 with `mimo-v2.6-flash`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`843f8bca`](https://github.com/wloops/dsh-git-worktree/commit/843f8bca9a8eed0ffa6582ed9c7867320f258f81) on 2026-11-12 with `mimo-v2.6-flash`. Check the code before relying on details.
 
 `console_host` 是本插件在 **Host 侧**的控制平面（control plane）与远程服务（RPC service）层。它把
 [SessionCheckoutModule](Worktree_and_Session_Checkout_Domain.md) 的领域状态机、端口实现
@@ -301,9 +301,9 @@ Git 面刻意以**项目 Local 根**（`projectRootFor`）为作用域，而不�
 `localBranchSwitchBlockedByAnotherDelivery`），因为切换 Local HEAD 会改写所有「应用到 Local」的基线。
 
 ??? abstract "Documented components (5)"
-    - [`WorktreeConsoleControlPlane`](https://github.com/wloops/dsh-git-worktree/blob/f749bed8d2a00be44e579a433f88985c9d03ea73/src%5Cconsole-host%5Ccontrol-plane.ts) — `src\console-host\control-plane.ts`
-    - [`WorktreeConsoleControlPlaneOptions`](https://github.com/wloops/dsh-git-worktree/blob/f749bed8d2a00be44e579a433f88985c9d03ea73/src%5Cconsole-host%5Ccontrol-plane.ts) — `src\console-host\control-plane.ts`
-    - [`consoleFailure`](https://github.com/wloops/dsh-git-worktree/blob/f749bed8d2a00be44e579a433f88985c9d03ea73/src%5Cconsole-host%5Cerrors.ts) — `src\console-host\errors.ts`
-    - [`capabilities`](https://github.com/wloops/dsh-git-worktree/blob/f749bed8d2a00be44e579a433f88985c9d03ea73/src%5Cconsole-host%5Cprojection.ts) — `src\console-host\projection.ts`
-    - [`WorktreeConsoleService`](https://github.com/wloops/dsh-git-worktree/blob/f749bed8d2a00be44e579a433f88985c9d03ea73/src%5Cconsole-host%5Cservice.ts) — `src\console-host\service.ts`
+    - [`WorktreeConsoleControlPlane`](https://github.com/wloops/dsh-git-worktree/blob/843f8bca9a8eed0ffa6582ed9c7867320f258f81/src%5Cconsole-host%5Ccontrol-plane.ts) — `src\console-host\control-plane.ts`
+    - [`WorktreeConsoleControlPlaneOptions`](https://github.com/wloops/dsh-git-worktree/blob/843f8bca9a8eed0ffa6582ed9c7867320f258f81/src%5Cconsole-host%5Ccontrol-plane.ts) — `src\console-host\control-plane.ts`
+    - [`consoleFailure`](https://github.com/wloops/dsh-git-worktree/blob/843f8bca9a8eed0ffa6582ed9c7867320f258f81/src%5Cconsole-host%5Cerrors.ts) — `src\console-host\errors.ts`
+    - [`capabilities`](https://github.com/wloops/dsh-git-worktree/blob/843f8bca9a8eed0ffa6582ed9c7867320f258f81/src%5Cconsole-host%5Cprojection.ts) — `src\console-host\projection.ts`
+    - [`WorktreeConsoleService`](https://github.com/wloops/dsh-git-worktree/blob/843f8bca9a8eed0ffa6582ed9c7867320f258f81/src%5Cconsole-host%5Cservice.ts) — `src\console-host\service.ts`
 

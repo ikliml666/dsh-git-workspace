@@ -6,7 +6,7 @@ description: consolehostrpcservice 是 Host 侧的 Typert Remote 服务实现层
 # console_host_rpc_service 模块
 
 !!! info "Generated documentation"
-    This page was written by CodeWiki from the source code at commit [`f749bed8`](https://github.com/wloops/dsh-git-worktree/commit/f749bed8d2a00be44e579a433f88985c9d03ea73) on 2026-11-11 with `mimo-v2.6-flash`. Check the code before relying on details.
+    This page was written by CodeWiki from the source code at commit [`843f8bca`](https://github.com/wloops/dsh-git-worktree/commit/843f8bca9a8eed0ffa6582ed9c7867320f258f81) on 2026-11-12 with `mimo-v2.6-flash`. Check the code before relying on details.
 
 `console_host_rpc_service` 是 Host 侧的 **Typert Remote 服务实现层**，唯一实现体是 `src/console-host/service.ts` 中的 `WorktreeConsoleService`。它把 26 个 `@Remote` 方法暴露为 `gitWorktree` 命名空间，是浏览器端 Console / 顶部胶囊 / Sidebar 与 Worktree 领域逻辑之间唯一的进程边界。
 
@@ -299,5 +299,5 @@ flowchart LR
 - [Console_API_and_Host_Integration：控制台 API 与 Host 集成](Console_API_and_Host_Integration.md)：上层模块入口
 
 ??? abstract "Documented components (1)"
-    - [`WorktreeConsoleService`](https://github.com/wloops/dsh-git-worktree/blob/f749bed8d2a00be44e579a433f88985c9d03ea73/src%5Cconsole-host%5Cservice.ts) — `src\console-host\service.ts`
+    - [`WorktreeConsoleService`](https://github.com/wloops/dsh-git-worktree/blob/843f8bca9a8eed0ffa6582ed9c7867320f258f81/src%5Cconsole-host%5Cservice.ts) — `src\console-host\service.ts`
 
