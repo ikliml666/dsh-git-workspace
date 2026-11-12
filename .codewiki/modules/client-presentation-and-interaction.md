@@ -28,6 +28,7 @@ source_files:
   - src/client/workspace-sidebar/index.tsx
   - src/client/workspace-sidebar/model.ts
   - src/client/target-console/SwitchBranchAssistModal.tsx
+  - src/client/target-console/relative-time.ts
 tags: []
 generated_by: fsoft-native
 fsoft_page: Client_Presentation_and_Interaction.md

@@ -2,14 +2,28 @@
   "stateVersion": 1,
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
-    "baseCommit": "42a1130ddf6c7a0cce67220fc6b84155df207e5c",
-    "headCommit": "9d0e1bce092d8ffa0bcb60714981413805971340"
+    "baseCommit": "9d0e1bce092d8ffa0bcb60714981413805971340",
+    "headCommit": "f73637a09caaef54e629fd3b16119ba5b1f326db"
   },
   "pendingChanges": {
     "state": "ok",
-    "baseCommit": "42a1130ddf6c7a0cce67220fc6b84155df207e5c",
-    "headCommit": "9d0e1bce092d8ffa0bcb60714981413805971340",
-    "committed": [],
+    "baseCommit": "9d0e1bce092d8ffa0bcb60714981413805971340",
+    "headCommit": "f73637a09caaef54e629fd3b16119ba5b1f326db",
+    "committed": [
+      "CHANGELOG.md",
+      "src/adapters/git.ts",
+      "src/client/target-console/BranchGraphModal.tsx",
+      "src/client/target-console/TargetStatusAction.tsx",
+      "src/client/target-console/relative-time.ts",
+      "src/client/target-console/target-console.styles.ts",
+      "src/console-contract.ts",
+      "src/console-remote/schemas.ts",
+      "src/ports.ts",
+      "tests/client-branch-overview-cache.test.ts",
+      "tests/client-target-console.test.tsx",
+      "tests/support/production-adapters.ts",
+      "tests/support/worktree-console.ts"
+    ],
     "staged": [],
     "unstaged": [],
     "untracked": [
@@ -29,14 +43,13 @@
   "engineVersion": "2.0.0",
   "scope": "auto",
   "effectiveScope": "stale",
-  "updateOutcome": "no_change",
+  "updateOutcome": "incremental",
   "fallbackReason": "",
   "missingRepair": null,
   "notes": [
-    "持久化基线 382d726 与本次 cw 基线 42a1130 不同（以 cw 基线为准，未消费变化仍会并入）",
-    "工作区未提交改动已合成临时 commit e1bb46dcb7e6（3 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mwdalezi-0-native（40 个文件）",
-    "本轮把 3 个未提交源码改动一并写进产物（快照 e1bb46dcb7e6）：2026-11-12-experimental-forge-bundle-report.zh.md、__pycache__/cut_helper.cpython-312.pyc、cut_helper.py"
+    "持久化基线 42a1130 与本次 cw 基线 9d0e1bc 不同（以 cw 基线为准，未消费变化仍会并入）",
+    "工作区未提交改动已合成临时 commit 9a0dd98010d1（3 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mwdbf7me-4-native（40 个文件）"
   ],
-  "updatedAt": "2026-11-12T08:36:40.385Z"
+  "updatedAt": "2026-11-12T08:59:59.584Z"
 }

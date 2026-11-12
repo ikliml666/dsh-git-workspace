@@ -58,7 +58,8 @@
             "src\\client\\workspace-sidebar\\model.ts::ProjectedManagedTask",
             "src\\client\\workspace-sidebar\\model.ts::SidebarSessionSummary",
             "src\\client\\workspace-sidebar\\model.ts::SidebarWorkspaceView",
-            "src\\client\\target-console\\SwitchBranchAssistModal.tsx::SwitchBranchAssistModalProps"
+            "src\\client\\target-console\\SwitchBranchAssistModal.tsx::SwitchBranchAssistModalProps",
+            "src\\client\\target-console\\relative-time.ts::formatRelativeTime"
         ],
         "children": {
             "client_core": {
@@ -133,7 +134,8 @@
                     "src\\client\\target-console\\current-polling.ts::Poll",
                     "src\\client\\target-console\\index.ts::TargetConsoleContextLike",
                     "src\\client\\target-console\\target-console.styles.ts::__file__",
-                    "src\\client\\target-console\\SwitchBranchAssistModal.tsx::SwitchBranchAssistModalProps"
+                    "src\\client\\target-console\\SwitchBranchAssistModal.tsx::SwitchBranchAssistModalProps",
+                    "src\\client\\target-console\\relative-time.ts::formatRelativeTime"
                 ],
                 "children": {}
             },
