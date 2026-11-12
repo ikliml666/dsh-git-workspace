@@ -414,9 +414,9 @@ flowchart TD
 ## 10. 相关模块
 
 - [session_checkout_engine](session_checkout_engine.md)：上层状态机，负责 journal、receipt 持久化、retention、清理与授权。
-- [session_checkout_engine_integration](session_checkout_engine_integration.md)：`session-checkout-module.ts` 与工具注册的集成细节。
-- [session_checkout_integration_core](session_checkout_integration_core.md)：状态机对引擎方法的调用点。
-- [session_checkout_tools](session_checkout_tools.md)：模型侧 `worktree_*` 工具如何触发这些调用。
+- session_checkout_engine_integration：`session-checkout-module.ts` 与工具注册的集成细节。
+- session_checkout_integration_core：状态机对引擎方法的调用点。
+- session_checkout_tools：模型侧 `worktree_*` 工具如何触发这些调用。
 - [core_worktree_domain](core_worktree_domain.md)：`deliveryExcludePathspecs`、`isValidCommitMessage` 等共享纯函数。
 - [core_ports_and_types](core_ports_and_types.md)：`ApplyBaseStrategy`、`ApplyConflictDetail`、`ManagedPreviewReceipt`、`SessionCheckoutDependencies.applyEngine` 的类型来源。
 - [adapters_infrastructure_project_skills](adapters_infrastructure_project_skills.md)：`ProjectSkillStore.state/paths` 与 `trackedSkillPaths` 的语义。

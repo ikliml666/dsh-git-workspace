@@ -7,7 +7,7 @@
 `core_ports_and_types` 是整个插件中"最内向"的一层：
 
 - **向下**：声明 `SessionCheckoutGitPort`、`SessionCheckoutFilesPort`、`SessionCheckoutRegistryPort`、`SessionCheckoutLookupPort`、`OfficialWorktreesPort` 五个端口，由 [adapters_infrastructure](adapters_infrastructure.md) 中的 Node/DSH 适配器实现。状态机与 apply 引擎只依赖这些端口，因此可用 fake 完整测试。
-- **向上**：`src/types.ts` 输出路径无关（path-free）的视图与操作联合，被 [session_checkout_apply_engine](session_checkout_apply_engine.md)、[session_checkout_integration_core](session_checkout_integration_core.md)、[public_api](public_api.md)、[console_host](console_host.md) 与 [console_contract](console_contract.md) 复用。
+- **向上**：`src/types.ts` 输出路径无关（path-free）的视图与操作联合，被 [session_checkout_apply_engine](session_checkout_apply_engine.md)、session_checkout_integration_core、[public_api](public_api.md)、[console_host](console_host.md) 与 [console_contract](console_contract.md) 复用。
 - **平级**：`src/ports.ts` 的 `ManagedCheckoutRecord` 与 `src/types.ts` 的 `SessionTargetView` 是同一条事实的两种表示——前者是**持久层事实**（含绝对路径、journal、指纹），后者是**调用方视图**（无路径、含派生能力）。二者之间的投影由状态机完成。
 
 ```mermaid
@@ -307,12 +307,12 @@ sequenceDiagram
 | --- | --- |
 | 所属上层模块概览 | [Ports,_Adapters,_and_Infrastructure](Ports,_Adapters,_and_Infrastructure.md) |
 | 端口的真实实现（git、fs、registry、lookup、working-directory） | [adapters_infrastructure](adapters_infrastructure.md) |
-| 消费 `SessionCheckoutDependencies` 的状态机与生命周期 | [session_checkout_integration_core](session_checkout_integration_core.md) |
+| 消费 `SessionCheckoutDependencies` 的状态机与生命周期 | session_checkout_integration_core |
 | apply/preview/rollback/finalize 引擎（实现 `SessionCheckoutApplyEngine`） | [session_checkout_apply_engine](session_checkout_apply_engine.md) |
 | `ManagedCheckoutRecord` 的写入与投影（控制面、服务） | [console_host](console_host.md) |
 | 视图 DTO 向客户端与远程传输的再封装 | [console_contract](console_contract.md)、[console_remote](console_remote.md) |
 | 对外导出的模块接口与错误类型 | [public_api](public_api.md) |
-| 工具层如何使用 `WorktreeRetentionMode`、`WorktreeValidationStatus` | [session_checkout_tools](session_checkout_tools.md) |
+| 工具层如何使用 `WorktreeRetentionMode`、`WorktreeValidationStatus` | session_checkout_tools |
 | 目录/分支命名与 `sessionTopic` 的生成规则 | [core_worktree_domain](core_worktree_domain.md) |
 
 ## 修改本模块时的注意事项

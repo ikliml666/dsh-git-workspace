@@ -277,7 +277,8 @@
             "src\\session-checkout-apply.ts::TreeMergeReadyResult",
             "src\\session-checkout-module.ts::ResolvedSessionProject",
             "src\\session-target-context.ts::ContextAgent",
-            "src\\tools.ts::enterCheckout"
+            "src\\tools.ts::enterCheckout",
+            "src\\tools.ts::WorktreeBranchPort"
         ],
         "children": {
             "core_worktree_domain": {
@@ -347,7 +348,8 @@
                     "src\\session-checkout-apply.ts::TreeMergeReadyResult",
                     "src\\session-checkout-module.ts::ResolvedSessionProject",
                     "src\\session-target-context.ts::ContextAgent",
-                    "src\\tools.ts::enterCheckout"
+                    "src\\tools.ts::enterCheckout",
+                    "src\\tools.ts::WorktreeBranchPort"
                 ],
                 "children": {
                     "session_checkout_apply_engine": {
@@ -401,7 +403,8 @@
                         "components": [
                             "src\\session-checkout-module.ts::ResolvedSessionProject",
                             "src\\session-target-context.ts::ContextAgent",
-                            "src\\tools.ts::enterCheckout"
+                            "src\\tools.ts::enterCheckout",
+                            "src\\tools.ts::WorktreeBranchPort"
                         ],
                         "children": {
                             "session_checkout_integration_core": {
@@ -413,6 +416,20 @@
                             },
                             "session_checkout_tools": {
                                 "components": [
+                                    "src\\tools.ts::enterCheckout"
+                                ],
+                                "children": {}
+                            },
+                            "src_session-checkout-module.ts": {
+                                "components": [
+                                    "src\\session-checkout-module.ts::ResolvedSessionProject"
+                                ],
+                                "children": {}
+                            },
+                            "root": {
+                                "components": [
+                                    "src\\session-target-context.ts::ContextAgent",
+                                    "src\\tools.ts::WorktreeBranchPort",
                                     "src\\tools.ts::enterCheckout"
                                 ],
                                 "children": {}

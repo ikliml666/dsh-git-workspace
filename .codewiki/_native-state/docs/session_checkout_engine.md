@@ -113,7 +113,7 @@ sequenceDiagram
 | 组件 | 职责 | 文档 |
 | --- | --- | --- |
 | Apply 引擎 | 采集 checkout 快照与指纹、三方合并计算、生成并校验 Apply 计划、preview/rollback/finalize、checkpoint 与崩溃恢复、会话分支交付提交；只依赖 Git 子进程与临时目录，不读写台账 | [session_checkout_apply_engine](session_checkout_apply_engine.md) |
-| 宿主集成层 | `SessionCheckoutModule` 状态机与台账门面、`revision` CAS 与全局互斥、崩溃收敛、交付与清理生命周期、`runtimeContext` 上下文注入、官方 Worktree 自动接管，以及 7 个 `worktree_*` 模型工具的注册与门禁 | [session_checkout_engine_integration](session_checkout_engine_integration.md) |
+| 宿主集成层 | `SessionCheckoutModule` 状态机与台账门面、`revision` CAS 与全局互斥、崩溃收敛、交付与清理生命周期、`runtimeContext` 上下文注入、官方 Worktree 自动接管，以及 7 个 `worktree_*` 模型工具的注册与门禁 | session_checkout_engine_integration |
 
 集成层内部再分为两部分：集成核心（`session-checkout-module.ts`、`session-target-context.ts`）与模型工具层（`src/tools.ts` 的 `registerTools`），详见上述集成文档中的 `session_checkout_integration_core` 与 `session_checkout_tools` 小节。
 
@@ -129,7 +129,7 @@ sequenceDiagram
 ## 相关文档
 
 - [session_checkout_apply_engine](session_checkout_apply_engine.md)：Git 事务引擎，含快照指纹、有效基点选择、合并计算、preview 生命周期与错误模型。
-- [session_checkout_engine_integration](session_checkout_engine_integration.md)：宿主集成层，含状态机、台账持久化、并发控制、交付与清理、工具注册。
+- session_checkout_engine_integration：宿主集成层，含状态机、台账持久化、并发控制、交付与清理、工具注册。
 - `core_worktree_domain`：`deliveryExcludePathspecs`、`isValidCommitMessage` 等共享纯函数。
 - `core_ports_and_types`：`ApplyBaseStrategy`、`ApplyConflictDetail`、`ManagedPreviewReceipt`、`SessionCheckoutDependencies` 等类型来源。
 - `console_host`：`WorktreeConsoleService` 等控制面消费方。

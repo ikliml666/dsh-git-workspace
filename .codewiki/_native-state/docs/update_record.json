@@ -1,7 +1,7 @@
 {
-  "started_at": "2026-11-12T17:29:16+0800",
-  "finished_at": "2026-11-12T17:29:16+0800",
-  "outcome": "no_change",
+  "started_at": "2026-11-12T17:38:26+0800",
+  "finished_at": "2026-11-12T17:38:27+0800",
+  "outcome": "incremental",
   "options": {
     "rung": "3",
     "tau_ren": 0.95,
@@ -24,57 +24,231 @@
     }
   },
   "revision": {
-    "old_commit": "e1bb46dcb7e626e7a0bc8875b5980a70ba0eb79a",
-    "new_commit": "9c2a531914320240ac5ec15fd28306c849436002",
+    "old_commit": "9c2a531914320240ac5ec15fd28306c849436002",
+    "new_commit": "5484a8b063eb10042fc34dd80235c493efe6d25d",
     "repo_path": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree"
   },
   "diff": {
     "counts": {
-      "added": 0,
+      "added": 2,
       "deleted": 0,
-      "interface": 0,
-      "body": 0,
+      "interface": 1,
+      "body": 1,
       "edge": 0,
       "renamed": 0
     },
-    "added": [],
+    "added": [
+      "src\\tools.ts::WorktreeBranchPort",
+      "src\\tools.ts::switchNextAction"
+    ],
     "deleted": [],
-    "interface": [],
-    "body": [],
+    "interface": [
+      "src\\tools.ts::registerTools"
+    ],
+    "body": [
+      "src\\index.ts::apply"
+    ],
     "edge": [],
     "renamed": {}
   },
-  "repair": {},
-  "reclustered": [],
-  "reports": {},
-  "ownership": [],
-  "active": [],
+  "repair": {
+    "renamed": {},
+    "removed": [],
+    "routing": [
+      {
+        "component_id": "src\\tools.ts::WorktreeBranchPort",
+        "rule": "1:same_file",
+        "leaf_path": [
+          "Worktree_and_Session_Checkout_Domain",
+          "session_checkout_engine",
+          "session_checkout_engine_integration",
+          "session_checkout_tools"
+        ],
+        "new_leaf": false,
+        "detail": "1 tracked components in file"
+      },
+      {
+        "component_id": "src\\tools.ts::switchNextAction",
+        "rule": "untracked",
+        "leaf_path": null,
+        "new_leaf": false,
+        "detail": "not a selected leaf node"
+      }
+    ],
+    "orphans": [],
+    "deleted_nodes": [],
+    "created_leaves": [],
+    "growth": {
+      "Worktree_and_Session_Checkout_Domain/session_checkout_engine/session_checkout_engine_integration/session_checkout_tools": 0.5
+    },
+    "growth_flagged": [
+      [
+        "Worktree_and_Session_Checkout_Domain",
+        "session_checkout_engine",
+        "session_checkout_engine_integration",
+        "session_checkout_tools"
+      ]
+    ]
+  },
+  "reclustered": [
+    [
+      "Worktree_and_Session_Checkout_Domain",
+      "session_checkout_engine",
+      "session_checkout_engine_integration"
+    ]
+  ],
+  "reports": {
+    "Worktree_and_Session_Checkout_Domain/session_checkout_engine/session_checkout_engine_integration/src_session-checkout-module.ts": {
+      "leaf_path": [
+        "Worktree_and_Session_Checkout_Domain",
+        "session_checkout_engine",
+        "session_checkout_engine_integration",
+        "src_session-checkout-module.ts"
+      ],
+      "mode": "edit",
+      "own": [],
+      "adopted": {},
+      "up": [],
+      "context": [],
+      "refch": [],
+      "entered": [],
+      "left": [],
+      "children_added": [],
+      "children_removed": [],
+      "reclustered": true,
+      "page": "src_session-checkout-module.ts"
+    },
+    "Worktree_and_Session_Checkout_Domain/session_checkout_engine/session_checkout_engine_integration/root": {
+      "leaf_path": [
+        "Worktree_and_Session_Checkout_Domain",
+        "session_checkout_engine",
+        "session_checkout_engine_integration",
+        "root"
+      ],
+      "mode": "edit",
+      "own": [
+        "src\\tools.ts::WorktreeBranchPort",
+        "src\\tools.ts::registerTools"
+      ],
+      "adopted": {
+        "src\\tools.ts::registerTools": "1:same_file"
+      },
+      "up": [],
+      "context": [],
+      "refch": [],
+      "entered": [],
+      "left": [],
+      "children_added": [],
+      "children_removed": [],
+      "reclustered": true,
+      "page": "root"
+    },
+    "public_api": {
+      "leaf_path": [
+        "public_api"
+      ],
+      "mode": "edit",
+      "own": [
+        "src\\index.ts::apply"
+      ],
+      "adopted": {
+        "src\\index.ts::apply": "1:same_file"
+      },
+      "up": [],
+      "context": [],
+      "refch": [
+        "registerTools"
+      ],
+      "entered": [],
+      "left": [],
+      "children_added": [],
+      "children_removed": [],
+      "reclustered": false,
+      "page": "public_api"
+    }
+  },
+  "ownership": [
+    {
+      "component_id": "src\\index.ts::apply",
+      "rule": "1:same_file",
+      "leaf_path": [
+        "public_api"
+      ],
+      "detail": "10 tracked components in file",
+      "deleted": false
+    },
+    {
+      "component_id": "src\\tools.ts::registerTools",
+      "rule": "1:same_file",
+      "leaf_path": [
+        "Worktree_and_Session_Checkout_Domain",
+        "session_checkout_engine",
+        "session_checkout_engine_integration",
+        "root"
+      ],
+      "detail": "2 tracked components in file",
+      "deleted": false
+    }
+  ],
+  "active": [
+    {
+      "leaf": "Worktree_and_Session_Checkout_Domain/session_checkout_engine/session_checkout_engine_integration/src_session-checkout-module.ts",
+      "page": "src_session-checkout-module.ts",
+      "mode": "edit",
+      "order": 0
+    },
+    {
+      "leaf": "public_api",
+      "page": "public_api",
+      "mode": "edit",
+      "order": 1
+    },
+    {
+      "leaf": "Worktree_and_Session_Checkout_Domain/session_checkout_engine/session_checkout_engine_integration/root",
+      "page": "root",
+      "mode": "edit",
+      "order": 2
+    }
+  ],
   "write_sets": {},
-  "fallback": {},
+  "fallback": {
+    "r_leaf": 0.13636363636363635,
+    "r_tree": 0.09090909090909091,
+    "n_active": 3,
+    "n_leaves": 22,
+    "n_structural": 2,
+    "tau_full": 0.5,
+    "tau_tree": 0.3,
+    "fired": false
+  },
   "verdicts": [],
   "pages_written": [],
-  "pages_removed": [],
+  "pages_removed": [
+    "session_checkout_integration_core",
+    "session_checkout_tools",
+    "session_checkout_engine_integration"
+  ],
   "write_set_violations": [],
   "stale_scan": {},
-  "calls": [],
+  "calls": [
+    {
+      "kind": "recluster",
+      "target": "Worktree_and_Session_Checkout_Domain/session_checkout_engine/session_checkout_engine_integration",
+      "seconds": 0.8037059307098389,
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "total_tokens": 0,
+        "requests": 1
+      },
+      "error": null
+    }
+  ],
   "detector_notes": [],
   "errors": [],
-  "wall_seconds": 0.07,
-  "usage_report": {
-    "schema_version": 2,
-    "scope": "this run only (modules resumed from disk cost nothing)",
-    "currency": "USD",
-    "cost_status": "complete",
-    "incomplete": false,
-    "unknown_usage_calls": 0,
-    "n_calls": 0,
-    "totals": {
-      "cost_usd": 0.0
-    },
-    "by_phase": {},
-    "by_model": {},
-    "unpriced_models": [],
-    "calls": []
-  },
-  "run_id": "1c880add-fbbf-4ab3-b42c-62fe2eea1d42"
+  "wall_seconds": 1.17,
+  "usage_report": null,
+  "run_id": "aba8c834-43ad-46bd-9481-c1e87d935fad"
 }

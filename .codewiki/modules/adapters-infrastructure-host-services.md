@@ -336,8 +336,8 @@ flowchart TB
 - 端口接口与共享类型：[核心端口与类型](core-ports-and-types.md)
 - 端口在本模块外的其他实现：[文件系统与持久化适配器](adapters-infrastructure-filesystem-and-persistence.md)、[Git 子进程适配器](adapters-infrastructure-git-process.md)、[项目技能适配器](adapters-infrastructure-project-skills.md)
 - 适配器总览：[适配器与基础设施](adapters-infrastructure.md)
-- 使用 lookup 结果驱动状态机的领域层：[Session Checkout 集成核心](session-checkout-integration-core.md)
-- 使用 working-directory 端口的工具层：[Session Checkout 工具](session-checkout-tools.md)
+- 使用 lookup 结果驱动状态机的领域层：[Session Checkout 集成核心](session-checkout-engine.md)
+- 使用 working-directory 端口的工具层：Session Checkout 工具
 - Worktree 创建与官方登记：[核心 Worktree 领域](core-worktree-domain.md)
 - 主机侧控制平面（同样消费 lookup）：[Console Host](console-host.md)
 - 插件装配入口：[公共 API](public-api.md)
