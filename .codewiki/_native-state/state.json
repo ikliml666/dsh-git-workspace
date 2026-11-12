@@ -3,12 +3,12 @@
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
     "baseCommit": "a5ac5082661c410657502bc7f2264a69688c91c1",
-    "headCommit": "d35dadfcacff5a1386ba78ad44cccaecb4831c2c"
+    "headCommit": "be9e5afb09b30e4f2797780fa578f317b17c9b31"
   },
   "pendingChanges": {
     "state": "ok",
     "baseCommit": "a5ac5082661c410657502bc7f2264a69688c91c1",
-    "headCommit": "d35dadfcacff5a1386ba78ad44cccaecb4831c2c",
+    "headCommit": "be9e5afb09b30e4f2797780fa578f317b17c9b31",
     "committed": [
       "CHANGELOG.md",
       "README.en.md",
@@ -68,12 +68,12 @@
     ],
     "overviewLinks": [],
     "attempts": 1,
-    "at": "2026-11-12T14:37:10.148Z"
+    "at": "2026-11-12T16:37:10.928Z"
   },
   "notes": [
     "产物缺页 5 个模块（session_checkout_engine_integration、session_checkout_integration_core、session_checkout_tools 等），转全量修复（复用已有页面）",
-    "工作区未提交改动已合成临时 commit 3351dae9aaea（3 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mwdnj49w-0-native（37 个文件）"
+    "工作区未提交改动已合成临时 commit 272dd15710c8（3 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mwdrtglc-4-native（37 个文件）"
   ],
-  "updatedAt": "2026-11-12T14:38:58.735Z"
+  "updatedAt": "2026-11-12T16:38:52.849Z"
 }
