@@ -45,6 +45,8 @@
 
 ### Changed
 
+- 发布门禁的 Remote 方法表对齐实际表面（2026-11-12）：`scripts/check-publish.mjs` 的 `expectedRemoteMethods` 停在 2026-10-28，而 `bbcd996` 已删掉评审背板等入口、`9150c36` 又新增分支切换方法，导致 `pnpm run check:publish` 与 `prepublishOnly` 失败。表更新为当前 27 个方法。
+
 - 清理不再死锁在「Git 身份或路径已变化」（2026-11-12）：记录一旦被标成 `identity_changed`，旧代码每次都提前返回同一句文案，即使目录后来被删空也走不出去。现在目录不存在时才复用旧说明，否则继续做真实校验；目录还在但已没有 `.git` 身份且为空时直接收掉，非空时给出可执行提示（路径 + 删除后重试）。
 
 - 交付后回到 Local 的提示不再承诺宿主一定放行写操作（2026-11-12）：原文案写「Ordinary Local work is allowed again」，但宿主的写守卫并不认这个状态，写 changelog 会被拦。改为说明 Local 是工作边界、宿主文件策略仍然生效，被拒时先开主题分支。
