@@ -8,6 +8,7 @@
 
 - 迭代流程的三处摩擦：依赖不继承、收尾材料被清理、回执不可信（2026-11-12）。
   - **依赖不继承**：Worktree 只含 Git 跟踪内容，`node_modules` 每轮要手工建 Junction，忘了或旧树被删后联接悬空时，tsc/构建报的错误指向别处。`worktree_create` 与 `worktree_begin_next_iteration` 新增 `linkDeps`：创建后按点名的相对路径建目录联接（Windows junction），源目录失效时直接报「悬空联接」，不再让构建报无关错误。回执返回 `linkedDeps` 与 `linkFailures`。
+  - **项目级配置**：`linkDeps` 与 `preservePaths` 原本每轮都要记得传，现在可写在项目根的 `.dsh-worktree.json`（`{"linkDeps": [...], "preservePaths": [...]}`），创建、下一轮迭代与交付自动沿用；显式参数优先。配置非法（坏 JSON、非数组、路径越界）直接报错，不静默忽略。
   - **收尾材料被清理**：被 gitignore 的草稿（`changelogs/`）不进提交，冻结副本一删就没了。`worktree_deliver` 新增 `preservePaths`，在清理前把点名的路径复制回 Local；Local 已有同名文件时不覆盖，避免用旧草稿盖掉新版本。回执新增 `preservedFiles` 与 `droppedIgnoredFiles`（本次随清理丢弃、没保留的忽略路径，目录级清单，最多 50 条）。
   - **回执不可信**：交付回执的 `changedFiles` 改为 `git diff-tree` 的提交自身差异，不再用 `baseOid → tree` 的累计范围。baseOid 早于提交父节点时（checkpoint 或恢复历史），旧算法会列出从未进入该提交的文件，逼得每次交付都要额外 `git show --stat` 复核。
   - **测试**：`tests/surface.test.ts` 新增三条接线用例——`worktree_create` 与 `worktree_begin_next_iteration` 的 `linkDeps` 透传、`worktree_deliver` 的 `preservePaths` 与 `preservedFiles`/`droppedIgnoredFiles` 回执。

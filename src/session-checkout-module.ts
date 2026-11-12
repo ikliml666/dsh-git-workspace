@@ -38,6 +38,7 @@ import { WorktreeCreationFailure } from './creation-failure.js'
 import type { WorktreeCreationEvidence } from './ports.js'
 import { adoptWorktreeForSession, registerOfficialWorktree } from './official-worktree-registration.js'
 import { checkpointGenerationForRecord } from './checkpoint.js'
+import { readWorktreeConfig, resolveConfiguredPaths } from './worktree-config.js'
 import {
   createManagedWorktreePathCandidates,
   createManagedWorktreeRepositoryKey,
@@ -3616,7 +3617,11 @@ export function createSessionCheckoutModule(
     }
     // 冻结副本会被清理：先把调用方点名要保留的收尾材料带回 Local，否则
     // changelog 这类被 gitignore 的草稿会随清理一起消失。
-    const preservedFiles = await preserveDeliveredPaths(finalized, input.preservePaths)
+    const projectConfig = readWorktreeConfig(dependencies.files.readTextFile, finalized.localRoot)
+    const preservedFiles = await preserveDeliveredPaths(
+      finalized,
+      resolveConfiguredPaths(input.preservePaths, projectConfig.preservePaths),
+    )
     const retention = input.retention ?? DEFAULT_WORKTREE_RETENTION
     // 自动 push 推的是会话分支（Worktree 的 HEAD），不是 Local 的当前分支；
     // 新分支通常没有 upstream，于是退化成一条「已跳过」的备注，不会误推。
@@ -4809,7 +4814,12 @@ export function createSessionCheckoutModule(
       readyRegistry.sessionBindings[sessionId] = readyBinding
       readyRegistry.revision += 1
       dependencies.registry.write(readyRegistry)
-      const linkResult = await linkWorktreeDependencies(canonicalLocalRoot, canonicalManagedRoot, linkDeps)
+      const projectConfig = readWorktreeConfig(dependencies.files.readTextFile, canonicalLocalRoot)
+      const linkResult = await linkWorktreeDependencies(
+        canonicalLocalRoot,
+        canonicalManagedRoot,
+        resolveConfiguredPaths(linkDeps, projectConfig.linkDeps),
+      )
       const view = await inspectIsolated(readyBinding)
       return linkResult === undefined ? view : { ...view, linkResult }
     } catch (error) {
@@ -5465,9 +5475,14 @@ export function createSessionCheckoutModule(
       }
       // Worktree 只含 Git 跟踪内容：依赖目录不会跟过来，创建后立刻按调用方点名
       // 的路径建目录联接，而不是让每轮 tsc/构建去报无关错误。
+      const projectConfig = readWorktreeConfig(dependencies.files.readTextFile, project.root)
       const linkResult = localSnapshot === null
         ? undefined
-        : await linkWorktreeDependencies(localSnapshot.root, created.path, createOptions?.linkDeps)
+        : await linkWorktreeDependencies(
+            localSnapshot.root,
+            created.path,
+            resolveConfiguredPaths(createOptions?.linkDeps, projectConfig.linkDeps),
+          )
       const record = await registerOfficialWorktree(
         {
           lookup: dependencies.lookup,

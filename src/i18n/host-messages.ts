@@ -1256,6 +1256,22 @@ export const hostMessages = {
     "zh": "可选：交付后、清理冻结副本之前需要带回 Local 的相对路径（如 changelogs/ 这类被 gitignore 的收尾材料）。只复制文件，不覆盖 Local 已有的同名目录内容。",
     "en": "Optional: Worktree-relative paths to carry back to Local after delivery but before the frozen runtime is removed (gitignored hand-off material such as changelogs/). Files only; existing Local content is never merged over."
   },
+  "worktreeConfigInvalidJson": {
+    "zh": "项目配置 {p0} 不是合法 JSON：{p1}",
+    "en": "The project config {p0} is not valid JSON: {p1}"
+  },
+  "worktreeConfigNotObject": {
+    "zh": "项目配置 {p0} 必须是 JSON 对象。",
+    "en": "The project config {p0} must be a JSON object."
+  },
+  "worktreeConfigFieldMustBeArray": {
+    "zh": "项目配置 {p0} 的 {p1} 必须是字符串数组。",
+    "en": "Field {p1} in the project config {p0} must be an array of strings."
+  },
+  "worktreeConfigPathInvalid": {
+    "zh": "项目配置 {p0} 的 {p1} 只接受 Worktree 内的相对路径：{p2}",
+    "en": "Field {p1} in the project config {p0} accepts only Worktree-relative paths: {p2}"
+  },
   "worktreeLinkDepsInvalidPath": {
     "zh": "linkDeps 只接受 Worktree 内的相对路径：{p0}",
     "en": "linkDeps accepts only Worktree-relative paths: {p0}"

@@ -132,11 +132,11 @@ export interface WorktreeConsolePort {
 /** 只接受非空字符串的相对路径列表；空列表等价于没传。 */
 function parseRelativePaths(value: unknown): string[] | undefined {
   if (!Array.isArray(value)) return undefined
-  const paths = value
+  // 空数组是显式意图（不用项目配置），不能折叠成「没传」。
+  return value
     .filter((item): item is string => typeof item === 'string')
     .map(item => item.trim())
     .filter(item => item !== '')
-  return paths.length === 0 ? undefined : paths
 }
 
 function switchNextAction(code: string, fallback: string): string {
