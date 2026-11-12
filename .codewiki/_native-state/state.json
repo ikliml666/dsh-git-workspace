@@ -3,12 +3,12 @@
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
     "baseCommit": "a5ac5082661c410657502bc7f2264a69688c91c1",
-    "headCommit": "d432e4e096e8d7487f52155abdb693ebdd0385a3"
+    "headCommit": "6f9bac6bff38b52f4b9a5fc87a9941ebf8b2fefd"
   },
   "pendingChanges": {
     "state": "ok",
     "baseCommit": "a5ac5082661c410657502bc7f2264a69688c91c1",
-    "headCommit": "d432e4e096e8d7487f52155abdb693ebdd0385a3",
+    "headCommit": "6f9bac6bff38b52f4b9a5fc87a9941ebf8b2fefd",
     "committed": [
       "CHANGELOG.md",
       "README.en.md",
@@ -20,6 +20,7 @@
       "scripts/check-publish.mjs",
       "src/adapters/files.ts",
       "src/adapters/git.ts",
+      "src/adapters/worktree-creation.ts",
       "src/dependency-sharing.ts",
       "src/i18n/host-messages.ts",
       "src/index.ts",
@@ -35,7 +36,6 @@
     ],
     "staged": [],
     "unstaged": [
-      "src/adapters/worktree-creation.ts",
       "src/session-checkout-module.ts"
     ],
     "untracked": [
@@ -51,7 +51,6 @@
     "2026-11-12-experimental-forge-bundle-report.zh.md",
     "__pycache__/cut_helper.cpython-312.pyc",
     "cut_helper.py",
-    "src/adapters/worktree-creation.ts",
     "src/session-checkout-module.ts"
   ],
   "engineVersion": "2.0.0",
@@ -70,12 +69,12 @@
     ],
     "overviewLinks": [],
     "attempts": 1,
-    "at": "2026-11-12T13:37:25.261Z"
+    "at": "2026-11-12T13:45:05.549Z"
   },
   "notes": [
     "产物缺页 5 个模块（session_checkout_engine_integration、session_checkout_integration_core、session_checkout_tools 等），转全量修复（复用已有页面）",
-    "工作区未提交改动已合成临时 commit 4c9c705d0017（5 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mwdl9d8v-0-native（37 个文件）"
+    "工作区未提交改动已合成临时 commit a9f660dfc380（4 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mwdlih53-2-native（37 个文件）"
   ],
-  "updatedAt": "2026-11-12T13:39:09.134Z"
+  "updatedAt": "2026-11-12T13:46:44.082Z"
 }
