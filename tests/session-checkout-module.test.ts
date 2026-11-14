@@ -1610,6 +1610,90 @@ describe('SessionCheckoutModule', () => {
     expect(readFileSync(join(context.projectRoot, 'review-note.txt'), 'utf8')).toBe('keep local review work\n')
   })
 
+  test('交付后 Git 注册表丢失 When 执行强制隔离清理 Then 台账结账且目录被移走', async () => {
+    const context = createContext()
+    const target = await context.module.bind('session-1', { kind: 'isolated' })
+    const managedRoot = await context.module.resolveManagedRoot(target.checkout.id)
+    writeFileSync(join(managedRoot, 'tracked.txt'), 'delivered work\n')
+    const ready = await context.module.markReadyForReview('session-1', {
+      summary: 'force cleanup', validationStatus: 'passed', tests: [], suggestedCommitMessage: 'test: force cleanup',
+    })
+    const preview = await context.module.operate({ action: 'preview', sessionId: 'session-1', expectedRevision: ready.revision })
+    if (preview.status !== 'previewed') throw new Error(`expected previewed, got ${preview.status}`)
+    const finalized = await context.module.operate({
+      action: 'finalize_preview', sessionId: 'session-1', expectedRevision: preview.target.revision,
+      commitMessage: 'test: force cleanup', retention: 'retain_manual',
+    })
+    if (finalized.status !== 'finished') throw new Error(`expected finished, got ${finalized.status}`)
+
+    // Git 注册表里的 worktree admin 目录被删掉：工作目录和它的 .git 指针都还在，
+    // 身份却复核不了。这正是普通清理清不掉、旧版 force 又以「仍有 .git」拒绝的形态。
+    const registryPath = join(context.configDir, 'managed-checkouts.json')
+    const record = (JSON.parse(readFileSync(registryPath, 'utf8')) as any).managedCheckouts[target.checkout.id]
+    rmSync(record.gitDir as string, { recursive: true, force: true })
+
+    const blocked = await context.module.manageManagedWorktreeForSession('session-1', {
+      checkoutId: target.checkout.id, expectedRevision: finalized.target.revision, action: 'cleanup_retained',
+    })
+    expect(blocked.state).toBe('needs_attention')
+
+    const forced = await context.module.forceCleanupManagedWorktree('session-1', {
+      checkoutId: target.checkout.id, expectedRevision: blocked.revision, mode: 'quarantine',
+    })
+    expect(forced).toMatchObject({ kind: 'worktree_force_cleanup', mode: 'quarantine' })
+    expect(existsSync(managedRoot)).toBe(false)
+    expect((await context.module.inspect('session-1')).checkout.phase).toBe('discarded')
+  })
+
+  test('目录已被手工删除 When 执行强制清理 Then 台账直接结账', async () => {
+    const context = createContext()
+    const target = await context.module.bind('session-1', { kind: 'isolated' })
+    const managedRoot = await context.module.resolveManagedRoot(target.checkout.id)
+    writeFileSync(join(managedRoot, 'tracked.txt'), 'gone by hand\n')
+    const ready = await context.module.markReadyForReview('session-1', {
+      summary: 'directory already gone', validationStatus: 'passed', tests: [], suggestedCommitMessage: 'test: directory gone',
+    })
+    const preview = await context.module.operate({ action: 'preview', sessionId: 'session-1', expectedRevision: ready.revision })
+    if (preview.status !== 'previewed') throw new Error(`expected previewed, got ${preview.status}`)
+    const finalized = await context.module.operate({
+      action: 'finalize_preview', sessionId: 'session-1', expectedRevision: preview.target.revision,
+      commitMessage: 'test: directory gone', retention: 'retain_manual',
+    })
+    if (finalized.status !== 'finished') throw new Error(`expected finished, got ${finalized.status}`)
+    rmSync(managedRoot, { recursive: true, force: true })
+
+    const forced = await context.module.forceCleanupManagedWorktree('session-1', {
+      checkoutId: target.checkout.id, expectedRevision: finalized.target.revision, mode: 'quarantine',
+    })
+    expect(forced).toMatchObject({ kind: 'worktree_force_cleanup', mode: 'quarantine' })
+    expect((await context.module.inspect('session-1')).checkout.phase).toBe('discarded')
+  })
+
+  test('清理被阻塞时 When 请求开始下一轮 Then 拒绝文案指向 worktree_force_cleanup', async () => {
+    const context = createContext()
+    const target = await context.module.bind('session-1', { kind: 'isolated' })
+    const managedRoot = await context.module.resolveManagedRoot(target.checkout.id)
+    writeFileSync(join(managedRoot, 'tracked.txt'), 'blocked cleanup\n')
+    const ready = await context.module.markReadyForReview('session-1', {
+      summary: 'blocked cleanup', validationStatus: 'passed', tests: [], suggestedCommitMessage: 'test: blocked cleanup',
+    })
+    const preview = await context.module.operate({ action: 'preview', sessionId: 'session-1', expectedRevision: ready.revision })
+    if (preview.status !== 'previewed') throw new Error(`expected previewed, got ${preview.status}`)
+    const finalized = await context.module.operate({
+      action: 'finalize_preview', sessionId: 'session-1', expectedRevision: preview.target.revision,
+      commitMessage: 'test: blocked cleanup', retention: 'retain_manual',
+    })
+    if (finalized.status !== 'finished') throw new Error(`expected finished, got ${finalized.status}`)
+    const registryPath = join(context.configDir, 'managed-checkouts.json')
+    const record = (JSON.parse(readFileSync(registryPath, 'utf8')) as any).managedCheckouts[target.checkout.id]
+    rmSync(record.gitDir as string, { recursive: true, force: true })
+    const blocked = await context.module.manageManagedWorktreeForSession('session-1', {
+      checkoutId: target.checkout.id, expectedRevision: finalized.target.revision, action: 'cleanup_retained',
+    })
+
+    await expect(context.module.beginNextIteration('session-1', blocked.revision)).rejects.toThrow('worktree_force_cleanup')
+  })
+
   test('Given Preview is active When the user abandons the task Then Discard rolls Local back before removing the Worktree', async () => {
     const context = createContext()
     const target = await context.module.bind('session-1', { kind: 'isolated' })

@@ -115,6 +115,10 @@ async function quarantineDirectoryTree(
   throw new SessionCheckoutError('checkout_mismatch', 'Worktree 目录对象已被替换，未执行递归清理')
 }
 
+async function moveDirectoryTree(path: string, target: string): Promise<void> {
+  await rename(path, target)
+}
+
 async function removeDirectoryTree(path: string): Promise<void> {
   if (!existsSync(path)) return
   const stat = await lstat(path)
@@ -546,6 +550,7 @@ export function createNodeSessionCheckoutDependencies(
       ensureDirectory: (path) => mkdirSync(path, { recursive: true }),
       removeEmptyDirectoryTree,
       quarantineDirectoryTree,
+      moveDirectoryTree,
       removeDirectoryTree,
       measureDirectoryBytes,
       readTextFile: (path) => (existsSync(path) ? readFileSync(path, 'utf8') : null),

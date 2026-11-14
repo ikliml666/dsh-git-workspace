@@ -1126,7 +1126,11 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
         throw domainError('stale_target', hostMessage('theWorktreeStateHasChangedRefreshBeforeBeginningThe'))
       }
       if (predecessor.phase !== 'discarded' || predecessor.delivery.state !== 'delivered') {
-        throw domainError('operation_not_allowed', hostMessage('onlyADeliveredStateWithSuccessfulCleanupCanBegin'))
+        const base = hostMessage('onlyADeliveredStateWithSuccessfulCleanupCanBegin')
+        const stuck = predecessor.delivery.state === 'finalized' || predecessor.delivery.state === 'retained'
+        throw domainError('operation_not_allowed', stuck
+          ? `${base} ${hostMessage('beginNextIterationCleanupHint', { p0: predecessor.checkoutId, p1: String(predecessor.revision) })}`
+          : base)
       }
       const session = options.lookup.getSession(request.sessionId)
       const workspace = session?.projectId === undefined ? undefined : options.lookup.getProject(session.projectId)
