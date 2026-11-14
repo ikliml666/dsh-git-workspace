@@ -49,6 +49,16 @@ interface SessionStoreLike {
   list?(): readonly { id?: unknown; header?: { readonly id?: unknown; readonly createdAt?: unknown; readonly cwd?: unknown } }[]
 }
 
+/** Minimal structural view of the host `agents` registry's live handle lookup. */
+interface AgentLike {
+  readonly status?: unknown
+  readonly origin?: unknown
+}
+
+interface AgentRegistryLike {
+  get?(sessionId: string): AgentLike | undefined
+}
+
 function isWorkspaceRegistryLike(value: unknown): value is WorkspaceRegistryLike {
   return Boolean(value)
     && typeof value === 'object'
@@ -89,6 +99,13 @@ export function createDshLookupPort(ctx: Context): SessionCheckoutLookupPort {
   const workingDirectory = (): WorkingDirectoryLike | undefined => {
     const candidate: unknown = ctx.get('workingDirectory')
     return isWorkingDirectoryLike(candidate) ? candidate : undefined
+  }
+  const agents = (): AgentRegistryLike | undefined => {
+    const candidate: unknown = ctx.get('agents')
+    return candidate !== null && typeof candidate === 'object'
+      && typeof (candidate as AgentRegistryLike).get === 'function'
+      ? candidate as AgentRegistryLike
+      : undefined
   }
   /**
    * The header cwd frozen at Session creation, read through one narrow helper.
@@ -140,6 +157,19 @@ export function createDshLookupPort(ctx: Context): SessionCheckoutLookupPort {
           ])],
         }
       })
+    },
+    sessionAgentState: (sessionId) => {
+      const registry = agents()
+      // A missing service is "cannot answer"; a missing Agent for a listed
+      // Session means it has no driver, so it is neither running nor contending.
+      if (registry === undefined) return undefined
+      const agent = registry.get?.(sessionId)
+      if (agent === undefined) return undefined
+      if (agent.status !== 'idle' && agent.status !== 'running') return undefined
+      return {
+        status: agent.status,
+        ...(agent.origin === 'subagent' ? { origin: 'subagent' as const } : {}),
+      }
     },
     listLiveSessions: () => {
       // Creation order from the store; only header fields the guard needs.

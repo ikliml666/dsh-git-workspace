@@ -77,8 +77,14 @@ import type {
   SessionCheckoutGitPort,
   SessionCheckoutProjectRecord,
   SessionCheckoutSessionRecord,
+  WorktreeOccupancyEntry,
 } from './ports.js'
 import { liveConfigValue } from './ports.js'
+import {
+  detectWorkspaceContention,
+  otherLocalSessionIds as collectOtherLocalSessionIds,
+  renderWorkspaceContentionNotice,
+} from './workspace-contention.js'
 
 /**
  * dsh-git-worktree session-checkout state machine, ported from Domi. It keeps
@@ -92,6 +98,16 @@ interface ResolvedSessionProject {
   session: SessionCheckoutSessionRecord
   project: SessionCheckoutProjectRecord
 }
+
+/** Cached `git worktree list` + Local branch probe that the sync provider reads. */
+interface WorkspaceContentionSnapshot {
+  at: number
+  localBranch: string | null
+  worktrees: readonly WorktreeOccupancyEntry[]
+}
+
+/** Long enough to avoid one Git spawn per turn, short enough to see a new Worktree. */
+const WORKSPACE_CONTENTION_TTL_MS = 15_000
 
 const UNVERSIONED_OID = 'unversioned'
 const UNVERSIONED_REF = 'WORKING_TREE'
@@ -1172,6 +1188,146 @@ export function createSessionCheckoutModule(
       lines.push(`Delivery state: ${record.delivery.state}. Treat this Session as terminal until cleanup or recovery completes.`)
     }
     return lines.join('\n')
+  }
+
+  // Workspace contention feeds the dynamic system-prompt provider, which must
+  // stay synchronous: live Sessions come from the harness store directly, the
+  // branch-holder half comes from one cached `git worktree list` probe.
+  const contentionSnapshots = new Map<string, WorkspaceContentionSnapshot>()
+  const contentionRefreshInFlight = new Set<string>()
+
+  async function refreshContentionSnapshot(root: string): Promise<void> {
+    if (contentionRefreshInFlight.has(root)) return
+    const occupancy = dependencies.git.worktreeOccupancy
+    if (typeof occupancy !== 'function') return
+    contentionRefreshInFlight.add(root)
+    try {
+      const [snapshot, worktrees] = await Promise.all([
+        dependencies.git.inspect(root),
+        occupancy(root),
+      ])
+      if (snapshot === null || worktrees === null) return
+      contentionSnapshots.set(root, { at: Date.now(), localBranch: snapshot.branch, worktrees })
+    } catch {
+      // Advisory: keep the previous snapshot instead of claiming contention
+      // the probe could not prove.
+    } finally {
+      contentionRefreshInFlight.delete(root)
+    }
+  }
+
+  function contentionSnapshot(root: string): WorkspaceContentionSnapshot | undefined {
+    const cached = contentionSnapshots.get(root)
+    // Spawn Git only when a previous probe expired. With no cache the warm-up
+    // owns the first probe: the provider is synchronous and a fire-and-forget
+    // spawn from here would outlive the turn (and race test teardown on
+    // Windows, where the Git child holds the checkout directory).
+    if (cached !== undefined && Date.now() - cached.at > WORKSPACE_CONTENTION_TTL_MS) {
+      void refreshContentionSnapshot(root)
+    }
+    return cached
+  }
+
+  function otherLocalSessionIds(sessionId: string, localRoot: string): string[] {
+    const registry = dependencies.registry.read()
+    const ownProjectId = registry.sessionBindings[sessionId]?.projectId
+      ?? dependencies.lookup.getSession(sessionId)?.projectId
+    return collectOtherLocalSessionIds({
+      lookup: dependencies.lookup,
+      sessionId,
+      localRoot,
+      ...(ownProjectId === undefined ? {} : { ownProjectId }),
+      isolatedRoots: Object.values(registry.managedCheckouts)
+        .filter((record) => record.phase !== 'discarded')
+        .map((record) => record.managedRoot),
+      isolatedSessionIds: Object.entries(registry.sessionBindings)
+        .filter(([, binding]) => binding.target.kind === 'isolated')
+        .map(([id]) => id),
+    })
+  }
+
+  /**
+   * The Local boundary a Session would contend for: its project root, or the
+   * live cwd for a Session the registry cannot place yet. A cwd already inside
+   * an official Worktree pool is not a Local boundary, so it resolves to
+   * undefined and the notice stays silent.
+   */
+  function resolveContentionRoot(sessionId: string, cwd?: string): string | undefined {
+    const binding = dependencies.registry.read().sessionBindings[sessionId]
+    const projectId = binding?.projectId ?? dependencies.lookup.getSession(sessionId)?.projectId
+    if (projectId !== undefined) return dependencies.lookup.getProject(projectId)?.root
+    const liveCwd = dependencies.lookup.getSessionCwd?.(sessionId)
+    const candidate = typeof liveCwd === 'string' && liveCwd.length > 0 ? liveCwd : cwd
+    if (candidate === undefined) return undefined
+    return /[\\/]\.agents[\\/]worktrees[\\/]/u.test(candidate) ? undefined : candidate
+  }
+
+  /** Warm the probe when the host announces a Session, before its first assembly. */
+  function warmContentionForSession(sessionId: string): void {
+    const localRoot = resolveContentionRoot(sessionId)
+    if (localRoot !== undefined) void refreshContentionSnapshot(localRoot)
+  }
+
+  /**
+   * Contention notice for a Session that has not isolated yet. Empty when it
+   * already owns an isolated checkout or nothing contends, so the notice
+   * disappears the moment the Session really isolates.
+   */
+  function workspaceContention(sessionId: string, cwd?: string): string {
+    const registry = dependencies.registry.read()
+    const binding = registry.sessionBindings[sessionId]
+    if (binding?.target.kind === 'isolated') return ''
+    const localRoot = resolveContentionRoot(sessionId, cwd)
+    if (localRoot === undefined) return ''
+    // Already standing inside a Worktree: the "isolate first" advice is stale
+    // even when adoption has not bound the target yet. The provider cwd is
+    // authoritative, the lookup cwd covers hosts where it is missing.
+    const liveCwd = typeof cwd === 'string' && cwd.length > 0
+      ? cwd
+      : dependencies.lookup.getSessionCwd?.(sessionId)
+    if (typeof liveCwd === 'string' && (
+      pathIsWithin(liveCwd, join(localRoot, '.agents', 'worktrees'))
+      || Object.values(registry.managedCheckouts)
+        .filter((record) => record.phase !== 'discarded')
+        .some((record) => pathIsWithin(liveCwd, record.managedRoot))
+    )) return ''
+    const cached = contentionSnapshot(localRoot)
+    const facts = detectWorkspaceContention({
+      otherSessionIds: otherLocalSessionIds(sessionId, localRoot),
+      localRoot,
+      localBranch: cached?.localBranch ?? null,
+      worktrees: cached?.worktrees ?? [],
+      samePath: pathsEqual,
+    })
+    return renderWorkspaceContentionNotice(facts, localRoot)
+  }
+
+  /**
+   * Structural contention summary for callers that must refuse an operation (a
+   * Local HEAD mutation) rather than only inform the model. Null when the
+   * Session cannot be placed in a Local boundary.
+   */
+  function workspaceContentionSummary(
+    sessionId: string,
+    cwd?: string,
+  ): { localRoot: string; otherSessionIds: string[] } | null {
+    const localRoot = resolveContentionRoot(sessionId, cwd)
+    if (localRoot === undefined) return null
+    return { localRoot, otherSessionIds: otherLocalSessionIds(sessionId, localRoot) }
+  }
+
+  /** Warm the probe on startup so the first conversation already sees branch holders. */
+  async function warmWorkspaceContention(): Promise<void> {
+    const registry = dependencies.registry.read()
+    const roots = new Set<string>()
+    for (const binding of Object.values(registry.sessionBindings)) {
+      const root = dependencies.lookup.getProject(binding.projectId)?.root
+      if (root !== undefined) roots.add(root)
+    }
+    for (const record of Object.values(registry.managedCheckouts)) {
+      if (record.phase !== 'discarded') roots.add(record.localRoot)
+    }
+    await Promise.all([...roots].map((root) => refreshContentionSnapshot(root)))
   }
 
   async function resolveBinding(sessionId: string): Promise<SessionBindingRecord> {
@@ -4208,7 +4364,7 @@ export function createSessionCheckoutModule(
    */
   async function pruneMergedBranchesInRepo(
     localRoot: string,
-    input: { dryRun?: boolean; olderThanDays?: number } = {},
+    input: { dryRun?: boolean; olderThanDays?: number; respectRetention?: boolean } = {},
   ): Promise<PruneMergedBranchesView> {
     const { branchOverview, isAncestor, mergedBranches, deleteLocalBranch, branchTipTimes, defaultBranch } = dependencies.git
     if (!branchOverview || !isAncestor || !deleteLocalBranch) {
@@ -4239,15 +4395,51 @@ export function createSessionCheckoutModule(
     }
     const pruned: PruneMergedBranchEntry[] = []
     const skipped: PruneMergedBranchEntry[] = []
-    // 会话分支归插件管：它可能已经合并、也过了年龄门槛，但还有一条会话断言自己
-    // 在那条分支上工作。删掉它，那个会话的下一次交付就写到一个不存在的地方。
-    const activeSessionBranches = new Set(
-      Object.values(dependencies.registry.read().managedCheckouts)
-        .filter((record) => record.phase !== 'discarded')
-        .map((record) => record.sessionBranch)
-        .filter((ref): ref is string => ref !== undefined)
-        .map((ref) => ref.startsWith('refs/heads/') ? ref.slice('refs/heads/'.length) : ref),
-    )
+    const now = Date.now()
+    // 交付完成的记录不再往这条分支写提交；保留期只决定目录何时回收。
+    const undelivered = (record: ManagedCheckoutRecord): boolean =>
+      record.delivery.state !== 'delivered' && record.delivery.state !== 'finalized' && record.delivery.state !== 'retained'
+    // 「占用」以 Git 自己的工作树列表为准：只有仍被某个工作树检出的分支才不能删。
+    // 台账只回答「那棵树是谁的、能不能顺带回收」，不再拿保留状态冒充「进行中」。
+    // 端口缺失或 git 失败时退回台账全量保护：宁可少删，也不误删。
+    const occupancy = dependencies.git.worktreeOccupancy
+      ? await dependencies.git.worktreeOccupancy(localRoot)
+      : null
+    const occupantByBranch = new Map<string, string>()
+    for (const entry of occupancy ?? []) {
+      if (entry.branch) occupantByBranch.set(entry.branch, entry.path)
+    }
+    // 同一条分支可能留下 predecessor 链：只要还有一条记录没交付，就必须保护。
+    const recordsByBranch = new Map<string, ManagedCheckoutRecord[]>()
+    for (const record of Object.values(dependencies.registry.read().managedCheckouts)) {
+      if (record.phase === 'discarded') continue
+      if (!resolvedPathsEqual(record.localRoot, localRoot)) continue
+      const name = branchNameOf(record.sessionBranch)
+      if (!name) continue
+      const existing = recordsByBranch.get(name)
+      if (existing) existing.push(record)
+      else recordsByBranch.set(name, [record])
+    }
+    const deliveredRecord = (records: ManagedCheckoutRecord[]): ManagedCheckoutRecord | null => records
+      .filter((record) => !undelivered(record))
+      .sort((left, right) => right.revision - left.revision)[0] ?? null
+    // null 表示可以回收；否则是「这棵树为什么现在还不能动」的说明。
+    const retentionBlock = (record: ManagedCheckoutRecord): string | null => {
+      if (record.permanent === true) return hostMessage('thisBranchIsPinnedByAPermanentWorktree', { p0: record.checkoutId })
+      if (record.delivery.state === 'delivered') return hostMessage('thisBranchIsStillCheckedOutByADeliveredWorktree', { p0: record.checkoutId })
+      // 手动清理就是「现在就清」的意图：已合并且已交付的树可以回收，不必等保留期。
+      // 每日自动 sweep 传 true，仍然尊重窗口。
+      if (record.delivery.state === 'retained' && input.respectRetention !== true) return null
+      if (record.delivery.state === 'retained') {
+        if (record.delivery.retention === 'retain_manual' || record.delivery.expiresAt === null) {
+          return hostMessage('thisBranchIsPinnedByAManuallyRetainedWorktree', { p0: record.checkoutId })
+        }
+        if (record.delivery.expiresAt > now) {
+          return hostMessage('thisBranchIsStillCheckedOutByARetainedWorktree', { p0: record.checkoutId, p1: new Date(record.delivery.expiresAt).toISOString() })
+        }
+      }
+      return null
+    }
     const headOid = mergeTarget?.oid
     if (headOid) {
       // 逐个 isAncestor 在几十个分支上要 spawn 几十次 git（Windows 上每次几十毫秒），
@@ -4255,7 +4447,9 @@ export function createSessionCheckoutModule(
       const mergedNames = mergedBranches ? await mergedBranches(localRoot, headOid) : null
       for (const branch of overview.branches) {
         if (branch.isCurrent || trunkBranches.has(branch.name)) continue
-        if (activeSessionBranches.has(branch.name)) {
+        const records = recordsByBranch.get(branch.name) ?? []
+        // 还没交付的记录仍断言自己在这条分支上工作：删掉它，下次交付就写到不存在的地方。
+        if (records.some(undelivered)) {
           skipped.push({ name: branch.name, oid: branch.oid, reason: hostMessage('thisBranchBelongsToALiveManagedCheckout') })
           continue
         }
@@ -4279,6 +4473,37 @@ export function createSessionCheckoutModule(
           if (tipTime >= cutoff) {
             skipped.push({ name: branch.name, oid: branch.oid, reason: hostMessage('branchTipYoungerThanCutoffDays', { p0: String(input.olderThanDays ?? 0) }) })
             continue
+          }
+        }
+        // Git 拒绝删除被工作树检出的分支（`cannot delete ... checked out at`）。
+        // 已交付且保留期已到的工作树走标准清理链回收后再删；其余留给用户显式清理。
+        if (occupancy === null) {
+          if (records.length > 0) {
+            skipped.push({ name: branch.name, oid: branch.oid, reason: hostMessage('thisBranchBelongsToALiveManagedCheckout') })
+            continue
+          }
+        } else {
+          const occupantPath = occupantByBranch.get(branch.name)
+          if (occupantPath !== undefined) {
+            const record = deliveredRecord(records)
+            if (record === null) {
+              skipped.push({ name: branch.name, oid: branch.oid, reason: hostMessage('thisBranchIsCheckedOutInAWorktree', { p0: occupantPath }) })
+              continue
+            }
+            const blocked = retentionBlock(record)
+            if (blocked !== null) {
+              skipped.push({ name: branch.name, oid: branch.oid, reason: blocked })
+              continue
+            }
+            if (dryRun) {
+              pruned.push({ name: branch.name, oid: branch.oid, reason: hostMessage('releasingItsDeliveredWorktreeFirst') })
+              continue
+            }
+            const cleanup = await cleanupFinalized(record)
+            if (!cleanup.cleaned) {
+              skipped.push({ name: branch.name, oid: branch.oid, reason: cleanup.message ?? hostMessage('theBranchIsStillCheckedOutByItsWorktree') })
+              continue
+            }
           }
         }
         if (dryRun) {
@@ -4325,7 +4550,7 @@ export function createSessionCheckoutModule(
     const results: PruneMergedBranchesView[] = []
     for (const root of projectRoots) {
       try {
-        results.push(await pruneMergedBranchesInRepo(root, { olderThanDays }))
+        results.push(await pruneMergedBranchesInRepo(root, { olderThanDays, respectRetention: true }))
       } catch (error) {
         results.push({
           dryRun: false,
@@ -5751,6 +5976,10 @@ export function createSessionCheckoutModule(
   return {
     inspect: inspectAvailable,
     runtimeContext,
+    workspaceContention,
+    workspaceContentionSummary,
+    warmWorkspaceContention,
+    warmContentionForSession,
     adoptOfficialWorktree,
     recordAdoptionFailure,
     adoptionFailure,

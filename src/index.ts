@@ -154,6 +154,23 @@ export interface SessionCheckoutModule {
    * it decides whether the absolute-path rule still needs to be announced.
    */
   runtimeContext(sessionId: string, cwd?: string): string
+  /**
+   * Synchronous contention notice for a Session that has not isolated: other
+   * live Sessions in the same Local checkout, or the Local branch checked out
+   * by another Worktree. Empty when the Session already owns an isolated
+   * checkout or nothing contends.
+   */
+  workspaceContention(sessionId: string, cwd?: string): string
+  /**
+   * Structural contention summary for host-side guards: the Local boundary and
+   * the other live Sessions still working there. Null when the Session cannot
+   * be placed in a Local boundary.
+   */
+  workspaceContentionSummary(sessionId: string, cwd?: string): { localRoot: string; otherSessionIds: string[] } | null
+  /** Warm the cached `git worktree list` probe used by `workspaceContention`. */
+  warmWorkspaceContention?(): Promise<void>
+  /** Warm that probe for one Session, before its first system-prompt assembly. */
+  warmContentionForSession?(sessionId: string): void
   /** Read-only sync preflight; modifies no Local, worktree, registry, review state, or Git refs. */
   preflight?(sessionId: string, expectedRevision: number): Promise<WorktreeApplyPreflightView>
   /** Strictly read-only detached Preview recovery assessment and deterministic revalidation context. */
@@ -453,6 +470,7 @@ export async function apply(ctx: Context, config: { stateDir?: string } & GitTim
   // typed Events map omits the runtime 'ready' event; the events service's
   // loose runtime signature covers it.
   const reconcileOnReady = ctx.events.on('ready', () => {
+    void module.warmWorkspaceContention?.()
     void module.reconcile()
       .then((summary) => {
         if (summary.staleRootCheckoutIds.length > 0) {

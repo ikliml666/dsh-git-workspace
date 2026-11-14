@@ -646,6 +646,25 @@ export function createNodeSessionCheckoutDependencies(
         const result = await runSessionGit(localRoot, ['worktree', 'prune', '--expire', 'now'])
         if (result.code !== 0) throw new Error(result.stderr || 'git worktree prune 失败')
       },
+      worktreeOccupancy: async (root) => {
+        // 与 src/adapters/git.ts 同语义：porcelain 记录按行解析，detached 树没有 branch 行。
+        const result = await runSessionGit(root, ['worktree', 'list', '--porcelain'])
+        if (result.code !== 0) return null
+        const entries: { path: string; branch: string | null }[] = []
+        let currentPath: string | undefined
+        for (const line of result.stdout.split(/\r?\n/u)) {
+          if (line.startsWith('worktree ')) {
+            currentPath = line.slice('worktree '.length)
+            continue
+          }
+          if (line.startsWith('branch ') && currentPath !== undefined) {
+            const ref = line.slice('branch '.length)
+            entries.push({ path: currentPath, branch: ref.startsWith('refs/heads/') ? ref.slice('refs/heads/'.length) : null })
+            currentPath = undefined
+          }
+        }
+        return entries
+      },
       listWorktreeincludeFiles: async (localRoot, includeFile) => {
         const all = await runSessionGit(localRoot, ['ls-files', '--others', '--ignored', '--exclude-standard', '-z'])
         // 与 src/adapters/git.ts 同语义：--exclude-from 只吃清单本身（并集会漏进

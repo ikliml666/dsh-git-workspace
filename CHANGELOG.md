@@ -2,6 +2,25 @@
 
 本项目的显著变更记录在此文件中。版本号遵循 Semantic Versioning；在 `0.x` 阶段，minor 版本可能包含需要迁移的公开能力调整。
 
+## [0.16.0] - 2026-11-14
+
+### Fixed
+
+- 已合并分支不再被保留中的 Worktree 永久挡住（2026-11-14）。`worktree_prune_branches` 的占用判定原来取台账里所有 `phase !== 'discarded'` 记录的 `sessionBranch`，于是已交付但仍在保留期的 Worktree（默认 `retain_manual` 等于永久）会让已合并分支永远删不掉；该集合还是跨项目的，同名分支会互相误挡。现在占用以 Git 自己的 `git worktree list --porcelain`（`worktreeOccupancy`）为准，台账只决定能否顺带回收：已交付、干净、非 `permanent` 的 Worktree 在手动 prune 时即使保留窗口未结束也先走 `cleanupFinalized` 标准清理链回收，再删分支（用户显式点清理就是「现在清」）；每日自动 sweep 仍等保留期结束，手动保留/永久保留或未交付的记录给出精确到 checkoutId 的跳过原因。Git 端口缺失时退回旧的台账保护。测试：`tests/session-checkout-module.test.ts` 增 2 条（保留期结束后回收 Worktree 再删分支、目录已消失时不再阻塞），测试替身补 `worktreeOccupancy`。
+
+### Added
+
+- 创建分支前拒绝同工作区的并发会话（2026-11-14）。胶囊的「新建分支并切换」会移动 Local HEAD：另一个会话还站在同一个 Local checkout 里时，它脚下的分支被一起换走，未提交改动会混进别人的分支。`gitCreateBranchAndSwitch` 现在在 `assertLocalHeadMutable` 之后再查一层：同工作区仍有其他 live Session 在用时返回 `operation_not_allowed`，提示让它们通过 `worktree_create` 隔离或等它们结束。判定与上一轮的会话初始提醒共用 `otherLocalSessionIds`（`src/workspace-contention.ts`），module 新增 `workspaceContentionSummary` 给控制面这类需要结构化事实的调用方。测试：`tests/workspace-contention.test.ts` 增 2 项、`tests/console-host.test.ts` 增 2 条。
+
+- 会话开始时的并发工作区提醒（2026-11-14）。同一个 Local checkout 上并行开多个会话时，后来的会话看不到先来的在改什么，双方的切分支、提交与工作区改动互相覆盖；Local 当前分支被另一棵 Worktree 检出时，在 Local 里切分支或合并也必然失败。现在 `git-worktree:session-target` 动态上下文在会话第一轮就探测两件事：同一 Local 边界内是否还有其他 live Session 在工作，以及 Local 当前分支是否已被另一棵 Worktree 检出。任一条成立就注入一段提醒，要求模型在改文件前先 `worktree_create`。
+  - 数据来源：live Session 列表取自 Harness `sessions` store（`SessionCheckoutLookupPort.listLiveSessions`，cwd 优先读 `workingDirectory` 的实时值）；分支占用来自新增的 `SessionCheckoutGitPort.worktreeOccupancy`（`git worktree list --porcelain` 一次解析），按 15s TTL 缓存并由 `ready` 预热，动态上下文本身保持同步、无 I/O。
+  - 判定边界：已绑定 isolated target 的会话不再提醒；已接管或仍停在 `.agents/worktrees/<branch>` 下的会话不计为 Local 竞争者；没有 cwd 证据的会话不计入（宁可沉默，不做猜测）。
+  - 实现：`src/workspace-contention.ts`（纯函数检测与渲染）、`session-checkout-module.ts` 的 `workspaceContention` / `warmWorkspaceContention`、`session-target-context.ts` 把提醒排在 Session Target 之前。测试：`tests/workspace-contention.test.ts`（8 项）与 `tests/session-checkout-module.test.ts` 5 条接线用例。
+
+### Fixed
+
+- 修复并发工作区提醒的误报（2026-11-14）。Harness `sessions` store 里的“live”只表示会话还挂着，不代表正在干活：闲置会话、已进入 Worktree 的会话、以及本会话派出的子智能体都被算成了“另一个会话”，于是只开一个会话也会被提示 `Workspace contention`，甚至会话自己已经在 Worktree 里还收到“先建 Worktree”的建议。扫描改为按 `ctx.agents.get(id)` 的实时状态判定：只有 `status === 'running'` 且不是 `origin: 'subagent'` 的会话才算进行中；本会话 cwd 已落在官方 `.agents/worktrees` 池或托管树根下时直接静默（接管尚未落台账也生效）。首次 Git 探测改由 `session/created` 预热完成，同步 provider 只读缓存，不再从回合里抛出 fire-and-forget 的探测子进程（Windows 上表现为测试拆除临时目录的 EPERM）。测试：`tests/workspace-contention.test.ts` 增 2 项（空闲/子智能体排除），`tests/session-checkout-module.test.ts` 增 2 条（空闲会话不计、已在树内静默）。
+
 ## [0.15.0] - 2026-11-12
 
 ### Added

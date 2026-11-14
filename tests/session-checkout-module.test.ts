@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import type { SessionCheckoutModule } from '../src/index.js'
+import type { SessionCheckoutDependencies } from '../src/ports.js'
 import { createSessionCheckoutApplyEngine, type SessionCheckoutApplyEngine } from '../src/session-checkout-apply.ts'
 
 import { createSessionCheckoutModule } from '../src/session-checkout-module.ts'
@@ -52,6 +53,9 @@ interface TestContext {
   getContainerReclaimAttempts(): number
   setSessionProject(sessionId: string, projectId: string): void
   setProjectRoot(projectId: string, root: string): void
+  setLiveSessions(next: readonly { id: string; createdAt?: number; cwd?: string }[]): void
+  setSessionCwd(sessionId: string, cwd: string): void
+  dependencies: SessionCheckoutDependencies
   addProject(projectId: string, name: string, root: string): void
   addSession(sessionId: string, projectId: string, title?: string): void
   removeSession(sessionId: string): void
@@ -125,6 +129,10 @@ function createContext(options: {
     ['session-1', { id: 'session-1', projectId: 'project-1', title: '测试思路' }],
     ['child-session', { id: 'child-session', projectId: 'project-1', title: '测试思路 (worktree)' }],
   ])
+  // Workspace-contention inputs the guard reads; empty by default so existing
+  // cases keep seeing a silent guard, exactly like a host without the store.
+  let liveSessions: readonly { id: string; createdAt?: number; cwd?: string }[] = []
+  const sessionCwds = new Map<string, string>()
   const projects = new Map<string, TestProject>([
     ['project-1', { id: 'project-1', name: '示例 Project', root: projectRoot }],
   ])
@@ -153,6 +161,8 @@ function createContext(options: {
     lookup: {
       getSession: (sessionId) => sessions.get(sessionId),
       getProject: (projectId) => projects.get(projectId),
+      listLiveSessions: () => liveSessions,
+      getSessionCwd: (sessionId) => sessionCwds.get(sessionId),
       markDelegationCheckoutReleased: (sessionId, releasedAt) => {
         const session = sessions.get(sessionId)
         if (!session) throw new Error(`测试会话不存在: ${sessionId}`)
@@ -378,6 +388,9 @@ function createContext(options: {
       const project = projects.get(projectId)
       if (project) project.root = projectRoot
     },
+    setLiveSessions: (next) => { liveSessions = next },
+    setSessionCwd: (sessionId, cwd) => { sessionCwds.set(sessionId, cwd) },
+    dependencies,
     addProject: (projectId, name, projectRoot) => {
       projects.set(projectId, { id: projectId, name, root: projectRoot })
     },
@@ -405,6 +418,82 @@ function createContext(options: {
 }
 
 describe('SessionCheckoutModule', () => {
+  test('Given an idle Session in the same checkout When contention is assembled Then it is not counted', async () => {
+    const context = createContext()
+    context.setLiveSessions([
+      { id: 'session-1', cwd: context.projectRoot },
+      { id: 'session-idle', cwd: context.projectRoot },
+    ])
+    context.dependencies.lookup.sessionAgentState = (sessionId) => ({ status: sessionId === 'session-idle' ? 'idle' : 'running' })
+    expect(context.module.workspaceContention('session-1')).toBe('')
+  })
+
+  test('Given this Session already stands inside an official Worktree When contention is assembled Then no notice is emitted', async () => {
+    const context = createContext()
+    context.setLiveSessions([
+      { id: 'session-1', cwd: context.projectRoot },
+      { id: 'session-other', cwd: context.projectRoot },
+    ])
+    const tree = join(context.repositoryRoot, '.agents', 'worktrees', 'mine')
+    expect(context.module.workspaceContention('session-1', tree)).toBe('')
+  })
+
+  test('Given another live Session shares the Local checkout When contention is assembled Then it directs this Session to worktree_create', async () => {
+    const context = createContext()
+    context.setLiveSessions([
+      { id: 'session-1', cwd: context.projectRoot },
+      { id: 'session-other', cwd: context.projectRoot },
+    ])
+    const text = context.module.workspaceContention('session-1')
+    expect(text).toContain('Workspace contention: 1 other live Session is working')
+    expect(text).toContain('worktree_create')
+    expect(text).not.toContain('Branch "')
+  })
+
+  test('Given the Local branch is checked out by another Worktree When warmed and assembled Then the notice names that branch', async () => {
+    const context = createContext()
+    await context.module.bind('session-1', { kind: 'local' })
+    context.setLiveSessions([{ id: 'session-1', cwd: context.projectRoot }])
+    const otherWorktree = join(context.repositoryRoot, '.agents', 'worktrees', 'other')
+    context.dependencies.git.worktreeOccupancy = async () => [
+      { path: context.projectRoot, branch: 'main' },
+      { path: otherWorktree, branch: 'main' },
+    ]
+    await context.module.warmWorkspaceContention?.()
+    const text = context.module.workspaceContention('session-1')
+    expect(text).toContain('Branch "main" is also checked out in another Worktree')
+    expect(text).toContain(otherWorktree)
+  })
+
+  test('Given another live Session shares the Local checkout When the structural summary is read Then it lists that Session', async () => {
+    const context = createContext()
+    context.setLiveSessions([
+      { id: 'session-1', cwd: context.projectRoot },
+      { id: 'session-other', cwd: context.projectRoot },
+    ])
+    const summary = context.module.workspaceContentionSummary('session-1')
+    expect(summary?.otherSessionIds).toEqual(['session-other'])
+  })
+
+  test('Given this Session already isolated When contention is assembled Then no notice is emitted', async () => {
+    const context = createContext()
+    await context.createOwnerTarget('session-1', 'feat/isolated')
+    context.setLiveSessions([
+      { id: 'session-1', cwd: context.projectRoot },
+      { id: 'session-other', cwd: context.projectRoot },
+    ])
+    expect(context.module.workspaceContention('session-1')).toBe('')
+  })
+
+  test('Given another Session already works inside an official Worktree When contention is assembled Then it is not counted', async () => {
+    const context = createContext()
+    context.setLiveSessions([
+      { id: 'session-1', cwd: context.projectRoot },
+      { id: 'session-other', cwd: join(context.repositoryRoot, '.agents', 'worktrees', 'other') },
+    ])
+    expect(context.module.workspaceContention('session-1')).toBe('')
+  })
+
   test('Given a host rewind owns the exclusive session mutation lock When bind starts Then checkout mutation waits until rewind releases', async () => {
     const context = createContext()
     await context.module.bind('session-1', { kind: 'local' })
@@ -1147,6 +1236,78 @@ describe('SessionCheckoutModule', () => {
     const remaining = git(projectRoot, 'for-each-ref', '--format=%(refname:short)', 'refs/heads').split(/\r?\n/)
     expect(remaining).not.toContain('old-merged')
     expect(remaining).toContain('young-merged')
+  }, 30_000)
+
+  test('Given a delivered Worktree still holding its merged branch When a manual prune runs Then it reclaims the Worktree inside the window while the sweep waits', async () => {
+    const context = createContext()
+    const registryPath = join(context.configDir, 'managed-checkouts.json')
+    const target = await context.module.bind('session-1', { kind: 'isolated' })
+    const managedRoot = await context.module.resolveManagedRoot(target.checkout.id)
+    // 测试端口没有 attachWorktreeBranch：交付前就把工作树切到会话分支、并把台账补成
+    // 已认领的形态，复现生产里「分支被这棵树检出」的交付链路。
+    const branch = 'feat/sess-session-1'
+    git(managedRoot, 'switch', '-c', branch)
+    const registry = JSON.parse(readFileSync(registryPath, 'utf8')) as any
+    registry.managedCheckouts[target.checkout.id].sessionBranch = `refs/heads/${branch}`
+    registry.managedCheckouts[target.checkout.id].revision += 1
+    registry.revision += 1
+    writeFileSync(registryPath, JSON.stringify(registry, null, 2))
+    writeFileSync(join(managedRoot, 'retained.txt'), 'retained work\n', 'utf8')
+    const ready = await context.module.markReadyForReview('session-1', {
+      summary: 'retained work', validationStatus: 'passed', tests: [], suggestedCommitMessage: 'test: retained work',
+    })
+    if (ready.delivery?.state !== 'ready_for_review') throw new Error('expected ready review')
+    await context.module.operate({
+      action: 'finish', sessionId: 'session-1', expectedRevision: ready.revision,
+      expectedReviewId: ready.delivery.review.reviewId, commitMessage: 'test: retained work', retention: 'retain_24h',
+    })
+    git(context.projectRoot, 'merge', '--ff-only', branch)
+
+    // 每日自动 sweep 尊重保留窗口：窗口内不动那棵树，理由点名 checkoutId。
+    const sweep = await context.module.autoPruneStaleMergedBranches(0)
+    const swept = sweep.flatMap((view) => view.skipped).find((entry) => entry.name === branch)
+    expect(swept?.reason).toContain(target.checkout.id)
+    expect(existsSync(managedRoot)).toBe(true)
+
+    // 手动清理就是「现在就清」：已合并且已交付的树先回收，再删分支，不等窗口。
+    const result = await context.module.pruneMergedBranchesForSession('session-1')
+    expect(result.skipped).toEqual([])
+    expect(result.pruned.map((entry) => entry.name)).toContain(branch)
+    expect(existsSync(managedRoot)).toBe(false)
+    const after = JSON.parse(readFileSync(registryPath, 'utf8')) as any
+    expect(after.managedCheckouts[target.checkout.id].phase).toBe('discarded')
+    const remaining = git(context.projectRoot, 'for-each-ref', '--format=%(refname:short)', 'refs/heads').split(/\r?\n/)
+    expect(remaining).not.toContain(branch)
+  }, 30_000)
+
+  test('Given a retained record whose Worktree directory is gone When its branch is merged Then prune deletes the branch instead of reporting a live checkout', async () => {
+    const context = createContext()
+    const registryPath = join(context.configDir, 'managed-checkouts.json')
+    const target = await context.module.bind('session-1', { kind: 'isolated' })
+    const managedRoot = await context.module.resolveManagedRoot(target.checkout.id)
+    writeFileSync(join(managedRoot, 'gone.txt'), 'gone work\n', 'utf8')
+    const ready = await context.module.markReadyForReview('session-1', {
+      summary: 'gone work', validationStatus: 'passed', tests: [], suggestedCommitMessage: 'test: gone work',
+    })
+    if (ready.delivery?.state !== 'ready_for_review') throw new Error('expected ready review')
+    await context.module.operate({
+      action: 'finish', sessionId: 'session-1', expectedRevision: ready.revision,
+      expectedReviewId: ready.delivery.review.reviewId, commitMessage: 'test: gone work', retention: 'retain_24h',
+    })
+    const branch = 'feat/sess-session-1-gone'
+    git(context.projectRoot, 'branch', branch, 'HEAD')
+    const registry = JSON.parse(readFileSync(registryPath, 'utf8')) as any
+    registry.managedCheckouts[target.checkout.id].sessionBranch = `refs/heads/${branch}`
+    registry.managedCheckouts[target.checkout.id].revision += 1
+    registry.revision += 1
+    writeFileSync(registryPath, JSON.stringify(registry, null, 2))
+
+    // 目录被手工移除后，Git 不再登记这棵树：台账记录不该继续冒充「占用中」。
+    rmSync(managedRoot, { recursive: true, force: true })
+    git(context.projectRoot, 'worktree', 'prune', '--expire', 'now')
+    const result = await context.module.pruneMergedBranchesForSession('session-1')
+    expect(result.pruned.map((entry) => entry.name)).toContain(branch)
+    expect(result.skipped.find((entry) => entry.name === branch)).toBeUndefined()
   }, 30_000)
 
   test('Given a managed project with a stale merged branch When the maintenance sweep runs Then only stale merged branches are pruned', async () => {

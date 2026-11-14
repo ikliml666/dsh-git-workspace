@@ -59,6 +59,15 @@ export interface SessionCheckoutLookupPort {
    */
   listLiveSessions?(): readonly { id: string; createdAt?: number; cwd?: string }[]
   /**
+   * Local adaptation: runtime state of the Session's own Agent
+   * (`ctx.agents.get(id)`). "Live in the store" is not the same as "working":
+   * an idle Session keeps its cwd and would otherwise block Local operations
+   * forever, and a delegated child agent ('subagent') never contends for the
+   * user's checkout. Undefined when the host cannot answer, in which case live
+   * Sessions keep counting.
+   */
+  sessionAgentState?(sessionId: string): { status: 'idle' | 'running'; origin?: 'subagent' } | undefined
+  /**
    * Local adaptation: every project the Host backs with a Workspace, so
    * adoption can resolve a Local root back to its project. Needed because a
    * Worktree created by the official tool may have no binding and no Session
@@ -73,6 +82,14 @@ export interface GitCheckoutSnapshot {
   branch: string | null
   headOid: string
   headRef: string
+}
+
+/** One entry of `git worktree list --porcelain`, reduced to what contention needs. */
+export interface WorktreeOccupancyEntry {
+  /** Absolute worktree path as Git reports it. */
+  readonly path: string
+  /** Short branch name, or null for a detached HEAD. */
+  readonly branch: string | null
 }
 
 /** One local branch in the header chip's branch overview (one spawn per refresh). */
@@ -159,6 +176,12 @@ export interface SessionCheckoutGitPort {
   /** Tip commit of a local branch, or null when the ref does not resolve. */
   resolveLocalBranchTip(root: string, branch: string): Promise<string | null>
   inspect(root: string): Promise<GitCheckoutSnapshot | null>
+  /**
+   * Local adaptation: read-only `git worktree list --porcelain` projection used
+   * to tell whether the Local branch is already checked out elsewhere. Returns
+   * null instead of throwing so a failed probe keeps the previous snapshot.
+   */
+  worktreeOccupancy?(root: string): Promise<WorktreeOccupancyEntry[] | null>
   /** Top-level of the Git checkout containing the directory; does not require a HEAD. */
   findContainingWorktreeRoot(root: string): Promise<string | null>
   status(root: string): Promise<{ dirty: boolean }>

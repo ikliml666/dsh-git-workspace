@@ -31,7 +31,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { SubprocessHandle } from '@deepseek-ai/dsh-subprocess'
 import type { ApplyConflictDetail, MergeLocalBranchResult } from '../types.js'
 import { CONFLICT_DETAIL_DIFF_LIMIT, CONFLICT_DETAIL_FILE_LIMIT } from '../types.js'
-import type { GitCheckoutSnapshot, LocalBranchSwitchIssue, SessionCheckoutGitPort } from '../ports.js'
+import type { GitCheckoutSnapshot, LocalBranchSwitchIssue, SessionCheckoutGitPort, WorktreeOccupancyEntry } from '../ports.js'
 import { SessionCheckoutError } from '../index.js'
 
 /** Termination grace is separate from the command deadline. */
@@ -399,6 +399,30 @@ export function createDshGitPort(ctx: Context, options: GitPortOptions): Session
         headOid,
         headRef,
       }
+    },
+    worktreeOccupancy: async (root): Promise<WorktreeOccupancyEntry[] | null> => {
+      // Porcelain records are line-oriented: `worktree <path>` opens one and
+      // `branch refs/heads/<name>` names its checkout. Detached records carry no
+      // branch line and cannot hold a branch, so they are simply dropped.
+      const result = await runSessionGit(root, ['worktree', 'list', '--porcelain'])
+      if (result.code !== 0) return null
+      const entries: WorktreeOccupancyEntry[] = []
+      let currentPath: string | undefined
+      for (const line of result.stdout.split(/\r?\n/u)) {
+        if (line.startsWith('worktree ')) {
+          currentPath = line.slice('worktree '.length)
+          continue
+        }
+        if (line.startsWith('branch ') && currentPath !== undefined) {
+          const ref = line.slice('branch '.length)
+          entries.push({
+            path: currentPath,
+            branch: ref.startsWith('refs/heads/') ? ref.slice('refs/heads/'.length) : null,
+          })
+          currentPath = undefined
+        }
+      }
+      return entries
     },
     findContainingWorktreeRoot: async (root) => {
       const topLevel = await runSessionGit(root, ['rev-parse', '--show-toplevel'])

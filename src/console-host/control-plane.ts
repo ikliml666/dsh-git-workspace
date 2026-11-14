@@ -823,6 +823,16 @@ export function createWorktreeConsoleControlPlane(options: WorktreeConsoleContro
       // guard as a plain switch, otherwise an accepted apply lands on a branch
       // that moved underneath it.
       assertLocalHeadMutable(sessionId, root, 'switch')
+      // Another live Session still working in this checkout would be carried
+      // onto the new branch with us. Refuse instead of moving its HEAD; that
+      // Session can isolate through worktree_create.
+      const contention = options.module.workspaceContentionSummary?.(sessionId, root)
+      if (contention != null && contention.otherSessionIds.length > 0) {
+        throw domainError('operation_not_allowed', hostMessage(
+          'localBranchCreateBlockedByActiveSession',
+          { p0: String(contention.otherSessionIds.length) },
+        ))
+      }
       if (options.git.createAndSwitchLocalBranch === undefined) throw domainError('git_error', hostMessage('gitOperationFailedGit', { p0: 'switch', p1: name }))
       await options.git.createAndSwitchLocalBranch(root, name)
       return { branch: name }

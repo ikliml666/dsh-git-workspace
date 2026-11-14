@@ -1133,8 +1133,8 @@ export const hostMessages = {
     "en": "Switch branch"
   },
   "worktreePruneBranchesDescription": {
-    "zh": "安全清理当前会话项目里已完全合并的本地分支（git branch -d 语义，绝不强删）：当前分支、main/master 和未合并分支一律跳过并说明原因。先 dryRun 预览，再正式删除。",
-    "en": "Safely prune fully merged local branches in the current session's project (git branch -d semantics, never force): the current branch, main/master, and unmerged branches are skipped with a reason. Preview with dryRun first, then delete for real."
+    "zh": "安全清理当前会话项目里已完全合并的本地分支（git branch -d 语义，绝不强删）：当前分支、main/master 和未合并分支一律跳过并说明原因。先 dryRun 预览，再正式删除。仍被 Worktree 检出的分支，如果那棵树已交付、干净且不是永久保留，会先回收那棵树再删分支（手动调用不看保留期；后台自动清理仍等保留期结束）；其余跳过并给出 checkoutId。",
+    "en": "Safely prune fully merged local branches in the current session's project (git branch -d semantics, never force): the current branch, main/master, and unmerged branches are skipped with a reason. Preview with dryRun first, then delete for real. A branch still checked out by a delivered, clean, non-permanent Worktree is deleted after that Worktree is reclaimed — manual calls ignore the retention window, the background sweep still waits for it; otherwise the skip names its checkoutId."
   },
   "worktreePruneBranchesDryRun": {
     "zh": "只报告会删哪些分支，不真的删除（建议先 true 预览）。",
@@ -1161,8 +1161,36 @@ export const hostMessages = {
     "en": "Could not verify whether this branch is fully merged; skipped."
   },
   "thisBranchBelongsToALiveManagedCheckout": {
-    "zh": "该分支仍被一个进行中的托管 Worktree 占用，已跳过。",
-    "en": "A live managed checkout still uses this branch; skipped."
+    "zh": "该分支仍被一个未交付的托管 Worktree 占用，已跳过。",
+    "en": "An undelivered managed checkout still uses this branch; skipped."
+  },
+  "thisBranchIsPinnedByAPermanentWorktree": {
+    "zh": "该分支被一个标记为永久保留的 Worktree 检出（{p0}）；先清理该 Worktree 再删除分支。",
+    "en": "A permanently retained Worktree still has this branch checked out ({p0}); clean that Worktree up before deleting the branch."
+  },
+  "thisBranchIsPinnedByAManuallyRetainedWorktree": {
+    "zh": "该分支被一个手动保留的 Worktree 检出（{p0}）；先清理该 Worktree 再删除分支。",
+    "en": "A manually retained Worktree still has this branch checked out ({p0}); clean that Worktree up before deleting the branch."
+  },
+  "thisBranchIsStillCheckedOutByARetainedWorktree": {
+    "zh": "该分支仍被一个保留期未到的 Worktree 检出（{p0}，保留至 {p1}）；先清理该 Worktree 或等保留期结束。",
+    "en": "A retained Worktree still has this branch checked out ({p0}, retained until {p1}); clean that Worktree up or wait for the retention to expire."
+  },
+  "thisBranchIsStillCheckedOutByADeliveredWorktree": {
+    "zh": "该分支被一个已交付但仍留在磁盘上的 Worktree 检出（{p0}）；先清理该 Worktree 再删除分支。",
+    "en": "A delivered Worktree still on disk has this branch checked out ({p0}); clean that Worktree up before deleting the branch."
+  },
+  "thisBranchIsCheckedOutInAWorktree": {
+    "zh": "该分支仍被另一个 Worktree 检出（{p0}）；先移除那个 Worktree。",
+    "en": "Another Worktree still has this branch checked out ({p0}); remove that Worktree first."
+  },
+  "releasingItsDeliveredWorktreeFirst": {
+    "zh": "已合并且已交付：回收其 Worktree 后删除分支。",
+    "en": "Merged and delivered: its Worktree is reclaimed before the branch is deleted."
+  },
+  "theBranchIsStillCheckedOutByItsWorktree": {
+    "zh": "该分支的 Worktree 未能清理，分支已保留。",
+    "en": "The branch's Worktree could not be cleaned up, so the branch was kept."
   },
   "thisBranchHasCommitsNotYetMergedInto": {
     "zh": "该分支还有提交未合并进 {p0}，已跳过。",
@@ -1787,6 +1815,10 @@ export const hostMessages = {
   "localBranchCommitBlockedDuringDelivery": {
     "zh": "本会话正在验收 Worktree 交付，暂不能提交本地改动",
     "en": "This session has a Worktree delivery under review; local changes cannot be committed right now."
+  },
+  "localBranchCreateBlockedByActiveSession": {
+    "zh": "这个工作区还有 {p0} 个会话正在进行，创建分支会切走它们脚下的本地 HEAD；先让它们在 Worktree 中隔离，或等它们结束",
+    "en": "Other live Sessions are still working in this checkout ({p0} session(s)); creating a branch would move the local HEAD under them. Let them isolate in a Worktree, or wait until they finish."
   },
   "localBranchCommitBlockedByAnotherDelivery": {
     "zh": "另一个会话（{p0}）正在这个 Local 检出上交付 Worktree，提交会移动它的交付基线；等那个会话交付或放弃后再提交",

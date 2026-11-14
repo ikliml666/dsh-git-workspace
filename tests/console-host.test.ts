@@ -161,8 +161,9 @@ function plane(record = readyRecord(), overrides: {
   files?: SessionCheckoutFilesPort
   registry?: SessionCheckoutRegistryPort
   git?: SessionCheckoutGitPort
+  module?: SessionCheckoutModule
 } = {}) {
-  const module = moduleDouble(record)
+  const module = overrides.module ?? moduleDouble(record)
   return {
     module,
     control: createWorktreeConsoleControlPlane({
@@ -550,6 +551,30 @@ describe('Worktree Console Host control plane', () => {
 
     expect(result).toMatchObject({ ok: false, error: { code: 'operation_not_allowed' } })
     expect(git.switchLocalBranch).not.toHaveBeenCalled()
+  })
+
+  it('blocks create-and-switch while another Session is still working in the checkout', async () => {
+    const git = { ...gitDouble(), createAndSwitchLocalBranch: vi.fn(async () => undefined) }
+    const module = moduleDouble()
+    module.workspaceContentionSummary = vi.fn(() => ({ localRoot: '/managed', otherSessionIds: ['other-session'] }))
+    const { control } = plane(readyRecord(), { registry: emptyRegistry(), git, module })
+
+    const result = await control.gitCreateBranchAndSwitch('target-session', 'feature')
+
+    expect(result).toMatchObject({ ok: false, error: { code: 'operation_not_allowed' } })
+    expect(git.createAndSwitchLocalBranch).not.toHaveBeenCalled()
+  })
+
+  it('creates the branch when no other Session shares the checkout', async () => {
+    const git = { ...gitDouble(), createAndSwitchLocalBranch: vi.fn(async () => undefined) }
+    const module = moduleDouble()
+    module.workspaceContentionSummary = vi.fn(() => ({ localRoot: '/managed', otherSessionIds: [] }))
+    const { control } = plane(readyRecord(), { registry: emptyRegistry(), git, module })
+
+    const result = await control.gitCreateBranchAndSwitch('target-session', 'feature')
+
+    expect(result).toMatchObject({ ok: true, value: { branch: 'feature' } })
+    expect(git.createAndSwitchLocalBranch).toHaveBeenCalledWith('/managed', 'feature')
   })
 
   it('blocks create-and-switch while another Session delivers onto the same local root', async () => {

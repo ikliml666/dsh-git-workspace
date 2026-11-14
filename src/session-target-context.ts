@@ -15,17 +15,28 @@ export function registerSessionTargetContext(ctx: Context, module: SessionChecko
   // The snapshot needs the live cwd to tell whether this Session already stands
   // inside its checkout (worktree_create moved it) or still sits in Local.
   const workingDirectory = createSessionWorkingDirectoryPort(ctx)
+  // Sessions are announced before their first assembly, so warming the branch
+  // probe here makes the contention notice complete on the very first turn
+  // instead of appearing one turn later.
+  ctx.on('session/created', (session: { id?: unknown }) => {
+    const sessionId = session.id
+    if (typeof sessionId !== 'string') return
+    module.warmContentionForSession?.(sessionId)
+  })
   ctx.inject(['systemPrompt'], (scope: Context) => {
     scope.systemPrompt.context({
       name: 'git-worktree:session-target',
       order: 118,
       text: (context) => {
         const sessionId = (context.agent as ContextAgent | undefined)?.session?.id
-        return withHostLanguage(languageForInvocation(context.agent, scope), () => (
-          typeof sessionId === 'string'
-            ? module.runtimeContext(sessionId, workingDirectory.current(context.agent))
-            : ''
-        ))
+        if (typeof sessionId !== 'string') return ''
+        const cwd = workingDirectory.current(context.agent)
+        return withHostLanguage(languageForInvocation(context.agent, scope), () => [
+          // Contention first: when another Session already shares this Local
+          // checkout, that fact must be read before the ordinary target rules.
+          module.workspaceContention(sessionId, cwd),
+          module.runtimeContext(sessionId, cwd),
+        ].filter((part) => part.length > 0).join('\n\n'))
       },
     })
   })
