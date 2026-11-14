@@ -1,9 +1,12 @@
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, test, vi } from 'vitest'
 import { adoptWorktreeForSession, registerOfficialWorktree } from '../src/official-worktree-registration.js'
 import type { ManagedCheckoutsRegistry } from '../src/ports.js'
 
-const REPO = 'C:\\work\\repo'
-const CHECKOUT = `${REPO}\\.agents\\worktrees\\feat-sess-abc`
+// 平台无关的绝对路径：Windows 字面量在 Linux 上会被 resolve 成 cwd 下的相对路径。
+const REPO = join(tmpdir(), 'dsh-worktree-registration', 'repo')
+const CHECKOUT = join(REPO, '.agents', 'worktrees', 'feat-sess-abc')
 
 function emptyRegistry(): ManagedCheckoutsRegistry {
   return { version: 2, revision: 0, sessionBindings: {}, managedCheckouts: {} }
@@ -14,8 +17,8 @@ function fixture(overrides: { snapshot?: { root: string; commonDir: string; gitD
   const inspect = vi.fn(async () => (overrides.snapshot === undefined
     ? {
         root: CHECKOUT,
-        commonDir: 'C:\\work\\repo\\.git',
-        gitDir: 'C:\\work\\repo\\.git\\worktrees\\feat-sess-abc',
+        commonDir: join(REPO, '.git'),
+        gitDir: join(REPO, '.git', 'worktrees', 'feat-sess-abc'),
         headRef: 'refs/heads/feat/sess-abc',
       }
     : overrides.snapshot))
@@ -78,7 +81,7 @@ describe('registering a Worktree the official service created', () => {
 
     expect(f.inspect).toHaveBeenCalledWith(CHECKOUT)
     expect(record.managedGitRoot).toBe(CHECKOUT)
-    expect(record.gitDir).toBe('C:\\work\\repo\\.git\\worktrees\\feat-sess-abc')
+    expect(record.gitDir).toBe(join(REPO, '.git', 'worktrees', 'feat-sess-abc'))
     expect(record.sourceRef).toBe('refs/heads/feat/sess-abc')
   })
 
@@ -114,7 +117,7 @@ describe('adopting the Worktree a Session walked into', () => {
 
   test('ignores a working directory outside the official layout', async () => {
     const f = fixture()
-    const result = await adoptWorktreeForSession(deps(f) as never, 'session-abc', 'C:\\work\\repo\\src')
+    const result = await adoptWorktreeForSession(deps(f) as never, 'session-abc', join(REPO, 'src'))
 
     expect(result).toBeUndefined()
     expect(f.current().managedCheckouts).toEqual({})
