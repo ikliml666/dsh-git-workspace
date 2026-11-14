@@ -16,7 +16,7 @@ const yaml = createRequire(require.resolve('@deepseek-ai/cordis-plugin-include')
   load(text: string, options: { schema: unknown }): unknown
 }
 const OFFICIAL = '@deepseek-ai/dsh-client-ui-workspace'
-const WORKTREE = 'dsh-git-worktree'
+const WORKTREE = 'dsh-git-workspace'
 const disposals: Array<() => Promise<void>> = []
 afterEach(async () => { for (const dispose of disposals.splice(0).reverse()) await dispose() })
 

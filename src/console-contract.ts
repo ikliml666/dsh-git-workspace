@@ -5,7 +5,7 @@
  * implementation. Host and Client tracks share these DTOs while preserving one
  * authority rule: every Host operation resolves an exact caller Session and
  * re-validates project, owner, cwd, revision and review identity at execution.
- * @module dsh-git-worktree/console-contract
+ * @module dsh-git-workspace/console-contract
  */
 
 import {

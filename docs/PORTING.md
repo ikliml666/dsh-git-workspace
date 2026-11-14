@@ -1,6 +1,6 @@
 # Session Target porting notes: desktop implementation → DeepSeek Harness
 
-`dsh-git-worktree` adapts a mature desktop session-checkout domain and Git delivery engine, but Host identity cannot be copied mechanically. In Harness, a Session's persisted header cwd and Workspace attachment are the authority; a plugin registry is only supporting state.
+`dsh-git-workspace` adapts a mature desktop session-checkout domain and Git delivery engine, but Host identity cannot be copied mechanically. In Harness, a Session's persisted header cwd and Workspace attachment are the authority; a plugin registry is only supporting state.
 
 ## Preserved core
 

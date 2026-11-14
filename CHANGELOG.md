@@ -2,6 +2,13 @@
 
 本项目的显著变更记录在此文件中。版本号遵循 Semantic Versioning；在 `0.x` 阶段，minor 版本可能包含需要迁移的公开能力调整。
 
+## [Unreleased]
+
+### Changed
+
+- 插件更名为 `dsh-git-workspace`（2026-11-14）。实际能力早已超出 Git Worktree 创建：分支图谱与切换、按分支创建、已合并分支清理、标签管理、验收与交付都在其中，旧名 `dsh-git-worktree` 只覆盖入口那一层。本次同步更新 npm 包名、cordis 插件 id、状态目录（`$DSH_HOME/plugins/dsh-git-workspace`）、设置命名空间、CSS 类名与日志前缀；Remote 命名空间 `gitWorktree` 属于 RPC 协议契约，保持不变。
+  - 迁移：把 `$DSH_HOME/plugins/dsh-git-worktree` 下的 `managed-checkouts.json` 与 `disabled-git-hooks` 复制到 `dsh-git-workspace` 同名位置，托管台账与已禁用 hook 才继续可见；设置页的原条目按新命名空间重设；Hindsight 记忆库用 `banks` 路由继续指向旧库（`"coding-agent::dsh-git-workspace": { "bank": "coding-agent::dsh-git-worktree" }`）。
+
 ## [0.16.0] - 2026-11-14
 
 ### Fixed

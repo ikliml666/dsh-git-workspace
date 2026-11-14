@@ -380,10 +380,10 @@ function ClearSidebarBadgeMenuItem({ adapter, sessionId, useMenuOpenState }: Off
         if (outcome.ok) {
           window.dispatchEvent(new CustomEvent(WORKTREE_REVIEW_REFRESH_EVENT, { detail: { sessionId } }))
         } else {
-          console.warn('[dsh-git-worktree] clearSidebarBadge failed:', outcome.error?.message)
+          console.warn('[dsh-git-workspace] clearSidebarBadge failed:', outcome.error?.message)
         }
       }, error => {
-        console.warn('[dsh-git-worktree] clearSidebarBadge failed:', error)
+        console.warn('[dsh-git-workspace] clearSidebarBadge failed:', error)
       })
     }}
   >{t('clear.sidebar.badge')}</MenuItemButton>
@@ -430,7 +430,7 @@ const ROW_SEATS = ['sidebar.session.row.hover'] as const
  * Upstream identity mark, reused verbatim so the decorated path looks like the
  * takeover path: a branch glyph in the row's limited seat, and the same glyph
  * plus the state chip inside the hover card. Colours come from the existing
- * `.dsh-git-worktree-sidebar-icon[data-worktree-state]` rules in styles.ts,
+ * `.dsh-git-workspace-sidebar-icon[data-worktree-state]` rules in styles.ts,
  * which mirror upstream's palette for the same state names.
  */
 function WorktreeIdentity(
@@ -438,8 +438,8 @@ function WorktreeIdentity(
 ) {
   return <>
     <span
-      className="dsh-git-worktree-sidebar-icon"
-      data-dsh-git-worktree-badge={state}
+      className="dsh-git-workspace-sidebar-icon"
+      data-dsh-git-workspace-badge={state}
       data-worktree-state={state}
       role="img"
       aria-label={label}
@@ -447,7 +447,7 @@ function WorktreeIdentity(
     ><IconBranchOutlineRegular /></span>
     {chip
       ? <span
-        className="dsh-git-worktree-sidebar-badge"
+        className="dsh-git-workspace-sidebar-badge"
         data-worktree-state={state}
         title={label}
       >{stateLabel}</span>
@@ -521,7 +521,7 @@ export function registerDecoratedWorkspaceSidebar(
   // never run and the badge never mounts. Register into every real seat instead.
   for (const seat of ROW_SEATS) {
     slots.inject(seat, () => slots.register(
-      { name: seat, id: 'dsh-git-worktree-status', order: 500 },
+      { name: seat, id: 'dsh-git-workspace-status', order: 500 },
       (props: OfficialSessionRowEntryProps) => <ClientI18nProvider locale={read('locale')}><WorktreeStatusBadgeEntry {...props} seat={seat} /></ClientI18nProvider>,
     ))
   }

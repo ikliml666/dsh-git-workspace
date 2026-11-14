@@ -97,7 +97,7 @@ describe('built Client ModuleLoader artifact', () => {
 
   test('Given the emitted browser script When it executes Then it registers the package id and materializable exports', () => {
     const handoff = executeBundle(readFileSync(resolve('lib/client.js'), 'utf8'))
-    expect(handoff.id).toBe('dsh-git-worktree')
+    expect(handoff.id).toBe('dsh-git-workspace')
     const nodeRequire = createRequire(import.meta.url)
     const clientExports = handoff.factory(specifier => platformRequire(nodeRequire, specifier))
     expect(clientExports.apply).toBeTypeOf('function')
@@ -204,11 +204,11 @@ describe('built Client ModuleLoader artifact', () => {
     // The client-module system adopts any head <style> without data-plugin for
     // whichever module materializes next and sweeps it on that module's
     // invalidation/prune. The sheet must carry this bundle's registration id.
-    const sheet = document.querySelector('style[data-dsh-git-worktree]')
+    const sheet = document.querySelector('style[data-dsh-git-workspace]')
     expect(sheet?.getAttribute('data-plugin')).toBe(worktreeHandoff.id)
     for (const el of document.querySelectorAll('style:not([data-plugin])')) el.setAttribute('data-plugin', 'foreign-chunk')
     for (const el of document.querySelectorAll('style[data-plugin="foreign-chunk"]')) el.remove()
-    expect(document.querySelector('style[data-dsh-git-worktree]')).not.toBeNull()
+    expect(document.querySelector('style[data-dsh-git-workspace]')).not.toBeNull()
 
     const descriptors = register.mock.calls.map(call => call[0])
     expect(descriptors).toEqual(expect.arrayContaining([
@@ -227,7 +227,7 @@ describe('built Client ModuleLoader artifact', () => {
 
     await fiber.dispose()
     expect((ctx.remote as unknown as Record<string, unknown>).gitWorktree).toBeUndefined()
-    expect(document.querySelector('style[data-dsh-git-worktree]')).toBeNull()
+    expect(document.querySelector('style[data-dsh-git-workspace]')).toBeNull()
   })
 
   test('boots a modern Host whose picker provider waits for uiWorkspace, then resolves picker calls lazily', async () => {

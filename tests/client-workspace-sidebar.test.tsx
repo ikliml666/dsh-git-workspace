@@ -357,7 +357,7 @@ describe('registerDecoratedWorkspaceSidebar (Mode B: official Workspace stays li
     expect(registry.injected).not.toContain('sidebar.session.row.leading')
     expect(registry.injected).toContain('sidebar.workspaces.session.menu.item')
     const hover = registry.registered.find(entry => entry.descriptor.name === 'sidebar.session.row.hover')
-    expect(hover?.descriptor).toMatchObject({ name: 'sidebar.session.row.hover', id: 'dsh-git-worktree-status' })
+    expect(hover?.descriptor).toMatchObject({ name: 'sidebar.session.row.hover', id: 'dsh-git-workspace-status' })
     const menu = registry.registered.find(entry => entry.descriptor.name === 'sidebar.workspaces.session.menu.item')
     expect(menu?.descriptor).toMatchObject({ id: 'clear-sidebar-badge' })
     // The topology feed is released with the client fiber.
@@ -377,7 +377,7 @@ describe('registerDecoratedWorkspaceSidebar (Mode B: official Workspace stays li
 
     const owner = render(<Badge sessionId={ownerSession} />)
     await waitFor(() => expect(owner.container.textContent).toContain('Ready for review'))
-    const badgeNode = owner.container.querySelector('[data-dsh-git-worktree-badge="ready_for_review"]')
+    const badgeNode = owner.container.querySelector('[data-dsh-git-workspace-badge="ready_for_review"]')
     expect(badgeNode?.getAttribute('title')).toBe('Ready for review')
     owner.unmount()
 
@@ -405,7 +405,7 @@ describe('registerDecoratedWorkspaceSidebar (Mode B: official Workspace stays li
     // the row); the branch stays in the tooltip so the row is not cluttered.
     await waitFor(() => expect(owner2.container.textContent).toContain('Completed'))
     expect(owner2.container.textContent).not.toContain('feat/demo')
-    expect(owner2.container.querySelector('.dsh-git-worktree-sidebar-icon')?.getAttribute('title'))
+    expect(owner2.container.querySelector('.dsh-git-workspace-sidebar-icon')?.getAttribute('title'))
       .toBe('Completed · feat/demo')
     owner2.unmount()
   })
@@ -425,8 +425,8 @@ describe('registerDecoratedWorkspaceSidebar (Mode B: official Workspace stays li
     // The hover card has room for the glyph AND the state chip.
     const hoverNode = render(<Hover sessionId={ownerSession} seat="sidebar.session.row.hover" />)
     await waitFor(() => expect(hoverNode.container.textContent).toContain('Ready for review'))
-    expect(hoverNode.container.querySelector('.dsh-git-worktree-sidebar-icon')).not.toBeNull()
-    expect(hoverNode.container.querySelector('.dsh-git-worktree-sidebar-badge')?.textContent)
+    expect(hoverNode.container.querySelector('.dsh-git-workspace-sidebar-icon')).not.toBeNull()
+    expect(hoverNode.container.querySelector('.dsh-git-workspace-sidebar-badge')?.textContent)
       .toBe('Ready for review')
     hoverNode.unmount()
   })

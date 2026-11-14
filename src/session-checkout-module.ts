@@ -87,11 +87,11 @@ import {
 } from './workspace-contention.js'
 
 /**
- * dsh-git-worktree session-checkout state machine, ported from Domi. It keeps
+ * dsh-git-workspace session-checkout state machine, ported from Domi. It keeps
  * receipt-first Local Preview, rollback/finalize, project acceptance slots,
  * crash recovery and fingerprint CAS while adapting ownership to Harness's
  * separate source Local Session and target owner Session.
- * @module dsh-git-worktree/session-checkout-module
+ * @module dsh-git-workspace/session-checkout-module
  */
 
 interface ResolvedSessionProject {
@@ -5401,11 +5401,11 @@ export function createSessionCheckoutModule(
         try {
           dependencies.files.copyFile(join(sourceRoot, relative), target)
         } catch (error) {
-          console.warn(`[dsh-git-worktree] .worktreeinclude copy failed for ${relative}:`, error instanceof Error ? error.message : error)
+          console.warn(`[dsh-git-workspace] .worktreeinclude copy failed for ${relative}:`, error instanceof Error ? error.message : error)
         }
       }
     } catch (error) {
-      console.warn('[dsh-git-worktree] .worktreeinclude copy skipped:', error instanceof Error ? error.message : error)
+      console.warn('[dsh-git-workspace] .worktreeinclude copy skipped:', error instanceof Error ? error.message : error)
     }
   }
 
@@ -5420,14 +5420,14 @@ export function createSessionCheckoutModule(
       const patch = await captureLocalWip(sourceRoot)
       if (patch !== null) await applyWorktreePatch(targetRoot, patch)
     } catch (error) {
-      console.warn('[dsh-git-worktree] local WIP carry skipped:', error instanceof Error ? error.message : error)
+      console.warn('[dsh-git-workspace] local WIP carry skipped:', error instanceof Error ? error.message : error)
     }
     if (!listUntrackedFiles || !dependencies.files.copyFile) return
     let untracked: string[] = []
     try {
       untracked = await listUntrackedFiles(sourceRoot)
     } catch (error) {
-      console.warn('[dsh-git-worktree] untracked carry skipped:', error instanceof Error ? error.message : error)
+      console.warn('[dsh-git-workspace] untracked carry skipped:', error instanceof Error ? error.message : error)
       return
     }
     for (const relative of untracked) {
@@ -5436,7 +5436,7 @@ export function createSessionCheckoutModule(
       try {
         dependencies.files.copyFile(join(sourceRoot, relative), target)
       } catch (error) {
-        console.warn(`[dsh-git-worktree] untracked carry failed for ${relative}:`, error instanceof Error ? error.message : error)
+        console.warn(`[dsh-git-workspace] untracked carry failed for ${relative}:`, error instanceof Error ? error.message : error)
       }
     }
   }
@@ -5855,7 +5855,7 @@ export function createSessionCheckoutModule(
     if (official === undefined) {
       throw new SessionCheckoutError(
         'operation_not_allowed',
-        'No worktrees service is mounted on this host, so dsh-git-worktree cannot create one.',
+        'No worktrees service is mounted on this host, so dsh-git-workspace cannot create one.',
       )
     }
     return withBindingLock(async () => {

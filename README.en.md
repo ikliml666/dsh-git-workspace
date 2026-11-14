@@ -1,13 +1,13 @@
-# dsh-git-worktree
+# dsh-git-workspace
 
-[![npm](https://img.shields.io/npm/v/dsh-git-worktree)](https://www.npmjs.com/package/dsh-git-worktree)
-[![npm downloads](https://img.shields.io/npm/dm/dsh-git-worktree)](https://www.npmjs.com/package/dsh-git-worktree)
-[![CI](https://github.com/wloops/dsh-git-worktree/actions/workflows/ci.yml/badge.svg)](https://github.com/wloops/dsh-git-worktree/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/dsh-git-workspace)](https://www.npmjs.com/package/dsh-git-workspace)
+[![npm downloads](https://img.shields.io/npm/dm/dsh-git-workspace)](https://www.npmjs.com/package/dsh-git-workspace)
+[![CI](https://github.com/wloops/dsh-git-workspace/actions/workflows/ci.yml/badge.svg)](https://github.com/wloops/dsh-git-workspace/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 **Let agents complete tasks in independent Git Worktrees, then review the changes before deciding whether to save them.**
 
-`dsh-git-worktree` is a Git Worktree plugin for [DeepSeek Harness](https://github.com/deepseek-ai/DeepSeek-Harness). It creates a separate Worktree (working directory) for each isolated task, where the agent edits and tests code. The plugin writes task changes back to the current project only when you start a preview or confirm saving. When the task is complete, you can preview the result and then save it, send it back for changes, or discard it.
+`dsh-git-workspace` is a Git workspace plugin for [DeepSeek Harness](https://github.com/deepseek-ai/DeepSeek-Harness): each isolated task gets its own Worktree (working directory), and branches (commit graph, create-from-branch, prune merged branches) and tags (list, create, push, delete) are managed in the same place. The agent edits and tests code there; the plugin writes task changes back to the current project only when you start a preview or confirm saving. When the task is complete, you can preview the result and then save it, send it back for changes, or discard it.
 
 This Git Worktree workflow originated in [Domi](https://github.com/restflux/domi), an open-source desktop coding workbench powered by the Pi Agent Runtime. This plugin is independently adapted for DeepSeek Harness and can be installed and used on its own.
 
@@ -97,7 +97,7 @@ Match the plugin version to your Harness version rather than installing the late
 For DSH `0.2.2-rc.1`, install through the `dsh` Web Profile:
 
 ```bash
-dsh plugin --profile web add dsh-git-worktree@0.15.0
+dsh plugin --profile web add dsh-git-workspace@0.15.0
 ```
 
 For other Harness versions, choose the matching plugin version from the table above first.

@@ -1,4 +1,4 @@
-# dsh-git-worktree Usage Guide
+# dsh-git-workspace Usage Guide
 
 This guide covers daily actions, recovery scenarios, commands, and troubleshooting. For the underlying state machine, CAS, and permission invariants, see [Worktree Console architecture](WORKTREE-CONSOLE-ARCHITECTURE.md).
 
@@ -32,7 +32,7 @@ stateDiagram-v2
 
 On Windows, plugin Git commands use command-scoped `core.longpaths=true` for creation, checkout, status, review, and delivery. This supports longer Worktree prefixes without modifying global or repository Git configuration. LFS is not automatically skipped; service access failures still require separate resolution.
 
-The existing `dsh-git-worktree` plugin configuration accepts two millisecond values:
+The existing `dsh-git-workspace` plugin configuration accepts two millisecond values:
 
 | Setting | Default | Valid range |
 | --- | --- | --- |
@@ -183,20 +183,20 @@ Preview, Finalize, Discard, and Remove are not ordinary model tools. They are co
 ### npm install
 
 ```bash
-dsh plugin --profile web add dsh-git-worktree
+dsh plugin --profile web add dsh-git-workspace
 ```
 
 ### Git tag install
 
 ```bash
-dsh plugin --profile web add github:wloops/dsh-git-worktree#v0.10.0
+dsh plugin --profile web add github:wloops/dsh-git-workspace#v0.10.0
 ```
 
 If pnpm 10+ blocks `prepare` for a Git dependency, add this to the profile's `pnpm-workspace.yaml`:
 
 ```yaml
 allowBuilds:
-  dsh-git-worktree: true
+  dsh-git-workspace: true
 ```
 
 Then reinstall the plugin.
@@ -206,15 +206,15 @@ Then reinstall the plugin.
 When the web UI shows **Failed to load plugins**, inspect the detailed error and installed version:
 
 - `require("@deepseek-ai/dsh-client-runtime/client") missed the module table` means the plugin is still `0.7.2` or older, while Harness `0.1.2-rc.1` and later removed `dsh-client-runtime`.
-- `dsh-git-worktree` waiting for `conversation` while the official Conversation/Sidebar plugins wait for `uiWorkspace` identifies the `0.7.3` Client activation cycle.
+- `dsh-git-workspace` waiting for `conversation` while the official Conversation/Sidebar plugins wait for `uiWorkspace` identifies the `0.7.3` Client activation cycle.
 
 The activation-cycle fix starts in `0.7.4`. Match the plugin line to your Host: DSH `0.2.x` uses `0.10.0`, DSH `0.1.x` uses `0.9.3`; see the [compatibility matrix](COMPATIBILITY.md#english). The example uses `0.10.0`; restart Harness after installation:
 
 ```bash
-dsh plugin --profile web add dsh-git-worktree@0.10.0
+dsh plugin --profile web add dsh-git-workspace@0.10.0
 ```
 
-Confirm the installed version with `dsh plugin --profile web list` before restarting Harness. Note that pnpm's supply-chain policy delays freshly published releases: for a few days after publishing, `add` without a version may still resolve to an older build. To install immediately, add the exact version (for example `- dsh-git-worktree@0.10.0`) to the existing `minimumReleaseAgeExclude` list in the profile's `pnpm-workspace.yaml` and reinstall.
+Confirm the installed version with `dsh plugin --profile web list` before restarting Harness. Note that pnpm's supply-chain policy delays freshly published releases: for a few days after publishing, `add` without a version may still resolve to an older build. To install immediately, add the exact version (for example `- dsh-git-workspace@0.10.0`) to the existing `minimumReleaseAgeExclude` list in the profile's `pnpm-workspace.yaml` and reinstall.
 
 If you installed from a Git tag, install the latest tag with the Git tag command above instead. If the version is confirmed correct but the error persists, pnpm blocked the `prepare` build during the previous install. Add `allowBuilds` as shown above and reinstall.
 
@@ -235,7 +235,7 @@ While enabled, the plugin provides the Workspace sidebar with Managed session gr
 If an older plugin version leaves the page waiting for `uiWorkspace`, uninstall it and restart DSH to recover the interface:
 
 ```bash
-dsh plugin --profile web remove dsh-git-worktree
+dsh plugin --profile web remove dsh-git-workspace
 ```
 
 To keep using the plugin, install a version containing this fix. Recovery does not require deleting session history or manually clearing the Worktree registry.

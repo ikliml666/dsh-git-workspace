@@ -1,6 +1,6 @@
 /**
  * Mounts the Worktree settings page into the Host's Plugins page: the card
- * edits the `dsh-git-worktree` namespace through the shared configuration
+ * edits the `dsh-git-workspace` namespace through the shared configuration
  * forms service and registers into the `plugins.bundle.config` slot while the
  * Host serves that namespace, so the form shows on the bundle's own Plugins
  * page. Every service is probed fail-soft — a Host without the settings stack
@@ -44,7 +44,7 @@ export function mountSettingsCard(ctx: Context): void {
   ctx.effect(() => {
     controller = new WorktreeSettingsCardController(configForms.get<WorktreeSettings>(WORKTREE_SETTINGS_NS))
     return () => { controller?.dispose(); controller = undefined }
-  }, 'dsh-git-worktree: settings form subscription')
+  }, 'dsh-git-workspace: settings form subscription')
   // The Plugins page renders `plugins.bundle.config` (keyed by the bundle's
   // package name) on the bundle's own page, between its description and its
   // rows; `plugins.item` is the official-plugins list slot and never shows a
@@ -53,5 +53,5 @@ export function mountSettingsCard(ctx: Context): void {
     name: 'plugins.bundle.config',
     key: WORKTREE_SETTINGS_NS,
     inject: () => controller?.inject(),
-  }, WorktreeSettingsCard))), 'dsh-git-worktree: settings page')
+  }, WorktreeSettingsCard))), 'dsh-git-workspace: settings page')
 }

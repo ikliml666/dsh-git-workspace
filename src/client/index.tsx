@@ -65,13 +65,13 @@ export function apply(ctx: ClientContextLike, adapterOverride?: WorktreeConsoleA
   // bundle's ModuleLoader registration id so the sheet stays owned here.
   ctx.effect(() => {
     const style = document.createElement('style')
-    style.dataset.dshGitWorktree = 'true'
-    style.dataset.plugin = 'dsh-git-worktree'
-    style.dataset.pluginCss = 'dsh-git-worktree/styles'
+    style.dataset.dshGitWorkspace = 'true'
+    style.dataset.plugin = 'dsh-git-workspace'
+    style.dataset.pluginCss = 'dsh-git-workspace/styles'
     style.textContent = `${WORKTREE_STYLES}\n${TARGET_CONSOLE_STYLES}`
     document.head.append(style)
     return () => { style.remove() }
-  }, 'dsh-git-worktree: styles')
+  }, 'dsh-git-workspace: styles')
 
   const CreateRow = (props: ToolCallViewPropsLike) => <WorktreeCreateRow {...props} services={services} />
   ctx.slots.inject('tool.call.toolview', () => localizedSlots.register(

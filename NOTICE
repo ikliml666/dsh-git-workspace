@@ -1,4 +1,4 @@
-dsh-git-worktree
+dsh-git-workspace
 
 The generated browser bundle includes software derived at build time from:
 
@@ -12,5 +12,5 @@ The generated browser bundle includes software derived at build time from:
 Each upstream Client factory is version- and SHA-256-gated by the matching
 scripts/workspace-sidebar-upstream*.mjs. Official Workspace Browser,
 WorkspacePicker, locale dictionaries, stores, and directory-flow declarations
-are preserved. dsh-git-worktree wraps the Browser projection and applies
+are preserved. dsh-git-workspace wraps the Browser projection and applies
 fail-closed Managed owner row decorations for Worktree identity and status.

@@ -79,7 +79,7 @@ const METHODS = [
 
 describe('manual strict Worktree Console Remote contribution', () => {
   it('shares one strict descriptor set between Host and Client artifacts', () => {
-    expect(validateTypertManifest('dsh-git-worktree', TYPERT)).toBe(TYPERT)
+    expect(validateTypertManifest('dsh-git-workspace', TYPERT)).toBe(TYPERT)
     expect(TYPERT.invocations).toBe(WORKTREE_CONSOLE_DESCRIPTORS)
     expect(WORKTREE_CONSOLE_REMOTE.descriptors).toBe(WORKTREE_CONSOLE_DESCRIPTORS)
     expect(WORKTREE_CONSOLE_DESCRIPTORS.map((descriptor) => descriptor.method)).toEqual(METHODS)
@@ -238,7 +238,7 @@ describe('manual strict Worktree Console Remote contribution', () => {
     await ctx.plugin(TypertRegistry)
     ctx.provide('loader', {
       *entries() {
-        yield { options: { name: 'dsh-git-worktree' }, fiber: {}, disabled: false }
+        yield { options: { name: 'dsh-git-workspace' }, fiber: {}, disabled: false }
       },
     } as never)
     const loader = ctx.plugin({ inject: typertLoaderInject, apply: applyTypertLoader }, { packages: [] })

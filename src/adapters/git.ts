@@ -20,7 +20,7 @@ import { hostMessage } from '../i18n/host.js'
  * `git worktree add` would deny the very directory the plugin was asked to
  * create. Session file-policy enforcement stays where it belongs: the Host's
  * own file/shell tools. See CHANGELOG for the reasoning trail.
- * @module dsh-git-worktree/adapters/git
+ * @module dsh-git-workspace/adapters/git
  */
 
 import { createHash } from 'node:crypto'
@@ -890,8 +890,8 @@ export function createDshGitPort(ctx: Context, options: GitPortOptions): Session
       const head = await runSessionGit(managedRoot, ['rev-parse', '--verify', '--quiet', 'HEAD^{commit}'])
       const parentArgs = head.code === 0 && /^[0-9a-f]{40,64}$/iu.test(head.stdout) ? ['-p', head.stdout] : []
       const committed = await runSessionGit(localRoot, [
-        '-c', 'user.name=dsh-git-worktree',
-        '-c', 'user.email=dsh-git-worktree@localhost',
+        '-c', 'user.name=dsh-git-workspace',
+        '-c', 'user.email=dsh-git-workspace@localhost',
         'commit-tree', tree, ...parentArgs,
       ])
       if (committed.code !== 0) {

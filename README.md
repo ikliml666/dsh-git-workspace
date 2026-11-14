@@ -1,13 +1,13 @@
-# dsh-git-worktree
+# dsh-git-workspace
 
-[![npm](https://img.shields.io/npm/v/dsh-git-worktree)](https://www.npmjs.com/package/dsh-git-worktree)
-[![npm downloads](https://img.shields.io/npm/dm/dsh-git-worktree)](https://www.npmjs.com/package/dsh-git-worktree)
-[![CI](https://github.com/wloops/dsh-git-worktree/actions/workflows/ci.yml/badge.svg)](https://github.com/wloops/dsh-git-worktree/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/dsh-git-workspace)](https://www.npmjs.com/package/dsh-git-workspace)
+[![npm downloads](https://img.shields.io/npm/dm/dsh-git-workspace)](https://www.npmjs.com/package/dsh-git-workspace)
+[![CI](https://github.com/wloops/dsh-git-workspace/actions/workflows/ci.yml/badge.svg)](https://github.com/wloops/dsh-git-workspace/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 **让 Agent 在独立 Git Worktree 中完成任务，你看过修改后再决定是否保存。**
 
-`dsh-git-worktree` 是 [DeepSeek Harness](https://github.com/deepseek-ai/DeepSeek-Harness) 的 Git Worktree 插件。它为隔离任务创建独立的 Worktree（工作目录），Agent 的代码修改和测试在其中进行；只有你发起预览或确认保存时，插件才会把任务改动写回当前项目。任务完成后，你可以先预览结果，再选择保存、退回修改或放弃。
+`dsh-git-workspace` 是 [DeepSeek Harness](https://github.com/deepseek-ai/DeepSeek-Harness) 的 Git 工作区插件：为每个隔离任务创建独立 Worktree（工作目录），并在同一处管理分支（提交图谱、按分支创建、已合并分支清理）与标签（列出、创建、推送、删除）。Agent 的代码修改和测试在独立工作区中进行；只有你发起预览或确认保存时，插件才会把任务改动写回当前项目。任务完成后，你可以先预览结果，再选择保存、退回修改或放弃。
 
 这套 Git Worktree 工作方式最初来自基于 Pi Agent Runtime 的开源桌面 coding 工作台 [Domi](https://github.com/restflux/domi)，本插件是针对 DeepSeek Harness 独立适配的版本，可以单独安装和使用。
 
@@ -98,7 +98,7 @@ flowchart LR
 以下命令适用于 DSH `0.2.2-rc.1`，通过 `dsh` 的 Web Profile 安装：
 
 ```bash
-dsh plugin --profile web add dsh-git-worktree@0.15.0
+dsh plugin --profile web add dsh-git-workspace@0.15.0
 ```
 
 如果使用其他 Harness 版本，请先按上表选择匹配的插件版本。

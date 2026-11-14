@@ -45,13 +45,13 @@ function sourceDshArgs(args: string[]): string[] | undefined {
 describe('local DSH development workflow', () => {
   test('Given no options When parsing the run command Then safe reusable defaults are selected', () => {
     const root = join(tmpdir(), 'dsh-plugin-root')
-    const defaults = createDefaultOptions(root, join(tmpdir(), 'dsh-git-worktree-dev'))
+    const defaults = createDefaultOptions(root, join(tmpdir(), 'dsh-git-workspace-dev'))
 
     expect(parseDevDshArgs(['run'], defaults)).toEqual({
       mode: 'run',
       profile: 'web',
       port: 3081,
-      repo: join(tmpdir(), 'dsh-git-worktree-dev', 'fixture'),
+      repo: join(tmpdir(), 'dsh-git-workspace-dev', 'fixture'),
       repoExplicit: false,
     })
   })
@@ -59,7 +59,7 @@ describe('local DSH development workflow', () => {
   test('Given an isolated DSH home When selecting the dev cache Then older Profile archives remain outside cleanup', () => {
     const home = join(tmpdir(), 'isolated-dsh-home')
     expect(devCacheRoot({ DSH_HOME: home })).toBe(join(home, 'dev-dsh-cache'))
-    expect(devCacheRoot({})).toBe(join(tmpdir(), 'dsh-git-worktree-dev'))
+    expect(devCacheRoot({})).toBe(join(tmpdir(), 'dsh-git-workspace-dev'))
   })
 
   test('Given an isolated DSH home When booting a fresh Web workspace Then Documents stay within the isolated home', () => {
@@ -83,7 +83,7 @@ describe('local DSH development workflow', () => {
 
   test('Given explicit development options When parsing Then profile, repository and port are preserved', () => {
     const root = join(tmpdir(), 'dsh-plugin-root')
-    const defaults = createDefaultOptions(root, join(tmpdir(), 'dsh-git-worktree-dev'))
+    const defaults = createDefaultOptions(root, join(tmpdir(), 'dsh-git-workspace-dev'))
 
     expect(parseDevDshArgs([
       'install',
@@ -155,7 +155,7 @@ describe('local DSH development workflow', () => {
   test('Given a nearer unprepared Harness and an upper ready Harness When discovery runs from Local or a linked Worktree Then the ready checkout wins', () => {
     const layoutRoot = mkdtempSync(join(tmpdir(), 'dsh-harness-discovery-'))
     const projectParent = join(layoutRoot, 'my')
-    const localProjectRoot = join(projectParent, 'dsh-git-worktree')
+    const localProjectRoot = join(projectParent, 'dsh-git-workspace')
     mkdirSync(localProjectRoot, { recursive: true })
     git(localProjectRoot, ['init'])
     writeFileSync(join(localProjectRoot, 'tracked.txt'), 'base\n')
@@ -192,7 +192,7 @@ describe('local DSH development workflow', () => {
   })
 
   test('Given an invalid port or unknown option When parsing Then the workflow fails before executing commands', () => {
-    const defaults = createDefaultOptions(process.cwd(), join(tmpdir(), 'dsh-git-worktree-dev'))
+    const defaults = createDefaultOptions(process.cwd(), join(tmpdir(), 'dsh-git-workspace-dev'))
 
     expect(() => parseDevDshArgs(['run', '--port', '70000'], defaults)).toThrow('port')
     expect(() => parseDevDshArgs(['run', '--publish'], defaults)).toThrow('Unknown option')
@@ -209,7 +209,7 @@ describe('local DSH development workflow', () => {
     expect(realpathSync(git(fixture, ['rev-parse', '--show-toplevel'])).replaceAll('\\', '/').toLowerCase())
       .toBe(realpathSync(fixture).replaceAll('\\', '/').toLowerCase())
     expect(readFileSync(join(fixture, 'tracked.txt'), 'utf8')).toBe('base\n')
-    expect(existsSync(join(fixture, '.dsh-git-worktree-fixture.json'))).toBe(true)
+    expect(existsSync(join(fixture, '.dsh-git-workspace-fixture.json'))).toBe(true)
   })
 
   test('Given an unexpected non-empty default fixture path When preparing it Then existing bytes are preserved and initialization fails closed', () => {
@@ -231,14 +231,14 @@ describe('local DSH development workflow', () => {
 
     expect(result.created).toBe(false)
     expect(readFileSync(join(repo, 'keep.txt'), 'utf8')).toBe('unchanged')
-    expect(existsSync(join(repo, '.dsh-git-worktree-fixture.json'))).toBe(false)
+    expect(existsSync(join(repo, '.dsh-git-workspace-fixture.json'))).toBe(false)
   })
 
   test('Given a local snapshot install When it runs Then only local build, pack, profile add and config smoke commands execute', () => {
     const root = mkdtempSync(join(tmpdir(), 'dsh-dev-install-root-'))
     mkdirSync(join(root, 'node_modules'))
     writeFileSync(join(root, 'package.json'), JSON.stringify({
-      name: 'dsh-git-worktree',
+      name: 'dsh-git-workspace',
       version: '0.1.2',
       scripts: { prepare: 'pnpm run build' },
       files: ['lib', 'cordis.patch.yml'],
@@ -261,11 +261,11 @@ describe('local DSH development workflow', () => {
       }
       if (command.includes('dsh') && args[0] === 'plugin' && args.includes('add')) {
         writeFileSync(profileManifestPath, JSON.stringify({
-          dependencies: { 'dsh-git-worktree': `file:${args.at(-1)}` },
+          dependencies: { 'dsh-git-workspace': `file:${args.at(-1)}` },
         }))
       }
       if (command.includes('dsh') && args.includes('--dump-config')) {
-        return { stdout: '# == dsh-git-worktree\n- id: dsh-git-worktree\n' }
+        return { stdout: '# == dsh-git-workspace\n- id: dsh-git-workspace\n' }
       }
       return { stdout: '' }
     })
@@ -279,7 +279,7 @@ describe('local DSH development workflow', () => {
       run: runner,
     })
 
-    expect(result.archivePath).toBe(join(cacheRoot, 'dsh-git-worktree-1234.tgz'))
+    expect(result.archivePath).toBe(join(cacheRoot, 'dsh-git-workspace-1234.tgz'))
     expect(stagedManifest).toMatchObject({ version: '0.1.2-dev.1234' })
     expect(stagedManifest?.scripts).toEqual({})
     expect(JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version).toBe('0.1.2')
@@ -303,7 +303,7 @@ describe('local DSH development workflow', () => {
     writeFileSync(join(root, 'lib', 'index.js'), 'export {}')
     writeFileSync(join(root, 'cordis.patch.yml'), '[]\n')
     writeFileSync(join(root, 'package.json'), JSON.stringify({
-      name: 'dsh-git-worktree', version: '0.1.2', scripts: {}, files: ['lib', 'cordis.patch.yml'],
+      name: 'dsh-git-workspace', version: '0.1.2', scripts: {}, files: ['lib', 'cordis.patch.yml'],
     }))
     const cacheRoot = join(root, 'cache')
     const events: string[] = []
@@ -318,13 +318,13 @@ describe('local DSH development workflow', () => {
           mkdirSync(join(dshHome, 'profiles', 'web'), { recursive: true })
           writeFileSync(manifestPath, JSON.stringify({ dependencies: {} }))
         }
-        return { stdout: readFileSync(manifestPath, 'utf8').includes('dsh-git-worktree')
-          ? '# == dsh-git-worktree\n' : '# == ui-workspace\n' }
+        return { stdout: readFileSync(manifestPath, 'utf8').includes('dsh-git-workspace')
+          ? '# == dsh-git-workspace\n' : '# == ui-workspace\n' }
       }
       if (dshArgs?.includes('add')) {
         expect(existsSync(manifestPath)).toBe(true)
         events.push('add-snapshot')
-        writeFileSync(manifestPath, JSON.stringify({ dependencies: { 'dsh-git-worktree': `file:${dshArgs.at(-1)}` } }))
+        writeFileSync(manifestPath, JSON.stringify({ dependencies: { 'dsh-git-workspace': `file:${dshArgs.at(-1)}` } }))
       }
       return { stdout: '' }
     }
@@ -344,7 +344,7 @@ describe('local DSH development workflow', () => {
     writeFileSync(join(root, 'lib', 'index.js'), 'export {}')
     writeFileSync(join(root, 'cordis.patch.yml'), '[]\n')
     writeFileSync(join(root, 'package.json'), JSON.stringify({
-      name: 'dsh-git-worktree', version: '0.1.2', scripts: {}, files: ['lib', 'cordis.patch.yml'],
+      name: 'dsh-git-workspace', version: '0.1.2', scripts: {}, files: ['lib', 'cordis.patch.yml'],
     }))
     const cacheRoot = join(root, 'cache')
     const profileManifestPath = join(root, 'profile', 'package.json')
@@ -359,10 +359,10 @@ describe('local DSH development workflow', () => {
       const dshArgs = sourceDshArgs(args)
       if (dshArgs?.[0] === 'plugin' && dshArgs.includes('add')) {
         writeFileSync(profileManifestPath, JSON.stringify({
-          dependencies: { 'dsh-git-worktree': `file:${dshArgs.at(-1)}` },
+          dependencies: { 'dsh-git-workspace': `file:${dshArgs.at(-1)}` },
         }))
       }
-      if (dshArgs?.includes('--dump-config')) return { stdout: '# == dsh-git-worktree\n' }
+      if (dshArgs?.includes('--dump-config')) return { stdout: '# == dsh-git-workspace\n' }
       return { stdout: '' }
     }
 
@@ -377,10 +377,10 @@ describe('local DSH development workflow', () => {
       .map(call => ({ ...call, dshArgs: sourceDshArgs(call.args) }))
       .filter(call => call.dshArgs !== undefined)
     expect(sourceCalls.map(call => call.dshArgs)).toEqual([
-      ['plugin', '--profile', 'web', 'add', join(cacheRoot, 'dsh-git-worktree-1234.tgz')],
+      ['plugin', '--profile', 'web', 'add', join(cacheRoot, 'dsh-git-workspace-1234.tgz')],
       ['--profile', 'web', '--dump-config'],
       ['--profile', 'web', '--dump-config'],
-      ['plugin', '--profile', 'web', 'remove', 'dsh-git-worktree'],
+      ['plugin', '--profile', 'web', 'remove', 'dsh-git-workspace'],
     ])
     expect(sourceCalls.every(call => call.command.includes('pnpm'))).toBe(true)
     expect(sourceCalls.every(call => call.args.slice(0, 2).join('|') === `--dir|${harnessRoot}`)).toBe(true)
@@ -394,7 +394,7 @@ describe('local DSH development workflow', () => {
     writeFileSync(join(root, 'lib', 'index.js'), 'export {}')
     writeFileSync(join(root, 'cordis.patch.yml'), '[]\n')
     writeFileSync(join(root, 'package.json'), JSON.stringify({
-      name: 'dsh-git-worktree', version: '0.1.2', scripts: {}, files: ['lib', 'cordis.patch.yml'],
+      name: 'dsh-git-workspace', version: '0.1.2', scripts: {}, files: ['lib', 'cordis.patch.yml'],
     }))
     const cacheRoot = join(root, 'cache')
     mkdirSync(cacheRoot)
@@ -403,20 +403,20 @@ describe('local DSH development workflow', () => {
     const otherProfile = join(dshHome, 'profiles', 'other', 'package.json')
     mkdirSync(join(dshHome, 'profiles', 'web'), { recursive: true })
     mkdirSync(join(dshHome, 'profiles', 'other'), { recursive: true })
-    const oldWebArchive = join(cacheRoot, 'dsh-git-worktree-1000.tgz')
-    const otherArchive = join(cacheRoot, 'dsh-git-worktree-1100.tgz')
+    const oldWebArchive = join(cacheRoot, 'dsh-git-workspace-1000.tgz')
+    const otherArchive = join(cacheRoot, 'dsh-git-workspace-1100.tgz')
     writeFileSync(oldWebArchive, 'old-web')
     writeFileSync(otherArchive, 'other-profile')
-    writeFileSync(webProfile, JSON.stringify({ dependencies: { 'dsh-git-worktree': `file:${oldWebArchive}` } }))
-    writeFileSync(otherProfile, JSON.stringify({ dependencies: { 'dsh-git-worktree': `file:${otherArchive}` } }))
+    writeFileSync(webProfile, JSON.stringify({ dependencies: { 'dsh-git-workspace': `file:${oldWebArchive}` } }))
+    writeFileSync(otherProfile, JSON.stringify({ dependencies: { 'dsh-git-workspace': `file:${otherArchive}` } }))
     const runner = (command: string, args: string[], options?: { cwd?: string }) => {
       if (command.includes('pnpm') && args[0] === 'pack') {
         writeFileSync(args[args.indexOf('--out') + 1]!, 'new')
       }
       if (command.includes('dsh') && args[0] === 'plugin') {
-        writeFileSync(webProfile, JSON.stringify({ dependencies: { 'dsh-git-worktree': `file:${args.at(-1)}` } }))
+        writeFileSync(webProfile, JSON.stringify({ dependencies: { 'dsh-git-workspace': `file:${args.at(-1)}` } }))
       }
-      if (command.includes('dsh') && args.includes('--dump-config')) return { stdout: '# == dsh-git-worktree\n' }
+      if (command.includes('dsh') && args.includes('--dump-config')) return { stdout: '# == dsh-git-workspace\n' }
       return { stdout: '' }
     }
 
@@ -431,7 +431,7 @@ describe('local DSH development workflow', () => {
 
     expect(existsSync(otherArchive)).toBe(true)
     expect(existsSync(oldWebArchive)).toBe(false)
-    expect(existsSync(join(cacheRoot, 'dsh-git-worktree-2000.tgz'))).toBe(true)
+    expect(existsSync(join(cacheRoot, 'dsh-git-workspace-2000.tgz'))).toBe(true)
   })
 
   test('Given the current profile references a missing managed archive When installing Then the workflow repairs the prerequisite and advances safely', () => {
@@ -441,16 +441,16 @@ describe('local DSH development workflow', () => {
     writeFileSync(join(root, 'lib', 'index.js'), 'export {}')
     writeFileSync(join(root, 'cordis.patch.yml'), '[]\n')
     writeFileSync(join(root, 'package.json'), JSON.stringify({
-      name: 'dsh-git-worktree', version: '0.1.2', scripts: {}, files: ['lib', 'cordis.patch.yml'],
+      name: 'dsh-git-workspace', version: '0.1.2', scripts: {}, files: ['lib', 'cordis.patch.yml'],
     }))
     const cacheRoot = join(root, 'cache')
     mkdirSync(cacheRoot)
     const dshHome = join(root, '.dsh')
     const profileManifestPath = join(dshHome, 'profiles', 'web', 'package.json')
     mkdirSync(join(dshHome, 'profiles', 'web'), { recursive: true })
-    const missingArchive = join(cacheRoot, 'dsh-git-worktree-1000.tgz')
+    const missingArchive = join(cacheRoot, 'dsh-git-workspace-1000.tgz')
     writeFileSync(profileManifestPath, JSON.stringify({
-      dependencies: { 'dsh-git-worktree': `file:${missingArchive}` },
+      dependencies: { 'dsh-git-workspace': `file:${missingArchive}` },
     }))
     const runner = (command: string, args: string[]) => {
       if (command.includes('pnpm') && args[0] === 'pack') {
@@ -459,10 +459,10 @@ describe('local DSH development workflow', () => {
       if (command.includes('dsh') && args[0] === 'plugin') {
         expect(readFileSync(missingArchive, 'utf8')).toBe('new')
         writeFileSync(profileManifestPath, JSON.stringify({
-          dependencies: { 'dsh-git-worktree': `file:${args.at(-1)}` },
+          dependencies: { 'dsh-git-workspace': `file:${args.at(-1)}` },
         }))
       }
-      if (command.includes('dsh') && args.includes('--dump-config')) return { stdout: '# == dsh-git-worktree\n' }
+      if (command.includes('dsh') && args.includes('--dump-config')) return { stdout: '# == dsh-git-workspace\n' }
       return { stdout: '' }
     }
 
@@ -475,7 +475,7 @@ describe('local DSH development workflow', () => {
       run: runner,
     })
 
-    expect(result.archivePath).toBe(join(cacheRoot, 'dsh-git-worktree-2000.tgz'))
+    expect(result.archivePath).toBe(join(cacheRoot, 'dsh-git-workspace-2000.tgz'))
     expect(existsSync(missingArchive)).toBe(false)
     expect(existsSync(result.archivePath)).toBe(true)
   })
@@ -487,22 +487,22 @@ describe('local DSH development workflow', () => {
     writeFileSync(join(root, 'lib', 'index.js'), 'export {}')
     writeFileSync(join(root, 'cordis.patch.yml'), '[]\n')
     writeFileSync(join(root, 'package.json'), JSON.stringify({
-      name: 'dsh-git-worktree', version: '0.1.2', scripts: {}, files: ['lib', 'cordis.patch.yml'],
+      name: 'dsh-git-workspace', version: '0.1.2', scripts: {}, files: ['lib', 'cordis.patch.yml'],
     }))
     const cacheRoot = join(root, 'cache')
     mkdirSync(cacheRoot)
-    const oldArchive = join(cacheRoot, 'dsh-git-worktree-1000.tgz')
+    const oldArchive = join(cacheRoot, 'dsh-git-workspace-1000.tgz')
     writeFileSync(oldArchive, 'old')
     const profileManifestPath = join(root, 'profile-package.json')
     writeFileSync(profileManifestPath, JSON.stringify({
-      dependencies: { 'dsh-git-worktree': `file:${oldArchive}` },
+      dependencies: { 'dsh-git-workspace': `file:${oldArchive}` },
     }))
     const runner = (command: string, args: string[]) => {
       if (command.includes('pnpm') && args[0] === 'pack') {
         writeFileSync(args[args.indexOf('--out') + 1]!, 'new')
       }
       if (command.includes('dsh') && args.includes('--dump-config')) {
-        return { stdout: '# == dsh-git-worktree\n' }
+        return { stdout: '# == dsh-git-workspace\n' }
       }
       return { stdout: '' }
     }
@@ -516,6 +516,6 @@ describe('local DSH development workflow', () => {
       run: runner,
     })).toThrow('still references')
     expect(existsSync(oldArchive)).toBe(true)
-    expect(existsSync(join(cacheRoot, 'dsh-git-worktree-2000.tgz'))).toBe(true)
+    expect(existsSync(join(cacheRoot, 'dsh-git-workspace-2000.tgz'))).toBe(true)
   })
 })

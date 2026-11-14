@@ -153,7 +153,7 @@ export async function mountWorkspaceProviderLifecycle(
           else await entry.refresh()
         })()
     } catch (error) {
-      ctx.logger.warn(`dsh-git-worktree: ${label} threw during Loader reconciliation`, error)
+      ctx.logger.warn(`dsh-git-workspace: ${label} threw during Loader reconciliation`, error)
       resolve()
       return
     }
@@ -162,7 +162,7 @@ export async function mountWorkspaceProviderLifecycle(
     void operation.then(settle, settle)
     const timer = setTimeout(() => {
       ctx.logger.warn(
-        `dsh-git-worktree: ${label} did not settle within ${String(operationTimeoutMs)}ms; `
+        `dsh-git-workspace: ${label} did not settle within ${String(operationTimeoutMs)}ms; `
         + 'plugin activation continues and election retries on the next Loader event.',
       )
       resolve()
@@ -173,7 +173,7 @@ export async function mountWorkspaceProviderLifecycle(
       error => {
         clearTimeout(timer)
         settle()
-        ctx.logger.warn(`dsh-git-worktree: ${label} failed during Loader reconciliation`, error)
+        ctx.logger.warn(`dsh-git-workspace: ${label} failed during Loader reconciliation`, error)
         resolve()
       },
     )
@@ -187,7 +187,7 @@ export async function mountWorkspaceProviderLifecycle(
         try {
           disabled = entry.disabled
         } catch (error) {
-          ctx.logger.warn('dsh-git-worktree: could not read the official Workspace disabled state', error)
+          ctx.logger.warn('dsh-git-workspace: could not read the official Workspace disabled state', error)
           continue
         }
         if (!disabled) {
@@ -304,7 +304,7 @@ export async function mountWorkspaceProviderLifecycle(
     }
   }
   if (!takeover) {
-    ctx.logger.warn('dsh-git-worktree: the official Workspace entry could not be disabled through Loader operations; falling back to decorated coexistence.')
+    ctx.logger.warn('dsh-git-workspace: the official Workspace entry could not be disabled through Loader operations; falling back to decorated coexistence.')
   }
   return { officialWorkspaceActive: !takeover }
 }

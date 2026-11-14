@@ -1,12 +1,12 @@
 import { ProjectSkillStore } from './adapters/project-skills.js'
 import { mountProjectSkillProvider } from './adapters/project-skill-provider.js'
 /**
- * dsh-git-worktree plugin entry. The session-checkout domain (state machine,
+ * dsh-git-workspace plugin entry. The session-checkout domain (state machine,
  * apply engine, ports) is Domi-ported and host-agnostic; this file is the DSH
  * plugin face: exports the domain error type and module contract, builds the
  * DSH adapters, mounts the state machine, and registers safe model tools,
  * human `/worktree` acceptance commands, and Session Target runtime context.
- * @module dsh-git-worktree
+ * @module dsh-git-workspace
  */
 
 import type { Context } from '@deepseek-ai/cordis'
@@ -338,7 +338,7 @@ function volatile<T>(schema: T): T {
 export const Config = z.object({
   /**
    * Plugin state directory (registry, disabled-hooks root). Defaults to
-   * `$DSH_HOME/plugins/dsh-git-worktree` (`~/.dsh` when `DSH_HOME` is unset).
+   * `$DSH_HOME/plugins/dsh-git-workspace` (`~/.dsh` when `DSH_HOME` is unset).
    * The property is optional by construction (schemastery object properties
    * are optional inputs).
    */
@@ -347,7 +347,7 @@ export const Config = z.object({
   // the plugin: values arrive as live references and are read on every use.
   gitTimeoutMs: volatile(z.number().min(1_000).max(MAX_GIT_TIMEOUT_MS).step(1).default(DEFAULT_GIT_TIMEOUT_MS)),
   worktreeAddTimeoutMs: volatile(z.number().min(1_000).max(MAX_GIT_TIMEOUT_MS).step(1).default(300_000)),
-  // --- Local adaptation (dsh-git-worktree-local) ---
+  // --- Local adaptation (dsh-git-workspace-local) ---
   /**
    * Agent-autonomous delivery: the Working-state guidance steers the model to
    * worktree_deliver, which commits, (optionally) pushes and cleans up without
@@ -397,7 +397,7 @@ interface LocalAdaptationConfig {
 function resolveStateDir(config: { stateDir?: string }): string {
   if (config.stateDir) return resolve(config.stateDir)
   const home = process.env.DSH_HOME?.trim() || join(homedir(), '.dsh')
-  return join(home, 'plugins', 'dsh-git-worktree')
+  return join(home, 'plugins', 'dsh-git-workspace')
 }
 
 const RETENTION_MAINTENANCE_INTERVAL_MS = 15 * 60 * 1000
@@ -475,21 +475,21 @@ export async function apply(ctx: Context, config: { stateDir?: string } & GitTim
       .then((summary) => {
         if (summary.staleRootCheckoutIds.length > 0) {
           console.warn(
-            '[dsh-git-worktree] worktrees whose local root vanished (repository likely moved):',
+            '[dsh-git-workspace] worktrees whose local root vanished (repository likely moved):',
             summary.staleRootCheckoutIds.join(', '),
           )
         }
       })
       .then(() => module.enforceWorktreeKeepCount())
       .catch((error) => {
-        console.warn('[dsh-git-worktree] reconcile failed:', error)
+        console.warn('[dsh-git-workspace] reconcile failed:', error)
       })
   })
   const retentionTimer = setInterval(() => {
     void module.cleanupExpiredRetained()
       .then(() => module.enforceWorktreeKeepCount())
       .catch((error) => {
-        console.warn('[dsh-git-worktree] retained worktree maintenance failed:', error)
+        console.warn('[dsh-git-workspace] retained worktree maintenance failed:', error)
       })
   }, RETENTION_MAINTENANCE_INTERVAL_MS)
   retentionTimer.unref?.()
@@ -499,11 +499,11 @@ export async function apply(ctx: Context, config: { stateDir?: string } & GitTim
       .then((results) => {
         const names = results.flatMap((result) => result.pruned.map((entry) => entry.name))
         if (names.length > 0) {
-          console.info('[dsh-git-worktree] auto-pruned merged branches older than 7d:', names.join(', '))
+          console.info('[dsh-git-workspace] auto-pruned merged branches older than 7d:', names.join(', '))
         }
       })
       .catch((error) => {
-        console.warn('[dsh-git-worktree] auto-prune sweep failed:', error)
+        console.warn('[dsh-git-workspace] auto-prune sweep failed:', error)
       })
   }
   const autoPruneFirstRun = setTimeout(autoPruneSweep, AUTO_PRUNE_FIRST_RUN_DELAY_MS)

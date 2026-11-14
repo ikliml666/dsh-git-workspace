@@ -1,10 +1,10 @@
 /**
- * Type surface for dsh-git-worktree, ported from Domi's session-checkout
+ * Type surface for dsh-git-workspace, ported from Domi's session-checkout
  * domain (`@proma/shared` types/session-target.ts). The plugin keeps Domi's
  * Local preview/rollback/finalize lifecycle while omitting collaborator and
  * Electron-only surfaces. Harness transport and Session separation live above
  * this host-agnostic state machine.
- * @module dsh-git-worktree/types
+ * @module dsh-git-workspace/types
  */
 
 /** Stable session-target reference in the durable layer. Paths and branches are not checkout identity. */

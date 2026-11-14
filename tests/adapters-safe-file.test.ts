@@ -6,7 +6,7 @@ import { readJsonFileSafe, withFileLock, writeJsonFileAtomic, writeTextFileAtomi
 
 const dirs: string[] = []
 function scratch(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'dsh-git-worktree-safe-file-'))
+  const dir = mkdtempSync(join(tmpdir(), 'dsh-git-workspace-safe-file-'))
   dirs.push(dir)
   return dir
 }

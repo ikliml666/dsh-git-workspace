@@ -8,7 +8,7 @@ import { hostRegistrationMessage } from './i18n/host-messages.js'
  * while the autoDeliver setting is off — delivery then goes through
  * worktree_ready_for_review plus the human acceptance bar. Discard/Remove
  * remain human commands surfaced by the client ToolView.
- * @module dsh-git-worktree/tools
+ * @module dsh-git-workspace/tools
  */
 
 import type { Context } from '@deepseek-ai/cordis'
@@ -66,7 +66,7 @@ async function leaveCheckoutBeforeRemoval(
     await port.leave(agent, roots.managedRoot, roots.localRoot)
     return undefined
   } catch (error) {
-    console.warn('[dsh-git-worktree] could not restore the Session cwd before removal:', error)
+    console.warn('[dsh-git-workspace] could not restore the Session cwd before removal:', error)
     return error instanceof Error ? error.message : String(error)
   }
 }
@@ -98,7 +98,7 @@ async function enterCheckout(
     const cwd = await port.enter(agent, managedRoot)
     return cwd === undefined ? {} : { cwd }
   } catch (error) {
-    console.warn('[dsh-git-worktree] could not move this Session into the Worktree:', error)
+    console.warn('[dsh-git-workspace] could not move this Session into the Worktree:', error)
     return { failure: error instanceof Error ? error.message : String(error) }
   }
 }

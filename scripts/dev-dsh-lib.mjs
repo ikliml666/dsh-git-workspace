@@ -14,9 +14,9 @@ import {
 import { homedir, tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 
-const FIXTURE_MARKER = '.dsh-git-worktree-fixture.json'
+const FIXTURE_MARKER = '.dsh-git-workspace-fixture.json'
 const FIXTURE_IDENTITY = Object.freeze({
-  owner: 'dsh-git-worktree',
+  owner: 'dsh-git-workspace',
   schemaVersion: 1,
 })
 const MODES = new Set(['run', 'install', 'remove', 'smoke'])
@@ -25,7 +25,7 @@ const MODES = new Set(['run', 'install', 'remove', 'smoke'])
 export function devCacheRoot(environment = process.env) {
   return environment.DSH_HOME
     ? join(resolve(environment.DSH_HOME), 'dev-dsh-cache')
-    : join(tmpdir(), 'dsh-git-worktree-dev')
+    : join(tmpdir(), 'dsh-git-workspace-dev')
 }
 
 export function createDefaultOptions(projectRoot, cacheRoot, isolated = false) {
@@ -163,7 +163,7 @@ export function ensureDevFixture(repoPath, options) {
     } else {
       const markerPath = join(absolute, FIXTURE_MARKER)
       if (!existsSync(markerPath)) {
-        throw new Error(`Fixture path ${absolute} is not managed by dsh-git-worktree; existing bytes were left untouched.`)
+        throw new Error(`Fixture path ${absolute} is not managed by dsh-git-workspace; existing bytes were left untouched.`)
       }
       let marker
       try {
@@ -364,9 +364,9 @@ function archiveReferenceFromManifest(manifestPath, required = false) {
     return undefined
   }
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
-  const specifier = manifest.dependencies?.['dsh-git-worktree']
+  const specifier = manifest.dependencies?.['dsh-git-workspace']
   if (typeof specifier !== 'string' || !specifier.startsWith('file:')) {
-    if (required) throw new Error('DSH profile did not record dsh-git-worktree as a local file dependency.')
+    if (required) throw new Error('DSH profile did not record dsh-git-workspace as a local file dependency.')
     return undefined
   }
   let filePath
@@ -410,7 +410,7 @@ function cleanSupersededArchives(cacheRoot, keepPath, options) {
   const preserved = referencedProfileArchives(options)
   preserved.add(comparablePath(keepPath))
   for (const entry of readdirSync(cacheRoot)) {
-    if (!/^dsh-git-worktree-\d+\.tgz$/.test(entry)) continue
+    if (!/^dsh-git-workspace-\d+\.tgz$/.test(entry)) continue
     const candidate = join(cacheRoot, entry)
     if (!preserved.has(comparablePath(candidate))) rmSync(candidate, { force: true })
   }
@@ -420,7 +420,7 @@ function repairMissingCurrentProfileArchive(options, archivePath) {
   const previous = archiveReferenceFromManifest(profileManifestOf(options))
   if (previous === undefined || existsSync(previous)) return
   const managedCache = comparablePath(dirname(previous)) === comparablePath(options.cacheRoot)
-    && /^dsh-git-worktree-\d+\.tgz$/.test(previous.split(/[\\/]/u).at(-1) ?? '')
+    && /^dsh-git-workspace-\d+\.tgz$/.test(previous.split(/[\\/]/u).at(-1) ?? '')
   if (!managedCache) {
     throw new Error(`DSH profile references missing local archive outside the managed cache: ${previous}`)
   }
@@ -476,7 +476,7 @@ export function installLocalSnapshot(options) {
   run(pnpm, ['run', 'build'], { cwd: options.projectRoot })
 
   const snapshotId = options.now?.() ?? Date.now()
-  const archivePath = join(options.cacheRoot, `dsh-git-worktree-${snapshotId}.tgz`)
+  const archivePath = join(options.cacheRoot, `dsh-git-workspace-${snapshotId}.tgz`)
   const stagingRoot = join(options.cacheRoot, `.staging-${snapshotId}`)
   for (const entry of readdirSync(options.cacheRoot)) {
     if (/^\.staging-\d+$/.test(entry)) rmSync(join(options.cacheRoot, entry), { recursive: true, force: true })
@@ -520,8 +520,8 @@ export function installLocalSnapshot(options) {
     throw new Error(`DSH profile ${options.profile} still references ${referencedArchive}; preserving old and new archives for recovery.`)
   }
   const dump = runDsh(options, ['--profile', options.profile, '--dump-config'], { capture: true }).stdout
-  if (!dump.includes('dsh-git-worktree')) {
-    throw new Error(`Profile ${options.profile} installed the tarball but did not compose dsh-git-worktree.`)
+  if (!dump.includes('dsh-git-workspace')) {
+    throw new Error(`Profile ${options.profile} installed the tarball but did not compose dsh-git-workspace.`)
   }
   cleanSupersededArchives(options.cacheRoot, archivePath, options)
   return { archivePath, dumpConfig: dump }
@@ -529,10 +529,10 @@ export function installLocalSnapshot(options) {
 
 export function removeLocalSnapshot(options) {
   assertDshRuntimeAvailable(options)
-  runDsh(options, ['plugin', '--profile', options.profile, 'remove', 'dsh-git-worktree'])
+  runDsh(options, ['plugin', '--profile', options.profile, 'remove', 'dsh-git-workspace'])
   if (existsSync(options.cacheRoot)) {
     for (const entry of readdirSync(options.cacheRoot)) {
-      if (/^dsh-git-worktree-\d+\.tgz$/.test(entry)) rmSync(join(options.cacheRoot, entry), { force: true })
+      if (/^dsh-git-workspace-\d+\.tgz$/.test(entry)) rmSync(join(options.cacheRoot, entry), { force: true })
     }
   }
 }
@@ -540,8 +540,8 @@ export function removeLocalSnapshot(options) {
 export function smokeLocalSnapshot(options) {
   assertDshRuntimeAvailable(options)
   const dump = runDsh(options, ['--profile', options.profile, '--dump-config'], { capture: true }).stdout
-  if (!dump.includes('dsh-git-worktree')) {
-    throw new Error(`Profile ${options.profile} does not compose dsh-git-worktree.`)
+  if (!dump.includes('dsh-git-workspace')) {
+    throw new Error(`Profile ${options.profile} does not compose dsh-git-workspace.`)
   }
   return dump
 }

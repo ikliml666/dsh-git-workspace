@@ -4,7 +4,7 @@
  * the DSH adapters (subprocess-backed git, plugin-owned registry storage,
  * session/workspace lookup) live behind them so the state machine and apply
  * engine stay host-agnostic and testable with fakes.
- * @module dsh-git-worktree/ports
+ * @module dsh-git-workspace/ports
  */
 
 import type {

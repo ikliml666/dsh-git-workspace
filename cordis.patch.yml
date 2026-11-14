@@ -10,5 +10,5 @@
 # 中若仍保留旧表达式，会被生命周期识别并替换。
 
 - insert:
-    - id: dsh-git-worktree
-      name: dsh-git-worktree
+    - id: dsh-git-workspace
+      name: dsh-git-workspace

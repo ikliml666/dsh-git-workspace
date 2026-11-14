@@ -20,10 +20,10 @@ import {
   RESOLVED_ALPHA_WORKSPACE_VIRTUAL_ID,
 } from './scripts/workspace-sidebar-upstream-alpha.mjs'
 
-const CLIENT_PLUGIN_ID = 'dsh-git-worktree'
+const CLIENT_PLUGIN_ID = 'dsh-git-workspace'
 
 export default defineConfig({
-  name: 'dsh-git-worktree-client',
+  name: 'dsh-git-workspace-client',
   entry: { client: 'src/client/console-remote/index.ts' },
   outDir: 'lib',
   format: 'cjs',

@@ -1,5 +1,5 @@
 {
-  "name": "dsh-git-worktree",
+  "name": "dsh-git-workspace",
   "version": "0.16.0",
   "description": "Experimental Git worktree Session Targets for DeepSeek Harness with isolated sessions, review checkpoints, human-confirmed delivery, and safe recovery.",
   "type": "module",
@@ -58,12 +58,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/wloops/dsh-git-worktree.git"
+    "url": "git+https://github.com/wloops/dsh-git-workspace.git"
   },
   "bugs": {
-    "url": "https://github.com/wloops/dsh-git-worktree/issues"
+    "url": "https://github.com/wloops/dsh-git-workspace/issues"
   },
-  "homepage": "https://github.com/wloops/dsh-git-worktree#readme",
+  "homepage": "https://github.com/wloops/dsh-git-workspace#readme",
   "engines": {
     "node": ">=24.9.0"
   },

@@ -74,7 +74,7 @@ describe.each(variants)('$name sidebar Worktree state presentation', variant => 
     const { row, container } = renderRow(Row, 'working', running)
     // Upstream 594298b hid the working badge; this fork shows it, because a
     // running task is exactly when the row needs to say what it is doing.
-    const badge = row.querySelector('.dsh-git-worktree-sidebar-badge')
+    const badge = row.querySelector('.dsh-git-workspace-sidebar-badge')
     expect(badge?.getAttribute('data-worktree-state')).toBe('working')
     expect(badge?.textContent).toBe('进行中')
     expect(row.querySelector('[data-icon^="IconBranchOutline"]')).not.toBeNull()
@@ -90,13 +90,13 @@ describe.each(variants)('$name sidebar Worktree state presentation', variant => 
   })
   test.each(Object.keys(labels) as TaskState[])('keeps the %s badge unchanged', state => {
     const { row } = renderRow(Row, state)
-    const badge = row.querySelector('.dsh-git-worktree-sidebar-badge')!
+    const badge = row.querySelector('.dsh-git-workspace-sidebar-badge')!
     expect(badge?.getAttribute('data-worktree-state')).toBe(state)
     expect(badge?.textContent).toBe(labels[state])
   })
   test('does not decorate an ordinary Session', () => {
     const { row } = renderRow(Row)
-    expect(row.querySelector('.dsh-git-worktree-sidebar-badge')).toBeNull()
+    expect(row.querySelector('.dsh-git-workspace-sidebar-badge')).toBeNull()
     expect(row.querySelector('[data-icon^="IconBranchOutline"]')).toBeNull()
     expect(row.textContent).toContain('原有会话标题')
   })

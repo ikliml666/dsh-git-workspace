@@ -12,7 +12,7 @@ const B = 'b'.repeat(40)
 
 const dirs: string[] = []
 function scratch(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'dsh-git-worktree-registry-'))
+  const dir = mkdtempSync(join(tmpdir(), 'dsh-git-workspace-registry-'))
   dirs.push(dir)
   return dir
 }

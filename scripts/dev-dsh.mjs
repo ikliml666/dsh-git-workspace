@@ -24,7 +24,7 @@ const defaults = {
 }
 
 function printUsage() {
-  console.log(`dsh-git-worktree local development
+  console.log(`dsh-git-workspace local development
 
 Usage:
   pnpm run dev:dsh -- [--profile web] [--repo <git-root>] [--port 3081] [--harness <path>]
@@ -63,10 +63,10 @@ try {
       console.log(`Archive retained for profile reproducibility: ${installed.archivePath}`)
     } else if (options.mode === 'smoke') {
       smokeLocalSnapshot(runtime)
-      console.log(`Profile "${options.profile}" composes dsh-git-worktree.`)
+      console.log(`Profile "${options.profile}" composes dsh-git-workspace.`)
     } else if (options.mode === 'remove') {
       removeLocalSnapshot({ ...runtime, cacheRoot })
-      console.log(`Removed dsh-git-worktree from profile "${options.profile}" and cleared local archives.`)
+      console.log(`Removed dsh-git-workspace from profile "${options.profile}" and cleared local archives.`)
     } else {
       const installed = installLocalSnapshot({
         ...runtime,

@@ -68,7 +68,7 @@ git push origin v<版本>
 gh release create v<版本> --title "v<版本>" --notes-file <release-notes.md>
 ```
 
-每个新 Tag 必须附带可读的多行版本说明，不能只写 `v<版本>` 或 `dsh-git-worktree v<版本>`。说明从对应 Changelog 条目提炼，至少包含：版本目的或根因、主要更新、兼容/迁移注意事项、验证摘要和 npm 发布状态。由于 GitHub Tags 列表不会清楚展示 annotated tag message，还必须为新 Tag 创建 GitHub Release，使说明在仓库 Releases 页面可见。
+每个新 Tag 必须附带可读的多行版本说明，不能只写 `v<版本>` 或 `dsh-git-workspace v<版本>`。说明从对应 Changelog 条目提炼，至少包含：版本目的或根因、主要更新、兼容/迁移注意事项、验证摘要和 npm 发布状态。由于 GitHub Tags 列表不会清楚展示 annotated tag message，还必须为新 Tag 创建 GitHub Release，使说明在仓库 Releases 页面可见。
 
 当前 release branch 是 `master`，CI 同时监听 `master` 与 `main`。不要在脏工作区创建 release tag；不要依赖未提交的 `prepare` 修复；branch CI 未通过时不得 tag 或 publish。已存在的 Tag 不为补说明而强制移动或覆盖；本规则从后续新 Tag 开始执行。
 
@@ -78,18 +78,18 @@ gh release create v<版本> --title "v<版本>" --notes-file <release-notes.md>
 npm publish
 ```
 
-`prepublishOnly` 会重跑 build、clean-tree publish gate 与 tests。发布前必须确认 npm 身份有效且目标版本尚未占用。pnpm >= 10 的 Git 安装需要 profile `allowBuilds` 允许 `dsh-git-worktree` 的 `prepare`。发布失败时保留已经推送的 release commit/tag 并报告；不得移动或覆盖 tag。
+`prepublishOnly` 会重跑 build、clean-tree publish gate 与 tests。发布前必须确认 npm 身份有效且目标版本尚未占用。pnpm >= 10 的 Git 安装需要 profile `allowBuilds` 允许 `dsh-git-workspace` 的 `prepare`。发布失败时保留已经推送的 release commit/tag 并报告；不得移动或覆盖 tag。
 
 ## 5. 发布后真实安装
 
 ```bash
-dsh plugin --profile <scratch> add dsh-git-worktree@<版本>
+dsh plugin --profile <scratch> add dsh-git-workspace@<版本>
 dsh --profile <scratch>
 ```
 
 确认：
 
-- profile bundle rows 含 `dsh-git-worktree`；
+- profile bundle rows 含 `dsh-git-workspace`；
 - Host 启动无 missing inject/export 错误；
 - Web Client 加载 `./client`，Create/Review ToolView 不是 generic card；
 - 聚合侧边栏中正常 Managed UUID Workspace 消失，owner 行显示 Branch Icon 与状态 Badge，约 240px 窄侧栏仍可识别；

@@ -20,37 +20,37 @@ describe('managed worktree path', () => {
 
   test('物理目录只包含可信仓库名、Checkout 短 ID 和 worktree 后缀', () => {
     expect(createManagedWorktreeDirectoryName({
-      repositoryName: 'dsh-git-worktree',
+      repositoryName: 'dsh-git-workspace',
       checkoutId: '85846a61-4a12-41cf-8ecc-1e3f2fef7e40',
-    })).toBe('dsh-git-worktree--85846a61--worktree')
+    })).toBe('dsh-git-workspace--85846a61--worktree')
   })
 
   test('短 ID 路径冲突时可以确定性扩展到更长 identity', () => {
     expect(createManagedWorktreeDirectoryName({
-      repositoryName: 'dsh-git-worktree',
+      repositoryName: 'dsh-git-workspace',
       checkoutId: '85846a61-4a12-41cf-8ecc-1e3f2fef7e40',
       identityLength: 12,
-    })).toBe('dsh-git-worktree--85846a614a12--worktree')
+    })).toBe('dsh-git-workspace--85846a614a12--worktree')
     expect(createManagedWorktreeDirectoryName({
-      repositoryName: 'dsh-git-worktree',
+      repositoryName: 'dsh-git-workspace',
       checkoutId: '85846a61-4a12-41cf-8ecc-1e3f2fef7e40',
       identityLength: 32,
-    })).toBe('dsh-git-worktree--85846a614a1241cf8ecc1e3f2fef7e40--worktree')
+    })).toBe('dsh-git-workspace--85846a614a1241cf8ecc1e3f2fef7e40--worktree')
   })
 
   test('候选路径集中到仓库同级容器，并在插件 worktrees 根按仓库 key 回退', () => {
     const candidates = createManagedWorktreePathCandidates({
-      localGitRoot: join('D:', 'workspace', 'dsh-git-worktree'),
-      managedCheckoutsRoot: join('C:', 'Users', 'A', '.dsh', 'plugins', 'dsh-git-worktree'),
+      localGitRoot: join('D:', 'workspace', 'dsh-git-workspace'),
+      managedCheckoutsRoot: join('C:', 'Users', 'A', '.dsh', 'plugins', 'dsh-git-workspace'),
       repositoryKey: '345d83347b',
       checkoutId: '85846a61-4a12-41cf-8ecc-1e3f2fef7e40',
     })
 
-    const directoryName = 'dsh-git-worktree--85846a61--worktree'
-    expect(candidates.siblingContainer).toBe(join('D:', 'workspace', 'dsh-git-worktree--worktrees'))
-    expect(candidates.siblingRoot).toBe(join('D:', 'workspace', 'dsh-git-worktree--worktrees', directoryName))
+    const directoryName = 'dsh-git-workspace--85846a61--worktree'
+    expect(candidates.siblingContainer).toBe(join('D:', 'workspace', 'dsh-git-workspace--worktrees'))
+    expect(candidates.siblingRoot).toBe(join('D:', 'workspace', 'dsh-git-workspace--worktrees', directoryName))
     expect(candidates.fallbackRoot).toBe(join(
-      'C:', 'Users', 'A', '.dsh', 'plugins', 'dsh-git-worktree', 'worktrees', '345d83347b', directoryName,
+      'C:', 'Users', 'A', '.dsh', 'plugins', 'dsh-git-workspace', 'worktrees', '345d83347b', directoryName,
     ))
   })
 
@@ -62,13 +62,13 @@ describe('managed worktree path', () => {
 
   test('未配置 worktreesRoot 时保持上游同级容器 + 状态目录回退行为', () => {
     const candidates = createManagedWorktreePathCandidates({
-      localGitRoot: join('D:', 'workspace', 'dsh-git-worktree'),
+      localGitRoot: join('D:', 'workspace', 'dsh-git-workspace'),
       managedCheckoutsRoot: join('C:', 'Users', 'A', '.dsh'),
       repositoryKey: '345d83347b',
       checkoutId: '85846a61-4a12-41cf-8ecc-1e3f2fef7e40',
       topic: '自动验收',
     })
-    expect(candidates.siblingContainer).toBe(join('D:', 'workspace', 'dsh-git-worktree--worktrees'))
-    expect(candidates.siblingRoot).toBe(join('D:', 'workspace', 'dsh-git-worktree--worktrees', 'dsh-git-worktree--85846a61--worktree'))
+    expect(candidates.siblingContainer).toBe(join('D:', 'workspace', 'dsh-git-workspace--worktrees'))
+    expect(candidates.siblingRoot).toBe(join('D:', 'workspace', 'dsh-git-workspace--worktrees', 'dsh-git-workspace--85846a61--worktree'))
   })
 })

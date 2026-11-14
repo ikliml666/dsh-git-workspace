@@ -1,4 +1,4 @@
-# dsh-git-worktree 使用指南
+# dsh-git-workspace 使用指南
 
 本指南说明日常操作、恢复场景、命令和常见问题。底层状态机、CAS 与权限不变量见 [Worktree Console 架构](WORKTREE-CONSOLE-ARCHITECTURE.md)。
 
@@ -32,7 +32,7 @@ stateDiagram-v2
 
 Windows 下，插件发起的 Git 命令自动启用命令级 `core.longpaths=true`，覆盖创建、检出、状态检查以及验收和交付，避免 Worktree 路径前缀变长导致原仓库可检出、隔离目录却失败。不修改全局或仓库 Git 配置，也不自动跳过 LFS；LFS 服务拒绝访问仍需单独处理。
 
-在现有 `dsh-git-worktree` 插件配置中可设置（单位：毫秒）：
+在现有 `dsh-git-workspace` 插件配置中可设置（单位：毫秒）：
 
 | 配置 | 默认值 | 有效范围 |
 | --- | --- | --- |
@@ -205,20 +205,20 @@ Preview、Finalize、Discard 和 Remove 不属于普通模型工具，由用户�
 ### npm 安装
 
 ```bash
-dsh plugin --profile web add dsh-git-worktree
+dsh plugin --profile web add dsh-git-workspace
 ```
 
 ### Git tag 安装
 
 ```bash
-dsh plugin --profile web add github:wloops/dsh-git-worktree#v0.10.0
+dsh plugin --profile web add github:wloops/dsh-git-workspace#v0.10.0
 ```
 
 pnpm 10+ 如果阻止 Git dependency 执行 `prepare`，在 profile 的 `pnpm-workspace.yaml` 中加入：
 
 ```yaml
 allowBuilds:
-  dsh-git-worktree: true
+  dsh-git-workspace: true
 ```
 
 然后重新安装插件。
@@ -228,15 +228,15 @@ allowBuilds:
 Web 界面显示 **Failed to load plugins** 时，先检查错误详情和已安装版本：
 
 - 报错包含 `require("@deepseek-ai/dsh-client-runtime/client") missed the module table`：当前仍是 `0.7.2` 或更早版本，而 Harness `0.1.2-rc.1` 起已移除 `dsh-client-runtime`。
-- 报错显示 `dsh-git-worktree` 等待 `conversation`，同时官方 Conversation/Sidebar 等待 `uiWorkspace`：当前是 `0.7.3` 的 Client 启动循环依赖。
+- 报错显示 `dsh-git-workspace` 等待 `conversation`，同时官方 Conversation/Sidebar 等待 `uiWorkspace`：当前是 `0.7.3` 的 Client 启动循环依赖。
 
 上述启动环修复始于 `0.7.4`；请按插件线匹配 Host：DSH `0.2.x` 使用 `0.10.0`，DSH `0.1.x` 使用 `0.9.3`，详见[兼容矩阵](COMPATIBILITY.md#中文)。下方以 `0.10.0` 为安装示例，安装后重启 Harness：
 
 ```bash
-dsh plugin --profile web add dsh-git-worktree@0.10.0
+dsh plugin --profile web add dsh-git-workspace@0.10.0
 ```
 
-重装后先 `dsh plugin --profile web list` 确认版本，再重启 Harness。注意 pnpm 的供应链策略会推迟安装刚发布的版本：新版本发布后几天内，不带版本号的 `add` 可能仍解析到旧版。需要立即安装时，把精确版本加入 profile `pnpm-workspace.yaml` 已有的 `minimumReleaseAgeExclude` 列表（如 `- dsh-git-worktree@0.10.0`）后重新安装。
+重装后先 `dsh plugin --profile web list` 确认版本，再重启 Harness。注意 pnpm 的供应链策略会推迟安装刚发布的版本：新版本发布后几天内，不带版本号的 `add` 可能仍解析到旧版。需要立即安装时，把精确版本加入 profile `pnpm-workspace.yaml` 已有的 `minimumReleaseAgeExclude` 列表（如 `- dsh-git-workspace@0.10.0`）后重新安装。
 
 从 Git tag 安装的用户改用上方 Git tag 命令安装最新 tag 即可。如果版本确认无误仍报同样错误，说明上次安装时 `prepare` 构建被 pnpm 拦截，按上文加入 `allowBuilds` 后重新安装。
 
@@ -257,7 +257,7 @@ dsh plugin --profile web add dsh-git-worktree@0.10.0
 如果旧版插件禁用后出现 `waiting for service: uiWorkspace`，可先卸载插件并重启以恢复界面：
 
 ```bash
-dsh plugin --profile web remove dsh-git-worktree
+dsh plugin --profile web remove dsh-git-workspace
 ```
 
 如需继续使用，请安装包含此修复的版本。无需为了恢复界面删除会话历史或手工清空 Worktree registry。

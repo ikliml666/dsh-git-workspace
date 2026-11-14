@@ -1,11 +1,11 @@
 
 export const WORKTREE_STYLES = String.raw`
 /* Managed owner decoration inside the version/hash-gated official Workspace row. */
-.dsh-git-worktree-sidebar-icon,
-.dsh-git-worktree-sidebar-badge {
+.dsh-git-workspace-sidebar-icon,
+.dsh-git-workspace-sidebar-badge {
   flex: 0 0 auto;
 }
-.dsh-git-worktree-sidebar-icon {
+.dsh-git-workspace-sidebar-icon {
   width: 16px;
   height: 16px;
   display: inline-flex;
@@ -13,7 +13,7 @@ export const WORKTREE_STYLES = String.raw`
   justify-content: center;
   color: var(--dsw-alias-state-business-primary);
 }
-.dsh-git-worktree-sidebar-badge {
+.dsh-git-workspace-sidebar-badge {
   box-sizing: border-box;
   /* Wide enough for "state · branch"; the badge ellipsizes, the row title keeps the space. */
   max-width: 168px;
@@ -36,38 +36,38 @@ export const WORKTREE_STYLES = String.raw`
    status dots, and the trailing action span is display:none until hover. The
    row therefore carries no Worktree decoration at all — the top capsule names
    the target, and the hover card repeats it for the row it belongs to. */
-[role="treeitem"] > span .dsh-git-worktree-sidebar-icon,
-[role="treeitem"] > span .dsh-git-worktree-sidebar-badge {
+[role="treeitem"] > span .dsh-git-workspace-sidebar-icon,
+[role="treeitem"] > span .dsh-git-workspace-sidebar-badge {
   flex: 0 0 auto;
 }
-.dsh-git-worktree-sidebar-icon,
-.dsh-git-worktree-sidebar-badge[data-worktree-state="working"] {
+.dsh-git-workspace-sidebar-icon,
+.dsh-git-workspace-sidebar-badge[data-worktree-state="working"] {
   --dsh-wt-sidebar-accent: var(--dsw-alias-state-business-primary);
 }
-.dsh-git-worktree-sidebar-icon[data-worktree-state="ready_for_review"],
-.dsh-git-worktree-sidebar-badge[data-worktree-state="ready_for_review"] {
+.dsh-git-workspace-sidebar-icon[data-worktree-state="ready_for_review"],
+.dsh-git-workspace-sidebar-badge[data-worktree-state="ready_for_review"] {
   --dsh-wt-sidebar-accent: var(--dsw-alias-state-warn-label);
   color: var(--dsw-alias-state-warn-label);
 }
-.dsh-git-worktree-sidebar-icon[data-worktree-state="preview_active"],
-.dsh-git-worktree-sidebar-badge[data-worktree-state="preview_active"] {
+.dsh-git-workspace-sidebar-icon[data-worktree-state="preview_active"],
+.dsh-git-workspace-sidebar-badge[data-worktree-state="preview_active"] {
   --dsh-wt-sidebar-accent: color-mix(in srgb, var(--dsw-alias-state-business-primary) 68%, var(--dsw-alias-state-error-primary));
   color: var(--dsh-wt-sidebar-accent);
 }
-.dsh-git-worktree-sidebar-icon[data-worktree-state="preview_detached"],
-.dsh-git-worktree-sidebar-badge[data-worktree-state="preview_detached"],
-.dsh-git-worktree-sidebar-icon[data-worktree-state="recovery_required"],
-.dsh-git-worktree-sidebar-badge[data-worktree-state="recovery_required"] {
+.dsh-git-workspace-sidebar-icon[data-worktree-state="preview_detached"],
+.dsh-git-workspace-sidebar-badge[data-worktree-state="preview_detached"],
+.dsh-git-workspace-sidebar-icon[data-worktree-state="recovery_required"],
+.dsh-git-workspace-sidebar-badge[data-worktree-state="recovery_required"] {
   --dsh-wt-sidebar-accent: var(--dsw-alias-state-error-primary);
   color: var(--dsw-alias-state-error-primary);
 }
-.dsh-git-worktree-sidebar-icon[data-worktree-state="finalized"],
-.dsh-git-worktree-sidebar-badge[data-worktree-state="finalized"] {
+.dsh-git-workspace-sidebar-icon[data-worktree-state="finalized"],
+.dsh-git-workspace-sidebar-badge[data-worktree-state="finalized"] {
   --dsh-wt-sidebar-accent: var(--dsw-alias-state-success-primary);
   color: var(--dsw-alias-state-success-primary);
 }
-.dsh-git-worktree-sidebar-icon[data-worktree-state="discarded"],
-.dsh-git-worktree-sidebar-badge[data-worktree-state="discarded"] {
+.dsh-git-workspace-sidebar-icon[data-worktree-state="discarded"],
+.dsh-git-workspace-sidebar-badge[data-worktree-state="discarded"] {
   --dsh-wt-sidebar-accent: var(--dsw-alias-label-tertiary);
   color: var(--dsw-alias-label-tertiary);
 }

@@ -3,7 +3,7 @@ import { hostRegistrationMessage } from './i18n/host-messages.js'
 /**
  * `/worktree` human command surface. Destructive verbs are intentionally
  * user-initiated; model tools stop at Ready for Review.
- * @module dsh-git-worktree/commands
+ * @module dsh-git-workspace/commands
  */
 
 import type { Context } from '@deepseek-ai/cordis'
@@ -55,7 +55,7 @@ export function registerWorktreeCommand(ctx: Context, module: SessionCheckoutMod
       await workingDirectory.leave(agent, roots.managedRoot, roots.localRoot)
       return undefined
     } catch (error) {
-      console.warn('[dsh-git-worktree] could not restore the Session cwd before removal:', error)
+      console.warn('[dsh-git-workspace] could not restore the Session cwd before removal:', error)
       return error instanceof Error ? error.message : String(error)
     }
   }
@@ -70,7 +70,7 @@ export function registerWorktreeCommand(ctx: Context, module: SessionCheckoutMod
       const cwd = await workingDirectory.enter(agent, managedRoot)
       return cwd === undefined ? {} : { cwd }
     } catch (error) {
-      console.warn('[dsh-git-worktree] could not move this Session into the Worktree:', error)
+      console.warn('[dsh-git-workspace] could not move this Session into the Worktree:', error)
       return { failure: error instanceof Error ? error.message : String(error) }
     }
   }

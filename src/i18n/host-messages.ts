@@ -1894,12 +1894,12 @@ export const hostMessages = {
     "en": "The Worktree record was lost before cleanup. Cleanup was not performed."
   },
   "cleanupQuarantineBusy": {
-    "zh": "Worktree 已安全移入 quarantine，但目录仍被进程占用；dsh-git-worktree 会在同一清理授权内有限重试。",
-    "en": "Worktree was safely moved into quarantine, but a process still holds the directory. dsh-git-worktree will retry a limited number of times under the same cleanup authorization."
+    "zh": "Worktree 已安全移入 quarantine，但目录仍被进程占用；dsh-git-workspace 会在同一清理授权内有限重试。",
+    "en": "Worktree was safely moved into quarantine, but a process still holds the directory. dsh-git-workspace will retry a limited number of times under the same cleanup authorization."
   },
   "cleanupDirectoryBusy": {
-    "zh": "Worktree 目录仍被进程占用或 Windows 暂时拒绝删除；dsh-git-worktree 已完成有限重试，可稍后重试清理。",
-    "en": "A process still holds the Worktree directory or Windows temporarily denied deletion. dsh-git-worktree has completed its limited retries. Retry cleanup later."
+    "zh": "Worktree 目录仍被进程占用或 Windows 暂时拒绝删除；dsh-git-workspace 已完成有限重试，可稍后重试清理。",
+    "en": "A process still holds the Worktree directory or Windows temporarily denied deletion. dsh-git-workspace has completed its limited retries. Retry cleanup later."
   },
   "cleanupBusyHint": {
     "zh": "排查占用：资源监视器（resmon）→ CPU → 关联的句柄，搜索 {p0}；或安装 Sysinternals handle.exe 后执行 handle.exe {p0}。",
