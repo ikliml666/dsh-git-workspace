@@ -3,12 +3,12 @@
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
     "baseCommit": "a5ac5082661c410657502bc7f2264a69688c91c1",
-    "headCommit": "d1b4732d1f569d15a4fc0eea7a397f0b72a98ef6"
+    "headCommit": "1b551cc63d9ed59be4d64f77a3834d5c8b41cdaa"
   },
   "pendingChanges": {
     "state": "ok",
     "baseCommit": "a5ac5082661c410657502bc7f2264a69688c91c1",
-    "headCommit": "d1b4732d1f569d15a4fc0eea7a397f0b72a98ef6",
+    "headCommit": "1b551cc63d9ed59be4d64f77a3834d5c8b41cdaa",
     "committed": [
       "CHANGELOG.md",
       "README.en.md",
@@ -37,11 +37,25 @@
       "tests/worktree-config.test.ts"
     ],
     "staged": [],
-    "unstaged": [],
+    "unstaged": [
+      "CHANGELOG.md",
+      "package.json",
+      "src/adapters/git.ts",
+      "src/console-host/control-plane.ts",
+      "src/i18n/host-messages.ts",
+      "src/index.ts",
+      "src/ports.ts",
+      "src/session-checkout-module.ts",
+      "src/session-target-context.ts",
+      "tests/console-host.test.ts",
+      "tests/session-checkout-module.test.ts"
+    ],
     "untracked": [
       "2026-11-12-experimental-forge-bundle-report.zh.md",
       "__pycache__/cut_helper.cpython-312.pyc",
-      "cut_helper.py"
+      "cut_helper.py",
+      "src/workspace-contention.ts",
+      "tests/workspace-contention.test.ts"
     ],
     "deleted": [],
     "renamed": [],
@@ -49,8 +63,21 @@
   },
   "unconsumed": [
     "2026-11-12-experimental-forge-bundle-report.zh.md",
+    "CHANGELOG.md",
     "__pycache__/cut_helper.cpython-312.pyc",
-    "cut_helper.py"
+    "cut_helper.py",
+    "package.json",
+    "src/adapters/git.ts",
+    "src/console-host/control-plane.ts",
+    "src/i18n/host-messages.ts",
+    "src/index.ts",
+    "src/ports.ts",
+    "src/session-checkout-module.ts",
+    "src/session-target-context.ts",
+    "src/workspace-contention.ts",
+    "tests/console-host.test.ts",
+    "tests/session-checkout-module.test.ts",
+    "tests/workspace-contention.test.ts"
   ],
   "engineVersion": "2.0.0",
   "scope": "auto",
@@ -68,12 +95,12 @@
     ],
     "overviewLinks": [],
     "attempts": 1,
-    "at": "2026-11-14T01:06:16.343Z"
+    "at": "2026-11-14T04:04:39.148Z"
   },
   "notes": [
     "产物缺页 5 个模块（session_checkout_engine_integration、session_checkout_integration_core、session_checkout_tools 等），转全量修复（复用已有页面）",
-    "工作区未提交改动已合成临时 commit f0fe78362458（3 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mwfpg09i-g-native（37 个文件）"
+    "工作区未提交改动已合成临时 commit b978c384a977（16 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mwfvi8iz-3-native（37 个文件）"
   ],
-  "updatedAt": "2026-11-14T01:07:59.744Z"
+  "updatedAt": "2026-11-14T04:06:58.654Z"
 }
