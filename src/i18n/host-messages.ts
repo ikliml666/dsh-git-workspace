@@ -1209,8 +1209,8 @@ export const hostMessages = {
     "en": "Trial-merge in a throwaway worktree without touching Local (preview with true first)."
   },
   "worktreeForceCleanupDescription": {
-    "zh": "目录身份已失效（.git 不在）时的显式清理。只处理已交付、目录还在、已经不是 Git worktree 的记录：默认把目录移到同级的隔离路径，或按 discard 删除。两种模式都写进台账留痕；仍有 .git 的记录请用 worktree_cleanup。",
-    "en": "Explicit cleanup for a delivered directory whose Git identity is gone (.git missing). Defaults to moving it beside itself as a quarantine; discard removes it. Both leave a record; directories that still have .git belong to worktree_cleanup."
+    "zh": "普通 worktree_cleanup 反复清不掉时的显式出口：处理已交付（finalized/retained）、但目录身份已失效（.git 指针损坏、Git 注册表里已没有这条 worktree）的记录。目录里仍有 .git 也照做——先移走或删除目录，再 prune 掉 Git 注册表里的悬空条目；目录已经不在时直接结账。默认把目录移到同级的隔离路径，或按 discard 删除，两种模式都写进台账留痕。",
+    "en": "Explicit exit when ordinary worktree_cleanup keeps failing: handles delivered (finalized/retained) records whose directory identity no longer validates (.git pointer broken, worktree no longer registered in Git). A directory that still has .git is accepted — it is moved or removed and the dangling Git registration pruned; a directory that is already gone settles the record directly. Defaults to moving it beside itself as a quarantine; discard removes it. Both leave a record."
   },
   "worktreeForceCleanupCheckoutId": { "zh": "要清理的 Worktree 记录 id。", "en": "Checkout record id to clean up." },
   "worktreeForceCleanupExpectedRevision": { "zh": "读取记录时的 revision，防止清理过期目标。", "en": "Record revision read earlier, so a stale target is never cleaned up." },
@@ -1220,14 +1220,7 @@ export const hostMessages = {
     "zh": "只有已交付（finalized/retained）的记录可以强制清理；工作中的 Worktree 请走普通清理。",
     "en": "Only delivered records (finalized/retained) can be force-cleaned; work in progress belongs to ordinary cleanup."
   },
-  "worktreeForceCleanupNoDirectory": {
-    "zh": "目录 {p0} 已不存在；直接再调一次 worktree_cleanup 就会解除登记。",
-    "en": "Directory {p0} no longer exists; calling worktree_cleanup again releases the record."
-  },
-  "worktreeForceCleanupStillWorktree": {
-    "zh": "目录里仍有 .git，说明它还是 Git worktree；请用 worktree_cleanup 走身份校验的清理。",
-    "en": "The directory still has .git, so it is still a Git worktree; use worktree_cleanup, which validates identity."
-  },
+
   "worktreeForceCleanupConfirmRequired": {
     "zh": "discard 会不可撤销地删除目录，请把 confirm 设为 \"{p0}\"。",
     "en": "discard deletes the directory irreversibly; set confirm to \"{p0}\"."
@@ -1916,9 +1909,13 @@ export const hostMessages = {
     "zh": "Worktree 的 Git 身份或路径已变化，未执行清理。目录已没有可校验的 .git 身份，记录本身仍可解除注册。",
     "en": "The Worktree Git identity or path has changed. Cleanup was not performed: the directory no longer carries a verifiable .git identity, while the record itself can still be released."
   },
-  "cleanupDeleteDirectoryHint": {
-    "zh": "确认目录内没有需要保留的文件后，删除 {p0} 再重试 worktree_cleanup；空目录会由插件直接收掉。",
-    "en": "Confirm nothing in {p0} needs to be kept, delete it, then retry worktree_cleanup; empty directories are reclaimed automatically."
+  "cleanupIdentityChangedForceHint": {
+    "zh": "Worktree 的 Git 身份已无法复核，普通清理无法继续。下一步：调用 worktree_force_cleanup（mode = \"quarantine\"）解除登记——它会一并清掉 Git 注册表里的悬空条目，目录已经不在时也能直接结账，不需要手动删除目录。",
+    "en": "The Worktree Git identity can no longer be verified, so ordinary cleanup cannot continue. Next: call worktree_force_cleanup (mode \"quarantine\") to release the record — it also prunes the dangling Git registration and settles the record even when the directory is already gone, so no manual deletion is needed."
+  },
+  "beginNextIterationCleanupHint": {
+    "zh": "上一轮的清理尚未完成：先调用 worktree_force_cleanup（checkoutId = \"{p0}\"，expectedRevision = {p1}，mode = \"quarantine\"），再重试本步骤。",
+    "en": "Cleanup of the previous iteration is still unfinished: call worktree_force_cleanup first (checkoutId \"{p0}\", expectedRevision {p1}, mode \"quarantine\"), then retry this step."
   },
   "commandConflict": {
     "zh": "冲突：{files}",
@@ -2001,7 +1998,7 @@ export function hostRegistrationMessage(key: keyof typeof hostMessages): string 
  * Keep their stored values unchanged; localize only their public projection.
  * This finite allowlist never interprets or rewrites third-party error text.
  */
-export const persistedCleanupKeys = ["cleanupIdentityChanged","cleanupIdentityChangedActionable","cleanupResidue","cleanupIncompleteDelivery","cleanupIncompleteReceipt","cleanupMissingBeforeQuarantine","cleanupQuarantineIdentity","cleanupNewChanges","cleanupMissingBeforeRemoval","cleanupQuarantineBusy","cleanupDirectoryBusy"] as const
+export const persistedCleanupKeys = ["cleanupIdentityChanged","cleanupIdentityChangedActionable","cleanupIdentityChangedForceHint","cleanupResidue","cleanupIncompleteDelivery","cleanupIncompleteReceipt","cleanupMissingBeforeQuarantine","cleanupQuarantineIdentity","cleanupNewChanges","cleanupMissingBeforeRemoval","cleanupQuarantineBusy","cleanupDirectoryBusy"] as const
 
 export type PersistedCleanupKey = typeof persistedCleanupKeys[number]
 

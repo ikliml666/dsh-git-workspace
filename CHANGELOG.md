@@ -25,6 +25,13 @@
 
 ### Added
 
+- 清理死锁的真正出口：force 接受滞留目录，阻塞文案指向它（2026-11-14）。目录还在、`.git` 指针也还在，但 Worktree 已从 Git 注册表里消失时，三条路互相堵死：`worktree_cleanup` 停在 `identity_changed`，`worktree_force_cleanup` 以「仍有 .git」拒绝，`worktree_begin_next_iteration` 又要求「已成功清理」，模型只能退回手工删目录。
+  - **cleanup 不再提前回放旧文案**：`managedRoot` 不在但 `managedGitRoot` 还在的记录，原先直接返回同一句 `identity_changed`，永远走不到真实校验。该分支删除，一律继续校验，由真实结论或显式出口决定终态。
+  - **force 成为通用出口**：不再因目录里仍有 `.git` 而拒绝——目录移走或删除后立刻 `git worktree prune`，清掉 Git 注册表里的悬空条目；目录已经不存在时不再报错，直接把台账推进到 `discarded`。
+  - **阻塞文案给出下一步**：cleanup 的身份失效说明改为持久化文案 `cleanupIdentityChangedForceHint`，工具回执、面板与之后的每次 retry 都指向 `worktree_force_cleanup`；begin 门禁的拒绝附上具体调用（checkoutId / revision / mode）。两者都不再要求调用方自己摸索「先删目录再重试」。
+  - **文案**：新增 `cleanupIdentityChangedForceHint`、`beginNextIterationCleanupHint`；删除不再使用的 `cleanupDeleteDirectoryHint`、`worktreeForceCleanupNoDirectory`、`worktreeForceCleanupStillWorktree`；`worktreeForceCleanupDescription` 重写。
+  - **测试**：`tests/session-checkout-module.test.ts` 新增三条（身份失效后 force 隔离结账、目录已删直接结账、清理阻塞时 begin 拒绝文案指向 force）。
+
 - `worktree_force_cleanup`：目录身份已失效时的显式出口（2026-11-12）。交付后目录被外部工具改成普通目录（`.git` 不在）时，普通 cleanup 只能停在 `identity_changed`，用户只能手工 `rm -rf` 再调一次。新工具只处理「已交付、目录还在、已经不是 Git worktree」的记录：默认 `quarantine` 把目录移到同级 `.dsh-wt-quarantine--<id>--<时间戳>`，内容不丢、可恢复；`discard` 需要 `confirm` 与 checkoutId 完全一致才删除。两种模式都在记录上写 `forcedCleanup` 留痕，`discard` 直接把 phase 推到 `discarded`。仍有 `.git` 的记录走 `worktree_cleanup` 的身份校验，这条路径不提供「跳过校验删任意目录」。
 
 - `worktree_merge` 支持指定目标分支（2026-11-12）：forward 方向原来只能合并到 Local 当前检出的分支，要合到别的分支只能先手工 `git switch`，而切换的守卫与冲突处理都在控制面里。新增 `targetBranch` 参数：合并前切到目标分支，切换失败（未提交改动、冲突、分支不存在、被其它 worktree 占用）原样报出结构化原因；`dryRun` 不移动 Local HEAD。回执的 `targetBranch` 一直是实际合并目标，现在它可以是调用方指定的那个。

@@ -196,6 +196,23 @@ function persistedCleanupReason(delivery: {
   return delivery.cleanupReason ?? (delivery.cleanupMessage ? cleanupReasonForMessage(delivery.cleanupMessage) : undefined)
 }
 
+/**
+ * Begin 门禁的拒绝文案。上一轮交付了却没清理完时，唯一能解开阻塞的是
+ * worktree_force_cleanup；把这条调用直接写进错误里，别让调用方去猜。
+ */
+function cleanupBlockedBeginMessage(record: {
+  checkoutId: string
+  revision: number
+  delivery: { state: string }
+}): string {
+  const base = hostMessage('onlyADeliveredStateWithSuccessfulCleanupCanBegin')
+  if (record.delivery.state !== 'finalized' && record.delivery.state !== 'retained') return base
+  return `${base} ${hostMessage('beginNextIterationCleanupHint', {
+    p0: record.checkoutId,
+    p1: String(record.revision),
+  })}`
+}
+
 function isTransientCleanupError(error: unknown): boolean {
   const code = typeof error === 'object' && error !== null && 'code' in error
     ? String((error as { code?: unknown }).code ?? '')
@@ -3150,6 +3167,9 @@ export function createSessionCheckoutModule(
       })
       return { cleaned: false, message: hostPersistedCleanupMessage(message, hostMessage, key), reason }
     }
+    // 身份一旦失效，普通清理没有第二条路。把 force 这个唯一出口写成持久化说明，
+    // 工具回执、面板与之后的每次 retry 都能看到同一句下一步，而不是一句死文案。
+    const identityChanged = () => block('cleanupIdentityChangedForceHint', 'identity_changed')
     if (record.delivery.state !== 'finalized' && record.delivery.state !== 'retained') {
       return block('cleanupIncompleteDelivery', 'directory_busy')
     }
@@ -3182,26 +3202,10 @@ export function createSessionCheckoutModule(
       })
       return { cleaned: true }
     }
-    if (
-      (record.delivery.state === 'finalized' || record.delivery.state === 'retained')
-      && record.delivery.cleanup === 'blocked'
-      && record.delivery.cleanupMessage
-      && persistedCleanupReason(record.delivery) === 'identity_changed'
-      && !dependencies.files.exists(record.managedRoot)
-    ) {
-      // 已经是身份变更阻塞：原文可能来自旧记录，只更新原因，不重写说明。
-      // 目录还在时不能提前返回：那样记录一旦被标成 blocked，之后无论目录变成
-      // 什么样都只回放旧文案，清理再没有出口。让流程继续做真实校验。
-      return {
-        cleaned: false,
-        message: hostPersistedCleanupMessage(
-          record.delivery.cleanupMessage,
-          hostMessage,
-          record.delivery.cleanupMessageKey,
-        ),
-        reason: 'identity_changed',
-      }
-    }
+    // 这里原先在 managedRoot 不在时直接回放旧文案。可 managedGitRoot 还在的记录
+    // 因此永远走不到下面的真实校验：cleanup 说「Git 身份已变化」，force 说「目录里
+    // 还有 .git」，begin 又要求已清理 —— 三条路互相堵死。现在一律继续做校验，由
+    // 真实结论（或 worktree_force_cleanup 这条显式出口）决定终态。
     if (hasLegacyCleanupResidueEvidence(record) && !options.allowLegacyResidue && dependencies.files.exists(record.managedGitRoot)) {
       return { cleaned: false, message: CLEANUP_RESIDUE_MESSAGE, reason: 'detached_residue' }
     }
@@ -3298,13 +3302,13 @@ export function createSessionCheckoutModule(
             }
           }
           const directoryIdentity = await dependencies.files.inspectDirectoryIdentity(validated.canonicalManagedGitRoot)
-          if (!directoryIdentity) return block('cleanupIdentityChanged', 'identity_changed')
+          if (!directoryIdentity) return identityChanged()
           const removing = beginRemoval(record, directoryIdentity)
           if (!removing) return block('cleanupMissingBeforeRemoval', 'directory_busy')
           await retryTransientCleanup(() => dependencies.git.removeWorktree(removing.localRoot, removing.managedGitRoot))
           if (dependencies.files.exists(removing.managedGitRoot)) {
             const residue = await validateDetachedCleanupResidue(removing)
-            if (!residue) return block('cleanupIdentityChanged', 'identity_changed')
+            if (!residue) return identityChanged()
             await quarantineAndRemove(removing, residue)
           }
         } else {
@@ -3316,18 +3320,12 @@ export function createSessionCheckoutModule(
             // 反复写进记录。
             const emptied = dependencies.files.exists(record.managedRoot)
               && dependencies.files.removeEmptyDirectoryTree(record.managedRoot)
-            if (!emptied) {
-              const blocked = block('cleanupIdentityChangedActionable', 'identity_changed')
-              return {
-                ...blocked,
-                message: `${blocked.message} ${hostMessage('cleanupDeleteDirectoryHint', { p0: record.managedRoot })}`,
-              }
-            }
+            if (!emptied) return identityChanged()
           } else {
             const removing = beginRemoval(record, residue.directoryIdentity)
             if (!removing) return block('cleanupMissingBeforeRemoval', 'directory_busy')
             const revalidatedResidue = await validateDetachedCleanupResidue(removing)
-            if (!revalidatedResidue) return block('cleanupIdentityChanged', 'identity_changed')
+            if (!revalidatedResidue) return identityChanged()
             await quarantineAndRemove(removing, revalidatedResidue)
           }
         }
@@ -4728,9 +4726,10 @@ export function createSessionCheckoutModule(
   }
 
   /**
-   * 目录身份已失效（.git 不在）时的显式清理。身份校验不做「跳过」：只处理
-   * 「已交付、目录还在、已经不是 worktree」的记录，且由调用方显式选择隔离
-   * 还是删除，两种模式都写留痕。
+   * 普通清理走不通时的显式出口。身份校验不做「跳过」：只处理已交付
+   * （finalized/retained）的记录，且由调用方显式选择隔离还是删除，两种模式
+   * 都写留痕。目录里仍有 .git、目录已经被手工删掉都接受 —— 那正是
+   * 「身份不可复核、cleanup 恒失败」的两种真实现场。
    */
   async function forceCleanupManagedWorktree(
     sessionId: string,
@@ -4749,65 +4748,79 @@ export function createSessionCheckoutModule(
       throw new SessionCheckoutError('invalid_input', hostMessage('worktreeForceCleanupRequiresDelivered'))
     }
     const target = dependencies.files.exists(record.managedGitRoot) ? record.managedGitRoot : record.managedRoot
-    if (!dependencies.files.exists(target)) {
-      throw new SessionCheckoutError('invalid_input', hostMessage('worktreeForceCleanupNoDirectory', { p0: record.managedRoot }))
-    }
-    if (dependencies.files.exists(join(target, '.git'))) {
-      throw new SessionCheckoutError('invalid_input', hostMessage('worktreeForceCleanupStillWorktree'))
-    }
     const mode = input.mode === 'discard' ? 'discard' : 'quarantine'
     if (mode === 'discard' && input.confirm !== record.checkoutId) {
       throw new SessionCheckoutError('invalid_input', hostMessage('worktreeForceCleanupConfirmRequired', { p0: record.checkoutId }))
     }
     const at = new Date().toISOString()
-    let quarantinedPath: string | undefined
-    try {
-      if (mode === 'quarantine') {
-        const move = dependencies.files.moveDirectoryTree
-        if (!move) throw new SessionCheckoutError('invalid_input', hostMessage('worktreeForceCleanupMoveUnsupported'))
-        quarantinedPath = join(
-          dirname(target),
-          `.dsh-wt-quarantine--${record.checkoutId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8)}--${Date.now()}`,
+    const busyError = (error: unknown): Error => error instanceof SessionCheckoutError
+      ? error
+      : new SessionCheckoutError(
+          'git_operation_failed',
+          `${hostMessages.cleanupDirectoryBusy.zh} ${hostMessage('cleanupBusyHint', { p0: target })}`,
         )
-        await move(target, quarantinedPath)
-      } else {
-        await dependencies.files.removeDirectoryTree(target)
-      }
-    } catch (error) {
-      if (error instanceof SessionCheckoutError) throw error
-      throw new SessionCheckoutError(
-        'git_operation_failed',
-        `${hostMessages.cleanupDirectoryBusy.zh} ${hostMessage('cleanupBusyHint', { p0: target })}`,
-      )
-    }
     // 两种模式都直接推进到终态：目录已经不在原处（隔离或删除），再要求补一次
     // worktree_cleanup 只会把调用方卡在「先 force 再 cleanup」这条隐藏口令上。
-    const updated = updateManagedCheckout(record.checkoutId, (current) => {
-      if (current.revision !== record.revision) return current
-      const delivery = current.delivery
-      if (delivery.state !== 'finalized' && delivery.state !== 'retained') return current
+    const settle = (paths: { quarantinedPath?: string; removedPath?: string }): ForcedCleanupView => {
+      const updated = updateManagedCheckout(record.checkoutId, (current) => {
+        if (current.revision !== record.revision) return current
+        const delivery = current.delivery
+        if (delivery.state !== 'finalized' && delivery.state !== 'retained') return current
+        return {
+          ...current,
+          phase: 'discarded',
+          delivery: {
+            state: 'delivered',
+            iteration: delivery.review.iteration,
+            commitOid: delivery.commitOid,
+            ...(delivery.proof ? { proof: delivery.proof } : {}),
+            deliveredAt: Date.now(),
+          },
+          forcedCleanup: {
+            at,
+            mode,
+            path: paths.quarantinedPath ?? paths.removedPath ?? record.managedRoot,
+          },
+          revision: current.revision + 1,
+        }
+      })
       return {
-        ...current,
-        phase: 'discarded',
-        delivery: {
-          state: 'delivered',
-          iteration: delivery.review.iteration,
-          commitOid: delivery.commitOid,
-          ...(delivery.proof ? { proof: delivery.proof } : {}),
-          deliveredAt: Date.now(),
-        },
-        forcedCleanup: { at, mode, path: mode === 'discard' ? target : (quarantinedPath as string) },
-        revision: current.revision + 1,
+        kind: 'worktree_force_cleanup',
+        checkoutId: record.checkoutId,
+        mode,
+        ...(paths.quarantinedPath ? { quarantinedPath: paths.quarantinedPath } : {}),
+        ...(paths.removedPath ? { removedPath: paths.removedPath } : {}),
+        revision: updated?.revision ?? record.revision + 1,
       }
-    })
-    return {
-      kind: 'worktree_force_cleanup',
-      checkoutId: record.checkoutId,
-      mode,
-      ...(quarantinedPath ? { quarantinedPath } : {}),
-      ...(mode === 'discard' ? { removedPath: target } : {}),
-      revision: updated?.revision ?? record.revision + 1,
     }
+    // 目录已经不在：台账是唯一剩下的东西，直接结账。先前这里报错要求再调一次
+    // worktree_cleanup，而 cleanup 反过来要求身份可校验 —— 那正是死锁的另一半。
+    if (!dependencies.files.exists(target)) return settle({})
+    // 目录里仍有 .git 也照做：这支存在的理由本就是「身份已不可校验」。目录挪走后
+    // 这条 worktree 在 Git 注册表里成了悬空条目，顺手 prune，免得下一次同路径创建
+    // 被「already registered」挡住。
+    if (mode === 'quarantine') {
+      const move = dependencies.files.moveDirectoryTree
+      if (!move) throw new SessionCheckoutError('invalid_input', hostMessage('worktreeForceCleanupMoveUnsupported'))
+      const destination = join(
+        dirname(target),
+        `.dsh-wt-quarantine--${record.checkoutId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8)}--${Date.now()}`,
+      )
+      try {
+        await move(target, destination)
+      } catch (error) {
+        throw busyError(error)
+      }
+      await dependencies.git.pruneWorktrees?.(record.localRoot)
+      return settle({ quarantinedPath: destination })
+    }
+    try {
+      await dependencies.files.removeDirectoryTree(target)
+    } catch (error) {
+      throw busyError(error)
+    }
+    await dependencies.git.pruneWorktrees?.(record.localRoot)
+    return settle({ removedPath: target })
   }
 
   async function manageManagedWorktree(input: ManageManagedWorktreeInput): Promise<ManagedWorktreeSummaryView> {
@@ -5027,7 +5040,7 @@ export function createSessionCheckoutModule(
       throw new SessionCheckoutError('stale_target', hostMessage('theWorktreeStateHasChangedRefreshBeforeBeginningThe'))
     }
     if (predecessor.phase !== 'discarded' || predecessor.delivery.state !== 'delivered') {
-      throw new SessionCheckoutError('operation_not_allowed', hostMessage('onlyADeliveredStateWithSuccessfulCleanupCanBegin'))
+      throw new SessionCheckoutError('operation_not_allowed', cleanupBlockedBeginMessage(predecessor))
     }
     if (!session.projectId) throw new SessionCheckoutError('project_not_found', hostMessage('theCurrentSessionIsNotAssociatedWithAWorkspace'))
     const ownerWorkspace = dependencies.lookup.getProject(session.projectId)
