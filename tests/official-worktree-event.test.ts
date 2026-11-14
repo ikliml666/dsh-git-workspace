@@ -13,7 +13,8 @@ function harness() {
     },
   }
   const adoptOfficialWorktree = vi.fn(async () => {})
-  const module = { adoptOfficialWorktree } as unknown as SessionCheckoutModule
+  const recordAdoptionFailure = vi.fn()
+  const module = { adoptOfficialWorktree, recordAdoptionFailure } as unknown as SessionCheckoutModule
   return {
     ctx,
     module,
