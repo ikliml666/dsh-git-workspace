@@ -86,8 +86,12 @@ test.each([1, 3])('bounds real Git queries for a one-file delivery and a %i-work
     const before = await module.observeManagedCheckout!(launch.target.checkout.id)
     expect(before.dirty).toBe(true)
     const statusSpy = vi.spyOn(deps.git, 'status')
+    // observe 有 2 秒只读缓存：把 Date 推过 TTL，断言的才是「重新读 Git」，而不是缓存命中。
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(Date.now() + 2_001)
     await module.observeManagedCheckout!(launch.target.checkout.id)
     expect(statusSpy).toHaveBeenCalledWith(launch.managedRoot)
+    vi.useRealTimers()
     statusSpy.mockRestore()
     sessions.set('outsider', { id: 'outsider', projectId: 'p' })
     expect(await plane.inspect('outsider', launch.target.checkout.id)).toMatchObject({ ok: false, error: { code: 'not_owner' } })
