@@ -5,7 +5,7 @@ import { hostMessage } from '../i18n/host.js'
  * atomic JSON file under the plugin's state directory. Validation gates every
  * read — a corrupt file fails loud instead of being silently overwritten;
  * v1 records migrate conservatively to `recovery_required` like Domi.
- * @module dsh-git-worktree/adapters/registry
+ * @module dsh-git-workspace/adapters/registry
  */
 
 import { existsSync, mkdirSync } from 'node:fs'

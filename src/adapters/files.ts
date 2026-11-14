@@ -4,7 +4,7 @@ import { hostMessage } from '../i18n/host.js'
  * (device/inode/birthtime) for quarantine CAS, empty-tree residue collection,
  * symlink-guarded recursive removal, and byte measurement. Ported from Domi's
  * production-adapters unchanged.
- * @module dsh-git-worktree/adapters/files
+ * @module dsh-git-workspace/adapters/files
  */
 
 import { copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmdirSync, rmSync, symlinkSync, unlinkSync } from 'node:fs'

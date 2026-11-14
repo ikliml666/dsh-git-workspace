@@ -11,7 +11,7 @@ import {
 } from './form-model.js'
 
 /** Loader entry id of this plugin; the Host keys configuration forms by it. */
-export const WORKTREE_SETTINGS_NS = 'dsh-git-worktree'
+export const WORKTREE_SETTINGS_NS = 'dsh-git-workspace'
 
 /** The volatile section of this plugin's Config schema the card edits. */
 export interface WorktreeSettings {

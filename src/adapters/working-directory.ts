@@ -8,7 +8,7 @@
  * The service is resolved dynamically (`ctx.get`) because it ships as an
  * optional mount: hosts without it degrade to `undefined` and the plugin keeps
  * its long-standing guidance-only behaviour.
- * @module dsh-git-worktree/adapters/working-directory
+ * @module dsh-git-workspace/adapters/working-directory
  */
 
 import type { Context } from '@deepseek-ai/cordis'

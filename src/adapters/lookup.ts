@@ -8,7 +8,7 @@
  * project record maps to a workspace's `id`/`title`/`path`. Missing service or
  * records degrade to `undefined`, which the state machine treats as
  * recovery/orphan facts rather than failures.
- * @module dsh-git-worktree/adapters/lookup
+ * @module dsh-git-workspace/adapters/lookup
  */
 
 import { resolve } from 'node:path'

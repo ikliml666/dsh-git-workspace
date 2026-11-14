@@ -40,7 +40,7 @@ import {
   sidebarTopologyResponseSchema,
 } from './schemas.js'
 
-const PACKAGE = 'dsh-git-worktree'
+const PACKAGE = 'dsh-git-workspace'
 const SERVICE = 'gitWorktree'
 const AGENT_WIRE_TYPE = '@deepseek-ai/dsh-session/types#SessionId'
 

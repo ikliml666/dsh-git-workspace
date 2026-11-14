@@ -78,6 +78,6 @@ function appendAdoptionFailure(
   error: unknown,
 ): void {
   const reason = error instanceof Error ? error.message : String(error)
-  console.warn('[dsh-git-worktree] could not adopt the official Worktree:', error)
+  console.warn('[dsh-git-workspace] could not adopt the official Worktree:', error)
   module.recordAdoptionFailure(sessionId, reason)
 }
