@@ -3,12 +3,12 @@
   "repoRoot": "E:\\ik\\Documents\\trae_projects\\1\\dsh plugin\\dsh-git-worktree",
   "consumedRange": {
     "baseCommit": "a5ac5082661c410657502bc7f2264a69688c91c1",
-    "headCommit": "0428ad03f61676829258e4176ecb807d997ab398"
+    "headCommit": "85137f79032ec2748b6ed756d480f2f2db85f0db"
   },
   "pendingChanges": {
     "state": "ok",
     "baseCommit": "a5ac5082661c410657502bc7f2264a69688c91c1",
-    "headCommit": "0428ad03f61676829258e4176ecb807d997ab398",
+    "headCommit": "85137f79032ec2748b6ed756d480f2f2db85f0db",
     "committed": [
       "CHANGELOG.md",
       "README.en.md",
@@ -41,6 +41,7 @@
       "CHANGELOG.md",
       "package.json",
       "src/adapters/git.ts",
+      "src/adapters/lookup.ts",
       "src/console-host/control-plane.ts",
       "src/i18n/host-messages.ts",
       "src/index.ts",
@@ -69,6 +70,7 @@
     "cut_helper.py",
     "package.json",
     "src/adapters/git.ts",
+    "src/adapters/lookup.ts",
     "src/console-host/control-plane.ts",
     "src/i18n/host-messages.ts",
     "src/index.ts",
@@ -97,12 +99,12 @@
     ],
     "overviewLinks": [],
     "attempts": 1,
-    "at": "2026-11-14T05:30:46.158Z"
+    "at": "2026-11-14T05:52:27.236Z"
   },
   "notes": [
     "产物缺页 5 个模块（session_checkout_engine_integration、session_checkout_integration_core、session_checkout_tools 等），转全量修复（复用已有页面）",
-    "工作区未提交改动已合成临时 commit d410d701161e（17 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
-    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mwfydr88-1-native（37 个文件）"
+    "工作区未提交改动已合成临时 commit 7520ffe4986f（18 个文件，不挂 ref）：本轮记账指向它，下一轮增量据此对齐",
+    "引擎原始树已留档：C:/Users/ik/AppData/Local/Temp/dsh-codewiki-native-raw/job-mwfzchia-3-native（37 个文件）"
   ],
-  "updatedAt": "2026-11-14T05:32:42.088Z"
+  "updatedAt": "2026-11-14T05:54:29.874Z"
 }
