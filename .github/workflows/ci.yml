@@ -21,4 +21,20 @@ jobs:
       - run: pnpm run typecheck
       - run: pnpm run build
       - run: pnpm run check:publish:release
+
+  test:
+    # 测试套件按 Windows 语义编写（盘符、路径大小写、git 子进程行为），Linux runner
+    # 上从未通过。放到目标平台跑，通过才代表用户环境可用。
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
       - run: pnpm run test
